@@ -23,11 +23,25 @@
 ### 2. 구조화된 폴더 관리
 ```
 hybrid-rag-knowledge-ops/
-├── src/app/               # 비즈니스 로직
-├── src/scripts/           # 초기화 스크립트
-├── data/                  # 입력 데이터
-├── docs/                  # 문서
-└── results/               # 실행 결과
+├── knowledge_service/
+│   ├── src/app/               # 비즈니스 로직
+│   ├── src/scripts/           # 초기화 스크립트
+│   ├── data/                  # 입력 데이터
+│   ├── docs/                  # 프로젝트 문서
+│   │   ├── 01_planning/       # 구현 계획
+│   │   ├── 02_design/         # 기술 설계 및 검토
+│   │   │   └── technical_assessment/  # 기술 검토 문서
+│   │   └── work_logs/         # 작업 일지 (git 추적)
+│   └── results/               # 실행 결과
+├── infrastructure/            # 인프라 설정
+│   └── docker/                # Docker 설정
+├── scripts/                   # 공통 유틸 스크립트
+│   ├── create_worklog.ps1     # 작업 일지 생성 (PowerShell)
+│   ├── create_worklog.sh      # 작업 일지 생성 (Bash)
+│   ├── commit_worklog.ps1     # 작업 일지 커밋 (PowerShell)
+│   ├── commit_worklog.sh      # 작업 일지 커밋 (Bash)
+│   └── daily_worklog.ps1      # 통합 스크립트 (생성+커밋+푸시)
+└── storage/                   # 실제 DB 저장소 (git 제외)
 ```
 
 ### 3. 단일 진실 공급원 (Single Source of Truth)
@@ -51,7 +65,7 @@ hybrid-rag-knowledge-ops/
 
 ### ✅ 좋은 프롬프트
 ```
-"hybrid-rag-knowledge-ops/src/app/services/metadata_extraction.py에
+"knowledge_service/src/app/services/metadata_extraction.py에
 DeepSeek-V3.2 Non-thinking 모드를 사용한 메타데이터 추출 함수를 추가해줘.
 
 요구사항:
@@ -130,12 +144,18 @@ claude-code "
 ## 🗂️ 파일 생성 규칙
 
 ### 새 파일 생성이 필요한 경우
-1. **데이터 모델** → `src/app/models/`
-2. **API 엔드포인트** → `src/app/api/routes/`
-3. **비즈니스 로직** → `src/app/services/`
-4. **핵심 기능** → `src/app/core/`
-5. **유틸리티** → `src/app/utils/`
-6. **테스트** → `src/tests/`
+1. **데이터 모델** → `knowledge_service/src/app/models/`
+2. **API 엔드포인트** → `knowledge_service/src/app/api/routes/`
+3. **비즈니스 로직** → `knowledge_service/src/app/services/`
+4. **핵심 기능** → `knowledge_service/src/app/core/`
+5. **유틸리티** → `knowledge_service/src/app/utils/`
+6. **테스트** → `knowledge_service/src/tests/`
+7. **문서** → `knowledge_service/docs/`
+   - 구현 계획: `docs/01_planning/`
+   - 기술 설계: `docs/02_design/`
+   - 기술 검토: `docs/02_design/technical_assessment/`
+   - 작업 일지: `docs/work_logs/YYYY/MM-Month/`
+8. **스크립트** → `scripts/` (프로젝트 루트)
 
 ### 파일 명명 규칙
 - **Python**: snake_case (e.g., `metadata_extraction.py`)
@@ -261,8 +281,15 @@ poetry add --group dev pytest pytest-cov black
 
 ### 개발 환경
 ```bash
-cd hybrid-rag-knowledge-ops
+cd knowledge_service
+
+# Python 의존성 설치
 poetry install
+
+# API 서버 시작 (권장)
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# 또는 CLI 모드
 python src/app/main.py
 ```
 
@@ -274,6 +301,10 @@ docker-compose up -d
 # 상태 확인
 docker-compose ps
 docker-compose logs -f elasticsearch
+
+# 데이터베이스 초기화
+cd ../../knowledge_service
+python src/scripts/init_databases.py
 ```
 
 ---
@@ -338,6 +369,100 @@ print(tracker.get_total_cost())
 
 Resolves #45
 ```
+
+---
+
+## 📝 작업 일지 시스템
+
+### 작업 일지 작성 원칙
+1. **일일 기록**: 매일 작업 내용을 체계적으로 기록
+2. **템플릿 활용**: 자동 생성되는 템플릿 사용
+3. **Git 추적**: 작업 일지는 git으로 버전 관리
+4. **자동화**: PowerShell/Bash 스크립트로 생성 및 커밋 자동화
+
+### 작업 일지 생성
+```powershell
+# PowerShell (Windows)
+.\scripts\create_worklog.ps1
+
+# 특정 날짜 작업 일지 생성
+.\scripts\create_worklog.ps1 -Date "2026-01-15"
+```
+
+```bash
+# Bash (Linux/Mac)
+./scripts/create_worklog.sh
+
+# 특정 날짜 작업 일지 생성
+./scripts/create_worklog.sh 2026-01-15
+```
+
+### 작업 일지 커밋
+```powershell
+# PowerShell
+.\scripts\commit_worklog.ps1
+```
+
+```bash
+# Bash
+./scripts/commit_worklog.sh
+```
+
+### 통합 워크플로우 (생성 + 커밋 + 푸시)
+```powershell
+# PowerShell
+.\scripts\daily_worklog.ps1 -Commit -Push
+```
+
+### 작업 일지 폴더 구조
+```
+docs/work_logs/
+├── 2026/
+│   ├── 01-January/
+│   │   ├── 2026-01-12.md
+│   │   └── 2026-01-13.md
+│   └── 02-February/
+│       └── 2026-02-01.md
+└── README.md
+```
+
+### 작업 일지 템플릿
+```markdown
+# Work Log - YYYY-MM-DD
+
+## 📌 Today's Focus
+- [ ] 주요 작업 1
+- [ ] 주요 작업 2
+
+## ✅ Completed Tasks
+1. **작업명**
+   - 상세 내용
+
+## 💡 Key Decisions
+-
+
+## 🐛 Issues & Blockers
+- (없음)
+
+## 📚 Learnings
+-
+
+## 📅 Next Steps
+- [ ] 내일 작업 1
+
+## 📊 Time Spent
+-
+
+## 🔗 References
+-
+```
+
+### 작업 일지 Best Practices
+1. **매일 작성**: 작업 종료 전에 반드시 작성
+2. **구체적 기록**: "버그 수정"보다 "Elasticsearch RRF 라이선스 문제 해결 (Platinum → ranx 라이브러리)"
+3. **의사결정 기록**: 중요한 기술 선택과 이유를 명시
+4. **다음 단계 명시**: 내일 할 일을 미리 정리
+5. **참조 링크**: 관련 이슈, PR, 문서 링크 추가
 
 ---
 
@@ -414,5 +539,20 @@ python
 
 ---
 
+## 📋 문서 버전 정보
+
 **Last Updated**: 2026-01-12
-**Version**: 1.0
+**Version**: 2.0
+
+### 변경 이력
+- **v2.0 (2026-01-12)**:
+  - 프로젝트 폴더 구조 업데이트 (`knowledge_service/` 중심)
+  - 작업 일지 시스템 추가 (스크립트 및 워크플로우)
+  - 문서 구조 확장 (`01_planning/`, `02_design/`, `work_logs/`)
+  - 개발 가이드 업데이트 (uvicorn 실행 방법 추가)
+  - 파일 경로 및 명명 규칙 명확화
+
+- **v1.0 (2026-01-11)**:
+  - 초기 버전 작성
+  - 기본 개발 원칙 및 프롬프트 가이드
+  - 커밋 규칙 및 협업 가이드
