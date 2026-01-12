@@ -28,6 +28,9 @@
 │   ├── src/                       # Python 소스코드
 │   ├── data/                      # 입력 데이터
 │   ├── docs/                      # 프로젝트 문서
+│   │   ├── 01_planning/           # 구현 계획
+│   │   ├── 02_design/             # 기술 설계 및 검토
+│   │   └── work_logs/             # 작업 일지 (git 추적)
 │   ├── results/                   # 실행 결과
 │   ├── .antigravity/              # Antigravity 규칙
 │   ├── .claude/                   # Claude 설정
@@ -53,6 +56,11 @@
 │   └── elasticsearch-data/
 │
 └── scripts/                       # 공통 유틸 스크립트
+    ├── create_worklog.ps1         # 작업 일지 생성 (PowerShell)
+    ├── create_worklog.sh          # 작업 일지 생성 (Bash)
+    ├── commit_worklog.ps1         # 작업 일지 커밋 (PowerShell)
+    ├── commit_worklog.sh          # 작업 일지 커밋 (Bash)
+    ├── daily_worklog.ps1          # 통합 스크립트 (생성+커밋+푸시)
     ├── setup.sh
     ├── start.sh
     └── stop.sh
@@ -106,9 +114,9 @@ python src/app/main.py
 ## 📚 문서
 
 - **[knowledge_service/docs/](./knowledge_service/docs/)** - 프로젝트 상세 문서
-  - [API Documentation](./knowledge_service/docs/api_reference.md)
-  - [Architecture Guide](./knowledge_service/docs/architecture_overview.md)
-  - [Setup Guide](./knowledge_service/docs/getting_started.md)
+  - [01_planning/](./knowledge_service/docs/01_planning/) - 시스템 구현 계획
+  - [02_design/](./knowledge_service/docs/02_design/) - 기술 설계 및 검토
+  - [work_logs/](./docs/work_logs/) - 작업 일지
 
 - **[infrastructure/README.md](./infrastructure/README.md)** - 인프라 설정 가이드
 
@@ -173,6 +181,23 @@ python src/app/main.py
 cd knowledge_service
 claude-code "원하는 작업 설명"
 ```
+
+### 작업 일지
+
+일일 작업 내용을 체계적으로 기록하고 관리합니다.
+
+```powershell
+# 오늘 작업 일지 생성 (VS Code 자동 오픈)
+.\scripts\create_worklog.ps1
+
+# 작성 후 커밋
+.\scripts\commit_worklog.ps1
+
+# 또는 한번에 (생성 + 커밋 + 푸시)
+.\scripts\daily_worklog.ps1 -Commit -Push
+```
+
+상세 가이드: [docs/work_logs/README.md](./docs/work_logs/README.md)
 
 ### 커밋 규칙
 
