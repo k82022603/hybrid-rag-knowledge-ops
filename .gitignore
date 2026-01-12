@@ -1,0 +1,76 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+logs/
+
+# Storage (실제 DB 데이터)
+storage/postgres-data/
+storage/neo4j-data/
+storage/elasticsearch-data/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Model files
+models/bge-m3-onnx/
+*.onnx
+*.bin
+
+# Results (개발 중 생성되는 파일)
+hybrid-rag-knowledge-ops/results/search_logs/*.log
+hybrid-rag-knowledge-ops/results/metadata_exports/*.json
+hybrid-rag-knowledge-ops/results/cost_reports/*.csv
+
+# Node modules (프론트엔드 있을 경우)
+node_modules/
+npm-debug.log
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+tmpclaude-*

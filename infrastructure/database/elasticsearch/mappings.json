@@ -1,0 +1,143 @@
+{
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 0,
+    "analysis": {
+      "tokenizer": {
+        "ngram_tokenizer": {
+          "type": "ngram",
+          "min_gram": 2,
+          "max_gram": 20,
+          "token_chars": ["letter", "digit"]
+        }
+      },
+      "analyzer": {
+        "korean_analyzer": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": ["lowercase", "stop"]
+        },
+        "ngram_analyzer": {
+          "type": "custom",
+          "tokenizer": "ngram_tokenizer",
+          "filter": ["lowercase"]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "properties": {
+      "text": {
+        "type": "text",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          },
+          "english": {
+            "type": "text",
+            "analyzer": "english"
+          },
+          "korean": {
+            "type": "text",
+            "analyzer": "korean_analyzer"
+          },
+          "ngram": {
+            "type": "text",
+            "analyzer": "ngram_analyzer"
+          }
+        },
+        "analyzer": "standard"
+      },
+      "vector_field": {
+        "type": "dense_vector",
+        "dims": 1024,
+        "index": true,
+        "similarity": "cosine"
+      },
+      "metadata": {
+        "type": "object",
+        "enabled": true,
+        "properties": {
+          "document_type": {
+            "type": "keyword"
+          },
+          "project_name": {
+            "type": "keyword"
+          },
+          "project_id": {
+            "type": "integer"
+          },
+          "valid_start_date": {
+            "type": "date",
+            "format": "yyyy-MM-dd"
+          },
+          "valid_end_date": {
+            "type": "date",
+            "format": "yyyy-MM-dd"
+          },
+          "entities": {
+            "type": "object",
+            "enabled": true,
+            "properties": {
+              "persons": {
+                "type": "keyword"
+              },
+              "projects": {
+                "type": "keyword"
+              },
+              "technologies": {
+                "type": "keyword"
+              },
+              "keywords": {
+                "type": "keyword"
+              }
+            }
+          },
+          "chunk_id": {
+            "type": "keyword"
+          },
+          "chunk_index": {
+            "type": "integer"
+          },
+          "total_chunks": {
+            "type": "integer"
+          },
+          "ingestion_timestamp": {
+            "type": "date",
+            "format": "strict_date_time"
+          },
+          "source": {
+            "type": "keyword"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "summary": {
+            "type": "text"
+          },
+          "knowledge_id": {
+            "type": "integer"
+          },
+          "title": {
+            "type": "text",
+            "fields": {
+              "keyword": {
+                "type": "keyword"
+              }
+            }
+          },
+          "contributor_name": {
+            "type": "keyword"
+          },
+          "knowledge_type": {
+            "type": "keyword"
+          },
+          "tags": {
+            "type": "keyword"
+          }
+        }
+      }
+    }
+  }
+}

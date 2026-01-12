@@ -1,0 +1,15 @@
+# Storage folder - 실제 DB 데이터를 저장하는 폴더
+# 모든 내용을 git에서 제외
+
+# PostgreSQL
+postgres-data/
+
+# Neo4j
+neo4j-data/
+
+# Elasticsearch
+elasticsearch-data/
+
+# All files
+*
+!.gitignore

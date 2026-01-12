@@ -1,18 +1,25 @@
-# 사내 지식 검색 시스템 구축 계획서 v2.0
+# 사내 지식 검색 시스템 구축 계획서
 ## Neo4j Graph RAG 기반 Hybrid 지식 플랫폼 설계
 ### DeepSeek-V3.2 통합 비용 최적화 및 제로 조인 아키텍처
 
 ---
 
 ## 문서 버전 정보
-- **버전**: 2.0
-- **작성일**: 2026-01-09
+- **버전**: 2.1
+- **작성일**: 2026-01-12
 - **주요 변경사항**:
-  - DeepSeek-V3.2 통합으로 엔티티 추출 비용 93% 절감
-  - Elasticsearch 메타데이터 통합 저장 (제로 조인 아키텍처)
-  - OpenAI o1/GPT-4o 오케스트레이션 전략
-  - VIP 3단계 하이브리드 LLM 아키텍처
-  - 16GB RAM 최적화 전략 강화
+  - **v2.1 (2026-01-12)**: 기술 검토 결과 반영
+    - RRF 라이선스 정책 정정 (Platinum 전용 → Python ranx 라이브러리 사용)
+    - 문서 파싱 도구 선택 가이드 추가 (LlamaParse vs Docling)
+    - LlamaIndex RouterQueryEngine 메타데이터 라우팅 전략 추가
+    - BGE-M3 Sparse Vector 구현 상세 추가
+    - 현행 코드 갭 분석 및 마이그레이션 가이드 참조 추가
+  - **v2.0 (2026-01-09)**: 아키텍처 고도화
+    - DeepSeek-V3.2 통합으로 엔티티 추출 비용 93% 절감
+    - Elasticsearch 메타데이터 통합 저장 (제로 조인 아키텍처)
+    - OpenAI o1/GPT-4o 오케스트레이션 전략
+    - VIP 3단계 하이브리드 LLM 아키텍처
+    - 16GB RAM 최적화 전략 강화
 
 ---
 
@@ -138,7 +145,9 @@ ACID 트랜잭션이 보장되는 정형 데이터를 관리합니다. 특히 �
 
 **Elasticsearch 8.x**
 
-**v2.0의 핵심 혁신**: 벡터 검색과 전문 검색을 넘어서 **메타데이터 통합 저장소** 역할을 합니다. kNN 벡터 검색과 BM25 키워드 검색 결과를 RRF(Reciprocal Rank Fusion) 알고리즘으로 결합하여 최적의 검색 결과를 제공합니다. 특히 한국어와 영어가 혼용된 사내 문서를 효과적으로 처리하기 위해 다국어 분석기를 적용합니다.
+**v2.0의 핵심 혁신**: 벡터 검색과 전문 검색을 넘어서 **메타데이터 통합 저장소** 역할을 합니다. kNN 벡터 검색과 BM25 키워드 검색, Sparse Vector 검색 결과를 RRF(Reciprocal Rank Fusion) 알고리즘으로 결합하여 최적의 검색 결과를 제공합니다. 특히 한국어와 영어가 혼용된 사내 문서를 효과적으로 처리하기 위해 다국어 분석기를 적용합니다.
+
+> **⚠️ v2.1 라이선스 정책 정정**: Elasticsearch 내장 RRF는 **Platinum 이상 라이선스에서만 사용 가능**합니다. Basic(무료) 라이선스 환경에서는 **Python `ranx` 라이브러리**를 사용하여 애플리케이션 레벨에서 RRF 융합을 수행합니다. 상세 구현은 [04.Hybrid rag architecture free license.md](../02_design/technical_assessment/04.Hybrid%20rag%20architecture%20free%20license.md) 참조.
 
 **통합 메타데이터 저장 구조**: 각 청크마다 다음 정보가 함께 저장됩니다.
 - **본문**: 텍스트 청크 (검색 대상)
@@ -213,10 +222,46 @@ embeddings = HuggingFaceEmbeddings(
 )
 ```
 
-**성능**: 
+**성능**:
 - 임베딩 속도: ~20 docs/min (CPU 모드)
 - 메모리 사용: 2-3GB
 - 벡터 차원: 1024
+
+> **📋 v2.1 BGE-M3 Dense + Sparse 동시 생성**
+>
+> BGE-M3는 Dense와 Sparse 벡터를 동시에 생성할 수 있습니다. LangChain HuggingFaceEmbeddings 대신 FlagEmbedding 라이브러리를 직접 사용하면 두 벡터 타입을 모두 활용할 수 있습니다:
+>
+> ```python
+> from FlagEmbedding import BGEM3FlagModel
+>
+> # 모델 로드 (CPU 최적화)
+> model = BGEM3FlagModel('BAAI/bge-m3', use_fp16=False, device='cpu')
+>
+> # Dense + Sparse 동시 생성
+> output = model.encode(
+>     sentences=["프로젝트 A의 React 아키텍처 가이드입니다."],
+>     return_dense=True,
+>     return_sparse=True,
+>     return_colbert_vecs=False  # ColBERT는 선택적
+> )
+>
+> dense_vector = output['dense_vecs'][0]  # shape: (1024,)
+> sparse_vector = output['lexical_weights'][0]  # dict: {"react": 2.13, "아키텍처": 1.87, ...}
+>
+> # Elasticsearch 저장
+> doc = {
+>     "dense_vector": dense_vector.tolist(),
+>     "sparse_vector": sparse_vector,  # {token: weight, ...}
+>     "chunk_text": "..."
+> }
+> ```
+>
+> **Sparse Vector의 장점**:
+> - 명시적 키워드 매칭으로 정확한 용어 검색
+> - Dense Vector와 결합 시 검색 정확도 5-10% 향상
+> - Out-of-vocabulary 단어에 강건
+>
+> 상세 구현은 [04.Hybrid rag architecture free license.md](../02_design/technical_assessment/04.Hybrid%20rag%20architecture%20free%20license.md) 참조.
 
 **VIP 3단계 LLM 아키텍처**
 
@@ -352,6 +397,44 @@ class SearchState(TypedDict):
 - `RecursiveCharacterTextSplitter`: 문서 청킹
 - `HuggingFaceEmbeddings`: BGE-M3 임베딩
 - `ChatOpenAI`: DeepSeek/OpenAI API 연동
+
+> **📋 v2.1 LlamaIndex RouterQueryEngine 대안**
+>
+> 메타데이터 기반 검색 라우팅이 필요한 경우 **LlamaIndex RouterQueryEngine**도 고려할 수 있습니다:
+>
+> ```python
+> from llama_index.core.query_engine import RouterQueryEngine
+> from llama_index.core.selectors import LLMSingleSelector
+> from llama_index.core.tools import QueryEngineTool
+>
+> # 문서 유형별 쿼리 엔진 정의
+> tools = [
+>     QueryEngineTool.from_defaults(
+>         query_engine=project_report_engine,
+>         description="프로젝트 보고서 및 진행 상황 검색"
+>     ),
+>     QueryEngineTool.from_defaults(
+>         query_engine=technical_guide_engine,
+>         description="기술 가이드 및 SOP 검색"
+>     ),
+>     QueryEngineTool.from_defaults(
+>         query_engine=meeting_notes_engine,
+>         description="회의록 및 의사결정 기록 검색"
+>     )
+> ]
+>
+> # LLM이 쿼리 의도에 맞는 엔진 자동 선택
+> router_engine = RouterQueryEngine(
+>     selector=LLMSingleSelector.from_defaults(),
+>     query_engine_tools=tools
+> )
+> ```
+>
+> **LangGraph vs LlamaIndex 선택 기준**:
+> - 복잡한 다단계 워크플로우 → LangGraph
+> - 단순 메타데이터 기반 라우팅 → LlamaIndex RouterQueryEngine
+>
+> 상세 비교는 [01.Metadata driven rag tech review.md](../02_design/technical_assessment/01.Metadata%20driven%20rag%20tech%20review.md) 참조.
 
 ### 2.3 데이터 모델 설계
 
@@ -682,41 +765,38 @@ CREATE INDEX user_name_index FOR (u:User) ON (u.name);
 모두 동시에 수행됩니다. **PostgreSQL 조회가 전혀 필요 없습니다**.
 
 **하이브리드 검색 (RRF)**:
+
+> **⚠️ v2.1 업데이트**: ES 내장 RRF는 Platinum 라이선스 필요. Basic 환경에서는 Python `ranx` 사용.
+
+**방법 A: Platinum 라이선스 (ES 내장 RRF)**
 ```json
 {
   "query": {
     "bool": {
       "should": [
-        {
-          "knn": {
-            "field": "vector_field",
-            "query_vector": [...],
-            "k": 10,
-            "num_candidates": 100
-          }
-        },
-        {
-          "match": {
-            "text": {
-              "query": "보안 가이드라인",
-              "boost": 0.4
-            }
-          }
-        }
+        { "knn": { "field": "vector_field", "query_vector": [...], "k": 10 } },
+        { "match": { "text": { "query": "보안 가이드라인", "boost": 0.4 } } }
       ],
-      "filter": [
-        { "range": { "metadata.valid_start_date": {...} } }
-      ],
-      "minimum_should_match": 1
+      "filter": [{ "range": { "metadata.valid_start_date": {...} } }]
     }
   },
-  "rank": {
-    "rrf": {
-      "window_size": 50,
-      "rank_constant": 60
-    }
-  }
+  "rank": { "rrf": { "window_size": 50, "rank_constant": 60 } }
 }
+```
+
+**방법 B: Basic 라이선스 (Python ranx) - 권장**
+```python
+from ranx import Run, fuse
+
+# 1. Dense/Sparse/BM25 검색을 개별 실행
+dense_results = es.search(index="knowledge", knn={...})
+sparse_results = es.search(index="knowledge", query={"sparse_vector": {...}})
+
+# 2. Python에서 RRF 융합
+dense_run = Run({"q1": {doc['_id']: doc['_score'] for doc in dense_results['hits']['hits']}})
+sparse_run = Run({"q1": {doc['_id']: doc['_score'] for doc in sparse_results['hits']['hits']}})
+
+fused = fuse(runs=[dense_run, sparse_run], method="rrf", params={"k": 60})
 ```
 
 **성능 이점**:
@@ -1023,6 +1103,21 @@ def load_documents(directory):
     
     return documents
 ```
+
+> **📋 v2.1 문서 파싱 도구 선택 가이드**
+>
+> 기본 PyPDFLoader는 단순 텍스트 추출에 적합하지만, 복잡한 문서 구조(표, 이미지, 레이아웃)를 처리하려면 고급 파서 사용을 권장합니다:
+>
+> | 도구 | 환경 | 장점 | 단점 |
+> |-----|------|------|------|
+> | **LlamaParse** | Cloud API | 최고 품질, GPU 불필요, 수식/차트 지원 | 유료 (월 7,000페이지 무료) |
+> | **Docling** | On-premise | 무료, 계층적 청킹, 표 처리 우수 | GPU 권장 (CPU 가능) |
+>
+> **권장 전략**:
+> - 소규모/프로토타입: LlamaParse (빠른 검증)
+> - 대규모/보안 민감: Docling + HybridChunker
+>
+> 상세 비교는 [02.Document parsing embedding comparison.md](../02_design/technical_assessment/02.Document%20parsing%20embedding%20comparison.md) 참조.
 
 **문서 청킹 및 임베딩**:
 
@@ -2784,9 +2879,57 @@ def quality_assurance_workflow():
 
 ---
 
+## 9.5 v2.1 기술 검토 결과 반영 사항
+
+v2.1에서는 기술 검토(Technical Assessment) 문서들의 분석 결과를 반영하여 다음 사항들을 보완했습니다.
+
+### 9.5.1 라이선스 정책 정정
+
+**Elasticsearch RRF 라이선스**:
+- ❌ **틀림**: "RRF는 ES 8.9 이후 무료"
+- ✅ **정정**: RRF는 **Platinum 이상 라이선스에서만** 사용 가능
+- **대안**: Python `ranx` 라이브러리를 사용한 애플리케이션 레벨 RRF 융합
+
+참조: [03.Elasticsearch license verification.md](../02_design/technical_assessment/03.Elasticsearch%20license%20verification.md)
+
+### 9.5.2 현행 코드 갭 분석
+
+소스코드 검토 결과 다음 영역에서 설계서와의 불일치가 확인되었습니다:
+
+| 영역 | 현재 상태 | 권장 변경 | 우선순위 |
+|------|----------|----------|---------|
+| 시계열 메타데이터 | 누락 | `valid_start_date`, `valid_end_date` 추가 | 🔴 High |
+| 엔티티 구조 | 단순 리스트 | 구조화 (`persons`, `projects`, `technologies`) | 🔴 High |
+| BGE-M3 Sparse | 미사용 | FlagEmbedding으로 Dense+Sparse 동시 생성 | 🟡 Medium |
+| 3개 DB 동기화 | 단일 저장소 | `asyncio.gather`로 동시 저장 | 🟡 Medium |
+| 범용 문서 프로세서 | PDF 전용 | Factory Pattern으로 확장 | 🟢 Low |
+
+**마이그레이션 우선순위**:
+1. 메타데이터 프롬프트에 시계열 필드 추가 (즉시)
+2. 엔티티 구조 변경 (1주)
+3. BGE-M3 Sparse 벡터 통합 (2주)
+4. 3개 DB 동기화 파이프라인 (3주)
+
+상세 분석 및 코드 예시: [06.Source code review metadata analysis.md](../02_design/technical_assessment/06.Source%20code%20review%20metadata%20analysis.md)
+
+### 9.5.3 기술 검토 문서 목록
+
+| 문서 | 주요 내용 |
+|------|----------|
+| [01.Metadata driven rag tech review.md](../02_design/technical_assessment/01.Metadata%20driven%20rag%20tech%20review.md) | LlamaIndex RouterQueryEngine, 메타데이터 라우팅 |
+| [02.Document parsing embedding comparison.md](../02_design/technical_assessment/02.Document%20parsing%20embedding%20comparison.md) | LlamaParse vs Docling, BGE-M3 분석 |
+| [03.Elasticsearch license verification.md](../02_design/technical_assessment/03.Elasticsearch%20license%20verification.md) | ES 라이선스 정책, RRF 제약 |
+| [04.Hybrid rag architecture free license.md](../02_design/technical_assessment/04.Hybrid%20rag%20architecture%20free%20license.md) | Basic 라이선스 호환 아키텍처 |
+| [05.Enterprise knowledge search technical design.md](../02_design/technical_assessment/05.Enterprise%20knowledge%20search%20technical%20design.md) | 검색 흐름 다이어그램, 샘플 시나리오 |
+| [06.Source code review metadata analysis.md](../02_design/technical_assessment/06.Source%20code%20review%20metadata%20analysis.md) | 현행 코드 갭 분석, 마이그레이션 가이드 |
+
+---
+
 ## 10. 결론
 
 본 계획서는 Neo4j Graph RAG 기반 사내 지식 검색 시스템 구축을 위한 종합적인 로드맵을 제시합니다. v2.0에서는 **DeepSeek-V3.2 통합**, **Elasticsearch 메타데이터 통합 저장**, **OpenAI o1 오케스트레이션**이라는 세 가지 핵심 혁신을 통해 시스템의 비용 효율성과 검색 성능을 대폭 향상시켰습니다.
+
+v2.1에서는 기술 검토 결과를 반영하여 **라이선스 정책 정정**, **문서 파싱 도구 가이드**, **BGE-M3 Sparse 벡터 구현**, **현행 코드 갭 분석**을 추가하여 실제 구현 시 참고할 수 있는 상세 정보를 보강했습니다.
 
 ### 10.1 v2.0의 핵심 성과
 
@@ -2846,6 +2989,7 @@ Graph RAG 접근 방식을 선택한 이유는 **빠른 구축**, **높은 유�
 
 ---
 
-- **문서 작성 일자: 2026-01-09**
-- **버전: 2.0**
-- **주요 개선 사항: DeepSeek-V3.2 통합, 제로 조인 아키텍처, OpenAI o1 오케스트레이션**
+- **문서 작성 일자: 2026-01-12**
+- **버전: 2.1**
+- **v2.1 주요 개선**: 기술 검토 결과 반영 (RRF 라이선스 정정, 문서 파싱 가이드, BGE-M3 Sparse, 코드 갭 분석)
+- **v2.0 주요 개선**: DeepSeek-V3.2 통합, 제로 조인 아키텍처, OpenAI o1 오케스트레이션
