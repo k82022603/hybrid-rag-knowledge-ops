@@ -2,8 +2,9 @@
 
 🧠 Graph RAG 기반 지능형 지식 검색 시스템 + Antigravity 협업 공간
 
-**프로젝트 버전**: 2.6
-**마지막 업데이트**: 2026-01-12
+**프로젝트 버전**: 2.7
+**마지막 업데이트**: 2026-01-13
+**설계서 상태**: ✅ Review 완료 (98/100)
 
 ## 📋 개요
 
@@ -30,6 +31,7 @@
 │   ├── docs/                      # 프로젝트 문서
 │   │   ├── 01_planning/           # 구현 계획
 │   │   ├── 02_design/             # 기술 설계 및 검토
+│   │   │   └── review/            # 설계서 리뷰 결과
 │   │   └── work_logs/             # 작업 일지 (git 추적)
 │   ├── results/                   # 실행 결과
 │   ├── .antigravity/              # Antigravity 규칙
@@ -116,7 +118,9 @@ python src/app/main.py
 - **[knowledge_service/docs/](./knowledge_service/docs/)** - 프로젝트 상세 문서
   - [01_planning/](./knowledge_service/docs/01_planning/) - 시스템 구현 계획
   - [02_design/](./knowledge_service/docs/02_design/) - 기술 설계 및 검토
-  - [work_logs/](./docs/work_logs/) - 작업 일지
+    - [hybrid_rag_platform_detailed_design.md](./knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md) - **상세 설계서 (✅ Review 완료)**
+    - [review/](./knowledge_service/docs/02_design/review/) - 설계서 리뷰 결과
+  - [work_logs/](./knowledge_service/docs/work_logs/) - 작업 일지
 
 - **[infrastructure/README.md](./infrastructure/README.md)** - 인프라 설정 가이드
 
@@ -126,12 +130,13 @@ python src/app/main.py
 
 ### Hybrid RAG Knowledge Ops
 
-- ✅ **시간 인식 검색** - 지식의 유효기간 고려
+- ✅ **시간 인식 검색** - 지식의 유효기간 고려 + 자동 버전 관리
 - ✅ **그래프 기반 탐색** - Neo4j 관계 네트워크
-- ✅ **하이브리드 검색** - Dense + Sparse 벡터 검색
+- ✅ **하이브리드 검색** - Dense + Sparse 벡터 검색 (BGE-M3)
 - ✅ **자율형 에이전트** - LangGraph 다단계 추론
-- ✅ **비용 최적화** - DeepSeek-V3.2 통합 (93% 절감)
+- ✅ **비용 최적화** - DeepSeek-V3.2 통합 (95% 절감)
 - ✅ **제로 조인 검색** - Elasticsearch 단일 쿼리
+- ✅ **문서 파싱** - Docling 기반 (97.9% 테이블 정확도)
 
 ## 🛠 기술 스택
 
@@ -139,6 +144,7 @@ python src/app/main.py
 - **Python** 3.11+
 - **LangGraph** 0.2.x
 - **LangChain** 0.3.x
+- **Docling** 2.x (문서 파싱)
 
 ### Databases
 - **PostgreSQL** 16+ (정형 데이터)
@@ -146,10 +152,9 @@ python src/app/main.py
 - **Elasticsearch** 8.x (벡터 + 전문 검색)
 
 ### LLM & Embedding
-- **DeepSeek-V3.2** (엔티티 추출)
-- **OpenAI o1/GPT-4o** (오케스트레이션)
-- **Claude 4.5** (답변 합성)
-- **BGE-M3** (멀티링구얼 임베딩)
+- **DeepSeek-Chat/Reasoner** (엔티티 추출, 오케스트레이션)
+- **Claude Sonnet 4** (복잡한 추론)
+- **BGE-M3** (Dense + Sparse 임베딩)
 
 ### Infrastructure
 - **Docker & Docker Compose**
@@ -161,16 +166,17 @@ python src/app/main.py
 | 지표 | 측정값 |
 |------|--------|
 | 임베딩 속도 | ~20 docs/min |
-| 검색 응답 시간 | < 1초 |
+| 검색 응답 시간 | < 0.8초 |
 | 메모리 사용률 | ~85% (16GB 환경) |
 | 동시 사용자 | 10-15명 |
 | 메타데이터 추출 정확도 | 95%+ |
-| 월간 LLM 비용 | ~$12 (93% 절감) |
+| 테이블 파싱 정확도 | 97.9% (Docling) |
+| 월간 LLM 비용 | ~$2.76 (95% 절감) |
 
 ## 💰 비용 최적화
 
-- DeepSeek-V3.2 통합으로 **93% 비용 절감**
-- 1,000개 문서 처리: $25.50 → $1.76
+- DeepSeek-V3.2 통합으로 **95% 비용 절감**
+- 1,000개 문서 처리: $45.50 → $2.26
 - 캐시 히트로 추가 90% 절감
 
 ## 🤝 개발 가이드
@@ -220,4 +226,6 @@ claude-code "원하는 작업 설명"
 
 ---
 
-**Made with ❤️ using Claude Code & DeepSeek-V3.2**
+**Made with Claude Code (Opus 4.5) & DeepSeek-V3.2**
+
+*설계서 Review 완료: 2026-01-13*

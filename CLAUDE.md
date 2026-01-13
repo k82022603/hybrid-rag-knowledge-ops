@@ -7,9 +7,10 @@
 ## 📋 프로젝트 개요
 
 - **프로젝트명**: Hybrid RAG Knowledge Operations
-- **기술스택**: Python 3.11+, LangGraph, Neo4j, Elasticsearch, PostgreSQL
+- **기술스택**: Python 3.11+, LangGraph, Neo4j, Elasticsearch, PostgreSQL, Docling
 - **목표**: Graph RAG 기반 지능형 지식 검색 시스템
-- **AI 도구**: Claude Code, DeepSeek, OpenAI o1/GPT-4o
+- **AI 도구**: Claude Code (Opus 4.5), DeepSeek-Chat/Reasoner, Claude Sonnet 4
+- **설계서 상태**: ✅ Review 완료 (98/100) - 2026-01-13
 
 ---
 
@@ -30,6 +31,7 @@ hybrid-rag-knowledge-ops/
 │   ├── docs/                  # 프로젝트 문서
 │   │   ├── 01_planning/       # 구현 계획
 │   │   ├── 02_design/         # 기술 설계 및 검토
+│   │   │   ├── review/        # 설계서 리뷰 결과
 │   │   │   └── technical_assessment/  # 기술 검토 문서
 │   │   └── work_logs/         # 작업 일지 (git 추적)
 │   └── results/               # 실행 결과
@@ -50,7 +52,7 @@ hybrid-rag-knowledge-ops/
 - **Elasticsearch**: 벡터 + 메타데이터 통합 저장
 
 ### 4. 비용 의식 (Cost Awareness)
-- DeepSeek-V3.2 활용으로 93% 비용 절감
+- DeepSeek-V3.2 활용으로 **95% 비용 절감** ($45.50 → $2.26/1,000문서)
 - 불필요한 API 호출 최소화
 - 캐시 히트 최적화
 
@@ -515,10 +517,17 @@ python
 
 ## 📚 참고 자료
 
+### 프로젝트 문서
+- [상세 설계서](./knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md) - ✅ Review 완료
+- [설계서 리뷰 결과](./knowledge_service/docs/02_design/review/2026-01-13_design_review_report.md)
+- [구축 계획서](./knowledge_service/docs/01_planning/hybrid_rag_knowledge_platform_plan.md)
+
+### 외부 문서
 - [LangGraph 문서](https://python.langchain.com/docs/langgraph/)
 - [Neo4j Python Driver](https://neo4j.com/docs/api/python-driver/current/)
 - [Elasticsearch Python Client](https://www.elastic.co/guide/en/elasticsearch/client/python-api/current/index.html)
 - [DeepSeek API](https://platform.deepseek.com/api-docs)
+- [Docling](https://github.com/DS4SD/docling) - 문서 파싱
 - [Claude API](https://docs.anthropic.com/)
 
 ---
@@ -541,10 +550,17 @@ python
 
 ## 📋 문서 버전 정보
 
-**Last Updated**: 2026-01-12
-**Version**: 2.0
+**Last Updated**: 2026-01-13
+**Version**: 2.1
 
 ### 변경 이력
+- **v2.1 (2026-01-13)**:
+  - 설계서 Review 완료 (98/100점)
+  - Docling 문서 파싱 도구 추가
+  - 비용 절감률 업데이트 (93% → 95%)
+  - AI 도구 목록 업데이트 (Claude Sonnet 4)
+  - review/ 폴더 구조 추가
+
 - **v2.0 (2026-01-12)**:
   - 프로젝트 폴더 구조 업데이트 (`knowledge_service/` 중심)
   - 작업 일지 시스템 추가 (스크립트 및 워크플로우)
