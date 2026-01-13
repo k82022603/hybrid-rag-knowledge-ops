@@ -190,20 +190,165 @@ claude-code "원하는 작업 설명"
 
 ### 작업 일지
 
-일일 작업 내용을 체계적으로 기록하고 관리합니다.
+모든 작업을 체계적으로 기록하여 프로젝트 진행 상황을 추적하고 팀원들과 공유합니다.
 
+#### 왜 작업 일지인가?
+- **진행 상황 추적**: 일일 작업 내역을 명확히 기록
+- **의사결정 기록**: 왜 특정 기술을 선택했는지 근거 남김
+- **학습 축적**: 작업 과정에서 얻은 인사이트 저장
+- **팀 커뮤니케이션**: Git 히스토리와 함께 일지도 버전 관리
+
+#### 작업 일지 생성 및 관리
+
+**Windows (PowerShell)**:
 ```powershell
-# 오늘 작업 일지 생성 (VS Code 자동 오픈)
+# 1. 오늘 작업 일지 자동 생성 (VS Code에서 열림)
 .\scripts\create_worklog.ps1
 
-# 작성 후 커밋
+# 2. 파일 작성 후, 단계별 커밋
+# 2-1. 수동 커밋
 .\scripts\commit_worklog.ps1
 
-# 또는 한번에 (생성 + 커밋 + 푸시)
+# 2-2. 또는 자동화 (생성 + 커밋 + 푸시)
 .\scripts\daily_worklog.ps1 -Commit -Push
+
+# 특정 날짜 작업 일지 생성
+.\scripts\create_worklog.ps1 -Date "2026-01-15"
 ```
 
-상세 가이드: [docs/work_logs/README.md](./docs/work_logs/README.md)
+**Linux/Mac (Bash)**:
+```bash
+# 1. 오늘 작업 일지 생성
+./scripts/create_worklog.sh
+
+# 2. 파일 작성 후 커밋
+./scripts/commit_worklog.sh
+
+# 특정 날짜 작업 일지 생성
+./scripts/create_worklog.sh 2026-01-15
+```
+
+#### 작업 일지 폴더 구조
+```
+knowledge_service/docs/work_logs/
+├── 2026/
+│   ├── 01-January/
+│   │   ├── 2026-01-12.md
+│   │   ├── 2026-01-13.md
+│   │   └── ...
+│   ├── 02-February/
+│   │   └── ...
+│   └── ...
+└── README.md
+```
+
+#### 작업 일지 템플릿
+
+자동으로 생성되는 템플릿:
+
+```markdown
+# Work Log - YYYY-MM-DD
+
+## 📌 Today's Focus
+- [ ] 주요 작업 1
+- [ ] 주요 작업 2
+
+## ✅ Completed Tasks
+1. **작업명**
+   - 상세 내용
+   - 결과 및 영향
+
+## 💡 Key Decisions
+- 의사결정 1과 그 근거
+- 기술 선택지와 왜 선택했는지
+
+## 🐛 Issues & Blockers
+- 문제점 1
+- 해결 방안
+
+## 📚 Learnings
+- 오늘 배운 것
+- 인사이트
+
+## 📅 Next Steps
+- [ ] 내일 작업 1
+- [ ] 내일 작업 2
+
+## 📊 Time Spent
+- 작업별 소요 시간
+- 총 소요 시간
+
+## 🔗 References
+- 관련 이슈: #123
+- 참고 문서: [링크]
+- Git 커밋: abc123
+```
+
+#### 작업 일지 Best Practices
+
+1. **일일 작성**: 업무 종료 전에 반드시 작성
+   - 기억이 생생할 때 기록
+   - 다음날 아침에 어제 작업 한눈에 파악
+
+2. **구체적 기록**: "버그 수정" 대신 상세히
+   - ❌ "ES 문제 해결"
+   - ✅ "Elasticsearch RRF 라이선스 Platinum → ranx 라이브러리로 변경"
+
+3. **의사결정 기록**: 기술 선택의 근거 명시
+   ```markdown
+   ## 💡 Key Decisions
+   - **메타데이터 추출**: 별도 프로세스 제거, Stage 1 통합
+     - 근거: LLM 호출 1회로 비용 절감
+     - 효과: 월간 비용 ~$10 추가 절감
+   ```
+
+4. **다음 단계 명시**: 내일 할 일을 미리 정리
+   ```markdown
+   ## 📅 Next Steps
+   - [ ] ValidityDateExtractor 클래스 구현
+   - [ ] 단위 테스트 작성
+   - [ ] 설계서 리뷰
+   ```
+
+5. **참조 링크 추가**: 관련 자료 연결
+   ```markdown
+   ## 🔗 References
+   - 관련 PR: #45
+   - 설계 문서: ./docs/02_design/design.md
+   - Git 커밋: e6a8e2b
+   ```
+
+6. **시간 추적**: 작업별 소요 시간 기록
+   ```markdown
+   ## 📊 Time Spent
+   - 설계 검토: 2시간
+   - 코드 작성: 1.5시간
+   - 테스트: 1시간
+   - 총: 4.5시간
+   ```
+
+#### 작업 일지 활용 예시
+
+**팀 공유**:
+```bash
+# 모든 일지를 한눈에 보기
+cd knowledge_service/docs/work_logs
+ls -la 2026/01-January/
+
+# 최근 일지 확인
+cat 2026/01-January/2026-01-13.md
+```
+
+**Git 히스토리와 함께 추적**:
+```bash
+# 작업 일지 커밋 히스토리 조회
+git log --oneline -- knowledge_service/docs/work_logs/
+
+# 특정 일자의 변경사항 확인
+git show e6a8e2b:knowledge_service/docs/work_logs/2026/01-January/2026-01-13.md
+```
+
+더 자세한 가이드: [CLAUDE.md - 작업 일지 시스템](./CLAUDE.md#-작업-일지-시스템)
 
 ### 커밋 규칙
 
