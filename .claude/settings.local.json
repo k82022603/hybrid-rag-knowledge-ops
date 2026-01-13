@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(perl -i -pe:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\n[DOCS] 설계서 Review 완료 및 문서 현행화 v2.7\n\n## 주요 변경사항\n\n### 설계서 완성\n- 설계서 Review 완료 \\(98/100점\\)\n- 유효 기간 추출 전략 추가 \\(ValidityDateExtractor\\)\n- 문서 버전 관리 전략 추가 \\(Document Family 기반\\)\n- Stage 1 메타데이터 스키마 확장 \\(categories, summary\\)\n\n### 설계서 개선\n- Docling 문서 파싱 도구 추가 \\(97.9% 테이블 정확도\\)\n- Major Issue 3개 수정 \\(import, asyncpg, 병렬 실행\\)\n- Minor Issue 3개 수정 \\(ES 클라이언트, Neo4j 세션, fixture\\)\n- Claude 3.5 → Claude Sonnet 4 모델명 수정\n- 비용 절감률 업데이트 \\(93% → 95%\\)\n\n### 문서 현행화\n- README.md v2.6 → v2.7\n- CLAUDE.md v2.0 → v2.1\n- 설계서 Review 상태 반영\n- 참고 자료에 설계서 링크 추가\n\n### 신규 파일\n- knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md\n- knowledge_service/docs/02_design/review/2026-01-13_design_review_report.md\n\nCo-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit:*)"
     ]
   }
 }
