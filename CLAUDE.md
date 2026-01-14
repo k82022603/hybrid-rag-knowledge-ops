@@ -9,8 +9,9 @@
 - **프로젝트명**: Hybrid RAG Knowledge Operations
 - **기술스택**: Python 3.11+, LangGraph, Neo4j, Elasticsearch, PostgreSQL, Docling
 - **목표**: Graph RAG 기반 지능형 지식 검색 시스템
-- **AI 도구**: Claude Code (Opus 4.5), DeepSeek-Chat/Reasoner, Claude Sonnet 4
-- **설계서 상태**: ✅ Review 완료 (98/100) - 2026-01-13
+- **개발 에이전트**: Claude Code (Opus 4.5), Antigravity (UI)
+- **런타임 LLM**: DeepSeek V3.2 (엔티티 추출, 답변 합성)
+- **설계서 상태**: ✅ Review 완료 v2.3 (서비스 분리 아키텍처) - 2026-01-14
 
 ---
 
@@ -30,10 +31,12 @@ hybrid-rag-knowledge-ops/
 │   ├── data/                  # 입력 데이터
 │   ├── docs/                  # 프로젝트 문서
 │   │   ├── 01_planning/       # 구현 계획
+│   │   │   └── review/        # 기획 문서 리뷰 결과
 │   │   ├── 02_design/         # 기술 설계 및 검토
 │   │   │   ├── review/        # 설계서 리뷰 결과
 │   │   │   └── technical_assessment/  # 기술 검토 문서
-│   │   └── work_logs/         # 작업 일지 (git 추적)
+│   │   ├── work_logs/         # 작업 일지 (git 추적)
+│   │   └── vibe_logs/         # 바이브 코딩 일지 (영감/아이디어)
 │   └── results/               # 실행 결과
 ├── infrastructure/            # 인프라 설정
 │   └── docker/                # Docker 설정
@@ -154,9 +157,12 @@ claude-code "
 6. **테스트** → `knowledge_service/src/tests/`
 7. **문서** → `knowledge_service/docs/`
    - 구현 계획: `docs/01_planning/`
+   - 기획 리뷰: `docs/01_planning/review/`
    - 기술 설계: `docs/02_design/`
+   - 설계 리뷰: `docs/02_design/review/`
    - 기술 검토: `docs/02_design/technical_assessment/`
    - 작업 일지: `docs/work_logs/YYYY/MM-Month/`
+   - 바이브 로그: `docs/vibe_logs/YYYY/MM-Month/`
 8. **스크립트** → `scripts/` (프로젝트 루트)
 
 ### 파일 명명 규칙
@@ -518,8 +524,11 @@ python
 ## 📚 참고 자료
 
 ### 프로젝트 문서
-- [상세 설계서](./knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md) - ✅ Review 완료
-- [설계서 리뷰 결과](./knowledge_service/docs/02_design/review/2026-01-13_design_review_report.md)
+- [상세 설계서 v2.3](./knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md) - ✅ Review 완료
+- [설계서 리뷰 결과](./knowledge_service/docs/02_design/review/)
+- [AI Service 구현 계획서 v2.0](./knowledge_service/docs/01_planning/ai_service_implementation_plan.md)
+- [SpringBoot 백엔드 구현 계획서](./knowledge_service/docs/01_planning/backend_implementation_plan.md)
+- [기획 문서 리뷰 결과](./knowledge_service/docs/01_planning/review/2026-01-14_planning_review_report.md)
 - [구축 계획서](./knowledge_service/docs/01_planning/hybrid_rag_knowledge_platform_plan.md)
 
 ### 외부 문서
@@ -550,10 +559,18 @@ python
 
 ## 📋 문서 버전 정보
 
-**Last Updated**: 2026-01-13
-**Version**: 2.1
+**Last Updated**: 2026-01-14
+**Version**: 2.2
 
 ### 변경 이력
+- **v2.2 (2026-01-14)**:
+  - 설계서 v2.3 업데이트 (서비스 분리 아키텍처 추가)
+  - AI Service 구현 계획서 v2.0 작성
+  - 기획 문서 리뷰 완료 (100/100)
+  - vibe_logs/ 폴더 추가 (바이브 코딩 일지)
+  - 01_planning/review/ 폴더 추가 (기획 문서 리뷰 결과)
+  - 참고 자료 업데이트 (AI Service, 백엔드 구현 계획서)
+
 - **v2.1 (2026-01-13)**:
   - 설계서 Review 완료 (98/100점)
   - Docling 문서 파싱 도구 추가

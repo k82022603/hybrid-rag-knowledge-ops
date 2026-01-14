@@ -2,9 +2,9 @@
 
 🧠 Graph RAG 기반 지능형 지식 검색 시스템 + Antigravity 협업 공간
 
-**프로젝트 버전**: 2.7
-**마지막 업데이트**: 2026-01-13
-**설계서 상태**: ✅ Review 완료 (98/100)
+**프로젝트 버전**: 2.8
+**마지막 업데이트**: 2026-01-14
+**설계서 상태**: ✅ Review 완료 v2.3 (서비스 분리 아키텍처 추가)
 
 ## 📋 개요
 
@@ -30,9 +30,11 @@
 │   ├── data/                      # 입력 데이터
 │   ├── docs/                      # 프로젝트 문서
 │   │   ├── 01_planning/           # 구현 계획
+│   │   │   └── review/            # 기획 문서 리뷰 결과
 │   │   ├── 02_design/             # 기술 설계 및 검토
 │   │   │   └── review/            # 설계서 리뷰 결과
-│   │   └── work_logs/             # 작업 일지 (git 추적)
+│   │   ├── work_logs/             # 작업 일지 (git 추적)
+│   │   └── vibe_logs/             # 바이브 코딩 일지 (영감/아이디어)
 │   ├── results/                   # 실행 결과
 │   ├── .antigravity/              # Antigravity 규칙
 │   ├── .claude/                   # Claude 설정
@@ -117,14 +119,20 @@ python src/app/main.py
 
 - **[knowledge_service/docs/](./knowledge_service/docs/)** - 프로젝트 상세 문서
   - [01_planning/](./knowledge_service/docs/01_planning/) - 시스템 구현 계획
+    - [ai_service_implementation_plan.md](./knowledge_service/docs/01_planning/ai_service_implementation_plan.md) - **AI Service 구현 계획 v2.0**
+    - [backend_implementation_plan.md](./knowledge_service/docs/01_planning/backend_implementation_plan.md) - **SpringBoot 백엔드 구현 계획**
+    - [review/](./knowledge_service/docs/01_planning/review/) - 기획 문서 리뷰 결과
   - [02_design/](./knowledge_service/docs/02_design/) - 기술 설계 및 검토
-    - [hybrid_rag_platform_detailed_design.md](./knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md) - **상세 설계서 (✅ Review 완료)**
+    - [hybrid_rag_platform_detailed_design.md](./knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md) - **상세 설계서 v2.3 (✅ Review 완료)**
     - [review/](./knowledge_service/docs/02_design/review/) - 설계서 리뷰 결과
   - [work_logs/](./knowledge_service/docs/work_logs/) - 작업 일지
+  - [vibe_logs/](./knowledge_service/docs/vibe_logs/) - 바이브 코딩 일지 (영감/아이디어)
 
 - **[infrastructure/README.md](./infrastructure/README.md)** - 인프라 설정 가이드
 
 - **[CLAUDE.md](./CLAUDE.md)** - Claude Code 전체 프로젝트 규칙
+
+- **[PLAN.md](./PLAN.md)** - 프로젝트 전체 계획 및 AI 에이전트 협업 구조
 
 ## 🔧 주요 기능
 
@@ -373,4 +381,5 @@ git show e6a8e2b:knowledge_service/docs/work_logs/2026/01-January/2026-01-13.md
 
 **Made with Claude Code (Opus 4.5) & DeepSeek-V3.2**
 
-*설계서 Review 완료: 2026-01-13*
+*설계서 v2.3 Review 완료: 2026-01-14*
+*기획 문서 일관성 확보 완료: 2026-01-14*
