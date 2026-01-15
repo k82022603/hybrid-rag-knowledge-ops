@@ -2,9 +2,9 @@
 
 🧠 Graph RAG 기반 지능형 지식 검색 시스템 + Antigravity 협업 공간
 
-**프로젝트 버전**: 2.8
-**마지막 업데이트**: 2026-01-14
-**설계서 상태**: ✅ Review 완료 v2.3 (서비스 분리 아키텍처 추가)
+**프로젝트 버전**: 2.9
+**마지막 업데이트**: 2026-01-15
+**설계서 상태**: 🔄 설계 보완 중 (API/Backend 설계서, 암호화 설계 예정)
 
 ## 📋 개요
 
@@ -133,6 +133,33 @@ python src/app/main.py
 - **[CLAUDE.md](./CLAUDE.md)** - Claude Code 전체 프로젝트 규칙
 
 - **[PLAN.md](./PLAN.md)** - 프로젝트 전체 계획 및 AI 에이전트 협업 구조
+
+## 📅 Next Steps (다음 작업)
+
+### 🔴 P0 - 최우선 (설계 보완)
+
+| # | 작업 | 설명 | 상태 |
+|:-:|------|------|:----:|
+| 1 | **API 상세 설계서** | OpenAPI 3.0 스펙, 엔드포인트 정의, 요청/응답 스키마 | 🔜 |
+| 2 | **Backend 상세 설계서** | SpringBoot 컴포넌트 설계, 서비스 레이어, 데이터 접근 계층 | 🔜 |
+| 3 | **민감 데이터 암호화 설계** | 암호화 전략, 키 관리, 데이터 분류, 규정 준수 | 🔜 |
+
+### 🟡 P1 - 중요 (구현 준비)
+
+| # | 작업 | 설명 | 상태 |
+|:-:|------|------|:----:|
+| 4 | **개발 환경 구축** | Docker Compose, DB 초기화, 로컬 환경 설정 | ⏳ |
+| 5 | **AI Service 초기화** | FastAPI + Poetry, VIP 파이프라인 기본 구조 | ⏳ |
+| 6 | **Keycloak 설정** | OAuth 2.0 + PKCE 인증 서버 구성 | ⏳ |
+
+### 🟢 P2 - 일반
+
+| # | 작업 | 설명 | 상태 |
+|:-:|------|------|:----:|
+| 7 | **SpringBoot 초기화** | Spring Initializr, API Gateway 설정 | ⏳ |
+| 8 | **Frontend 초기화** | Vite + React + TypeScript | ⏳ |
+
+> 상세 계획은 [PLAN.md](./PLAN.md) 참조
 
 ## 🔧 주요 기능
 
@@ -382,4 +409,5 @@ git show e6a8e2b:knowledge_service/docs/work_logs/2026/01-January/2026-01-13.md
 **Made with Claude Code (Opus 4.5) & DeepSeek-V3.2**
 
 *설계서 v2.3 Review 완료: 2026-01-14*
-*기획 문서 일관성 확보 완료: 2026-01-14*
+*프레젠테이션 자료 생성 (6개 PPT, 58장): 2026-01-15*
+*다음 작업: API 설계서, Backend 설계서, 암호화 설계*

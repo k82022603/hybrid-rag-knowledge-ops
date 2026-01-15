@@ -2,8 +2,8 @@
 
 > Claude Code 세션 간 컨텍스트 유지를 위한 계획 문서
 >
-> **Last Updated**: 2026-01-14
-> **Current Phase**: Phase 2 - 설계 완료, 구현 계획 수립 완료
+> **Last Updated**: 2026-01-15
+> **Current Phase**: Phase 2.5 - 설계 보완 및 API 설계 진행 중
 
 ---
 
@@ -11,7 +11,7 @@
 
 ```
 [Phase 1: 기획]     ████████████████████ 100% ✅ 완료
-[Phase 2: 설계]     ████████████████████ 100% ✅ 완료
+[Phase 2: 설계]     ████████████████░░░░  80% 🔄 보완 중 (API/Backend 설계서, 암호화 설계)
 [Phase 3: 구현]     ░░░░░░░░░░░░░░░░░░░░   0% ⏸️ 대기 중
 [Phase 4: 테스트]   ░░░░░░░░░░░░░░░░░░░░   0%
 [Phase 5: 배포]     ░░░░░░░░░░░░░░░░░░░░   0%
@@ -164,7 +164,7 @@
 - [x] **AI 에이전트 역할 명확화** (개발 에이전트 vs 런타임 LLM) ✅
 - [x] **문서 일관성 확보** (PLAN.md, CLAUDE.md, devops_alm_plan.md) ✅
 
-## Phase 2: Design (설계) - 100% ✅ 완료
+## Phase 2: Design (설계) - 80% 🔄 보완 중
 
 ### 완료된 작업
 - [x] **상세 설계서 v2.3** (`docs/02_design/hybrid_rag_platform_detailed_design.md`) ✅
@@ -174,12 +174,21 @@
 - [x] 제로 조인 아키텍처
 - [x] Hybrid 검색 엔진 설계
 - [x] 데이터 모델 설계 (PostgreSQL, Neo4j, Elasticsearch)
-- [x] API 명세
 - [x] 비용 분석
+- [x] **Frontend 상세 설계서** (`docs/02_design/frontend_detailed_design.md`) ✅
+- [x] **인증/권한 관리 설계서** (`docs/02_design/authentication_authorization_detailed_design.md`) ✅
+- [x] **UI Storyboard** (`docs/02_design/ui_storyboard/`) ✅
+- [x] **프레젠테이션 자료 생성** (6개 PPT, 58장) ✅
+
+### 진행 중 / 예정 작업
+- [ ] **API 상세 설계서** (`docs/02_design/api_detailed_design.md`) 🔜 P0
+- [ ] **Backend 상세 설계서** (`docs/02_design/backend_detailed_design.md`) 🔜 P0
+- [ ] **민감 데이터 암호화 설계서** (`docs/02_design/data_encryption_design.md`) 🔜 P0
 
 ## Phase 3: Implementation (구현) - 0% ⏸️ 대기 중
 
-### 다음 단계
+### 다음 단계 (Phase 2 완료 후)
+- [ ] 개발 환경 구축 (Docker Compose)
 - [ ] AI Service Phase 1 구현 (기반 구축)
 - [ ] SpringBoot Backend Phase 1 구현
 - [ ] 데이터베이스 초기화 스크립트
@@ -337,23 +346,23 @@ Versioning: Semantic Versioning (SemVer)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│ 1. [HIGH] 전체 기획 문서 구조 확정                                       │
-│    └─ 어떤 문서를 어떤 순서로 작성할지 결정                              │
+│ 1. [P0-HIGH] API 상세 설계서 작성                                        │
+│    └─ OpenAPI 3.0 스펙, 엔드포인트 정의, 요청/응답 스키마                │
 ├─────────────────────────────────────────────────────────────────────────┤
-│ 2. [HIGH] backend_implementation_plan.md 작성                           │
-│    └─ SpringBoot/SpringCloud + Python AI 서비스 통합                    │
+│ 2. [P0-HIGH] Backend 상세 설계서 작성                                    │
+│    └─ SpringBoot 컴포넌트 설계, 서비스 레이어, 데이터 접근 계층          │
 ├─────────────────────────────────────────────────────────────────────────┤
-│ 3. [HIGH] devops_alm_plan.md 작성                                       │
-│    └─ GitHub + JIRA + Slack AI Agent 통합 계획                          │
+│ 3. [P0-HIGH] 민감 데이터 암호화 설계서 작성                              │
+│    └─ 암호화 전략, 키 관리, 데이터 분류, 규정 준수                       │
 ├─────────────────────────────────────────────────────────────────────────┤
-│ 4. [MEDIUM] frontend_implementation_plan.md 개선                        │
-│    └─ Graph RAG 연동, 시간 인식 추론 UI/UX                              │
+│ 4. [P1-MEDIUM] 개발 환경 구축                                           │
+│    └─ Docker Compose, DB 초기화, 로컬 환경 설정                         │
 ├─────────────────────────────────────────────────────────────────────────┤
-│ 5. [MEDIUM] dev_environment_plan.md 작성                                │
-│    └─ 로컬/Docker/클라우드 환경 설정                                    │
+│ 5. [P1-MEDIUM] AI Service 프로젝트 초기화                               │
+│    └─ FastAPI + Poetry, 디렉토리 구조, VIP 파이프라인 기본 구조          │
 ├─────────────────────────────────────────────────────────────────────────┤
-│ 6. [MEDIUM] test_plan.md 작성                                           │
-│    └─ 단위/통합/E2E/성능 테스트 전략                                    │
+│ 6. [P2-LOW] SpringBoot 프로젝트 초기화                                   │
+│    └─ Spring Initializr, 기본 의존성, API Gateway 설정                  │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -365,23 +374,34 @@ Versioning: Semantic Versioning (SemVer)
 docs/
 ├── 01_planning/                         # 기획 문서
 │   ├── hybrid_rag_knowledge_platform_plan.md    ✅ 완료
-│   ├── frontend_implementation_plan.md          🔄 개선 필요
-│   ├── backend_implementation_plan.md           🆕 신규 작성
-│   ├── dev_environment_plan.md                  ⏳ 예정
-│   ├── test_plan.md                             ⏳ 예정
-│   └── devops_alm_plan.md                       🆕 신규 (ALM 포함)
+│   ├── frontend_implementation_plan.md          ✅ 완료
+│   ├── backend_implementation_plan.md           ✅ 완료
+│   ├── ai_service_implementation_plan.md        ✅ 완료 v2.0
+│   ├── dev_environment_plan.md                  ✅ 완료
+│   ├── test_plan.md                             ✅ 완료
+│   ├── devops_alm_plan.md                       ✅ 완료
+│   └── review/
+│       └── 2026-01-14_planning_review_report.md ✅ 완료
 │
 ├── 02_design/                           # 설계 문서
-│   ├── hybrid_rag_platform_detailed_design.md   ✅ v2.2 완료
-│   ├── frontend_detailed_design.md              ⏳ 예정
-│   ├── backend_detailed_design.md               ⏳ 예정
-│   ├── devops_architecture.md                   ⏳ 예정
-│   ├── alm_integration_design.md                ⏳ 예정 (신규)
+│   ├── hybrid_rag_platform_detailed_design.md   ✅ v2.3 완료
+│   ├── frontend_detailed_design.md              ✅ 완료
+│   ├── authentication_authorization_detailed_design.md  ✅ 완료
+│   ├── api_detailed_design.md                   🔜 다음 작업 (P0)
+│   ├── backend_detailed_design.md               🔜 다음 작업 (P0)
+│   ├── data_encryption_design.md                🔜 다음 작업 (P0)
+│   ├── ui_storyboard/                           ✅ 완료 (4개 문서 + 2개 PPT)
 │   └── review/
 │       └── 2026-01-14_detailed_code_review.md   ✅ 완료
 │
-└── work_logs/                           # 작업 일지
-    └── 2026/01-January/
+├── work_logs/                           # 작업 일지
+│   └── 2026/01-January/
+│
+└── presentations/                       # 프레젠테이션 자료 (6개 생성)
+    ├── Hybrid_RAG_Platform_Design_Brown.pptx
+    ├── Frontend_Detailed_Design_Brown.pptx
+    ├── Auth_Authorization_Design_Brown.pptx
+    └── UI_Storyboard_Brown.pptx
 ```
 
 ---
@@ -584,6 +604,22 @@ CI/CD Pipeline (GitHub Actions)
 ---
 
 ## Session Notes
+
+### 2026-01-15
+- **프레젠테이션 자료 대량 생성** (6개 PPT, 58장)
+  - Hybrid RAG Platform 설계서 (Brown 테마)
+  - Frontend 상세 설계서 (Brown 테마)
+  - 인증/권한 관리 설계서 (Brown 테마)
+  - UI Storyboard (Brown 테마 + 개발자 가이드)
+- **Presentation Maker Skill v2.0 업데이트**
+  - Brown Earth 테마 추가
+  - 듀얼 패널 레이아웃 (와이어프레임 + 설명 박스)
+- **Web Design System Skill v2.0 보완**
+  - 다크 모드, 모션 디자인, Core Web Vitals 가이드 추가
+- **다음 작업 우선순위 재정의**
+  - P0: API 설계서, Backend 설계서, 민감 데이터 암호화 설계
+  - P1: 개발 환경 구축, AI Service 초기화
+  - P2: SpringBoot 초기화
 
 ### 2026-01-14 (Evening - Updated)
 - PLAN.md 범위 대폭 확장
