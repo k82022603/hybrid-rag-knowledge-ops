@@ -2,7 +2,7 @@
 
 🤖 Hybrid RAG Knowledge Operations 프로젝트 개발 규칙
 
-**Version**: 2.4 | **Updated**: 2026-01-16
+**Version**: 2.5 | **Updated**: 2026-01-16
 
 ---
 
@@ -129,15 +129,45 @@ api_key = "sk-xxx..."  # 하드코딩 절대 금지
 
 ## 📝 작업 일지
 
-```powershell
-# 생성
-.\scripts\create_worklog.ps1
-
-# 커밋
-.\scripts\commit_worklog.ps1
+**Claude Code 명령어로 자동화**:
+```bash
+/daily:daily-close     # 전체 마무리 (일지+문서+푸시)
+/daily:daily-log       # 작업일지만 작성/업데이트
+/daily:vibe-log        # 바이브 일지만 작성/업데이트
+/daily:sync-docs       # README/CLAUDE/PLAN 동기화
 ```
 
 **위치**: `work_logs/daily_logs/YYYY/MM-Month/YYYY-MM-DD.md`
+
+---
+
+## 🔧 설치된 Claude Code 명령어
+
+### Daily (4개)
+| 명령어 | 설명 |
+|--------|------|
+| `/daily:daily-close` | 전체 마무리 워크플로우 |
+| `/daily:daily-log` | 작업일지 작성/업데이트 |
+| `/daily:vibe-log` | 바이브 코딩 일지 |
+| `/daily:sync-docs` | 프로젝트 문서 동기화 |
+
+### Tools (13개)
+| 명령어 | 설명 |
+|--------|------|
+| `/tools:ai-review` | AI/ML 코드 리뷰 |
+| `/tools:tech-debt` | 기술 부채 분석 |
+| `/tools:security-scan` | OWASP 보안 스캔 |
+| `/tools:context-save` | 컨텍스트 저장 |
+| `/tools:context-restore` | 컨텍스트 복원 |
+
+### Workflows (6개)
+| 명령어 | 설명 |
+|--------|------|
+| `/workflows:feature-development` | 기능 개발 전체 사이클 |
+| `/workflows:smart-fix` | 지능형 문제 해결 |
+| `/workflows:tdd-cycle` | TDD 자동화 |
+
+**전체 목록**: [.claude/commands/README.md](.claude/commands/README.md)
 
 ---
 
@@ -161,3 +191,4 @@ api_key = "sk-xxx..."  # 하드코딩 절대 금지
 - [백엔드 상세 설계서](./knowledge_service/docs/02_design/backend_detailed_design.md)
 - [인프라 설계서](./knowledge_service/docs/02_design/infrastructure_detailed_design.md) - Docker Compose 기반
 - [기술 검토 문서](./knowledge_service/docs/02_design/technical_assessment/) - Gleaning, K8s 백업 등
+- [Claude Commands README](./.claude/commands/README.md) - 설치된 명령어 전체 목록
