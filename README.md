@@ -2,9 +2,9 @@
 
 🧠 Graph RAG 기반 지능형 지식 검색 시스템 + Antigravity 협업 공간
 
-**프로젝트 버전**: 2.9
-**마지막 업데이트**: 2026-01-15
-**설계서 상태**: 🔄 설계 보완 중 (API/Backend 설계서, 암호화 설계 예정)
+**프로젝트 버전**: 3.0
+**마지막 업데이트**: 2026-01-16
+**설계서 상태**: ✅ 설계 완료 (Phase 2 - 95%, 통합 아키텍처 설계서만 남음)
 
 ## 📋 개요
 
@@ -127,7 +127,14 @@ python src/app/main.py
     - [backend_implementation_plan.md](./knowledge_service/docs/01_planning/backend_implementation_plan.md) - **SpringBoot 백엔드 구현 계획**
     - [review/](./knowledge_service/docs/01_planning/review/) - 기획 문서 리뷰 결과
   - [02_design/](./knowledge_service/docs/02_design/) - 기술 설계 및 검토
-    - [hybrid_rag_platform_detailed_design.md](./knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md) - **상세 설계서 v2.3 (✅ Review 완료)**
+    - [hybrid_rag_platform_detailed_design.md](./knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md) - **상세 설계서 v2.4 (Gleaning 포함)**
+    - [api_integration_design.md](./knowledge_service/docs/02_design/api_integration_design.md) - **API 통합 설계서**
+    - [backend_detailed_design.md](./knowledge_service/docs/02_design/backend_detailed_design.md) - **백엔드 상세 설계서**
+    - [data_encryption_design.md](./knowledge_service/docs/02_design/data_encryption_design.md) - **민감 데이터 암호화 설계서**
+    - [infrastructure_detailed_design.md](./knowledge_service/docs/02_design/infrastructure_detailed_design.md) - **인프라 상세 설계서 (Docker Compose)**
+    - [devops_detailed_design.md](./knowledge_service/docs/02_design/devops_detailed_design.md) - **DevOps 상세 설계서**
+    - [glossary.md](./knowledge_service/docs/02_design/glossary.md) - **용어사전 v2.1**
+    - [technical_assessment/](./knowledge_service/docs/02_design/technical_assessment/) - **기술 검토 문서**
     - [review/](./knowledge_service/docs/02_design/review/) - 설계서 리뷰 결과
   - [work_logs/](./work_logs/) - 작업 및 바이브 코딩 일지
 
@@ -139,13 +146,13 @@ python src/app/main.py
 
 ## 📅 Next Steps (다음 작업)
 
-### 🔴 P0 - 최우선 (설계 보완)
+### 🔴 P0 - 최우선 (내일)
 
 | # | 작업 | 설명 | 상태 |
 |:-:|------|------|:----:|
-| 1 | **API 상세 설계서** | OpenAPI 3.0 스펙, 엔드포인트 정의, 요청/응답 스키마 | 🔜 |
-| 2 | **Backend 상세 설계서** | SpringBoot 컴포넌트 설계, 서비스 레이어, 데이터 접근 계층 | 🔜 |
-| 3 | **민감 데이터 암호화 설계** | 암호화 전략, 키 관리, 데이터 분류, 규정 준수 | 🔜 |
+| 1 | **DevOps Skills 생성** | 설계서 기반 역할별 Skills 자동화 | 🔜 |
+| 2 | **통합테스트 계획서** | 설계서 기반 E2E 테스트 계획 수립 | 🔜 |
+| 3 | **Claude Code Agent 구성** | MCP/Skills/Hooks 구성 계획 | 🔜 |
 
 ### 🟡 P1 - 중요 (구현 준비)
 
@@ -162,6 +169,17 @@ python src/app/main.py
 | 7 | **SpringBoot 초기화** | Spring Initializr, API Gateway 설정 | ⏳ |
 | 8 | **Frontend 초기화** | Vite + React + TypeScript | ⏳ |
 
+### ✅ 완료된 설계 (2026-01-16)
+
+| # | 문서 | 설명 |
+|:-:|------|------|
+| ✅ | **API 통합 설계서** | OpenAPI 3.0 스펙, Internal/External API |
+| ✅ | **Backend 상세 설계서** | SpringBoot 17개 섹션 |
+| ✅ | **민감 데이터 암호화 설계** | 암호화 전략, 키 관리, Vault 통합 |
+| ✅ | **인프라 설계서** | Docker Compose 기반 (K8s → 86% 비용 절감) |
+| ✅ | **DevOps 설계서** | CI/CD, 모니터링, 배포 전략 |
+| ✅ | **Gleaning 기술 통합** | 지식 그래프 품질 33% 향상 |
+
 > 상세 계획은 [PLAN.md](./PLAN.md) 참조
 
 ## 🔧 주요 기능
@@ -175,6 +193,7 @@ python src/app/main.py
 - ✅ **비용 최적화** - DeepSeek-V3.2 통합 (95% 절감)
 - ✅ **제로 조인 검색** - Elasticsearch 단일 쿼리
 - ✅ **문서 파싱** - Docling 기반 (97.9% 테이블 정확도)
+- ✅ **Gleaning 기법** - 다중 추출로 지식 그래프 품질 33% 향상 (NEW)
 
 ## 🛠 기술 스택
 
@@ -420,6 +439,7 @@ git show e6a8e2b:work_logs/daily_logs/2026/01-January/2026-01-13.md
 
 **Made with Claude Code (Opus 4.5) & DeepSeek-V3.2**
 
-*설계서 v2.3 Review 완료: 2026-01-14*
-*프레젠테이션 자료 생성 (6개 PPT, 58장): 2026-01-15*
-*다음 작업: API 설계서, Backend 설계서, 암호화 설계*
+*설계서 v2.4 완료 (Gleaning 통합): 2026-01-16*
+*인프라 비용 86% 절감 (K8s 13대 → Docker Compose 1~2대)*
+*신규 설계서 18개, 업데이트 6개: 2026-01-16*
+*다음 작업: DevOps Skills, 통합테스트 계획서, Agent 구성*

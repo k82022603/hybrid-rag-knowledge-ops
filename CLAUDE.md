@@ -2,7 +2,7 @@
 
 🤖 Hybrid RAG Knowledge Operations 프로젝트 개발 규칙
 
-**Version**: 2.3 | **Updated**: 2026-01-15
+**Version**: 2.4 | **Updated**: 2026-01-16
 
 ---
 
@@ -156,4 +156,8 @@ api_key = "sk-xxx..."  # 하드코딩 절대 금지
 
 - [PLAN.md](./PLAN.md) - 프로젝트 계획 및 현재 상태
 - [README.md](./README.md) - 프로젝트 소개 및 설치 가이드
-- [상세 설계서](./knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md)
+- [상세 설계서 v2.4](./knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md) - Gleaning 포함
+- [API 통합 설계서](./knowledge_service/docs/02_design/api_integration_design.md)
+- [백엔드 상세 설계서](./knowledge_service/docs/02_design/backend_detailed_design.md)
+- [인프라 설계서](./knowledge_service/docs/02_design/infrastructure_detailed_design.md) - Docker Compose 기반
+- [기술 검토 문서](./knowledge_service/docs/02_design/technical_assessment/) - Gleaning, K8s 백업 등

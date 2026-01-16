@@ -3,7 +3,7 @@
 > Claude Code 세션 간 컨텍스트 유지를 위한 계획 문서
 >
 > **Last Updated**: 2026-01-16
-> **Current Phase**: Phase 2.8 - 설계 마무리 단계 (통합 아키텍처 설계서 작성 예정)
+> **Current Phase**: Phase 2.9 - 설계 완료 단계 (95%)
 
 ---
 
@@ -11,7 +11,7 @@
 
 ```
 [Phase 1: 기획]     ████████████████████ 100% ✅ 완료
-[Phase 2: 설계]     ██████████████████░░  90% 🔄 마무리 중 (통합 아키텍처 설계서)
+[Phase 2: 설계]     ███████████████████░  95% ✅ 거의 완료 (통합 아키텍처만 남음)
 [Phase 3: 구현]     ░░░░░░░░░░░░░░░░░░░░   0% ⏸️ 대기 중 (설계 완료 + 개발 에이전트 소싱 후)
 [Phase 4: 테스트]   ░░░░░░░░░░░░░░░░░░░░   0%
 [Phase 5: 배포]     ░░░░░░░░░░░░░░░░░░░░   0%
@@ -164,10 +164,10 @@
 - [x] **AI 에이전트 역할 명확화** (개발 에이전트 vs 런타임 LLM) ✅
 - [x] **문서 일관성 확보** (PLAN.md, CLAUDE.md, devops_alm_plan.md) ✅
 
-## Phase 2: Design (설계) - 90% 🔄 마무리 중
+## Phase 2: Design (설계) - 95% ✅ 거의 완료
 
 ### 완료된 작업
-- [x] **상세 설계서 v2.3** (`docs/02_design/hybrid_rag_platform_detailed_design.md`) ✅
+- [x] **상세 설계서 v2.4** (`docs/02_design/hybrid_rag_platform_detailed_design.md`) ✅ Gleaning 통합
 - [x] **서비스 분리 아키텍처** (SpringBoot ↔ AI Service) ✅
 - [x] **설계서 리뷰 완료** (`docs/02_design/review/`) ✅
 - [x] VIP 3단계 LLM 아키텍처
@@ -179,17 +179,25 @@
 - [x] **인증/권한 관리 설계서** (`docs/02_design/authentication_authorization_detailed_design.md`) ✅
 - [x] **UI Storyboard** (`docs/02_design/ui_storyboard/`) ✅
 - [x] **프레젠테이션 자료 생성** (6개 PPT, 58장) ✅
-- [x] **통합 API 설계서** (`docs/02_design/api_integration_design.md`) ✅ 2026-01-16
-- [x] **Backend 상세 설계서** (`docs/02_design/backend_detailed_design.md`) ✅ 2026-01-16
+- [x] **통합 API 설계서** (`docs/02_design/api_integration_design.md`) ✅
+- [x] **Backend 상세 설계서** (`docs/02_design/backend_detailed_design.md`) ✅
 - [x] **민감 데이터 암호화 설계서** (`docs/02_design/data_encryption_design.md`) ✅
+- [x] **인프라 상세 설계서** (`docs/02_design/infrastructure_detailed_design.md`) ✅ 2026-01-16
+  - Docker Compose 기반 (K8s에서 변경, 86% 비용 절감)
+- [x] **DevOps 상세 설계서** (`docs/02_design/devops_detailed_design.md`) ✅ 2026-01-16
+- [x] **에러 코드 표준** (`docs/02_design/error_code_standards.md`) ✅ 2026-01-16
+- [x] **용어사전 v2.1** (`docs/02_design/glossary.md`) ✅ Gleaning 용어 추가
+- [x] **UI 디자인 시스템 가이드** (`docs/02_design/ui_design_system_guide.md`) ✅ 2026-01-16
+- [x] **RAG 성능 테스트 설계** (`docs/02_design/rag_performance_test_design.md`) ✅ 2026-01-16
 - [x] **기술 검토 문서** (`docs/02_design/technical_assessment/`) ✅ 2026-01-16
+  - Gleaning 지식 그래프 품질 검토 (+33% Entity Recall)
+  - K8s 참조 설계서 백업 (향후 확장용)
   - API 아키텍처 설계 검토 (Option A/B/C 분석)
   - TLS 인증서 구현 검토
 
 ### 진행 중 / 예정 작업
-- [ ] **통합 아키텍처 설계서** (`docs/02_design/integrated_architecture_design.md`) 🔜 P0
+- [ ] **통합 아키텍처 설계서** (`docs/02_design/integrated_architecture_design.md`) 🔜 선택
   - 모든 설계서 통합 리뷰
-  - 인프라 구성 설계 포함
   - 시스템 전체 아키텍처 다이어그램
 
 ## Phase 3: Implementation (구현) - 0% ⏸️ 대기 중
@@ -358,28 +366,39 @@ Versioning: Semantic Versioning (SemVer)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│ 1. [P0-HIGH] 통합 아키텍처 설계서 작성 (오늘 오후)                        │
-│    ├─ 모든 설계서 리뷰 및 통합                                           │
-│    ├─ 인프라 구성 설계 (Docker, K8s, 네트워크)                           │
-│    └─ 시스템 전체 아키텍처 다이어그램                                     │
+│ 1. [P0-HIGH] DevOps 설계서 기반 역할별 Skills 생성                       │
+│    └─ 자동화 워크플로우 구성                                             │
 ├─────────────────────────────────────────────────────────────────────────┤
-│ 2. [P0-HIGH] 개발 에이전트 소싱                                          │
-│    └─ Backend, Frontend, AI Service 개발 담당 에이전트                   │
+│ 2. [P0-HIGH] 설계서 기반 통합테스트 계획서 작성                           │
+│    └─ E2E 테스트 시나리오, 품질 기준 정의                                │
 ├─────────────────────────────────────────────────────────────────────────┤
-│ 3. [P1-MEDIUM] 개발 환경 구축 (Phase 3 시작 시)                          │
+│ 3. [P0-HIGH] Claude Code Agent 구성 계획 수립                            │
+│    └─ MCP/Skills/Hooks 구성 설계                                        │
+├─────────────────────────────────────────────────────────────────────────┤
+│ 4. [P1-MEDIUM] 개발 환경 구축 (Phase 3 시작 시)                          │
 │    └─ Docker Compose, DB 초기화, 로컬 환경 설정                          │
 ├─────────────────────────────────────────────────────────────────────────┤
-│ 4. [P1-MEDIUM] AI Service 프로젝트 초기화                                │
+│ 5. [P1-MEDIUM] AI Service 프로젝트 초기화                                │
 │    └─ FastAPI + Poetry, 디렉토리 구조, VIP 파이프라인 기본 구조          │
 ├─────────────────────────────────────────────────────────────────────────┤
-│ 5. [P2-LOW] SpringBoot 프로젝트 초기화                                   │
+│ 6. [P1-MEDIUM] Keycloak 인증 서버 설정                                   │
+│    └─ OAuth 2.0 + PKCE 구성                                             │
+├─────────────────────────────────────────────────────────────────────────┤
+│ 7. [P2-LOW] SpringBoot 프로젝트 초기화                                   │
 │    └─ Spring Initializr, 기본 의존성, API Gateway 설정                  │
+├─────────────────────────────────────────────────────────────────────────┤
+│ 8. [P2-LOW] Frontend 프로젝트 초기화                                     │
+│    └─ Vite + React + TypeScript                                        │
 └─────────────────────────────────────────────────────────────────────────┘
 
-✅ 완료된 P0 작업:
+✅ 완료된 P0 작업 (2026-01-16):
 - API 상세 설계서 (api_integration_design.md)
 - Backend 상세 설계서 (backend_detailed_design.md)
 - 민감 데이터 암호화 설계서 (data_encryption_design.md)
+- 인프라 설계서 (infrastructure_detailed_design.md) - K8s→Docker Compose
+- DevOps 설계서 (devops_detailed_design.md)
+- Gleaning 기술 통합 (hybrid_rag_platform v2.4)
+- 18개 신규 문서, 6개 업데이트
 ```
 
 ---
@@ -399,29 +418,39 @@ docs/
 │   └── review/
 │       └── 2026-01-14_planning_review_report.md ✅ 완료
 │
-├── 02_design/                           # 설계 문서
-│   ├── hybrid_rag_platform_detailed_design.md   ✅ v2.3 완료
+├── 02_design/                           # 설계 문서 (18개 신규, 6개 업데이트)
+│   ├── hybrid_rag_platform_detailed_design.md   ✅ v2.4 완료 (Gleaning 통합)
 │   ├── frontend_detailed_design.md              ✅ 완료
 │   ├── authentication_authorization_detailed_design.md  ✅ 완료
 │   ├── api_integration_design.md                ✅ 완료 (External + Internal API)
 │   ├── backend_detailed_design.md               ✅ 완료 (17개 섹션)
 │   ├── data_encryption_design.md                ✅ 완료
-│   ├── integrated_architecture_design.md        🔜 다음 작업 (P0) - 인프라 포함
+│   ├── infrastructure_detailed_design.md        ✅ 완료 (Docker Compose 기반)
+│   ├── devops_detailed_design.md                ✅ 완료 (CI/CD, 모니터링)
+│   ├── error_code_standards.md                  ✅ 완료 (E1xxx~E9xxx)
+│   ├── glossary.md                              ✅ 완료 v2.1 (Gleaning 포함)
+│   ├── ui_design_system_guide.md                ✅ 완료
+│   ├── rag_performance_test_design.md           ✅ 완료
+│   ├── integrated_detailed_design.md            ✅ 완료 (목차)
+│   ├── integrated_architecture_design.md        🔜 선택 (통합 아키텍처)
 │   ├── technical_assessment/                    ✅ 완료
+│   │   ├── gleaning_knowledge_graph_quality_assessment.md  ✅ 신규
+│   │   ├── infrastructure_k8s_reference_design.md          ✅ K8s 백업
 │   │   ├── 01.API_architecture_design_review.md
 │   │   └── 02.TLS_certificate_implementation_review.md
 │   ├── ui_storyboard/                           ✅ 완료 (4개 문서 + 2개 PPT)
-│   └── review/
-│       └── 2026-01-14_detailed_code_review.md   ✅ 완료
+│   └── review/                                  ✅ 완료
+│       ├── REVIEW_SUMMARY.md
+│       ├── 2026-01-16_design_2nd_review.md
+│       ├── 2026-01-16_infrastructure_change_review.md
+│       └── (8개 개별 검토 문서)
 │
 ├── work_logs/                           # 작업 일지
-│   └── 2026/01-January/
+│   ├── daily_logs/2026/01-January/
+│   └── vibe_logs/2026/01-January/
 │
-└── presentations/                       # 프레젠테이션 자료 (6개 생성)
-    ├── Hybrid_RAG_Platform_Design_Brown.pptx
-    ├── Frontend_Detailed_Design_Brown.pptx
-    ├── Auth_Authorization_Design_Brown.pptx
-    └── UI_Storyboard_Brown.pptx
+└── presentations/                       # 프레젠테이션 자료
+    └── docs/ (GitHub 외부 저장)
 ```
 
 ---
@@ -433,9 +462,12 @@ docs/
 | **AI** | LLM | DeepSeek-Chat V3.2 | 95% 비용 절감 |
 | **AI** | 임베딩 | BGE-M3 | Dense + Sparse 단일 모델 |
 | **AI** | Agent | LangGraph ReAct | 검증된 라이브러리 |
+| **AI** | Gleaning | 1회 적용 | +33% Entity Recall, +60% 비용 (최적) |
 | **Frontend** | Framework | React 18 + TypeScript | 최신 기술, 타입 안정성 |
 | **Backend** | Framework | SpringBoot 3.x | 기업 표준, MSA |
 | **AI Service** | Framework | Python + FastAPI | LangChain 생태계 |
+| **Infra** | 플랫폼 | Docker Compose | K8s 대비 86% 비용 절감 (YAGNI) |
+| **Infra** | 확장 경로 | DC → Swarm → K8s | 단계적 마이그레이션 |
 | **ALM** | Source | GitHub | 코드 + Projects + Actions |
 | **ALM** | Project Mgmt | JIRA Cloud | 백로그, 칸반, 릴리즈 |
 | **ALM** | Communication | Slack | AI Agent 통합 |
@@ -625,7 +657,27 @@ CI/CD Pipeline (GitHub Actions)
 
 ## Session Notes
 
-### 2026-01-16
+### 2026-01-16 (Evening)
+- **Gleaning 기술 통합** - Microsoft GraphRAG 기반 다중 추출 기법
+  - Entity Recall 60% → 80% (+33% 향상)
+  - 비용 +60% 증가 (1회 gleaning 최적)
+  - `hybrid_rag_platform_detailed_design.md` v2.3 → v2.4 업데이트
+  - `api_integration_design.md`에 enableGleaning, maxGleanings 옵션 추가
+  - `glossary.md` v2.0 → v2.1 업데이트 (Gleaning 용어 추가)
+- **인프라 설계 변경** (K8s → Docker Compose)
+  - 서버 규모: 13대 → 1~2대
+  - 예상 비용: ~$100,000 → ~$14,000 (86% 절감)
+  - YAGNI 원칙 적용 (필요할 때 확장)
+  - K8s 설계서는 `technical_assessment/`에 백업 보관
+- **대규모 설계서 작성** (18개 신규, 6개 업데이트)
+  - 인프라 설계서, DevOps 설계서, 에러 코드 표준
+  - 용어사전, UI 디자인 시스템 가이드, RAG 성능 테스트 설계
+  - 9개 설계서 2차 검토 완료
+- **Git 커밋**: 35 files changed, +26,866 insertions
+- **작업 일지 & 바이브 코딩 일지 작성**
+- **Phase 2 진행률**: 90% → 95% 업데이트
+
+### 2026-01-16 (Morning)
 - **Backend 상세 설계서 완성** (`backend_detailed_design.md`)
   - 17개 섹션 구성 (아키텍처, 모듈구조, 패키지, 레이어, JPA 등)
   - 개발 에이전트가 이해하고 구현할 수 있도록 상세 작성
@@ -636,13 +688,6 @@ CI/CD Pipeline (GitHub Actions)
   - api_integration_design.md, data_encryption_design.md
   - authentication_authorization_detailed_design.md (4개 다이어그램)
   - hybrid_rag_platform_detailed_design.md, frontend_detailed_design.md
-- **PLAN.md 현행화**
-  - Phase 2 진행률 80% → 90% 업데이트
-  - 완료된 설계 문서 반영 (API, Backend, 암호화 설계서)
-  - 다음 작업: 통합 아키텍처 설계서 (인프라 구성 포함)
-- **Phase 3 시작 조건 명확화**
-  - 상세 설계 완료 필수
-  - 개발 에이전트 소싱 필요
 
 ### 2026-01-15
 - **프레젠테이션 자료 대량 생성** (6개 PPT, 58장)
