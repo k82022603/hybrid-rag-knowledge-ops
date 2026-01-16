@@ -33,8 +33,7 @@
 │   │   │   └── review/            # 기획 문서 리뷰 결과
 │   │   ├── 02_design/             # 기술 설계 및 검토
 │   │   │   └── review/            # 설계서 리뷰 결과
-│   │   ├── work_logs/             # 작업 일지 (git 추적)
-│   │   └── vibe_logs/             # 바이브 코딩 일지 (영감/아이디어)
+│   │   └── results/               # 실행 결과
 │   ├── results/                   # 실행 결과
 │   ├── .antigravity/              # Antigravity 규칙
 │   ├── .claude/                   # Claude 설정
@@ -59,15 +58,20 @@
 │   ├── neo4j-data/
 │   └── elasticsearch-data/
 │
-└── scripts/                       # 공통 유틸 스크립트
-    ├── create_worklog.ps1         # 작업 일지 생성 (PowerShell)
-    ├── create_worklog.sh          # 작업 일지 생성 (Bash)
-    ├── commit_worklog.ps1         # 작업 일지 커밋 (PowerShell)
-    ├── commit_worklog.sh          # 작업 일지 커밋 (Bash)
-    ├── daily_worklog.ps1          # 통합 스크립트 (생성+커밋+푸시)
-    ├── setup.sh
-    ├── start.sh
-    └── stop.sh
+├── scripts/                       # 공통 유틸 스크립트
+│   ├── create_worklog.ps1         # 작업 일지 생성 (PowerShell)
+│   ├── create_worklog.sh          # 작업 일지 생성 (Bash)
+│   ├── commit_worklog.ps1         # 작업 일지 커밋 (PowerShell)
+│   ├── commit_worklog.sh          # 작업 일지 커밋 (Bash)
+│   ├── daily_worklog.ps1          # 통합 스크립트 (생성+커밋+푸시)
+│   ├── setup.sh
+│   ├── start.sh
+│   └── stop.sh
+│
+└── work_logs/                      # 📝 작업 일지 관리
+    ├── daily_logs/                 # 일일 작업 일지 (YYYY/MM-Month/)
+    ├── vibe_logs/                  # 바이브 코딩 일지 (영감/아이디어)
+    └── README.md
 ```
 
 ## 🚀 빠른 시작
@@ -125,8 +129,7 @@ python src/app/main.py
   - [02_design/](./knowledge_service/docs/02_design/) - 기술 설계 및 검토
     - [hybrid_rag_platform_detailed_design.md](./knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md) - **상세 설계서 v2.3 (✅ Review 완료)**
     - [review/](./knowledge_service/docs/02_design/review/) - 설계서 리뷰 결과
-  - [work_logs/](./knowledge_service/docs/work_logs/) - 작업 일지
-  - [vibe_logs/](./knowledge_service/docs/vibe_logs/) - 바이브 코딩 일지 (영감/아이디어)
+  - [work_logs/](./work_logs/) - 작업 및 바이브 코딩 일지
 
 - **[infrastructure/README.md](./infrastructure/README.md)** - 인프라 설정 가이드
 
@@ -265,15 +268,24 @@ claude-code "원하는 작업 설명"
 
 #### 작업 일지 폴더 구조
 ```
-knowledge_service/docs/work_logs/
-├── 2026/
-│   ├── 01-January/
-│   │   ├── 2026-01-12.md
-│   │   ├── 2026-01-13.md
+work_logs/
+├── daily_logs/
+│   ├── 2026/
+│   │   ├── 01-January/
+│   │   │   ├── 2026-01-12.md
+│   │   │   ├── 2026-01-13.md
+│   │   │   └── ...
+│   │   ├── 02-February/
+│   │   │   └── ...
 │   │   └── ...
-│   ├── 02-February/
+│   └── README.md
+├── vibe_logs/
+│   ├── 2026/
+│   │   ├── 01-January/
+│   │   │   ├── 2026-01-14-vibe.md
+│   │   │   └── ...
 │   │   └── ...
-│   └── ...
+│   └── README.md
 └── README.md
 ```
 
@@ -367,7 +379,7 @@ knowledge_service/docs/work_logs/
 **팀 공유**:
 ```bash
 # 모든 일지를 한눈에 보기
-cd knowledge_service/docs/work_logs
+cd work_logs/daily_logs
 ls -la 2026/01-January/
 
 # 최근 일지 확인
@@ -377,10 +389,10 @@ cat 2026/01-January/2026-01-13.md
 **Git 히스토리와 함께 추적**:
 ```bash
 # 작업 일지 커밋 히스토리 조회
-git log --oneline -- knowledge_service/docs/work_logs/
+git log --oneline -- work_logs/
 
 # 특정 일자의 변경사항 확인
-git show e6a8e2b:knowledge_service/docs/work_logs/2026/01-January/2026-01-13.md
+git show e6a8e2b:work_logs/daily_logs/2026/01-January/2026-01-13.md
 ```
 
 더 자세한 가이드: [CLAUDE.md - 작업 일지 시스템](./CLAUDE.md#-작업-일지-시스템)

@@ -118,7 +118,7 @@ chmod +x ./scripts/create_worklog.sh
 작업 일지는 Git에 커밋하여 버전 관리하는 것을 권장합니다:
 
 ```bash
-git add docs/work_logs/
+git add work_logs/daily_logs/
 git commit -m "[DOCS] Add work log for $(date +%Y-%m-%d)"
 ```
 
@@ -128,8 +128,8 @@ git commit -m "[DOCS] Add work log for $(date +%Y-%m-%d)"
 
 ```bash
 # PowerShell
-Get-ChildItem -Path docs\work_logs -Recurse -Filter *.md | Select-String "RRF"
+Get-ChildItem -Path work_logs\daily_logs -Recurse -Filter *.md | Select-String "RRF"
 
 # Bash
-grep -r "RRF" docs/work_logs/
+grep -r "RRF" work_logs/daily_logs/
 ```

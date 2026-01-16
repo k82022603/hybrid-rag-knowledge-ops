@@ -20,19 +20,25 @@
 ## 🗂️ 폴더 구조 및 파일 생성 규칙
 
 ```
-knowledge_service/
-├── src/app/
-│   ├── api/routes/      # API 엔드포인트
-│   ├── services/        # 비즈니스 로직
-│   ├── models/          # 데이터 모델
-│   ├── core/            # 핵심 기능
-│   └── utils/           # 유틸리티
-├── src/tests/           # 테스트 코드
-├── docs/
-│   ├── 01_planning/     # 구현 계획
-│   ├── 02_design/       # 기술 설계
-│   └── work_logs/       # 작업 일지 (YYYY/MM-Month/)
-└── results/             # 실행 결과
+hybrid-rag-knowledge-ops/
+├── knowledge_service/
+│   ├── src/app/
+│   │   ├── api/routes/      # API 엔드포인트
+│   │   ├── services/        # 비즈니스 로직
+│   │   ├── models/          # 데이터 모델
+│   │   ├── core/            # 핵심 기능
+│   │   └── utils/           # 유틸리티
+│   ├── src/tests/           # 테스트 코드
+│   ├── docs/
+│   │   ├── 01_planning/     # 구현 계획
+│   │   ├── 02_design/       # 기술 설계
+│   │   └── results/         # 실행 결과
+│   └── ...
+├── work_logs/               # 📝 작업 일지 관리
+│   ├── daily_logs/          # 일일 작업 일지 (YYYY/MM-Month/)
+│   ├── vibe_logs/           # 바이브 코딩 일지 (영감/아이디어)
+│   └── README.md
+└── infrastructure/          # 인프라 설정
 ```
 
 ### 파일 명명 규칙
@@ -131,7 +137,7 @@ api_key = "sk-xxx..."  # 하드코딩 절대 금지
 .\scripts\commit_worklog.ps1
 ```
 
-**위치**: `docs/work_logs/YYYY/MM-Month/YYYY-MM-DD.md`
+**위치**: `work_logs/daily_logs/YYYY/MM-Month/YYYY-MM-DD.md`
 
 ---
 

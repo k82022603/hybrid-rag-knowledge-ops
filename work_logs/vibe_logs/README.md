@@ -203,7 +203,8 @@ Q&A 형식으로 자문자답
 ## 📖 참고
 
 - [2026-01-14 Vibe Log](./2026/01-January/2026-01-14-vibe.md) - 첫 번째 바이브 로그
-- [Work Logs](../work_logs/) - 공식 작업 일지
+- [Daily Work Logs](../daily_logs/) - 공식 작업 일지
+- [Work Logs Home](../) - 작업 일지 관리 홈
 
 ---
 
