@@ -18,7 +18,15 @@
       "Bash(dir:*)",
       "Bash(python generate_presentation.py:*)",
       "Bash(python:*)",
-      "Bash(powershell -Command \"Get-Item ''knowledge_service/docs/02_design/Frontend_Detailed_Design_Brown.pptx'' | Select-Object Name, Length, LastWriteTime\")"
+      "Bash(powershell -Command \"Get-Item ''knowledge_service/docs/02_design/Frontend_Detailed_Design_Brown.pptx'' | Select-Object Name, Length, LastWriteTime\")",
+      "Bash(git config:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(sort:*)",
+      "Bash(python3 -m venv:*)",
+      "Bash(.venv/bin/pip:*)",
+      "Bash(.venv/bin/python:*)",
+      "WebFetch(domain:arxiv.org)"
     ]
   }
 }

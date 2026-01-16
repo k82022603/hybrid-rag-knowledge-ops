@@ -11,7 +11,7 @@
 | **작성일** | 2026-01-16 |
 | **작성자** | Claude AI |
 | **상태** | 초안 |
-| **관련 문서** | [API 통합 설계서](./api_integration_design.md), [인증/권한 설계서](./authentication_authorization_detailed_design.md) |
+| **관련 문서** | [API 통합 설계서](./api_integration_design.md), [인증/권한 설계서](./authentication_authorization_detailed_design.md), [에러 코드 표준](./error_code_standards.md), [용어사전](./glossary.md) |
 
 ---
 
@@ -47,21 +47,27 @@
 
 ### 1.2 적용 범위
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    암호화 적용 범위                          │
-├─────────────────────────────────────────────────────────────┤
-│  [Frontend] ──HTTPS──▶ [Gateway] ──TLS──▶ [Backend]         │
-│                                              │               │
-│                                         TLS/mTLS            │
-│                                              ▼               │
-│                                        [AI Service]         │
-│                                              │               │
-│                          ┌───────────────────┼───────────────┐
-│                          ▼                   ▼               ▼
-│                    [PostgreSQL]        [Elasticsearch]   [Neo4j]
-│                    AES-256 TDE         AES-256 TDE       Encrypted
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Transport["전송 암호화 (In Transit)"]
+        F[Frontend] -->|HTTPS| G[Gateway]
+        G -->|TLS| B[Backend]
+        B -->|TLS/mTLS| A[AI Service]
+    end
+
+    subgraph Storage["저장 암호화 (At Rest)"]
+        B --> PG[(PostgreSQL<br/>AES-256 TDE)]
+        B --> ES[(Elasticsearch<br/>AES-256 TDE)]
+        A --> NEO[(Neo4j<br/>Encrypted)]
+    end
+
+    style F fill:#61dafb
+    style G fill:#6db33f
+    style B fill:#6db33f
+    style A fill:#009688
+    style PG fill:#336791
+    style ES fill:#f9b716
+    style NEO fill:#018bff
 ```
 
 ### 1.3 암호화 원칙

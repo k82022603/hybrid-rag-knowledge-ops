@@ -8,6 +8,8 @@
 - [백엔드 구현 계획서](../01_planning/backend_implementation_plan.md) 섹션 7
 - [프론트엔드 구현 계획서](../01_planning/frontend_implementation_plan.md) 섹션 2.3, 3.6
 - [상세 설계서](./hybrid_rag_platform_detailed_design.md) 섹션 3.6
+- [에러 코드 표준](./error_code_standards.md)
+- [용어사전](./glossary.md)
 
 ---
 
@@ -171,80 +173,37 @@ roles:
 
 ### 3.1 전체 인증 흐름
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                            인증 아키텍처 개요                                  │
-└─────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Client<br/>(React)
+    participant G as API Gateway
+    participant B as Backend API
+    participant K as Keycloak<br/>(IdP)
 
-  ┌──────────┐                                              ┌──────────────┐
-  │  Client  │                                              │   Keycloak   │
-  │ (React)  │                                              │     (IdP)    │
-  └────┬─────┘                                              └──────┬───────┘
-       │                                                           │
-       │  ┌────────────────────────────────────────────────────┐  │
-       │  │              1. Authorization Code Flow + PKCE      │  │
-       │  └────────────────────────────────────────────────────┘  │
-       │                                                           │
-       │ (1) Login Request                                         │
-       │ ─────────────────────────────────────────────────────────>│
-       │    GET /realms/{realm}/protocol/openid-connect/auth       │
-       │    ?response_type=code                                    │
-       │    &client_id=knowledge-frontend                          │
-       │    &redirect_uri=http://localhost:5173/callback           │
-       │    &scope=openid profile email                            │
-       │    &state={random_state}                                  │
-       │    &code_challenge={PKCE_challenge}                       │
-       │    &code_challenge_method=S256                            │
-       │                                                           │
-       │ (2) User Login Page                                       │
-       │ <─────────────────────────────────────────────────────────│
-       │                                                           │
-       │ (3) User Credentials                                      │
-       │ ─────────────────────────────────────────────────────────>│
-       │                                                           │
-       │ (4) Authorization Code                                    │
-       │ <─────────────────────────────────────────────────────────│
-       │    302 Redirect to redirect_uri?code={auth_code}&state=   │
-       │                                                           │
-       │  ┌────────────────────────────────────────────────────┐  │
-       │  │              2. Token Exchange                      │  │
-       │  └────────────────────────────────────────────────────┘  │
-       │                                                           │
-       │ (5) Token Request (via Backend)                           │
-       │ ─────────────────────────────────────────────────────────>│
-       │    POST /realms/{realm}/protocol/openid-connect/token     │
-       │    grant_type=authorization_code                          │
-       │    &code={auth_code}                                      │
-       │    &redirect_uri=...                                      │
-       │    &code_verifier={PKCE_verifier}                         │
-       │                                                           │
-       │ (6) Access Token + Refresh Token                          │
-       │ <─────────────────────────────────────────────────────────│
-       │                                                           │
-       │  ┌────────────────────────────────────────────────────┐  │
-       │  │              3. API Request with Token              │  │
-       │  └────────────────────────────────────────────────────┘  │
-       │                                                           │
-       ▼                                                           │
-  ┌────────────┐                                                   │
-  │ API Gateway │                                                  │
-  └─────┬──────┘                                                   │
-        │                                                          │
-        │ (7) Request with Bearer Token                            │
-        │    Authorization: Bearer {access_token}                  │
-        │                                                          │
-        │ (8) Token Validation                                     │
-        │ ────────────────────────────────────────────────────────>│
-        │    GET /realms/{realm}/protocol/openid-connect/userinfo  │
-        │    (또는 로컬 JWT 검증)                                   │
-        │                                                          │
-        │ (9) User Info                                            │
-        │ <────────────────────────────────────────────────────────│
-        │                                                          │
-        ▼                                                          │
-  ┌──────────────┐                                                 │
-  │ Backend API  │                                                 │
-  └──────────────┘                                                 │
+    rect rgb(230, 245, 255)
+        Note over C,K: 1. Authorization Code Flow + PKCE
+        C->>K: GET /auth?response_type=code<br/>&client_id=knowledge-frontend<br/>&code_challenge={PKCE}
+        K-->>C: User Login Page
+        C->>K: User Credentials
+        K-->>C: 302 Redirect with auth_code
+    end
+
+    rect rgb(255, 245, 230)
+        Note over C,K: 2. Token Exchange
+        C->>K: POST /token<br/>code + code_verifier
+        K-->>C: Access Token + Refresh Token
+    end
+
+    rect rgb(230, 255, 230)
+        Note over C,B: 3. API Request with Token
+        C->>G: Request + Bearer Token
+        G->>K: Token Validation
+        K-->>G: User Info
+        G->>B: Authenticated Request
+        B-->>G: Response
+        G-->>C: Response
+    end
 ```
 
 ### 3.2 컴포넌트별 역할
@@ -343,62 +302,47 @@ roles:
 
 #### 4.3.1 자동 갱신 로직
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Token Refresh Flow                            │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    A[API 요청 전] --> B{Access Token<br/>만료 2분 이내?}
+    B -->|Yes| C[Refresh Token 갱신]
+    B -->|No| D[API 요청 진행]
+    C --> E{Refresh Token<br/>유효?}
+    E -->|Yes| F[새 Token 발급]
+    E -->|No| G[로그아웃 처리<br/>재로그인 필요]
+    F --> D
 
-  [API 요청 전]
-       │
-       ▼
-  ┌─────────────────┐
-  │ Access Token    │
-  │ 만료 확인       │
-  └────────┬────────┘
-           │
-     ┌─────┴─────┐
-     │ 만료 2분  │
-     │ 이내?     │
-     └─────┬─────┘
-           │
-    Yes    │    No
-    ┌──────┴──────┐
-    ▼             ▼
-┌────────┐   ┌────────┐
-│ Refresh │   │ API    │
-│ Token   │   │ 요청   │
-│ 갱신    │   │ 진행   │
-└────┬───┘   └────────┘
-     │
-     ▼
-┌─────────────────┐
-│ Refresh Token   │
-│ 유효?           │
-└────────┬────────┘
-         │
-   Yes   │    No
-   ┌─────┴─────┐
-   ▼           ▼
-┌──────┐   ┌──────────┐
-│ 새    │   │ 로그아웃 │
-│ Token │   │ 처리     │
-│ 발급  │   │ (재로그인)│
-└──────┘   └──────────┘
+    style A fill:#e3f2fd
+    style B fill:#fff3e0
+    style C fill:#fff3e0
+    style D fill:#e8f5e9
+    style E fill:#fff3e0
+    style F fill:#e8f5e9
+    style G fill:#ffebee
 ```
 
 #### 4.3.2 Refresh Token Rotation
 
 보안 강화를 위해 Refresh Token 사용 시마다 새로운 Refresh Token을 발급합니다.
 
-```
-[기존 방식]
-Refresh Token (RT1) ──────────────────────────────────────────> 7일간 재사용
+```mermaid
+flowchart LR
+    subgraph 기존["기존 방식"]
+        RT1_OLD[RT1] -.->|7일간 재사용| RT1_OLD
+    end
 
-[Rotation 방식]
-RT1 ─(갱신)─> RT2 ─(갱신)─> RT3 ─(갱신)─> RT4 ...
-     │        │        │
-     ▼        ▼        ▼
-   무효화   무효화   무효화
+    subgraph 신규["Rotation 방식"]
+        RT1[RT1] -->|갱신| RT2[RT2]
+        RT2 -->|갱신| RT3[RT3]
+        RT3 -->|갱신| RT4[RT4]
+        RT1 --> X1[무효화]
+        RT2 --> X2[무효화]
+        RT3 --> X3[무효화]
+    end
+
+    style X1 fill:#ffcdd2
+    style X2 fill:#ffcdd2
+    style X3 fill:#ffcdd2
 ```
 
 **구현:**
@@ -412,19 +356,25 @@ refreshTokenReuseCount: 0  # Rotation 활성화 (0 = 재사용 불가)
 
 로그아웃 또는 보안 사고 시 토큰을 즉시 무효화합니다.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Token Blacklist (Redis)                       │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph Redis["Token Blacklist (Redis)"]
+        direction TB
+        K1["token:blacklist:abc123"]
+        K2["token:blacklist:def456"]
+    end
 
-Key Pattern: token:blacklist:{jti}
-Value: { reason: "logout", timestamp: 1705200000 }
-TTL: Access Token의 남은 수명
+    K1 --> V1["reason: logout<br/>TTL: 남은 수명"]
+    K2 --> V2["reason: security_incident<br/>TTL: 남은 수명"]
 
-예시:
-  token:blacklist:abc123 -> { reason: "logout", timestamp: ... }
-  token:blacklist:def456 -> { reason: "security_incident", timestamp: ... }
+    style Redis fill:#dc382c,color:#fff
+    style V1 fill:#fff3e0
+    style V2 fill:#ffebee
 ```
+
+**Key Pattern:** `token:blacklist:{jti}`
+**Value:** `{ reason: "logout", timestamp: ... }`
+**TTL:** Access Token의 남은 수명
 
 ---
 

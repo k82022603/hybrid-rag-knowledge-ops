@@ -17,7 +17,7 @@
 | **작성일** | 2026-01-16 |
 | **작성자** | Claude Code (Opus 4.5) |
 | **상태** | Draft |
-| **관련 문서** | [상세 설계서](./hybrid_rag_platform_detailed_design.md), [백엔드 구현 계획서](../01_planning/backend_implementation_plan.md), [AI 서비스 구현 계획서](../01_planning/ai_service_implementation_plan.md), [인증/권한 설계서](./authentication_authorization_detailed_design.md) |
+| **관련 문서** | [상세 설계서](./hybrid_rag_platform_detailed_design.md), [백엔드 구현 계획서](../01_planning/backend_implementation_plan.md), [AI 서비스 구현 계획서](../01_planning/ai_service_implementation_plan.md), [인증/권한 설계서](./authentication_authorization_detailed_design.md), [에러 코드 표준](./error_code_standards.md), [용어사전](./glossary.md) |
 
 ---
 
@@ -75,38 +75,23 @@
 
 ### 2.1 API 호출 흐름
 
-```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                              API 호출 흐름                                     │
-├──────────────────────────────────────────────────────────────────────────────┤
-│                                                                               │
-│   Frontend                API Gateway              Backend              AI    │
-│   (React)              (Spring Cloud)           (SpringBoot)         Service │
-│                                                                      (FastAPI)│
-│      │                       │                       │                   │    │
-│      │  1. /api/v1/search    │                       │                   │    │
-│      │──────────────────────▶│                       │                   │    │
-│      │                       │                       │                   │    │
-│      │                       │  2. JWT 검증          │                   │    │
-│      │                       │  3. Rate Limit 체크   │                   │    │
-│      │                       │                       │                   │    │
-│      │                       │  4. 라우팅            │                   │    │
-│      │                       │──────────────────────▶│                   │    │
-│      │                       │                       │                   │    │
-│      │                       │                       │  5. /internal/v1/ │    │
-│      │                       │                       │     search/hybrid │    │
-│      │                       │                       │──────────────────▶│    │
-│      │                       │                       │                   │    │
-│      │                       │                       │  6. 검색 결과     │    │
-│      │                       │                       │◀──────────────────│    │
-│      │                       │                       │                   │    │
-│      │                       │  7. 응답 반환         │                   │    │
-│      │                       │◀──────────────────────│                   │    │
-│      │                       │                       │                   │    │
-│      │  8. 최종 응답         │                       │                   │    │
-│      │◀──────────────────────│                       │                   │    │
-│      │                       │                       │                   │    │
-└──────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+sequenceDiagram
+    participant F as Frontend<br/>(React)
+    participant G as API Gateway<br/>(Spring Cloud)
+    participant B as Backend<br/>(SpringBoot)
+    participant A as AI Service<br/>(FastAPI)
+
+    F->>G: 1. /api/v1/search
+
+    Note over G: 2. JWT 검증
+    Note over G: 3. Rate Limit 체크
+
+    G->>B: 4. 라우팅
+    B->>A: 5. /internal/v1/search/hybrid
+    A-->>B: 6. 검색 결과
+    B-->>G: 7. 응답 반환
+    G-->>F: 8. 최종 응답
 ```
 
 ### 2.2 서비스 구성
@@ -2100,7 +2085,9 @@ Request:
     "chunkId": "chunk-001",
     "options": {
       "extractRelationships": true,
-      "entityTypes": ["Person", "Project", "Technology", "Organization"]
+      "entityTypes": ["Person", "Project", "Technology", "Organization"],
+      "enableGleaning": true,       // Gleaning 활성화 여부 (기본값: false)
+      "maxGleanings": 1             // 최대 Gleaning 횟수 (기본값: 1)
     }
   }
 
@@ -2161,7 +2148,8 @@ Response (200 OK):
       "processingMetadata": {
         "model": "deepseek-chat",
         "latencyMs": 150,
-        "tokenUsage": {"input": 200, "output": 150}
+        "tokenUsage": {"input": 200, "output": 150},
+        "gleaningPasses": 1           // 수행된 Gleaning 횟수 (0=비활성화)
       }
     }
   }
@@ -2611,6 +2599,9 @@ sort=field,direction
 
 ## 7. 에러 코드 정의
 
+> **참고**: 전체 에러 코드 및 공통 코드 정의는 [에러 코드 표준](./error_code_standards.md) 문서를 참조하세요.
+> 본 섹션은 API별 주요 에러 코드 요약입니다.
+
 ### 7.1 인증/권한 에러 (AUTH_xxx)
 
 | 코드 | HTTP | 메시지 | 설명 |
@@ -2728,6 +2719,8 @@ X-API-Successor: /api/v2/knowledge
 | 백엔드 구현 계획서 | [backend_implementation_plan.md](../01_planning/backend_implementation_plan.md) |
 | AI 서비스 구현 계획서 | [ai_service_implementation_plan.md](../01_planning/ai_service_implementation_plan.md) |
 | 인증/권한 설계서 | [authentication_authorization_detailed_design.md](./authentication_authorization_detailed_design.md) |
+| 에러 코드 표준 | [error_code_standards.md](./error_code_standards.md) |
+| 용어사전 | [glossary.md](./glossary.md) |
 
 ---
 

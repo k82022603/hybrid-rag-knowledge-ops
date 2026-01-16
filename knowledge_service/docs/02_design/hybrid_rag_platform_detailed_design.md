@@ -7,11 +7,11 @@
 | 항목 | 내용 |
 |------|------|
 | **문서명** | Neo4j Graph RAG 기반 Hybrid 지식 플랫폼 상세 설계서 |
-| **버전** | 2.3 |
-| **작성일** | 2026-01-14 |
+| **버전** | 2.4 |
+| **작성일** | 2026-01-16 |
 | **작성자** | Claude AI |
 | **상태** | Review 완료 (코드 검증됨) |
-| **관련 문서** | [구축 계획서](../01_planning/hybrid_rag_knowledge_platform_plan.md) |
+| **관련 문서** | [구축 계획서](../01_planning/hybrid_rag_knowledge_platform_plan.md), [에러 코드 표준](./error_code_standards.md), [용어사전](./glossary.md) |
 
 ---
 
@@ -24,6 +24,7 @@
 | 2.1 | 2026-01-14 | Claude AI | 고급 에이전트 오케스트레이션 추가, 파일시스템 캐싱, 배치 처리 로직 추가 |
 | 2.2 | 2026-01-14 | Claude AI | **코드 검증 완료**: LangGraph ReAct Agent 기반 재구현, RRF 융합 로직 수정, ES knn 쿼리 수정, Mermaid 다이어그램 추가 |
 | 2.3 | 2026-01-14 | Claude AI | **서비스 분리 아키텍처 추가**: SpringBoot ↔ AI Service 분리 구조, 역할 분담, 통신 패턴, 장애 대응 명세 |
+| 2.4 | 2026-01-16 | Claude AI | **Gleaning 기법 추가**: 엔티티 추출 품질 향상을 위한 다중 추출 기법, Stage 1 파이프라인 개선 |
 
 ---
 
@@ -118,6 +119,8 @@ graph LR
 | **파일시스템 캐싱** | 중간 결과를 파일로 저장하여 LLM 컨텍스트 윈도우 절약하는 기법 |
 | **배치 처리** | 대량 데이터를 일정 크기로 나눠 순차 처리하여 타임아웃 방지하는 기법 |
 | **Tool Calling** | LLM이 정의된 도구(함수)를 선택하고 호출하는 패턴. ReAct Agent의 핵심 메커니즘 |
+| **Gleaning** | 엔티티 추출 품질 향상을 위한 다중 추출(Multi-pass Extraction) 기법. LLM에게 "누락된 엔티티가 있는지" 재질문하여 추가 추출 수행 |
+| **max_gleanings** | Gleaning 최대 반복 횟수 설정값. 본 시스템은 1회 권장 (비용-효과 최적) |
 
 ---
 
@@ -264,15 +267,31 @@ graph TB
 
 **SpringBoot → AI Service API 호출**
 
-```
-┌─────────────────┐         ┌─────────────────┐         ┌─────────────────┐
-│  SpringBoot    │   REST   │   AI Service    │   API   │   DeepSeek     │
-│  WebClient     │ ───────► │   FastAPI       │ ───────►│   API          │
-│                │          │                 │         │                │
-│  - /search     │          │  - VIP Pipeline │         │  - chat        │
-│  - /extract    │          │  - Hybrid Search│         │  - reasoner    │
-│  - /embed      │          │  - Embedding    │         │                │
-└─────────────────┘         └─────────────────┘         └─────────────────┘
+```mermaid
+flowchart LR
+    subgraph SB["SpringBoot<br/>WebClient"]
+        S1[/search]
+        S2[/extract]
+        S3[/embed]
+    end
+
+    subgraph AI["AI Service<br/>FastAPI"]
+        A1[VIP Pipeline]
+        A2[Hybrid Search]
+        A3[Embedding]
+    end
+
+    subgraph DS["DeepSeek<br/>API"]
+        D1[chat]
+        D2[reasoner]
+    end
+
+    SB -->|REST| AI
+    AI -->|API| DS
+
+    style SB fill:#6db33f,color:#fff
+    style AI fill:#009688,color:#fff
+    style DS fill:#1a73e8,color:#fff
 ```
 
 **API 엔드포인트 매핑**
@@ -440,6 +459,194 @@ JSON만 반환하세요. 추가 설명은 필요 없습니다.
 | `summary` | string | ✅ | 핵심 요약 | "RAG 시스템 설계 문서" |
 
 > ✅ 필수, ⚠️ 선택 (값이 없으면 빈 문자열 또는 null)
+
+#### 3.3.3 Gleaning을 통한 엔티티 추출 품질 향상
+
+**Gleaning 개요**
+
+Gleaning은 Microsoft GraphRAG에서 검증된 다중 추출(Multi-pass Extraction) 기법으로, 단일 LLM 호출에서 누락된 엔티티와 관계를 추가 추출하여 지식 그래프 품질을 향상시킵니다.
+
+```mermaid
+flowchart TB
+    subgraph "Gleaning 프로세스"
+        A[텍스트 청크 입력] --> B[1차 추출<br/>Primary Extraction]
+        B --> C{완료 확인<br/>"모든 엔티티 추출?"}
+        C -->|Yes| E[결과 병합 및 반환]
+        C -->|No| D[Gleaning 패스<br/>"누락 엔티티 추출"]
+        D --> F{max_gleanings<br/>도달?}
+        F -->|No| C
+        F -->|Yes| E
+    end
+
+    style B fill:#c8e6c9
+    style D fill:#bbdefb
+    style E fill:#fff3e0
+```
+
+**Gleaning 설정**
+
+| 설정 | 값 | 설명 |
+|------|-----|------|
+| **청크 크기** | 600 토큰 | Gleaning 최적 청크 크기 (기존 512에서 조정) |
+| **max_gleanings** | 1 | 추가 추출 최대 횟수 (비용-효과 균형) |
+| **적용 대상** | 복잡 문서 | 기술문서, 제안서 등 복잡도 높은 문서에 선택 적용 |
+
+**기대 효과**
+
+| 지표 | 단일 추출 | Gleaning (1회) | 개선율 |
+|------|----------|---------------|--------|
+| 엔티티 Recall | 60% | 80% | **+33%** |
+| 관계 Recall | 50% | 70% | **+40%** |
+| 문서당 비용 | $0.005 | $0.008 | +60% |
+
+**Gleaning 구현 예시**
+
+```python
+from typing import List, Dict, Any
+from langchain_openai import ChatOpenAI
+import json
+
+async def extract_with_gleaning(
+    text: str,
+    max_gleanings: int = 1
+) -> Dict[str, Any]:
+    """
+    Gleaning을 적용한 엔티티 추출
+
+    Args:
+        text: 추출 대상 텍스트
+        max_gleanings: 최대 Gleaning 횟수 (기본값: 1)
+
+    Returns:
+        추출된 엔티티 및 관계
+    """
+    llm = ChatOpenAI(
+        model="deepseek-chat",
+        base_url="https://api.deepseek.com",
+        temperature=0
+    )
+
+    # 1차 추출 (Primary Extraction)
+    primary_result = await extract_entities_single_pass(llm, text)
+    all_entities = primary_result.get("entities", [])
+    all_relationships = primary_result.get("relationships", [])
+
+    # Gleaning 루프
+    for i in range(max_gleanings):
+        # 완료 여부 확인
+        check_prompt = f"""
+다음 추출 결과를 검토하세요.
+
+## 원본 텍스트
+{text}
+
+## 현재 추출된 엔티티
+{[e['name'] for e in all_entities]}
+
+## 현재 추출된 관계
+{[(r['source'], r['type'], r['target']) for r in all_relationships]}
+
+질문: 위 텍스트에서 누락된 중요한 엔티티나 관계가 있습니까?
+
+다음 형식으로만 답변하세요:
+ANSWER: Yes 또는 No
+"""
+        check_response = await llm.ainvoke(check_prompt)
+
+        if "ANSWER: No" in check_response.content:
+            break
+
+        # Gleaning 패스 - 누락 엔티티 추출
+        gleaning_prompt = f"""
+이전 추출에서 많은 엔티티가 누락되었습니다.
+
+다음 항목을 특히 주의하여 추가 추출하세요:
+1. 대명사(그, 그녀, 이것)로 참조된 엔티티
+2. 생략된 주어/목적어
+3. 암시적 인과관계
+4. 시간 표현에 숨겨진 이벤트
+
+## 원본 텍스트
+{text}
+
+## 이전 추출 결과 (중복 제외)
+엔티티: {json.dumps(all_entities, ensure_ascii=False)}
+관계: {json.dumps(all_relationships, ensure_ascii=False)}
+
+새로 발견된 엔티티와 관계만 JSON으로 반환하세요.
+"""
+        gleaning_result = await llm.ainvoke(gleaning_prompt)
+
+        # 결과 파싱 및 병합
+        try:
+            new_data = json.loads(gleaning_result.content)
+            all_entities.extend(new_data.get("entities", []))
+            all_relationships.extend(new_data.get("relationships", []))
+        except json.JSONDecodeError:
+            break  # 파싱 실패 시 종료
+
+    # 중복 제거 후 반환
+    return {
+        "entities": deduplicate_entities(all_entities),
+        "relationships": deduplicate_relationships(all_relationships),
+        "gleaning_passes": i + 1
+    }
+
+
+def deduplicate_entities(entities: List[Dict]) -> List[Dict]:
+    """엔티티 중복 제거 (name 기준)"""
+    seen = set()
+    result = []
+    for e in entities:
+        if e["name"] not in seen:
+            seen.add(e["name"])
+            result.append(e)
+    return result
+
+
+def deduplicate_relationships(relationships: List[Dict]) -> List[Dict]:
+    """관계 중복 제거 (source-type-target 기준)"""
+    seen = set()
+    result = []
+    for r in relationships:
+        key = (r["source"], r["type"], r["target"])
+        if key not in seen:
+            seen.add(key)
+            result.append(r)
+    return result
+```
+
+**문서 복잡도 기반 Gleaning 적용**
+
+```python
+def should_apply_gleaning(text: str, metadata: Dict) -> bool:
+    """
+    문서 복잡도에 따라 Gleaning 적용 여부 결정
+
+    Returns:
+        True: Gleaning 적용 권장
+        False: 단일 추출로 충분
+    """
+    # 복잡한 문서 유형
+    complex_types = ["기술문서", "제안서", "아키텍처", "설계서"]
+
+    # 기준 1: 문서 유형
+    if metadata.get("document_type") in complex_types:
+        return True
+
+    # 기준 2: 텍스트 길이 (2000자 이상)
+    if len(text) > 2000:
+        return True
+
+    # 기준 3: 고유명사 밀도
+    proper_noun_count = count_proper_nouns(text)
+    if proper_noun_count / len(text.split()) > 0.1:
+        return True
+
+    return False
+```
+
+> **참고**: Gleaning 기법의 상세 기술 검토는 [Gleaning 기술 검토 문서](./technical_assessment/gleaning_knowledge_graph_quality_assessment.md)를 참조하세요.
 
 **Stage 2: 오케스트레이션 (Intelligent)**
 
@@ -945,6 +1152,121 @@ MATCH (c1:Community {id: "comm_001"})
 MATCH (c2:Community {id: "comm_002"})
 CREATE (c1)-[:PARENT_OF]->(c2);
 ```
+
+#### 4.2.3 스키마 진화 Workaround
+
+> ⚠️ **리스크**: 그래프 스키마 변경 시 마이그레이션 복잡성 및 다운타임 발생 가능
+
+##### 회피 전략 1: 스키마리스(Schemaless) 접근
+
+**Neo4j의 스키마 유연성 활용** - 명시적 마이그레이션 없이 점진적 확장:
+
+```cypher
+// 기존 노드에 새 속성 추가 (무중단)
+MATCH (e:Entity)
+WHERE e.department IS NULL
+SET e.department = "Unknown"
+
+// 새 레이블 추가 (기존 레이블 유지)
+MATCH (e:Entity {type: "Person"})
+SET e:Person  // 멀티 레이블
+
+// 새 관계 타입 추가 (기존 관계 유지)
+MATCH (e1:Entity)-[r:RELATED_TO]->(e2:Entity)
+WHERE r.type = "MANAGES"
+CREATE (e1)-[:MANAGES]->(e2)
+```
+
+**핵심 원칙**:
+- 기존 속성/레이블 **삭제 금지** → 새 버전 추가만 허용
+- 애플리케이션에서 **다중 버전 지원** (신규/구버전 동시 읽기)
+
+##### 회피 전략 2: 듀얼 라이트 패턴
+
+**스키마 변경 시 신/구 버전 동시 운영**:
+
+```python
+class GraphSchemaManager:
+    """그래프 스키마 버전 관리"""
+
+    def __init__(self, neo4j_driver):
+        self.driver = neo4j_driver
+        self.current_version = "v1"
+        self.target_version = "v2"
+
+    async def write_entity(self, entity: dict):
+        """듀얼 라이트: 신/구 버전 동시 저장"""
+        async with self.driver.session() as session:
+            # V1 (기존 스키마)
+            await session.run("""
+                MERGE (e:Entity {id: $id})
+                SET e.name = $name, e.type = $type
+            """, entity)
+
+            # V2 (신규 스키마) - 마이그레이션 기간 동안
+            if self.target_version == "v2":
+                await session.run("""
+                    MERGE (e:Entity_v2 {id: $id})
+                    SET e.name = $name,
+                        e.entity_type = $type,  // 속성명 변경
+                        e.department = $dept
+                """, entity)
+
+    async def read_entity(self, entity_id: str):
+        """읽기: 신버전 우선, 폴백으로 구버전"""
+        async with self.driver.session() as session:
+            # V2 먼저 시도
+            result = await session.run("""
+                MATCH (e:Entity_v2 {id: $id})
+                RETURN e
+            """, {"id": entity_id})
+
+            if result.single():
+                return self._transform_v2(result)
+
+            # V1 폴백
+            result = await session.run("""
+                MATCH (e:Entity {id: $id})
+                RETURN e
+            """, {"id": entity_id})
+
+            return self._transform_v1(result)
+```
+
+##### 회피 전략 3: 읽기 전용 + 재구축
+
+**대규모 스키마 변경 시**: 신규 그래프 병렬 구축 후 전환
+
+```yaml
+# 스키마 마이그레이션 절차
+schema_migration:
+  phase_1_parallel_build:
+    - 신규 Neo4j 인스턴스 생성 (neo4j-v2)
+    - PostgreSQL SSOT 기준 전체 재구축
+    - 검증 쿼리 실행
+
+  phase_2_dual_read:
+    - 읽기: neo4j-v2 우선, neo4j-v1 폴백
+    - 쓰기: 양쪽 모두 (듀얼 라이트)
+    - 모니터링: 불일치 감지
+
+  phase_3_cutover:
+    - 트래픽 100% neo4j-v2로 전환
+    - neo4j-v1 읽기 전용 모드
+    - 검증 기간 후 neo4j-v1 폐기
+```
+
+##### 스키마 변경 유형별 권장 전략
+
+| 변경 유형 | 권장 전략 | 다운타임 |
+|----------|-----------|----------|
+| 속성 추가 | 전략 1 (스키마리스) | 없음 |
+| 속성명 변경 | 전략 2 (듀얼 라이트) | 없음 |
+| 레이블 추가 | 전략 1 (스키마리스) | 없음 |
+| 레이블 변경/삭제 | 전략 3 (재구축) | 최소화 |
+| 관계 구조 변경 | 전략 3 (재구축) | 최소화 |
+
+> 💡 **핵심**: Neo4j의 **스키마리스 특성**을 활용하여 "추가만, 삭제 안함" 원칙 적용. 대규모 변경은 **PostgreSQL SSOT 기준 재구축**으로 해결.
 
 ### 4.3 Elasticsearch 인덱스 스키마
 
@@ -1991,6 +2313,101 @@ embedder_config = {
     "return_colbert_vecs": False  # ColBERT 비활성화
 }
 ```
+
+#### 6.2.3 대용량 문서 처리 Workaround
+
+> ⚠️ **리스크**: BGE-M3 모델은 16GB RAM 환경에서 대량 문서 처리 시 OOM(Out of Memory) 발생 가능
+
+##### 회피 전략 1: 큐 기반 비동기 처리
+
+복잡한 동적 배치 조정 대신, **Redis Queue + Worker 패턴**으로 회피:
+
+```python
+# 1. 문서 업로드 시 즉시 반환 (비동기)
+async def upload_document(file: UploadFile):
+    doc_id = str(uuid.uuid4())
+
+    # PostgreSQL에 메타데이터만 저장 (즉시)
+    await pg.insert({
+        "id": doc_id,
+        "status": "pending_embedding",
+        "filename": file.filename
+    })
+
+    # 임베딩 작업을 큐에 추가 (비동기)
+    await redis.lpush("embedding_queue", doc_id)
+
+    return {"id": doc_id, "status": "processing"}
+
+# 2. 별도 Worker에서 순차 처리 (메모리 안전)
+class EmbeddingWorker:
+    def __init__(self):
+        self.embedder = BGEM3FlagModel("BAAI/bge-m3")
+        self.batch_size = 4  # 고정 작은 배치
+
+    async def process_queue(self):
+        while True:
+            doc_id = await redis.brpop("embedding_queue", timeout=30)
+            if doc_id:
+                await self.process_single(doc_id)
+                gc.collect()  # 매 문서마다 GC
+```
+
+##### 회피 전략 2: 시간대 분산 처리
+
+**피크 시간 회피** + **야간 배치 처리**:
+
+```yaml
+# 임베딩 처리 정책
+embedding_policy:
+  # 실시간 처리 (업무 시간)
+  realtime:
+    enabled: true
+    max_concurrent: 1          # 동시 1개만
+    max_batch_size: 4          # 최소 배치
+    priority: "urgent_only"    # 긴급 문서만
+
+  # 배치 처리 (야간)
+  batch:
+    schedule: "0 22 * * *"     # 매일 22시
+    max_concurrent: 2          # 동시 2개
+    batch_size: 8              # 표준 배치
+    gc_interval: 50            # 50개마다 GC
+```
+
+##### 회피 전략 3: 외부 임베딩 서비스 (Fallback)
+
+**메모리 부족 시 클라우드 API로 전환**:
+
+```python
+class HybridEmbedder:
+    """로컬 실패 시 클라우드 Fallback"""
+
+    def __init__(self):
+        self.local_embedder = BGEM3FlagModel("BAAI/bge-m3")
+        self.use_fallback = False
+
+    async def embed(self, texts: List[str]) -> List[List[float]]:
+        if not self.use_fallback:
+            try:
+                return self.local_embedder.encode(texts)["dense_vecs"]
+            except MemoryError:
+                logger.warning("OOM detected, switching to cloud fallback")
+                self.use_fallback = True
+
+        # Fallback: OpenAI Embedding API (비용 발생)
+        return await openai_embed(texts, model="text-embedding-3-small")
+```
+
+##### 권장 접근법
+
+| 상황 | 권장 전략 | 이유 |
+|------|-----------|------|
+| **초기 구축** | 전략 1 (큐 기반) | 구현 단순, 안정적 |
+| **운영 안정화 후** | 전략 2 (시간 분산) | 리소스 효율화 |
+| **긴급 대량 처리** | 전략 3 (클라우드) | 처리량 보장 |
+
+> 💡 **핵심**: 복잡한 동적 배치 조정보다 **단순한 큐 기반 순차 처리**가 메모리 안정성 확보에 효과적
 
 ### 6.3 엔티티 추출 (DeepSeek)
 

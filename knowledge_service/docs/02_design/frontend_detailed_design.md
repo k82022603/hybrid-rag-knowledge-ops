@@ -7,6 +7,8 @@
 **관련 문서**:
 - [프론트엔드 구현 계획서](../01_planning/frontend_implementation_plan.md)
 - [인증/권한 설계서](./authentication_authorization_detailed_design.md)
+- [에러 코드 표준](./error_code_standards.md)
+- [용어사전](./glossary.md)
 
 ---
 
@@ -343,31 +345,28 @@ components/common/Button/
 
 ### 4.1 컴포넌트 분류
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      컴포넌트 계층 구조                           │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Pages["Pages (페이지)"]
+        P1["라우트와 1:1 매핑<br/>데이터 페칭, 레이아웃 조합"]
+        P2["예: DashboardPage, SearchPage, KnowledgeDetailPage"]
+    end
 
-┌─────────────────────────────────────────────────────────────────┐
-│  Pages (페이지)                                                  │
-│  - 라우트와 1:1 매핑                                             │
-│  - 데이터 페칭, 레이아웃 조합                                     │
-│  예: DashboardPage, SearchPage, KnowledgeDetailPage             │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │
-┌───────────────────────────▼─────────────────────────────────────┐
-│  Features (기능 컴포넌트)                                        │
-│  - 비즈니스 로직 포함                                            │
-│  - 특정 도메인에 종속                                            │
-│  예: KnowledgeList, SearchChat, BookmarkFolder                  │
-└───────────────────────────┬─────────────────────────────────────┘
-                            │
-┌───────────────────────────▼─────────────────────────────────────┐
-│  Components (공유 컴포넌트)                                      │
-│  - 재사용 가능한 UI 컴포넌트                                     │
-│  - 비즈니스 로직 없음                                            │
-│  예: Button, Card, Modal, Table, Input                          │
-└─────────────────────────────────────────────────────────────────┘
+    subgraph Features["Features (기능 컴포넌트)"]
+        F1["비즈니스 로직 포함<br/>특정 도메인에 종속"]
+        F2["예: KnowledgeList, SearchChat, BookmarkFolder"]
+    end
+
+    subgraph Components["Components (공유 컴포넌트)"]
+        C1["재사용 가능한 UI 컴포넌트<br/>비즈니스 로직 없음"]
+        C2["예: Button, Card, Modal, Table, Input"]
+    end
+
+    Pages --> Features --> Components
+
+    style Pages fill:#1976d2,color:#fff
+    style Features fill:#388e3c,color:#fff
+    style Components fill:#f57c00,color:#fff
 ```
 
 ### 4.2 컴포넌트 설계 원칙
@@ -792,23 +791,35 @@ interface TableColumn<T> {
 
 ### 6.1 상태 관리 전략
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      상태 관리 분류                              │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Server["서버 상태 (React Query)"]
+        S1[지식 목록]
+        S2[검색 결과]
+        S3[사용자 정보]
+        S4[북마크]
+        S5[대시보드 데이터]
+    end
 
-┌───────────────────┬───────────────────┬─────────────────────────┐
-│    서버 상태       │   클라이언트 상태   │      URL 상태          │
-│  (Server State)   │  (Client State)   │    (URL State)         │
-├───────────────────┼───────────────────┼─────────────────────────┤
-│ React Query       │ Redux Toolkit     │ React Router           │
-├───────────────────┼───────────────────┼─────────────────────────┤
-│ - 지식 목록       │ - 인증 상태        │ - 페이지 번호          │
-│ - 검색 결과       │ - UI 상태         │ - 필터 조건            │
-│ - 사용자 정보     │ - 폼 입력         │ - 정렬 옵션            │
-│ - 북마크         │ - 모달 상태        │ - 검색어              │
-│ - 대시보드 데이터 │ - 사이드바 상태    │ - 탭 선택             │
-└───────────────────┴───────────────────┴─────────────────────────┘
+    subgraph Client["클라이언트 상태 (Redux Toolkit)"]
+        C1[인증 상태]
+        C2[UI 상태]
+        C3[폼 입력]
+        C4[모달 상태]
+        C5[사이드바 상태]
+    end
+
+    subgraph URL["URL 상태 (React Router)"]
+        U1[페이지 번호]
+        U2[필터 조건]
+        U3[정렬 옵션]
+        U4[검색어]
+        U5[탭 선택]
+    end
+
+    style Server fill:#42a5f5,color:#fff
+    style Client fill:#66bb6a,color:#fff
+    style URL fill:#ffa726,color:#fff
 ```
 
 ### 6.2 Redux Store 설계
@@ -2323,17 +2334,20 @@ export const LazyImage: React.FC<LazyImageProps> = ({ src, alt, ...props }) => {
 
 ### 13.1 테스트 피라미드
 
-```
-                    ┌───────────┐
-                    │    E2E    │  5%
-                    │ (Playwright)│
-                ┌───┴───────────┴───┐
-                │    Integration     │  25%
-                │  (React Testing)   │
-            ┌───┴───────────────────┴───┐
-            │         Unit Tests         │  70%
-            │    (Vitest + RTL)          │
-            └───────────────────────────┘
+```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'fontSize': '14px'}}}%%
+flowchart TB
+    subgraph Pyramid["테스트 피라미드"]
+        E2E["E2E (Playwright)<br/>5%"]
+        INT["Integration (React Testing)<br/>25%"]
+        UNIT["Unit Tests (Vitest + RTL)<br/>70%"]
+    end
+
+    E2E --> INT --> UNIT
+
+    style E2E fill:#ef5350,color:#fff
+    style INT fill:#ff9800,color:#fff
+    style UNIT fill:#4caf50,color:#fff
 ```
 
 ### 13.2 단위 테스트

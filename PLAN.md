@@ -2,8 +2,8 @@
 
 > Claude Code 세션 간 컨텍스트 유지를 위한 계획 문서
 >
-> **Last Updated**: 2026-01-15
-> **Current Phase**: Phase 2.5 - 설계 보완 및 API 설계 진행 중
+> **Last Updated**: 2026-01-16
+> **Current Phase**: Phase 2.8 - 설계 마무리 단계 (통합 아키텍처 설계서 작성 예정)
 
 ---
 
@@ -11,8 +11,8 @@
 
 ```
 [Phase 1: 기획]     ████████████████████ 100% ✅ 완료
-[Phase 2: 설계]     ████████████████░░░░  80% 🔄 보완 중 (API/Backend 설계서, 암호화 설계)
-[Phase 3: 구현]     ░░░░░░░░░░░░░░░░░░░░   0% ⏸️ 대기 중
+[Phase 2: 설계]     ██████████████████░░  90% 🔄 마무리 중 (통합 아키텍처 설계서)
+[Phase 3: 구현]     ░░░░░░░░░░░░░░░░░░░░   0% ⏸️ 대기 중 (설계 완료 + 개발 에이전트 소싱 후)
 [Phase 4: 테스트]   ░░░░░░░░░░░░░░░░░░░░   0%
 [Phase 5: 배포]     ░░░░░░░░░░░░░░░░░░░░   0%
 ```
@@ -164,7 +164,7 @@
 - [x] **AI 에이전트 역할 명확화** (개발 에이전트 vs 런타임 LLM) ✅
 - [x] **문서 일관성 확보** (PLAN.md, CLAUDE.md, devops_alm_plan.md) ✅
 
-## Phase 2: Design (설계) - 80% 🔄 보완 중
+## Phase 2: Design (설계) - 90% 🔄 마무리 중
 
 ### 완료된 작업
 - [x] **상세 설계서 v2.3** (`docs/02_design/hybrid_rag_platform_detailed_design.md`) ✅
@@ -179,13 +179,25 @@
 - [x] **인증/권한 관리 설계서** (`docs/02_design/authentication_authorization_detailed_design.md`) ✅
 - [x] **UI Storyboard** (`docs/02_design/ui_storyboard/`) ✅
 - [x] **프레젠테이션 자료 생성** (6개 PPT, 58장) ✅
+- [x] **통합 API 설계서** (`docs/02_design/api_integration_design.md`) ✅ 2026-01-16
+- [x] **Backend 상세 설계서** (`docs/02_design/backend_detailed_design.md`) ✅ 2026-01-16
+- [x] **민감 데이터 암호화 설계서** (`docs/02_design/data_encryption_design.md`) ✅
+- [x] **기술 검토 문서** (`docs/02_design/technical_assessment/`) ✅ 2026-01-16
+  - API 아키텍처 설계 검토 (Option A/B/C 분석)
+  - TLS 인증서 구현 검토
 
 ### 진행 중 / 예정 작업
-- [ ] **API 상세 설계서** (`docs/02_design/api_detailed_design.md`) 🔜 P0
-- [ ] **Backend 상세 설계서** (`docs/02_design/backend_detailed_design.md`) 🔜 P0
-- [ ] **민감 데이터 암호화 설계서** (`docs/02_design/data_encryption_design.md`) 🔜 P0
+- [ ] **통합 아키텍처 설계서** (`docs/02_design/integrated_architecture_design.md`) 🔜 P0
+  - 모든 설계서 통합 리뷰
+  - 인프라 구성 설계 포함
+  - 시스템 전체 아키텍처 다이어그램
 
 ## Phase 3: Implementation (구현) - 0% ⏸️ 대기 중
+
+### 시작 조건 (Prerequisites)
+- [ ] Phase 2 설계 완료 (통합 아키텍처 설계서 포함)
+- [ ] 개발 에이전트 소싱 완료
+- [ ] 개발 환경 셋업 (Docker Compose, 로컬 환경)
 
 ### 다음 단계 (Phase 2 완료 후)
 - [ ] 개발 환경 구축 (Docker Compose)
@@ -346,24 +358,28 @@ Versioning: Semantic Versioning (SemVer)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│ 1. [P0-HIGH] API 상세 설계서 작성                                        │
-│    └─ OpenAPI 3.0 스펙, 엔드포인트 정의, 요청/응답 스키마                │
+│ 1. [P0-HIGH] 통합 아키텍처 설계서 작성 (오늘 오후)                        │
+│    ├─ 모든 설계서 리뷰 및 통합                                           │
+│    ├─ 인프라 구성 설계 (Docker, K8s, 네트워크)                           │
+│    └─ 시스템 전체 아키텍처 다이어그램                                     │
 ├─────────────────────────────────────────────────────────────────────────┤
-│ 2. [P0-HIGH] Backend 상세 설계서 작성                                    │
-│    └─ SpringBoot 컴포넌트 설계, 서비스 레이어, 데이터 접근 계층          │
+│ 2. [P0-HIGH] 개발 에이전트 소싱                                          │
+│    └─ Backend, Frontend, AI Service 개발 담당 에이전트                   │
 ├─────────────────────────────────────────────────────────────────────────┤
-│ 3. [P0-HIGH] 민감 데이터 암호화 설계서 작성                              │
-│    └─ 암호화 전략, 키 관리, 데이터 분류, 규정 준수                       │
+│ 3. [P1-MEDIUM] 개발 환경 구축 (Phase 3 시작 시)                          │
+│    └─ Docker Compose, DB 초기화, 로컬 환경 설정                          │
 ├─────────────────────────────────────────────────────────────────────────┤
-│ 4. [P1-MEDIUM] 개발 환경 구축                                           │
-│    └─ Docker Compose, DB 초기화, 로컬 환경 설정                         │
-├─────────────────────────────────────────────────────────────────────────┤
-│ 5. [P1-MEDIUM] AI Service 프로젝트 초기화                               │
+│ 4. [P1-MEDIUM] AI Service 프로젝트 초기화                                │
 │    └─ FastAPI + Poetry, 디렉토리 구조, VIP 파이프라인 기본 구조          │
 ├─────────────────────────────────────────────────────────────────────────┤
-│ 6. [P2-LOW] SpringBoot 프로젝트 초기화                                   │
+│ 5. [P2-LOW] SpringBoot 프로젝트 초기화                                   │
 │    └─ Spring Initializr, 기본 의존성, API Gateway 설정                  │
 └─────────────────────────────────────────────────────────────────────────┘
+
+✅ 완료된 P0 작업:
+- API 상세 설계서 (api_integration_design.md)
+- Backend 상세 설계서 (backend_detailed_design.md)
+- 민감 데이터 암호화 설계서 (data_encryption_design.md)
 ```
 
 ---
@@ -387,9 +403,13 @@ docs/
 │   ├── hybrid_rag_platform_detailed_design.md   ✅ v2.3 완료
 │   ├── frontend_detailed_design.md              ✅ 완료
 │   ├── authentication_authorization_detailed_design.md  ✅ 완료
-│   ├── api_detailed_design.md                   🔜 다음 작업 (P0)
-│   ├── backend_detailed_design.md               🔜 다음 작업 (P0)
-│   ├── data_encryption_design.md                🔜 다음 작업 (P0)
+│   ├── api_integration_design.md                ✅ 완료 (External + Internal API)
+│   ├── backend_detailed_design.md               ✅ 완료 (17개 섹션)
+│   ├── data_encryption_design.md                ✅ 완료
+│   ├── integrated_architecture_design.md        🔜 다음 작업 (P0) - 인프라 포함
+│   ├── technical_assessment/                    ✅ 완료
+│   │   ├── 01.API_architecture_design_review.md
+│   │   └── 02.TLS_certificate_implementation_review.md
 │   ├── ui_storyboard/                           ✅ 완료 (4개 문서 + 2개 PPT)
 │   └── review/
 │       └── 2026-01-14_detailed_code_review.md   ✅ 완료
@@ -604,6 +624,25 @@ CI/CD Pipeline (GitHub Actions)
 ---
 
 ## Session Notes
+
+### 2026-01-16
+- **Backend 상세 설계서 완성** (`backend_detailed_design.md`)
+  - 17개 섹션 구성 (아키텍처, 모듈구조, 패키지, 레이어, JPA 등)
+  - 개발 에이전트가 이해하고 구현할 수 있도록 상세 작성
+- **기술 검토 문서 작성** (`technical_assessment/`)
+  - API 아키텍처 설계 검토 (Option A/B/C 분석 → Option C 선정)
+  - TLS 인증서 구현 검토 (환경별 요구사항 정리)
+- **설계서 Mermaid 다이어그램 변환**
+  - api_integration_design.md, data_encryption_design.md
+  - authentication_authorization_detailed_design.md (4개 다이어그램)
+  - hybrid_rag_platform_detailed_design.md, frontend_detailed_design.md
+- **PLAN.md 현행화**
+  - Phase 2 진행률 80% → 90% 업데이트
+  - 완료된 설계 문서 반영 (API, Backend, 암호화 설계서)
+  - 다음 작업: 통합 아키텍처 설계서 (인프라 구성 포함)
+- **Phase 3 시작 조건 명확화**
+  - 상세 설계 완료 필수
+  - 개발 에이전트 소싱 필요
 
 ### 2026-01-15
 - **프레젠테이션 자료 대량 생성** (6개 PPT, 58장)
