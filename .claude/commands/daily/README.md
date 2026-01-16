@@ -6,10 +6,12 @@
 
 | 명령어 | 설명 | 용도 |
 |--------|------|------|
-| `/daily-close` | 전체 마무리 | 모든 마무리 작업 일괄 실행 |
-| `/daily-log` | 작업일지 | 작업일지만 작성/업데이트 |
-| `/vibe-log` | 바이브 일지 | 바이브 코딩 일지만 작성/업데이트 |
-| `/sync-docs` | 문서 현행화 | README/CLAUDE/PLAN 업데이트 |
+| `/project:daily:daily-close` | 전체 마무리 | 모든 마무리 작업 일괄 실행 |
+| `/project:daily:daily-log` | 작업일지 | 작업일지만 작성/업데이트 |
+| `/project:daily:vibe-log` | 바이브 일지 | 바이브 코딩 일지만 작성/업데이트 |
+| `/project:daily:sync-docs` | 문서 현행화 | README/CLAUDE/PLAN 업데이트 |
+
+> **참고**: 서브폴더(`daily/`)에 있는 명령어는 `/project:폴더명:명령어` 형식으로 호출합니다.
 
 ## 핵심 기능: 업데이트 모드
 
@@ -29,13 +31,13 @@
 
 ### 시나리오 1: 퇴근 전 일괄 마무리
 ```
-/daily-close
+/project:daily:daily-close
 ```
 → 커밋 확인 → 작업일지 → 바이브 일지 → 문서 현행화 → 푸시
 
 ### 시나리오 2: 작업일지만 작성
 ```
-/daily-log
+/project:daily:daily-log
 ```
 → 작업일지 작성/업데이트만 수행
 
@@ -43,13 +45,13 @@
 ```
 # 이미 오늘 마무리 완료 후 추가 작업 발생
 
-/daily-close
+/project:daily:daily-close
 ```
 → 기존 일지에 추가 내용만 반영
 
 ### 시나리오 4: 문서만 빠르게 동기화
 ```
-/sync-docs
+/project:daily:sync-docs
 ```
 → README.md, CLAUDE.md, PLAN.md만 업데이트
 
@@ -93,9 +95,9 @@ work_logs/vibe_logs/
 ### 1. 언제 어떤 명령어를 쓸까?
 
 ```
-퇴근 전 완전 마무리    → /daily-close
-빠르게 일지만         → /daily-log 또는 /vibe-log
-문서 버전만 올리고 싶을 때 → /sync-docs
+퇴근 전 완전 마무리    → /project:daily:daily-close
+빠르게 일지만         → /project:daily:daily-log 또는 /project:daily:vibe-log
+문서 버전만 올리고 싶을 때 → /project:daily:sync-docs
 ```
 
 ### 2. 업데이트 vs 새 작성

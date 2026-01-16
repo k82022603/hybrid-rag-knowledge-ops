@@ -1,3 +1,8 @@
+---
+description: README.md, CLAUDE.md, PLAN.md 문서 현행화
+allowed-tools: Bash(git:*), Read, Write, Edit
+---
+
 # Sync Docs - 프로젝트 문서 현행화
 
 README.md, CLAUDE.md, PLAN.md를 오늘 작업 내용으로 업데이트합니다.
@@ -92,5 +97,5 @@ git commit -m "[DOCS] 프로젝트 메인 문서 현행화"
 
 ---
 
-**사용법**: `/sync-docs`
+**사용법**: `/project:daily:sync-docs`
 **결과물**: README.md, CLAUDE.md, PLAN.md 업데이트

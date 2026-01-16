@@ -1,3 +1,8 @@
+---
+description: 하루 마무리 자동화 (작업일지 + 바이브로그 + 문서 현행화 + 커밋/푸시)
+allowed-tools: Bash(git:*), Bash(ls:*), Read, Write, Edit, Glob
+---
+
 # Daily Close - 하루 마무리 자동화
 
 하루 일과를 마무리하는 전체 워크플로우를 실행합니다.
@@ -66,5 +71,5 @@ git push origin main
 
 ---
 
-**사용법**: `/daily-close`
+**사용법**: `/project:daily:daily-close`
 **모드**: 업데이트 (기존 파일 보존 + 추가 내용 반영)

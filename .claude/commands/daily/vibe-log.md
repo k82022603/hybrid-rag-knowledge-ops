@@ -1,3 +1,8 @@
+---
+description: 바이브 코딩 일지 작성/업데이트 (인사이트 및 아이디어 기록)
+allowed-tools: Bash(git:*), Bash(ls:*), Read, Write, Edit, Glob
+---
+
 # Vibe Log - 바이브 코딩 일지 작성/업데이트
 
 오늘의 바이브 코딩 일지를 작성하거나 업데이트합니다.
@@ -184,6 +189,6 @@ git commit -m "[DOCS] YYYY-MM-DD 바이브 코딩 일지 작성/업데이트"
 
 ---
 
-**사용법**: `/vibe-log`
+**사용법**: `/project:daily:vibe-log`
 **모드**: 업데이트 (기존 파일 보존 + 새 인사이트 추가)
 **결과물**: `work_logs/vibe_logs/YYYY/MM-Month/YYYY-MM-DD-vibe.md`

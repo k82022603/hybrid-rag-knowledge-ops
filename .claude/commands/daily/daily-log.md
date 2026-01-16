@@ -1,3 +1,8 @@
+---
+description: 오늘의 작업일지 작성/업데이트 (업데이트 모드 지원)
+allowed-tools: Bash(git:*), Bash(ls:*), Read, Write, Edit, Glob
+---
+
 # Daily Log - 작업일지 작성/업데이트
 
 오늘의 작업일지를 작성하거나 업데이트합니다.
@@ -102,6 +107,6 @@ git commit -m "[DOCS] YYYY-MM-DD 작업일지 작성/업데이트"
 
 ---
 
-**사용법**: `/daily-log`
+**사용법**: `/project:daily:daily-log`
 **모드**: 업데이트 (기존 파일 보존 + 추가 내용 반영)
 **결과물**: `work_logs/daily_logs/YYYY/MM-Month/YYYY-MM-DD.md`
