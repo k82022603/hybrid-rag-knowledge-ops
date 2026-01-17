@@ -7,8 +7,9 @@
 | 항목 | 내용 |
 |------|------|
 | **문서명** | Hybrid RAG Knowledge Platform 통합 상세 설계서 |
-| **버전** | 1.0 |
+| **버전** | 1.1 |
 | **작성일** | 2026-01-16 |
+| **최종 수정** | 2026-01-17 |
 | **작성자** | Claude Code (Opus 4.5) |
 | **상태** | Final Draft |
 | **목적** | 프로젝트 발표 및 설계 통합 참조용 |
@@ -20,6 +21,7 @@
 | 버전 | 일자 | 작성자 | 변경 내용 |
 |------|------|--------|----------|
 | 1.0 | 2026-01-16 | Claude Code | 초안 작성 - 9개 설계서 통합 |
+| 1.1 | 2026-01-17 | Claude Code | Observability 설계서 통합, UUID 표준 반영, 버전 현행화 |
 
 ---
 
@@ -78,7 +80,7 @@ mindmap
 | **응답 시간** | < 3초 (P95) | Hybrid 검색 + 답변 생성 |
 | **검색 정확도** | > 85% (Precision@5) | 상위 5개 결과 기준 |
 | **LLM 비용** | 95% 절감 | GPT-4 대비 DeepSeek |
-| **가용성** | 99.5% | SLA 기준 |
+| **가용성** | 99.9% | SLA 기준 (월 43분 다운타임 허용) |
 | **동시 사용자** | 100명 | 1단계 목표 |
 
 ---
@@ -203,10 +205,11 @@ flowchart TB
         MinIO[("📦 MinIO<br/>File Storage")]
     end
 
-    subgraph Monitor["Monitoring"]
+    subgraph Monitor["Observability"]
         Prometheus["📊 Prometheus"]
         Grafana["📈 Grafana"]
         Loki["📝 Loki"]
+        Jaeger["🔗 Jaeger"]
     end
 
     User -->|HTTPS| Nginx --> FE & GW
@@ -467,6 +470,9 @@ erDiagram
     users ||--o{ search_history : has
     knowledge ||--o{ knowledge_chunks : contains
     knowledge ||--o{ knowledge_versions : has
+    knowledge ||--o{ document_categories : has
+    categories ||--o{ document_categories : has
+    categories ||--o| categories : parent
     bookmarks }o--|| bookmark_folders : belongs_to
 
     users {
@@ -485,11 +491,25 @@ erDiagram
         text content
         enum document_type
         uuid created_by FK
-        jsonb categories
         date valid_start
         date valid_end
         enum status
         timestamp created_at
+    }
+
+    categories {
+        uuid id PK
+        string name
+        uuid parent_id FK
+        int level
+        string path
+        int sort_order
+    }
+
+    document_categories {
+        uuid document_id FK
+        uuid category_id FK
+        boolean is_primary
     }
 
     knowledge_chunks {
@@ -648,6 +668,8 @@ sequenceDiagram
 | waitDurationInOpenState | 30초 | Open 상태 유지 시간 |
 | slidingWindowSize | 10 | 집계 윈도우 크기 |
 | timeout | 30초 | 요청 타임아웃 |
+
+> **참고**: Bulkhead 패턴(스레드풀 격리)은 2단계 구축 시 적용 예정입니다.
 
 ---
 
@@ -892,7 +914,7 @@ flowchart TB
 ```mermaid
 flowchart TB
     subgraph Server["Docker Host (Single Server)"]
-        subgraph Containers["컨테이너 (15개)"]
+        subgraph Containers["컨테이너 (17개)"]
             subgraph App["Application"]
                 nginx["nginx"]
                 frontend["frontend"]
@@ -910,11 +932,13 @@ flowchart TB
                 minio["minio"]
             end
 
-            subgraph Monitor["Monitoring"]
+            subgraph Monitor["Observability"]
                 prom["prometheus"]
                 graf["grafana"]
                 loki["loki"]
                 promtail["promtail"]
+                jaeger["jaeger"]
+                alertmgr["alertmanager"]
             end
         end
     end
@@ -994,7 +1018,9 @@ flowchart LR
     style CD fill:#e8f5e9
 ```
 
-### 8.5 모니터링 스택
+### 8.5 모니터링 스택 (Observability)
+
+> **상세 설계서**: [Observability 상세 설계서](./observability_detailed_design.md) 참조
 
 | 도구 | 용도 | 수집 대상 |
 |------|------|----------|
@@ -1002,6 +1028,8 @@ flowchart LR
 | **Grafana** | 대시보드 | 시스템 현황 시각화 |
 | **Loki** | 로그 수집 | 애플리케이션 로그 |
 | **Promtail** | 로그 수집 에이전트 | 컨테이너 로그 |
+| **Jaeger** | 분산 트레이싱 | 서비스 간 요청 흐름 추적 |
+| **AlertManager** | 알림 관리 | Critical/Warning 알림 라우팅 |
 
 ---
 
@@ -1057,6 +1085,10 @@ Internal API (Backend ↔ AI Service)
 
 ### 9.3 공통 응답 형식
 
+> **데이터 타입 규약**: 모든 ID는 **UUID v4** 형식, 타임스탬프는 **ISO 8601** 형식 사용
+> - UUID 예시: `550e8400-e29b-41d4-a716-446655440000`
+> - Timestamp 예시: `2026-01-17T10:30:00Z`
+
 #### 성공 응답
 
 ```json
@@ -1064,8 +1096,8 @@ Internal API (Backend ↔ AI Service)
   "success": true,
   "data": { /* 응답 데이터 */ },
   "message": "요청이 성공적으로 처리되었습니다.",
-  "timestamp": "2026-01-16T10:30:00Z",
-  "requestId": "550e8400-e29b-41d4-a716-446655440000"
+  "timestamp": "2026-01-17T10:30:00Z",
+  "traceId": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
@@ -1075,12 +1107,12 @@ Internal API (Backend ↔ AI Service)
 {
   "success": false,
   "error": {
-    "code": "KNOWLEDGE_NOT_FOUND",
+    "code": "DOC100",
     "message": "요청한 지식을 찾을 수 없습니다.",
-    "details": { "knowledgeId": "xxx-xxx" }
+    "details": { "knowledgeId": "123e4567-e89b-12d3-a456-426614174000" }
   },
-  "timestamp": "2026-01-16T10:30:00Z",
-  "requestId": "550e8400-e29b-41d4-a716-446655440000"
+  "timestamp": "2026-01-17T10:30:00Z",
+  "traceId": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
@@ -1184,6 +1216,7 @@ flowchart TB
 |---|------|----------|----------|
 | 1 | 캐싱 전략 상세화 | backend_detailed_design.md | 0.5일 |
 | 2 | MFA 설계 추가 | authentication_authorization_detailed_design.md | 0.5일 |
+| 3 | Bulkhead 패턴 적용 | backend_detailed_design.md | 0.5일 |
 
 ### 11.3 이관 대상 기능 (Low Priority)
 
@@ -1192,7 +1225,6 @@ flowchart TB
 | 1 | 데이터 거버넌스 설계서 | 신규 문서 | 1일 |
 | 2 | 모델 버전 관리 추가 | hybrid_rag_platform_detailed_design.md | 0.5일 |
 | 3 | PWA 설계 추가 | frontend_detailed_design.md | 0.5일 |
-| 4 | 통합 테스트 계획서 | 신규 문서 | 1일 |
 
 ### 11.4 2단계 마이그레이션 로드맵
 
@@ -1219,11 +1251,11 @@ flowchart LR
 
 **마이그레이션 트리거 조건:**
 
-| 지표 | Phase 2 | Phase 3 | Phase 4 |
-|------|---------|---------|---------|
-| 동시 사용자 | 100+ | 500+ | 1,000+ |
-| 일일 요청 수 | 10,000+ | 50,000+ | 200,000+ |
-| 가용성 요구 | 99.5% | 99.9% | 99.99% |
+| 지표 | Phase 1 (현재) | Phase 2 | Phase 3 | Phase 4 |
+|------|---------------|---------|---------|---------|
+| 동시 사용자 | ~100 | 100+ | 500+ | 1,000+ |
+| 일일 요청 수 | ~10,000 | 10,000+ | 50,000+ | 200,000+ |
+| 가용성 요구 | 99.9% | 99.9% | 99.95% | 99.99% |
 
 ---
 
@@ -1233,16 +1265,19 @@ flowchart LR
 
 | 문서명 | 파일명 | 버전 |
 |--------|--------|------|
-| 플랫폼 상세 설계서 | hybrid_rag_platform_detailed_design.md | 2.3 |
-| 백엔드 상세 설계서 | backend_detailed_design.md | 1.0 |
-| 프론트엔드 상세 설계서 | frontend_detailed_design.md | 1.0 |
-| 인증/권한 상세 설계서 | authentication_authorization_detailed_design.md | 1.0 |
+| 플랫폼 상세 설계서 | hybrid_rag_platform_detailed_design.md | 2.4 |
+| 백엔드 상세 설계서 | backend_detailed_design.md | 1.1 |
+| 프론트엔드 상세 설계서 | frontend_detailed_design.md | 1.1 |
+| 인증/권한 상세 설계서 | authentication_authorization_detailed_design.md | 1.1 |
 | 데이터 암호화 설계서 | data_encryption_design.md | 1.0 |
 | 인프라 상세 설계서 | infrastructure_detailed_design.md | 2.0 |
 | DevOps 상세 설계서 | devops_detailed_design.md | 1.0 |
-| API 통합 설계서 | api_integration_design.md | 1.0 |
-| 에러 코드 표준 | error_code_standards.md | 1.0 |
+| API 통합 설계서 | api_integration_design.md | 1.1 |
+| 에러 코드 표준 | error_code_standards.md | 1.1 |
+| **Observability 상세 설계서** | observability_detailed_design.md | 1.0 |
 | RAG 성능 테스트 설계서 | rag_performance_test_design.md | 1.0 |
+| **단위/통합 테스트 계획서** | [04_testing/unit_integration_test_plan.md](../04_testing/unit_integration_test_plan.md) | 1.0 |
+| **개발자 에이전트 가이드** | [05_development/developer_agent_guide.md](../05_development/developer_agent_guide.md) | 1.0 |
 | 용어집 | glossary.md | 2.0 |
 
 ### 12.2 기술 스택 상세
@@ -1334,5 +1369,6 @@ gantt
 ## 문서 끝
 
 **작성**: Claude Code (Opus 4.5)
-**최종 수정**: 2026-01-16
+**최종 수정**: 2026-01-17
+**버전**: 1.1
 **검토 상태**: Final Draft

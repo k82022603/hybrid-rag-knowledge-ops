@@ -1,8 +1,9 @@
 # 인증/권한 관리 상세 설계서
 ## Authentication & Authorization Detailed Design
 
-**버전**: 1.0
+**버전**: 1.1
 **작성일**: 2026-01-15
+**수정일**: 2026-01-17
 **상태**: Draft
 **관련 문서**:
 - [백엔드 구현 계획서](../01_planning/backend_implementation_plan.md) 섹션 7
@@ -24,6 +25,13 @@
 7. [프론트엔드 인증 플로우](#7-프론트엔드-인증-플로우)
 8. [세션 및 로그아웃 관리](#8-세션-및-로그아웃-관리)
 9. [권한 관리 (RBAC)](#9-권한-관리-rbac)
+   - [9.0 RBAC 개요](#90-rbac-개요)
+   - [9.1 역할 계층 구조](#91-역할-계층-구조)
+   - [9.2 권한 매트릭스](#92-권한-매트릭스)
+   - [9.3 메서드 레벨 보안](#93-메서드-레벨-보안)
+   - [9.4 커스텀 보안 서비스](#94-커스텀-보안-서비스)
+   - [9.5 RBAC 설정 방법](#95-rbac-설정-방법)
+   - [9.6 RBAC 사용 흐름](#96-rbac-사용-흐름)
 10. [에러 핸들링](#10-에러-핸들링)
 11. [보안 체크리스트](#11-보안-체크리스트)
 12. [테스트 케이스](#12-테스트-케이스)
@@ -1505,6 +1513,38 @@ export const useIdleTimeout = () => {
 
 ## 9. 권한 관리 (RBAC)
 
+### 9.0 RBAC 개요
+
+**RBAC (Role-Based Access Control)** 은 사용자에게 역할(Role)을 할당하고, 역할에 권한(Permission)을 부여하여 접근을 제어하는 방식입니다.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        RBAC 구성 요소                                │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                     │
+│   ┌──────────┐      ┌──────────┐      ┌──────────────┐             │
+│   │   User   │─────▶│   Role   │─────▶│  Permission  │             │
+│   └──────────┘ 할당  └──────────┘ 포함  └──────────────┘             │
+│        │                 │                   │                      │
+│        │                 │                   │                      │
+│        ▼                 ▼                   ▼                      │
+│   사용자 계정         역할 그룹            리소스 접근 권한           │
+│   (Keycloak)        (ADMIN,USER)       (READ,WRITE,DELETE)         │
+│                                                                     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+#### 본 시스템의 RBAC 구현 구조
+
+| 구성 요소 | 기술 스택 | 역할 |
+|----------|----------|------|
+| **역할 정의/할당** | Keycloak | 사용자 역할 관리, 토큰 발급 |
+| **역할 동기화** | JWT Token | 역할 정보를 클라이언트/서버에 전달 |
+| **권한 검증** | Spring Security | 요청별 권한 체크 |
+| **메서드 보안** | @PreAuthorize | 비즈니스 로직 레벨 권한 제어 |
+
+---
+
 ### 9.1 역할 계층 구조
 
 ```
@@ -1556,7 +1596,7 @@ public class KnowledgeService {
      * 지식 조회 - 모든 인증된 사용자
      */
     @PreAuthorize("isAuthenticated()")
-    public Knowledge getKnowledge(Long id) {
+    public Knowledge getKnowledge(UUID id) {
         return knowledgeRepository.findById(id)
             .orElseThrow(() -> new KnowledgeNotFoundException(id));
     }
@@ -1567,7 +1607,7 @@ public class KnowledgeService {
     @PreAuthorize("isAuthenticated()")
     public Knowledge createKnowledge(KnowledgeCreateRequest request) {
         // 작성자 정보 자동 설정
-        String currentUserId = SecurityUtils.getCurrentUserId();
+        UUID currentUserId = SecurityUtils.getCurrentUserId();
         // ...
     }
 
@@ -1577,7 +1617,7 @@ public class KnowledgeService {
     @PreAuthorize("isAuthenticated() and " +
         "(#knowledge.authorId == authentication.principal.id or " +
         "hasAnyRole('KNOWLEDGE_MANAGER', 'ADMIN'))")
-    public Knowledge updateKnowledge(Long id, KnowledgeUpdateRequest request) {
+    public Knowledge updateKnowledge(UUID id, KnowledgeUpdateRequest request) {
         // ...
     }
 
@@ -1585,7 +1625,7 @@ public class KnowledgeService {
      * 지식 삭제 - 작성자 본인 또는 관리자
      */
     @PreAuthorize("@knowledgeSecurityService.canDelete(#id)")
-    public void deleteKnowledge(Long id) {
+    public void deleteKnowledge(UUID id) {
         // ...
     }
 
@@ -1593,7 +1633,7 @@ public class KnowledgeService {
      * 지식 승인 - KNOWLEDGE_MANAGER 이상
      */
     @PreAuthorize("hasAnyRole('KNOWLEDGE_MANAGER', 'ADMIN')")
-    public Knowledge approveKnowledge(Long id) {
+    public Knowledge approveKnowledge(UUID id) {
         // ...
     }
 
@@ -1622,7 +1662,7 @@ public class KnowledgeSecurityService {
      * - KNOWLEDGE_MANAGER
      * - ADMIN
      */
-    public boolean canDelete(Long knowledgeId) {
+    public boolean canDelete(UUID knowledgeId) {
         Authentication authentication = SecurityContextHolder.getContext()
             .getAuthentication();
 
@@ -1651,7 +1691,7 @@ public class KnowledgeSecurityService {
     /**
      * 수정 권한 확인
      */
-    public boolean canEdit(Long knowledgeId) {
+    public boolean canEdit(UUID knowledgeId) {
         // 삭제 권한과 동일한 로직
         return canDelete(knowledgeId);
     }
@@ -1659,6 +1699,406 @@ public class KnowledgeSecurityService {
     private boolean hasAnyRole(UserPrincipal principal, String... roles) {
         return principal.getRoles().stream()
             .anyMatch(role -> Arrays.asList(roles).contains(role));
+    }
+}
+```
+
+### 9.5 RBAC 설정 방법
+
+#### 9.5.1 Keycloak 역할 설정
+
+**Step 1: Realm 역할 생성**
+
+Keycloak Admin Console에서 역할을 생성합니다.
+
+```
+Keycloak Admin Console
+├── Realm: knowledge-platform
+│   ├── Realm Roles
+│   │   ├── ADMIN           (시스템 관리자)
+│   │   ├── KNOWLEDGE_MANAGER (지식 관리자)
+│   │   └── USER            (일반 사용자)
+│   └── Clients
+│       └── knowledge-backend
+│           └── Client Roles (선택적)
+```
+
+**Step 2: 역할 생성 (Keycloak Admin API)**
+
+```bash
+# 1. Admin 토큰 획득
+ACCESS_TOKEN=$(curl -s -X POST \
+  "http://localhost:8080/realms/master/protocol/openid-connect/token" \
+  -d "client_id=admin-cli" \
+  -d "username=admin" \
+  -d "password=admin" \
+  -d "grant_type=password" | jq -r '.access_token')
+
+# 2. ADMIN 역할 생성
+curl -X POST "http://localhost:8080/admin/realms/knowledge-platform/roles" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "ADMIN",
+    "description": "시스템 관리자 - 모든 권한"
+  }'
+
+# 3. KNOWLEDGE_MANAGER 역할 생성
+curl -X POST "http://localhost:8080/admin/realms/knowledge-platform/roles" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "KNOWLEDGE_MANAGER",
+    "description": "지식 관리자 - 모든 지식 관리"
+  }'
+
+# 4. USER 역할 생성
+curl -X POST "http://localhost:8080/admin/realms/knowledge-platform/roles" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "USER",
+    "description": "일반 사용자 - 본인 지식 관리"
+  }'
+```
+
+**Step 3: 사용자에게 역할 할당**
+
+```bash
+# 사용자 ID 조회
+USER_ID=$(curl -s "http://localhost:8080/admin/realms/knowledge-platform/users?username=john" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" | jq -r '.[0].id')
+
+# 역할 ID 조회
+ROLE_ID=$(curl -s "http://localhost:8080/admin/realms/knowledge-platform/roles/KNOWLEDGE_MANAGER" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" | jq -r '.id')
+
+# 역할 할당
+curl -X POST "http://localhost:8080/admin/realms/knowledge-platform/users/$USER_ID/role-mappings/realm" \
+  -H "Authorization: Bearer $ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "[{\"id\": \"$ROLE_ID\", \"name\": \"KNOWLEDGE_MANAGER\"}]"
+```
+
+#### 9.5.2 Spring Security 설정
+
+**application.yml 설정**
+
+```yaml
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_URL}/realms/knowledge-platform
+          jwk-set-uri: ${KEYCLOAK_URL}/realms/knowledge-platform/protocol/openid-connect/certs
+
+# RBAC 커스텀 설정
+app:
+  security:
+    rbac:
+      enabled: true
+      role-prefix: "ROLE_"    # Spring Security 역할 접두사
+      role-claim: "realm_access.roles"  # JWT에서 역할 추출 위치
+```
+
+**SecurityConfig.java - RBAC 활성화**
+
+```java
+@Configuration
+@EnableWebSecurity
+@EnableMethodSecurity(prePostEnabled = true)  // @PreAuthorize 활성화
+@RequiredArgsConstructor
+public class SecurityConfig {
+
+    private final JwtAuthenticationConverter jwtAuthConverter;
+
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(csrf -> csrf.disable())
+            .sessionManagement(session ->
+                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+            // URL 기반 권한 설정
+            .authorizeHttpRequests(auth -> auth
+                // 공개 API
+                .requestMatchers("/api/v1/auth/**", "/actuator/health").permitAll()
+
+                // 관리자 전용 API
+                .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+
+                // 지식 관리 API (KNOWLEDGE_MANAGER 이상)
+                .requestMatchers(HttpMethod.DELETE, "/api/v1/knowledge/**")
+                    .hasAnyRole("KNOWLEDGE_MANAGER", "ADMIN")
+
+                // 인증된 사용자
+                .requestMatchers("/api/v1/**").authenticated()
+
+                .anyRequest().authenticated()
+            )
+
+            // JWT 리소스 서버 설정
+            .oauth2ResourceServer(oauth2 -> oauth2
+                .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthConverter))
+            );
+
+        return http.build();
+    }
+}
+```
+
+**JwtAuthenticationConverter - 역할 변환**
+
+```java
+@Component
+public class JwtAuthenticationConverter implements Converter<Jwt, AbstractAuthenticationToken> {
+
+    private static final String REALM_ACCESS_CLAIM = "realm_access";
+    private static final String ROLES_CLAIM = "roles";
+
+    @Override
+    public AbstractAuthenticationToken convert(Jwt jwt) {
+        // JWT에서 역할 추출
+        Collection<GrantedAuthority> authorities = extractRoles(jwt);
+
+        // 사용자 정보 생성
+        UUID userId = UUID.fromString(jwt.getSubject());
+        String username = jwt.getClaimAsString("preferred_username");
+        String email = jwt.getClaimAsString("email");
+
+        UserPrincipal principal = UserPrincipal.builder()
+            .id(userId)
+            .username(username)
+            .email(email)
+            .roles(authorities.stream()
+                .map(GrantedAuthority::getAuthority)
+                .map(role -> role.replace("ROLE_", ""))
+                .collect(Collectors.toSet()))
+            .build();
+
+        return new JwtAuthenticationToken(jwt, authorities, principal);
+    }
+
+    private Collection<GrantedAuthority> extractRoles(Jwt jwt) {
+        Map<String, Object> realmAccess = jwt.getClaimAsMap(REALM_ACCESS_CLAIM);
+
+        if (realmAccess == null || !realmAccess.containsKey(ROLES_CLAIM)) {
+            return Collections.emptyList();
+        }
+
+        @SuppressWarnings("unchecked")
+        List<String> roles = (List<String>) realmAccess.get(ROLES_CLAIM);
+
+        return roles.stream()
+            .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+            .collect(Collectors.toList());
+    }
+}
+```
+
+#### 9.5.3 Keycloak Mapper 설정
+
+JWT에 역할 정보를 포함하려면 Keycloak Client에 Mapper를 설정해야 합니다.
+
+```
+Keycloak Admin Console
+└── Clients → knowledge-backend → Client Scopes → knowledge-backend-dedicated
+    └── Add Mapper → By Configuration → User Realm Role
+        ├── Name: realm-roles
+        ├── Token Claim Name: realm_access.roles
+        ├── Claim JSON Type: String
+        ├── Add to ID token: ON
+        ├── Add to access token: ON
+        └── Multivalued: ON
+```
+
+**결과 JWT 예시**
+
+```json
+{
+  "sub": "550e8400-e29b-41d4-a716-446655440000",
+  "preferred_username": "john.doe",
+  "email": "john@example.com",
+  "realm_access": {
+    "roles": ["KNOWLEDGE_MANAGER", "USER"]
+  },
+  "iat": 1705312800,
+  "exp": 1705316400
+}
+```
+
+### 9.6 RBAC 사용 흐름
+
+#### 9.6.1 전체 흐름도
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           RBAC 인증/인가 흐름                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+  [1] 로그인                    [2] 역할 포함 토큰 발급
+  ┌──────────┐                 ┌────────────────┐
+  │  Client  │────────────────▶│    Keycloak    │
+  │ (React)  │                 │                │
+  └──────────┘                 └────────────────┘
+       │                              │
+       │                              │ JWT (roles: ["KNOWLEDGE_MANAGER"])
+       │                              ▼
+       │                       ┌────────────────┐
+       │                       │   JWT Token    │
+       │                       │ {              │
+       │                       │   sub: "uuid", │
+       │                       │   realm_access:│
+       │                       │   { roles:[..]}│
+       │                       │ }              │
+       │                       └────────────────┘
+       │                              │
+  [3] API 요청 (with JWT)             │
+       │◀─────────────────────────────┘
+       │
+       ▼
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │                         SpringBoot Backend                               │
+  ├──────────────────────────────────────────────────────────────────────────┤
+  │                                                                          │
+  │  [4] JwtAuthFilter          [5] SecurityConfig       [6] @PreAuthorize   │
+  │  ┌─────────────────┐       ┌─────────────────┐      ┌─────────────────┐  │
+  │  │ JWT 파싱/검증    │──────▶│ URL 패턴 권한   │─────▶│ 메서드 레벨     │  │
+  │  │ 역할 추출        │       │ 체크            │      │ 권한 체크       │  │
+  │  └─────────────────┘       └─────────────────┘      └─────────────────┘  │
+  │         │                         │                        │             │
+  │         ▼                         ▼                        ▼             │
+  │  roles 추출됨              /admin/** → ADMIN만      @PreAuthorize(...)   │
+  │  ["KNOWLEDGE_MANAGER"]     /api/** → 인증 필요      권한 조건 평가        │
+  │                                                                          │
+  └──────────────────────────────────────────────────────────────────────────┘
+                                       │
+                                       ▼
+                               [7] 비즈니스 로직 실행 또는 403 반환
+```
+
+#### 9.6.2 역할별 사용 시나리오
+
+**시나리오 1: 일반 사용자 (USER)**
+
+```
+1. 로그인 → JWT 발급 (roles: ["USER"])
+2. 본인 지식 작성 → POST /api/v1/knowledge → ✅ 허용
+3. 본인 지식 수정 → PUT /api/v1/knowledge/{id} → ✅ 허용 (본인 확인)
+4. 타인 지식 삭제 → DELETE /api/v1/knowledge/{id} → ❌ 403 Forbidden
+5. 사용자 관리 → GET /api/v1/admin/users → ❌ 403 Forbidden
+```
+
+**시나리오 2: 지식 관리자 (KNOWLEDGE_MANAGER)**
+
+```
+1. 로그인 → JWT 발급 (roles: ["KNOWLEDGE_MANAGER", "USER"])
+2. 모든 지식 조회 → GET /api/v1/knowledge → ✅ 허용
+3. 타인 지식 수정 → PUT /api/v1/knowledge/{id} → ✅ 허용
+4. 지식 승인 → POST /api/v1/knowledge/{id}/approve → ✅ 허용
+5. 사용자 관리 → GET /api/v1/admin/users → ❌ 403 Forbidden
+```
+
+**시나리오 3: 시스템 관리자 (ADMIN)**
+
+```
+1. 로그인 → JWT 발급 (roles: ["ADMIN", "KNOWLEDGE_MANAGER", "USER"])
+2. 모든 기능 접근 → ✅ 허용
+3. 사용자 관리 → GET /api/v1/admin/users → ✅ 허용
+4. 역할 부여 → POST /api/v1/admin/users/{id}/roles → ✅ 허용
+5. 시스템 재인덱싱 → POST /api/v1/admin/reindex → ✅ 허용
+```
+
+#### 9.6.3 프론트엔드 역할 기반 UI 제어
+
+```typescript
+// src/hooks/useRBAC.ts
+import { useAuth } from '@/contexts/AuthContext';
+
+type Role = 'ADMIN' | 'KNOWLEDGE_MANAGER' | 'USER';
+
+export const useRBAC = () => {
+  const { user } = useAuth();
+  const roles = user?.roles || [];
+
+  const hasRole = (role: Role): boolean => roles.includes(role);
+
+  const hasAnyRole = (...checkRoles: Role[]): boolean =>
+    checkRoles.some(role => roles.includes(role));
+
+  const canManageKnowledge = hasAnyRole('ADMIN', 'KNOWLEDGE_MANAGER');
+  const canManageUsers = hasRole('ADMIN');
+  const canApproveKnowledge = hasAnyRole('ADMIN', 'KNOWLEDGE_MANAGER');
+
+  return {
+    roles,
+    hasRole,
+    hasAnyRole,
+    canManageKnowledge,
+    canManageUsers,
+    canApproveKnowledge,
+  };
+};
+
+// 사용 예시
+const KnowledgeActions: React.FC<{ knowledge: Knowledge }> = ({ knowledge }) => {
+  const { user } = useAuth();
+  const { canManageKnowledge } = useRBAC();
+
+  const isOwner = knowledge.authorId === user?.id;
+  const canEdit = isOwner || canManageKnowledge;
+  const canDelete = isOwner || canManageKnowledge;
+
+  return (
+    <div>
+      {canEdit && <Button onClick={handleEdit}>수정</Button>}
+      {canDelete && <Button onClick={handleDelete}>삭제</Button>}
+    </div>
+  );
+};
+```
+
+#### 9.6.4 권한 검증 유틸리티
+
+```java
+// SecurityUtils.java - 권한 체크 유틸리티
+@Component
+public class SecurityUtils {
+
+    /**
+     * 현재 인증된 사용자 ID 반환
+     */
+    public static UUID getCurrentUserId() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !(auth.getPrincipal() instanceof UserPrincipal)) {
+            throw new UnauthorizedException("인증되지 않은 사용자입니다");
+        }
+        return ((UserPrincipal) auth.getPrincipal()).getId();
+    }
+
+    /**
+     * 현재 사용자가 특정 역할을 가지고 있는지 확인
+     */
+    public static boolean hasRole(String role) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth.getAuthorities().stream()
+            .anyMatch(a -> a.getAuthority().equals("ROLE_" + role));
+    }
+
+    /**
+     * 현재 사용자가 관리자(ADMIN 또는 KNOWLEDGE_MANAGER)인지 확인
+     */
+    public static boolean isManager() {
+        return hasRole("ADMIN") || hasRole("KNOWLEDGE_MANAGER");
+    }
+
+    /**
+     * 리소스 소유자 또는 관리자인지 확인
+     */
+    public static boolean isOwnerOrManager(UUID resourceOwnerId) {
+        UUID currentUserId = getCurrentUserId();
+        return currentUserId.equals(resourceOwnerId) || isManager();
     }
 }
 ```

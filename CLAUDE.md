@@ -2,7 +2,7 @@
 
 🤖 Hybrid RAG Knowledge Operations 프로젝트 개발 규칙
 
-**Version**: 2.5 | **Updated**: 2026-01-16
+**Version**: 2.6 | **Updated**: 2026-01-17
 
 ---
 
@@ -32,6 +32,11 @@ hybrid-rag-knowledge-ops/
 │   ├── docs/
 │   │   ├── 01_planning/     # 구현 계획
 │   │   ├── 02_design/       # 기술 설계
+│   │   ├── 03_implementation/  # 구현 문서
+│   │   ├── 04_testing/      # 테스트 문서
+│   │   ├── 05_development/  # 개발 가이드 ⭐
+│   │   ├── 06_deployment/   # 배포 문서
+│   │   ├── 07_maintenance/  # 운영/유지보수
 │   │   └── results/         # 실행 결과
 │   └── ...
 ├── work_logs/               # 📝 작업 일지 관리
@@ -192,3 +197,5 @@ api_key = "sk-xxx..."  # 하드코딩 절대 금지
 - [인프라 설계서](./knowledge_service/docs/02_design/infrastructure_detailed_design.md) - Docker Compose 기반
 - [기술 검토 문서](./knowledge_service/docs/02_design/technical_assessment/) - Gleaning, K8s 백업 등
 - [Claude Commands README](./.claude/commands/README.md) - 설치된 명령어 전체 목록
+- [개발자 에이전트 가이드](./knowledge_service/docs/05_development/developer_agent_guide.md) - AI 에이전트 도구 사용법 ⭐
+- [테스트 계획서](./knowledge_service/docs/04_testing/unit_integration_test_plan.md) - TDD/Test-Along 기준

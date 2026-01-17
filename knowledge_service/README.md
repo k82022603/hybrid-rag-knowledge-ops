@@ -1,6 +1,8 @@
 # Knowledge Service
 
-Graph RAG 기반 지능형 지식 검색 서비스 - LangGraph, Neo4j, Elasticsearch를 활용한 Python 백엔드
+Graph RAG 기반 지능형 지식 검색 서비스 - LangGraph, Neo4j, Elasticsearch를 활용한 Python AI Service
+
+**Version**: 1.1 | **Updated**: 2026-01-17
 
 ## 📁 폴더 구조
 
@@ -19,11 +21,16 @@ knowledge_service/
 │   ├── documents/                # PDF 등 원본 파일
 │   ├── sample/                   # 샘플 데이터
 │   └── fixtures/                 # 테스트 데이터
-├── docs/                         # 문서
-│   ├── API.md
-│   ├── ARCHITECTURE.md
-│   ├── SETUP.md
-│   └── images/
+├── docs/                         # 프로젝트 문서
+│   ├── 01_planning/              # 구현 계획
+│   ├── 02_design/                # 기술 설계
+│   ├── 03_implementation/        # 구현 문서
+│   ├── 04_testing/               # 테스트 문서
+│   ├── 05_development/           # 개발 가이드 ⭐
+│   ├── 06_deployment/            # 배포 문서
+│   ├── 07_maintenance/           # 운영/유지보수
+│   ├── images/                   # 이미지 리소스
+│   └── results/                  # 실행 결과
 ├── results/                      # 실행 결과 (임시)
 │   ├── search_logs/
 │   ├── metadata_exports/
@@ -46,15 +53,63 @@ poetry install
 python src/scripts/init_databases.py
 
 # 애플리케이션 실행
-python src/app/main.py
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ## 📚 주요 문서
 
-- [API Reference](./docs/api_reference.md) - REST API 엔드포인트
-- [Architecture Overview](./docs/architecture_overview.md) - 시스템 구조
-- [Getting Started](./docs/getting_started.md) - 환경 설정
+### 기획 및 설계
+
+| 문서 | 설명 |
+|------|------|
+| [AI Service 구현 계획](./docs/01_planning/ai_service_implementation_plan.md) | AI Service 구현 계획 v2.0 |
+| [플랫폼 상세 설계서](./docs/02_design/hybrid_rag_platform_detailed_design.md) | 상세 설계서 v2.4 (Gleaning 포함) |
+| [API 통합 설계서](./docs/02_design/api_integration_design.md) | OpenAPI 3.0 스펙 |
+| [통합 설계서](./docs/02_design/integrated_detailed_design.md) | 프로젝트 전체 통합 설계 |
+
+### 테스트 및 개발
+
+| 문서 | 설명 |
+|------|------|
+| [단위/통합 테스트 계획서](./docs/04_testing/unit_integration_test_plan.md) | TDD/Test-Along 기준 포함 |
+| [개발자 에이전트 가이드](./docs/05_development/developer_agent_guide.md) | AI 에이전트 도구 사용법 ⭐ |
+| [RAG 성능 테스트 설계](./docs/02_design/rag_performance_test_design.md) | RAG 파이프라인 성능 테스트 |
+
+### 운영
+
+| 문서 | 설명 |
+|------|------|
+| [Observability 설계서](./docs/02_design/observability_detailed_design.md) | 모니터링/트레이싱/로깅 |
+| [에러 코드 표준](./docs/02_design/error_code_standards.md) | 에러 코드 체계 |
+
+## 🛠 기술 스택
+
+| 영역 | 기술 |
+|------|------|
+| **Framework** | FastAPI 0.110+ |
+| **LLM Orchestration** | LangGraph 1.0+, LangChain 1.2+ |
+| **Embedding** | BGE-M3 (Dense + Sparse) |
+| **Document Parsing** | Docling 2.x (97.9% 테이블 정확도) |
+| **Vector Search** | Elasticsearch 8.x |
+| **Graph DB** | Neo4j 5.x |
+| **Runtime LLM** | DeepSeek V3.2 (95% 비용 절감) |
+
+## 🧪 테스트
+
+```bash
+# 전체 테스트
+pytest
+
+# 특정 파일
+pytest tests/test_search.py
+
+# 커버리지 포함
+pytest --cov=app --cov-report=html
+```
+
+테스트 접근 방식은 [테스트 계획서](./docs/04_testing/unit_integration_test_plan.md)를 참조하세요.
 
 ## 🛠 개발 규칙
 
-[CLAUDE.md](./CLAUDE.md)를 참고하세요.
+- [CLAUDE.md](../CLAUDE.md) - 프로젝트 전체 개발 규칙
+- [개발자 에이전트 가이드](./docs/05_development/developer_agent_guide.md) - AI 에이전트 도구 사용법

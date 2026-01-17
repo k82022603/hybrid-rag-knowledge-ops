@@ -7,8 +7,9 @@
 | 항목 | 내용 |
 |------|------|
 | **문서명** | Neo4j Graph RAG 기반 Hybrid 지식 플랫폼 상세 설계서 |
-| **버전** | 2.4 |
+| **버전** | 2.5 |
 | **작성일** | 2026-01-16 |
+| **수정일** | 2026-01-17 |
 | **작성자** | Claude AI |
 | **상태** | Review 완료 (코드 검증됨) |
 | **관련 문서** | [구축 계획서](../01_planning/hybrid_rag_knowledge_platform_plan.md), [에러 코드 표준](./error_code_standards.md), [용어사전](./glossary.md) |
@@ -25,6 +26,7 @@
 | 2.2 | 2026-01-14 | Claude AI | **코드 검증 완료**: LangGraph ReAct Agent 기반 재구현, RRF 융합 로직 수정, ES knn 쿼리 수정, Mermaid 다이어그램 추가 |
 | 2.3 | 2026-01-14 | Claude AI | **서비스 분리 아키텍처 추가**: SpringBoot ↔ AI Service 분리 구조, 역할 분담, 통신 패턴, 장애 대응 명세 |
 | 2.4 | 2026-01-16 | Claude AI | **Gleaning 기법 추가**: 엔티티 추출 품질 향상을 위한 다중 추출 기법, Stage 1 파이프라인 개선 |
+| 2.5 | 2026-01-17 | Claude AI | **Category 테이블 추가**: 계층형 카테고리 스키마(categories, document_categories), ERD 업데이트 |
 
 ---
 
@@ -880,11 +882,14 @@ pie title 16GB RAM 메모리 분배
 erDiagram
     DOCUMENT ||--o{ CHUNK : contains
     DOCUMENT ||--o{ DOCUMENT_ENTITY : has
+    DOCUMENT ||--o{ DOCUMENT_CATEGORY : categorized
     ENTITY ||--o{ DOCUMENT_ENTITY : referenced_in
     ENTITY ||--o{ ENTITY_RELATIONSHIP : source
     ENTITY ||--o{ ENTITY_RELATIONSHIP : target
     PROJECT ||--o{ DOCUMENT : belongs_to
     PERSON ||--o{ DOCUMENT : authored_by
+    CATEGORY ||--o{ DOCUMENT_CATEGORY : applied_to
+    CATEGORY ||--o{ CATEGORY : has_children
 
     DOCUMENT {
         uuid id PK
@@ -913,6 +918,17 @@ erDiagram
         string name
         string type
         text description
+        timestamp created_at
+    }
+
+    CATEGORY {
+        uuid id PK
+        string name
+        string code
+        uuid parent_id FK
+        int level
+        int sort_order
+        boolean is_active
         timestamp created_at
     }
 
@@ -989,6 +1005,33 @@ CREATE TABLE chunks (
 
     UNIQUE(document_id, chunk_index)
 );
+
+-- 카테고리 테이블 (계층 구조)
+CREATE TABLE categories (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) NOT NULL,
+    code VARCHAR(50) UNIQUE NOT NULL,
+    parent_id UUID REFERENCES categories(id),
+    level INTEGER NOT NULL DEFAULT 1,  -- 1: 대분류, 2: 중분류, 3: 소분류
+    sort_order INTEGER DEFAULT 0,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT valid_level CHECK (level BETWEEN 1 AND 3)
+);
+
+-- 문서-카테고리 연결 테이블
+CREATE TABLE document_categories (
+    document_id UUID REFERENCES documents(id) ON DELETE CASCADE,
+    category_id UUID REFERENCES categories(id) ON DELETE CASCADE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (document_id, category_id)
+);
+
+-- 카테고리 인덱스
+CREATE INDEX idx_categories_parent ON categories(parent_id);
+CREATE INDEX idx_categories_level ON categories(level);
 
 -- 엔티티 테이블
 CREATE TABLE entities (

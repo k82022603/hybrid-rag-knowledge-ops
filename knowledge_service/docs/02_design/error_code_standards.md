@@ -1,8 +1,9 @@
 # 에러 코드 및 공통 코드 표준
 
 **프로젝트**: Hybrid RAG Knowledge Operations Platform
-**버전**: 1.0
+**버전**: 1.1
 **작성일**: 2026-01-16
+**수정일**: 2026-01-17
 **작성자**: Claude AI Architect
 
 ---
@@ -299,7 +300,7 @@
     "message": "문서를 찾을 수 없습니다",
     "detail": "요청한 문서 ID(doc_12345)가 존재하지 않습니다.",
     "timestamp": "2026-01-16T10:30:00Z",
-    "trace_id": "abc123-def456-ghi789",
+    "trace_id": "550e8400-e29b-41d4-a716-446655440000",
     "path": "/api/v1/documents/doc_12345"
   }
 }
@@ -328,7 +329,7 @@
     "code": "SYS003",
     "message": "파라미터 형식이 올바르지 않습니다",
     "timestamp": "2026-01-16T10:30:00Z",
-    "trace_id": "abc123-def456-ghi789",
+    "trace_id": "550e8400-e29b-41d4-a716-446655440000",
     "path": "/api/v1/documents",
     "errors": [
       {
@@ -360,7 +361,7 @@
   },
   "meta": {
     "timestamp": "2026-01-16T10:30:00Z",
-    "trace_id": "abc123-def456-ghi789"
+    "trace_id": "550e8400-e29b-41d4-a716-446655440000"
   }
 }
 ```
@@ -829,9 +830,9 @@ def log_error(error_code: str, message: str, trace_id: str, **context):
 log_error(
     error_code="DOC100",
     message="문서를 찾을 수 없습니다",
-    trace_id="abc123",
-    document_id="doc_12345",
-    user_id="user_001"
+    trace_id="550e8400-e29b-41d4-a716-446655440000",
+    document_id="123e4567-e89b-12d3-a456-426614174000",
+    user_id="7c9e6679-7425-40de-944b-e07fc1f90ae7"
 )
 ```
 

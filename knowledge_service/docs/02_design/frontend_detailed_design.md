@@ -1,9 +1,10 @@
 # Frontend 상세 설계서
 ## React 기반 Knowledge Discovery Platform
 
-**버전**: 1.0
+**버전**: 1.2
 **작성일**: 2026-01-15
-**상태**: Draft
+**수정일**: 2026-01-17
+**상태**: Approved
 **관련 문서**:
 - [프론트엔드 구현 계획서](../01_planning/frontend_implementation_plan.md)
 - [인증/권한 설계서](./authentication_authorization_detailed_design.md)
@@ -28,7 +29,13 @@
 12. [성능 최적화](#12-성능-최적화)
 13. [테스트 전략](#13-테스트-전략)
 14. [접근성 및 국제화](#14-접근성-및-국제화)
-15. [구현 체크리스트](#15-구현-체크리스트)
+15. [실시간 통신 (WebSocket)](#15-실시간-통신-websocket) ⭐ NEW
+16. [API 모킹 (MSW)](#16-api-모킹-msw) ⭐ NEW
+17. [번들 분석 및 최적화](#17-번들-분석-및-최적화) ⭐ NEW
+18. [Storybook 통합](#18-storybook-통합) ⭐ NEW
+19. [PWA 설정](#19-pwa-설정) ⭐ NEW
+20. [CI/CD 파이프라인](#20-cicd-파이프라인) ⭐ NEW
+21. [구현 체크리스트](#21-구현-체크리스트)
 
 ---
 
@@ -584,11 +591,20 @@ interface CursorPaginatedResponse<T> {
 
 ### 5.2 도메인 타입
 
+> **ID 타입 규약**: 모든 엔티티의 `id` 필드는 **UUID v4 형식**(`xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx`)입니다.
+> TypeScript에서는 `string` 타입으로 표현하되, 런타임 검증 시 UUID 정규식을 사용합니다.
+> 예: `"550e8400-e29b-41d4-a716-446655440000"`
+
 ```typescript
+// types/common.types.ts
+
+/** UUID v4 형식의 문자열 타입 */
+type UUID = string;
+
 // types/knowledge.types.ts
 
 interface Knowledge {
-  id: string;
+  id: UUID;  // UUID v4 형식
   title: string;
   content: string;
   summary?: string;
@@ -655,7 +671,7 @@ interface KnowledgeListParams {
 // types/user.types.ts
 
 interface User {
-  id: string;
+  id: UUID;  // UUID v4 형식
   email: string;
   name: string;
   department?: string;
@@ -672,7 +688,7 @@ type UserRole = 'USER' | 'KNOWLEDGE_MANAGER' | 'ADMIN';
 type UserStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 
 interface UserSummary {
-  id: string;
+  id: UUID;  // UUID v4 형식
   name: string;
   department?: string;
   profileImage?: string;
@@ -2584,7 +2600,1472 @@ const MyComponent = () => {
 
 ---
 
-## 15. 구현 체크리스트
+## 15. 실시간 통신 (WebSocket)
+
+> 채팅 모드 및 실시간 알림을 위한 WebSocket/Socket.IO 연동 설계
+
+### 15.1 아키텍처 개요
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Frontend as React App
+    participant WS as WebSocket Client
+    participant Backend as SpringBoot
+    participant AI as AI Service
+    participant LG as LangGraph
+
+    User->>Frontend: 채팅 메시지 입력
+    Frontend->>WS: send(message)
+    WS->>Backend: WebSocket message
+    Backend->>AI: POST /ai/chat/stream
+    AI->>LG: invoke_stream()
+
+    loop Streaming Response
+        LG-->>AI: token chunk
+        AI-->>Backend: SSE event
+        Backend-->>WS: WebSocket message
+        WS-->>Frontend: onMessage(chunk)
+        Frontend-->>User: 실시간 텍스트 표시
+    end
+
+    LG-->>AI: final_answer
+    AI-->>Backend: [DONE]
+    Backend-->>WS: message_complete
+    WS-->>Frontend: onComplete()
+```
+
+### 15.2 Socket.IO 클라이언트 설정
+
+```typescript
+// src/lib/socket.ts
+import { io, Socket } from 'socket.io-client';
+import { store } from '@/app/store';
+
+interface ChatMessage {
+  id: string;
+  sessionId: string;
+  content: string;
+  role: 'user' | 'assistant';
+  timestamp: string;
+  metadata?: {
+    sources?: string[];
+    confidence?: number;
+  };
+}
+
+interface SocketEvents {
+  // Client → Server
+  'chat:message': (data: { sessionId: string; content: string }) => void;
+  'chat:stop': (data: { sessionId: string }) => void;
+  'chat:typing': (data: { sessionId: string; isTyping: boolean }) => void;
+
+  // Server → Client
+  'chat:chunk': (data: { sessionId: string; chunk: string; done: boolean }) => void;
+  'chat:response': (data: ChatMessage) => void;
+  'chat:error': (data: { sessionId: string; error: string; code: string }) => void;
+  'notification': (data: { type: string; message: string; data?: any }) => void;
+}
+
+class SocketService {
+  private socket: Socket | null = null;
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 5;
+
+  connect(): Socket {
+    if (this.socket?.connected) {
+      return this.socket;
+    }
+
+    const token = store.getState().auth.accessToken;
+
+    this.socket = io(import.meta.env.VITE_WS_URL || 'ws://localhost:8080', {
+      auth: { token },
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionAttempts: this.maxReconnectAttempts,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+      timeout: 20000,
+    });
+
+    this.setupEventHandlers();
+    return this.socket;
+  }
+
+  private setupEventHandlers(): void {
+    if (!this.socket) return;
+
+    this.socket.on('connect', () => {
+      console.log('WebSocket connected:', this.socket?.id);
+      this.reconnectAttempts = 0;
+    });
+
+    this.socket.on('disconnect', (reason) => {
+      console.log('WebSocket disconnected:', reason);
+      if (reason === 'io server disconnect') {
+        // 서버에서 연결 끊음 - 재연결 시도
+        this.socket?.connect();
+      }
+    });
+
+    this.socket.on('connect_error', (error) => {
+      console.error('WebSocket connection error:', error);
+      this.reconnectAttempts++;
+
+      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+        console.error('Max reconnection attempts reached');
+        // 토큰 갱신 시도 후 재연결
+        this.handleAuthError();
+      }
+    });
+  }
+
+  private async handleAuthError(): Promise<void> {
+    // 토큰 갱신 로직
+    try {
+      await store.dispatch(refreshToken()).unwrap();
+      this.reconnectAttempts = 0;
+      this.connect();
+    } catch {
+      // 로그아웃 처리
+      store.dispatch(logout());
+    }
+  }
+
+  disconnect(): void {
+    this.socket?.disconnect();
+    this.socket = null;
+  }
+
+  on<K extends keyof SocketEvents>(
+    event: K,
+    callback: SocketEvents[K]
+  ): void {
+    this.socket?.on(event, callback as any);
+  }
+
+  off<K extends keyof SocketEvents>(event: K): void {
+    this.socket?.off(event);
+  }
+
+  emit<K extends keyof SocketEvents>(
+    event: K,
+    data: Parameters<SocketEvents[K]>[0]
+  ): void {
+    this.socket?.emit(event, data);
+  }
+
+  get isConnected(): boolean {
+    return this.socket?.connected ?? false;
+  }
+}
+
+export const socketService = new SocketService();
+```
+
+### 15.3 채팅 훅
+
+```typescript
+// src/features/chat/hooks/useChat.ts
+import { useState, useCallback, useEffect, useRef } from 'react';
+import { socketService } from '@/lib/socket';
+import { v4 as uuidv4 } from 'uuid';
+
+interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  isStreaming?: boolean;
+  sources?: string[];
+  timestamp: Date;
+}
+
+interface UseChatOptions {
+  sessionId?: string;
+  onError?: (error: Error) => void;
+}
+
+export const useChat = (options: UseChatOptions = {}) => {
+  const { sessionId: initialSessionId, onError } = options;
+  const [sessionId] = useState(() => initialSessionId || uuidv4());
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isConnected, setIsConnected] = useState(false);
+  const streamingContentRef = useRef('');
+
+  // WebSocket 연결 및 이벤트 핸들링
+  useEffect(() => {
+    const socket = socketService.connect();
+    setIsConnected(socket.connected);
+
+    socketService.on('chat:chunk', ({ sessionId: sid, chunk, done }) => {
+      if (sid !== sessionId) return;
+
+      streamingContentRef.current += chunk;
+
+      setMessages((prev) => {
+        const lastMsg = prev[prev.length - 1];
+        if (lastMsg?.role === 'assistant' && lastMsg.isStreaming) {
+          return [
+            ...prev.slice(0, -1),
+            { ...lastMsg, content: streamingContentRef.current }
+          ];
+        }
+        return prev;
+      });
+
+      if (done) {
+        setIsLoading(false);
+        setMessages((prev) => {
+          const lastMsg = prev[prev.length - 1];
+          if (lastMsg?.role === 'assistant') {
+            return [
+              ...prev.slice(0, -1),
+              { ...lastMsg, isStreaming: false }
+            ];
+          }
+          return prev;
+        });
+        streamingContentRef.current = '';
+      }
+    });
+
+    socketService.on('chat:error', ({ error, code }) => {
+      setIsLoading(false);
+      onError?.(new Error(`${code}: ${error}`));
+    });
+
+    return () => {
+      socketService.off('chat:chunk');
+      socketService.off('chat:error');
+    };
+  }, [sessionId, onError]);
+
+  // 메시지 전송
+  const sendMessage = useCallback((content: string) => {
+    if (!content.trim() || isLoading) return;
+
+    // 사용자 메시지 추가
+    const userMessage: Message = {
+      id: uuidv4(),
+      role: 'user',
+      content: content.trim(),
+      timestamp: new Date()
+    };
+    setMessages((prev) => [...prev, userMessage]);
+
+    // AI 응답 플레이스홀더 추가
+    const assistantMessage: Message = {
+      id: uuidv4(),
+      role: 'assistant',
+      content: '',
+      isStreaming: true,
+      timestamp: new Date()
+    };
+    setMessages((prev) => [...prev, assistantMessage]);
+
+    // WebSocket으로 전송
+    setIsLoading(true);
+    streamingContentRef.current = '';
+    socketService.emit('chat:message', { sessionId, content: content.trim() });
+  }, [sessionId, isLoading]);
+
+  // 응답 중단
+  const stopGeneration = useCallback(() => {
+    socketService.emit('chat:stop', { sessionId });
+    setIsLoading(false);
+    setMessages((prev) => {
+      const lastMsg = prev[prev.length - 1];
+      if (lastMsg?.isStreaming) {
+        return [
+          ...prev.slice(0, -1),
+          { ...lastMsg, isStreaming: false, content: lastMsg.content + ' [중단됨]' }
+        ];
+      }
+      return prev;
+    });
+  }, [sessionId]);
+
+  // 대화 초기화
+  const clearMessages = useCallback(() => {
+    setMessages([]);
+  }, []);
+
+  return {
+    messages,
+    isLoading,
+    isConnected,
+    sendMessage,
+    stopGeneration,
+    clearMessages,
+    sessionId
+  };
+};
+```
+
+### 15.4 채팅 UI 컴포넌트
+
+```typescript
+// src/features/chat/components/ChatInterface.tsx
+import { useState, useRef, useEffect } from 'react';
+import { Box, TextField, IconButton, Paper, Typography, CircularProgress } from '@mui/material';
+import SendIcon from '@mui/icons-material/Send';
+import StopIcon from '@mui/icons-material/Stop';
+import { useChat } from '../hooks/useChat';
+import { MessageBubble } from './MessageBubble';
+import { TypingIndicator } from './TypingIndicator';
+import { ConnectionStatus } from './ConnectionStatus';
+
+export const ChatInterface: React.FC = () => {
+  const { messages, isLoading, isConnected, sendMessage, stopGeneration } = useChat({
+    onError: (error) => console.error('Chat error:', error)
+  });
+  const [input, setInput] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // 자동 스크롤
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (input.trim()) {
+      sendMessage(input);
+      setInput('');
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit(e);
+    }
+  };
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* 연결 상태 */}
+      <ConnectionStatus isConnected={isConnected} />
+
+      {/* 메시지 영역 */}
+      <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+        {messages.length === 0 && (
+          <Box sx={{ textAlign: 'center', mt: 4, color: 'text.secondary' }}>
+            <Typography variant="body1">
+              무엇이든 물어보세요. AI가 사내 지식을 기반으로 답변해드립니다.
+            </Typography>
+          </Box>
+        )}
+
+        {messages.map((message) => (
+          <MessageBubble
+            key={message.id}
+            message={message}
+            isStreaming={message.isStreaming}
+          />
+        ))}
+
+        {isLoading && messages[messages.length - 1]?.content === '' && (
+          <TypingIndicator />
+        )}
+
+        <div ref={messagesEndRef} />
+      </Box>
+
+      {/* 입력 영역 */}
+      <Paper
+        component="form"
+        onSubmit={handleSubmit}
+        sx={{
+          p: 2,
+          borderTop: 1,
+          borderColor: 'divider',
+          display: 'flex',
+          gap: 1
+        }}
+      >
+        <TextField
+          fullWidth
+          multiline
+          maxRows={4}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="메시지를 입력하세요..."
+          disabled={!isConnected || isLoading}
+          size="small"
+        />
+        {isLoading ? (
+          <IconButton onClick={stopGeneration} color="error">
+            <StopIcon />
+          </IconButton>
+        ) : (
+          <IconButton
+            type="submit"
+            color="primary"
+            disabled={!input.trim() || !isConnected}
+          >
+            <SendIcon />
+          </IconButton>
+        )}
+      </Paper>
+    </Box>
+  );
+};
+```
+
+---
+
+## 16. API 모킹 (MSW)
+
+> Mock Service Worker를 활용한 개발 환경 API 모킹
+
+### 16.1 MSW 설정
+
+```typescript
+// src/mocks/browser.ts
+import { setupWorker } from 'msw/browser';
+import { handlers } from './handlers';
+
+export const worker = setupWorker(...handlers);
+
+// src/mocks/server.ts (테스트용)
+import { setupServer } from 'msw/node';
+import { handlers } from './handlers';
+
+export const server = setupServer(...handlers);
+```
+
+### 16.2 핸들러 정의
+
+```typescript
+// src/mocks/handlers/index.ts
+import { authHandlers } from './auth';
+import { knowledgeHandlers } from './knowledge';
+import { searchHandlers } from './search';
+import { userHandlers } from './user';
+
+export const handlers = [
+  ...authHandlers,
+  ...knowledgeHandlers,
+  ...searchHandlers,
+  ...userHandlers,
+];
+
+// src/mocks/handlers/knowledge.ts
+import { http, HttpResponse, delay } from 'msw';
+import { knowledgeData } from '../data/knowledge';
+
+export const knowledgeHandlers = [
+  // 지식 목록 조회
+  http.get('/api/v1/knowledge', async ({ request }) => {
+    await delay(300);
+
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get('page') || '0');
+    const size = parseInt(url.searchParams.get('size') || '10');
+    const category = url.searchParams.get('category');
+
+    let data = [...knowledgeData];
+
+    if (category) {
+      data = data.filter(k => k.category === category);
+    }
+
+    const start = page * size;
+    const end = start + size;
+    const pageData = data.slice(start, end);
+
+    return HttpResponse.json({
+      success: true,
+      data: {
+        content: pageData,
+        pageable: { page, size },
+        totalElements: data.length,
+        totalPages: Math.ceil(data.length / size),
+        last: end >= data.length
+      }
+    });
+  }),
+
+  // 지식 상세 조회
+  http.get('/api/v1/knowledge/:id', async ({ params }) => {
+    await delay(200);
+
+    const knowledge = knowledgeData.find(k => k.id === params.id);
+
+    if (!knowledge) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'KNW-404', message: '지식을 찾을 수 없습니다.' } },
+        { status: 404 }
+      );
+    }
+
+    return HttpResponse.json({ success: true, data: knowledge });
+  }),
+
+  // 지식 생성
+  http.post('/api/v1/knowledge', async ({ request }) => {
+    await delay(500);
+
+    const body = await request.json() as any;
+    const newKnowledge = {
+      id: crypto.randomUUID(),
+      ...body,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      viewCount: 0,
+      likeCount: 0
+    };
+
+    knowledgeData.push(newKnowledge);
+
+    return HttpResponse.json({ success: true, data: newKnowledge }, { status: 201 });
+  }),
+
+  // 지식 수정
+  http.put('/api/v1/knowledge/:id', async ({ params, request }) => {
+    await delay(300);
+
+    const index = knowledgeData.findIndex(k => k.id === params.id);
+
+    if (index === -1) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'KNW-404', message: '지식을 찾을 수 없습니다.' } },
+        { status: 404 }
+      );
+    }
+
+    const body = await request.json() as any;
+    knowledgeData[index] = {
+      ...knowledgeData[index],
+      ...body,
+      updatedAt: new Date().toISOString()
+    };
+
+    return HttpResponse.json({ success: true, data: knowledgeData[index] });
+  }),
+
+  // 지식 삭제
+  http.delete('/api/v1/knowledge/:id', async ({ params }) => {
+    await delay(200);
+
+    const index = knowledgeData.findIndex(k => k.id === params.id);
+
+    if (index === -1) {
+      return HttpResponse.json(
+        { success: false, error: { code: 'KNW-404', message: '지식을 찾을 수 없습니다.' } },
+        { status: 404 }
+      );
+    }
+
+    knowledgeData.splice(index, 1);
+
+    return HttpResponse.json({ success: true, data: null }, { status: 204 });
+  }),
+];
+```
+
+### 16.3 개발 환경 초기화
+
+```typescript
+// src/main.tsx
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './app/App';
+
+async function enableMocking() {
+  if (import.meta.env.MODE !== 'development') {
+    return;
+  }
+
+  if (import.meta.env.VITE_ENABLE_MSW !== 'true') {
+    return;
+  }
+
+  const { worker } = await import('./mocks/browser');
+  return worker.start({
+    onUnhandledRequest: 'bypass', // 처리되지 않은 요청은 실제 서버로
+  });
+}
+
+enableMocking().then(() => {
+  ReactDOM.createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  );
+});
+```
+
+### 16.4 테스트 통합
+
+```typescript
+// src/setupTests.ts
+import '@testing-library/jest-dom';
+import { server } from './mocks/server';
+
+beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+afterEach(() => server.resetHandlers());
+afterAll(() => server.close());
+
+// src/features/knowledge/__tests__/KnowledgeList.test.tsx
+import { render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { KnowledgeList } from '../components/KnowledgeList';
+import { server } from '@/mocks/server';
+import { http, HttpResponse } from 'msw';
+
+const createWrapper = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+    },
+  });
+  return ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>
+      {children}
+    </QueryClientProvider>
+  );
+};
+
+describe('KnowledgeList', () => {
+  it('지식 목록을 렌더링한다', async () => {
+    render(<KnowledgeList />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText('테스트 지식 1')).toBeInTheDocument();
+    });
+  });
+
+  it('에러 시 에러 메시지를 표시한다', async () => {
+    server.use(
+      http.get('/api/v1/knowledge', () => {
+        return HttpResponse.json(
+          { success: false, error: { code: 'SYS-500', message: '서버 오류' } },
+          { status: 500 }
+        );
+      })
+    );
+
+    render(<KnowledgeList />, { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(screen.getByText(/서버 오류/)).toBeInTheDocument();
+    });
+  });
+});
+```
+
+---
+
+## 17. 번들 분석 및 최적화
+
+### 17.1 번들 분석 도구 설정
+
+```typescript
+// vite.config.ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import { visualizer } from 'rollup-plugin-visualizer';
+
+export default defineConfig({
+  plugins: [
+    react(),
+    visualizer({
+      filename: 'dist/stats.html',
+      open: true,
+      gzipSize: true,
+      brotliSize: true,
+    }),
+  ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // 벤더 청크 분리
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-mui': ['@mui/material', '@mui/icons-material'],
+          'vendor-query': ['@tanstack/react-query', '@reduxjs/toolkit', 'react-redux'],
+          'vendor-utils': ['axios', 'date-fns', 'lodash-es'],
+          'vendor-editor': ['react-markdown', 'prismjs', 'mermaid'],
+          'vendor-chart': ['recharts'],
+        },
+      },
+    },
+    // 청크 사이즈 경고 임계값
+    chunkSizeWarningLimit: 500,
+    // 소스맵 설정
+    sourcemap: true,
+  },
+});
+```
+
+### 17.2 코드 스플리팅 전략
+
+```mermaid
+flowchart TB
+    subgraph Entry["엔트리 포인트"]
+        Main["main.tsx<br/>(초기 로드)"]
+    end
+
+    subgraph Core["코어 청크 (~100KB)"]
+        React["react + react-dom"]
+        Router["react-router"]
+        Redux["redux + react-query"]
+    end
+
+    subgraph Routes["라우트 청크 (Lazy Load)"]
+        Auth["auth chunk"]
+        Dashboard["dashboard chunk"]
+        Knowledge["knowledge chunk"]
+        Search["search chunk"]
+        Admin["admin chunk"]
+    end
+
+    subgraph Features["기능 청크 (On-Demand)"]
+        Editor["markdown-editor"]
+        Chart["chart library"]
+        Export["export utilities"]
+    end
+
+    Main --> Core
+    Core --> Routes
+    Routes -.-> Features
+
+    style Main fill:#e3f2fd
+    style Core fill:#c8e6c9
+    style Routes fill:#fff3e0
+    style Features fill:#fce4ec
+```
+
+### 17.3 Lazy Loading 구현
+
+```typescript
+// src/app/router.tsx
+import { lazy, Suspense } from 'react';
+import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { LoadingScreen } from '@/components/feedback';
+
+// Lazy-loaded 컴포넌트
+const Dashboard = lazy(() => import('@/features/dashboard/pages/DashboardPage'));
+const KnowledgeList = lazy(() => import('@/features/knowledge/pages/KnowledgeListPage'));
+const KnowledgeDetail = lazy(() => import('@/features/knowledge/pages/KnowledgeDetailPage'));
+const KnowledgeEditor = lazy(() => import('@/features/knowledge/pages/KnowledgeEditorPage'));
+const SearchPage = lazy(() => import('@/features/search/pages/SearchPage'));
+const ChatPage = lazy(() => import('@/features/chat/pages/ChatPage'));
+const AdminDashboard = lazy(() => import('@/features/admin/pages/AdminDashboardPage'));
+
+// 프리페치 함수
+export const prefetchRoute = async (routeName: string) => {
+  const routes: Record<string, () => Promise<any>> = {
+    dashboard: () => import('@/features/dashboard/pages/DashboardPage'),
+    knowledge: () => import('@/features/knowledge/pages/KnowledgeListPage'),
+    search: () => import('@/features/search/pages/SearchPage'),
+    chat: () => import('@/features/chat/pages/ChatPage'),
+  };
+
+  if (routes[routeName]) {
+    await routes[routeName]();
+  }
+};
+
+const router = createBrowserRouter([
+  {
+    path: '/',
+    element: <MainLayout />,
+    children: [
+      {
+        index: true,
+        element: (
+          <Suspense fallback={<LoadingScreen />}>
+            <Dashboard />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'knowledge',
+        children: [
+          {
+            index: true,
+            element: (
+              <Suspense fallback={<LoadingScreen />}>
+                <KnowledgeList />
+              </Suspense>
+            ),
+          },
+          {
+            path: ':id',
+            element: (
+              <Suspense fallback={<LoadingScreen />}>
+                <KnowledgeDetail />
+              </Suspense>
+            ),
+          },
+          {
+            path: 'new',
+            element: (
+              <Suspense fallback={<LoadingScreen />}>
+                <KnowledgeEditor />
+              </Suspense>
+            ),
+          },
+        ],
+      },
+      // ... 기타 라우트
+    ],
+  },
+]);
+
+export const AppRouter = () => <RouterProvider router={router} />;
+```
+
+### 17.4 성능 최적화 체크리스트
+
+| 항목 | 목표 | 측정 방법 |
+|------|------|----------|
+| **초기 번들 사이즈** | < 200KB (gzip) | `vite build --report` |
+| **LCP (Largest Contentful Paint)** | < 2.5s | Lighthouse |
+| **FID (First Input Delay)** | < 100ms | Lighthouse |
+| **CLS (Cumulative Layout Shift)** | < 0.1 | Lighthouse |
+| **TTI (Time to Interactive)** | < 3.8s | Lighthouse |
+| **번들 청크** | 최대 500KB | rollup-plugin-visualizer |
+
+### 17.5 이미지 최적화
+
+```typescript
+// vite.config.ts
+import viteImagemin from 'vite-plugin-imagemin';
+
+export default defineConfig({
+  plugins: [
+    viteImagemin({
+      gifsicle: { optimizationLevel: 7, interlaced: false },
+      optipng: { optimizationLevel: 7 },
+      mozjpeg: { quality: 80 },
+      pngquant: { quality: [0.65, 0.9], speed: 4 },
+      svgo: {
+        plugins: [
+          { name: 'removeViewBox', active: false },
+          { name: 'removeEmptyAttrs', active: false },
+        ],
+      },
+      webp: { quality: 80 },
+    }),
+  ],
+});
+
+// 반응형 이미지 컴포넌트
+// src/components/common/ResponsiveImage.tsx
+interface ResponsiveImageProps {
+  src: string;
+  alt: string;
+  sizes?: string;
+  className?: string;
+}
+
+export const ResponsiveImage: React.FC<ResponsiveImageProps> = ({
+  src,
+  alt,
+  sizes = '100vw',
+  className
+}) => {
+  const webpSrc = src.replace(/\.(jpg|png)$/, '.webp');
+
+  return (
+    <picture>
+      <source srcSet={webpSrc} type="image/webp" />
+      <img
+        src={src}
+        alt={alt}
+        sizes={sizes}
+        loading="lazy"
+        decoding="async"
+        className={className}
+      />
+    </picture>
+  );
+};
+```
+
+---
+
+## 18. Storybook 통합
+
+### 18.1 Storybook 설정
+
+```typescript
+// .storybook/main.ts
+import type { StorybookConfig } from '@storybook/react-vite';
+
+const config: StorybookConfig = {
+  stories: ['../src/**/*.mdx', '../src/**/*.stories.@(js|jsx|mjs|ts|tsx)'],
+  addons: [
+    '@storybook/addon-onboarding',
+    '@storybook/addon-essentials',
+    '@chromatic-com/storybook',
+    '@storybook/addon-interactions',
+    '@storybook/addon-a11y',
+    '@storybook/addon-themes',
+  ],
+  framework: {
+    name: '@storybook/react-vite',
+    options: {},
+  },
+  docs: {
+    autodocs: 'tag',
+  },
+};
+
+export default config;
+
+// .storybook/preview.tsx
+import type { Preview } from '@storybook/react';
+import { ThemeProvider, CssBaseline } from '@mui/material';
+import { lightTheme, darkTheme } from '../src/theme';
+
+const preview: Preview = {
+  parameters: {
+    actions: { argTypesRegex: '^on[A-Z].*' },
+    controls: {
+      matchers: {
+        color: /(background|color)$/i,
+        date: /Date$/i,
+      },
+    },
+    backgrounds: {
+      default: 'light',
+      values: [
+        { name: 'light', value: '#ffffff' },
+        { name: 'dark', value: '#121212' },
+      ],
+    },
+  },
+  decorators: [
+    (Story, context) => {
+      const theme = context.globals.theme === 'dark' ? darkTheme : lightTheme;
+      return (
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <Story />
+        </ThemeProvider>
+      );
+    },
+  ],
+  globalTypes: {
+    theme: {
+      description: 'Global theme for components',
+      defaultValue: 'light',
+      toolbar: {
+        title: 'Theme',
+        icon: 'circlehollow',
+        items: ['light', 'dark'],
+        dynamicTitle: true,
+      },
+    },
+  },
+};
+
+export default preview;
+```
+
+### 18.2 컴포넌트 스토리 예시
+
+```typescript
+// src/components/common/Button/Button.stories.tsx
+import type { Meta, StoryObj } from '@storybook/react';
+import { Button } from './Button';
+import SendIcon from '@mui/icons-material/Send';
+
+const meta = {
+  title: 'Common/Button',
+  component: Button,
+  parameters: {
+    layout: 'centered',
+  },
+  tags: ['autodocs'],
+  argTypes: {
+    variant: {
+      control: 'select',
+      options: ['contained', 'outlined', 'text'],
+    },
+    color: {
+      control: 'select',
+      options: ['primary', 'secondary', 'error', 'warning', 'info', 'success'],
+    },
+    size: {
+      control: 'select',
+      options: ['small', 'medium', 'large'],
+    },
+    disabled: { control: 'boolean' },
+    loading: { control: 'boolean' },
+  },
+} satisfies Meta<typeof Button>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+export const Primary: Story = {
+  args: {
+    children: '버튼',
+    variant: 'contained',
+    color: 'primary',
+  },
+};
+
+export const Secondary: Story = {
+  args: {
+    children: '버튼',
+    variant: 'outlined',
+    color: 'secondary',
+  },
+};
+
+export const WithIcon: Story = {
+  args: {
+    children: '전송',
+    variant: 'contained',
+    endIcon: <SendIcon />,
+  },
+};
+
+export const Loading: Story = {
+  args: {
+    children: '저장 중...',
+    variant: 'contained',
+    loading: true,
+  },
+};
+
+export const Sizes: Story = {
+  render: () => (
+    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+      <Button size="small">Small</Button>
+      <Button size="medium">Medium</Button>
+      <Button size="large">Large</Button>
+    </div>
+  ),
+};
+
+export const AllVariants: Story = {
+  render: () => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <Button variant="contained">Contained</Button>
+        <Button variant="outlined">Outlined</Button>
+        <Button variant="text">Text</Button>
+      </div>
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <Button variant="contained" color="secondary">Secondary</Button>
+        <Button variant="contained" color="success">Success</Button>
+        <Button variant="contained" color="error">Error</Button>
+      </div>
+    </div>
+  ),
+};
+```
+
+---
+
+## 19. PWA 설정
+
+### 19.1 Vite PWA 플러그인 설정
+
+```typescript
+// vite.config.ts
+import { VitePWA } from 'vite-plugin-pwa';
+
+export default defineConfig({
+  plugins: [
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png'],
+      manifest: {
+        name: 'Knowledge Discovery Platform',
+        short_name: 'KDP',
+        description: '사내 지식 검색 및 관리 시스템',
+        theme_color: '#1976d2',
+        background_color: '#ffffff',
+        display: 'standalone',
+        orientation: 'portrait',
+        scope: '/',
+        start_url: '/',
+        icons: [
+          {
+            src: '/pwa-192x192.png',
+            sizes: '192x192',
+            type: 'image/png',
+          },
+          {
+            src: '/pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+          },
+          {
+            src: '/pwa-512x512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable',
+          },
+        ],
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/api\.example\.com\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'api-cache',
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24, // 24시간
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          {
+            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'image-cache',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 60 * 24 * 30, // 30일
+              },
+            },
+          },
+        ],
+      },
+    }),
+  ],
+});
+```
+
+### 19.2 서비스 워커 업데이트 알림
+
+```typescript
+// src/components/feedback/UpdatePrompt.tsx
+import { useRegisterSW } from 'virtual:pwa-register/react';
+import { Snackbar, Button } from '@mui/material';
+
+export const UpdatePrompt: React.FC = () => {
+  const {
+    needRefresh: [needRefresh, setNeedRefresh],
+    updateServiceWorker,
+  } = useRegisterSW({
+    onRegisteredSW(swUrl, r) {
+      // 주기적 업데이트 확인 (1시간마다)
+      r && setInterval(() => r.update(), 60 * 60 * 1000);
+    },
+    onRegisterError(error) {
+      console.error('SW registration error', error);
+    },
+  });
+
+  const handleClose = () => setNeedRefresh(false);
+  const handleUpdate = () => updateServiceWorker(true);
+
+  return (
+    <Snackbar
+      open={needRefresh}
+      message="새로운 버전이 있습니다."
+      action={
+        <>
+          <Button color="secondary" size="small" onClick={handleClose}>
+            나중에
+          </Button>
+          <Button color="primary" size="small" onClick={handleUpdate}>
+            업데이트
+          </Button>
+        </>
+      }
+    />
+  );
+};
+```
+
+---
+
+## 20. CI/CD 파이프라인
+
+### 20.1 GitLab CI 설정
+
+```yaml
+# .gitlab-ci.yml
+stages:
+  - install
+  - lint
+  - test
+  - build
+  - deploy
+
+variables:
+  NODE_VERSION: "20"
+  PNPM_VERSION: "9"
+
+# 캐시 설정
+.node_cache: &node_cache
+  key:
+    files:
+      - pnpm-lock.yaml
+  paths:
+    - node_modules/
+    - .pnpm-store/
+
+# 의존성 설치
+install:
+  stage: install
+  image: node:${NODE_VERSION}
+  cache:
+    <<: *node_cache
+    policy: pull-push
+  script:
+    - corepack enable
+    - corepack prepare pnpm@${PNPM_VERSION} --activate
+    - pnpm install --frozen-lockfile
+  artifacts:
+    paths:
+      - node_modules/
+    expire_in: 1 hour
+
+# 린트 검사
+lint:
+  stage: lint
+  image: node:${NODE_VERSION}
+  needs: ["install"]
+  cache:
+    <<: *node_cache
+    policy: pull
+  script:
+    - corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
+    - pnpm lint
+    - pnpm type-check
+
+# 테스트
+test:unit:
+  stage: test
+  image: node:${NODE_VERSION}
+  needs: ["install"]
+  cache:
+    <<: *node_cache
+    policy: pull
+  script:
+    - corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
+    - pnpm test:unit --coverage
+  coverage: '/All files[^|]*\|[^|]*\s+([\d\.]+)/'
+  artifacts:
+    paths:
+      - coverage/
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage/cobertura-coverage.xml
+
+test:e2e:
+  stage: test
+  image: mcr.microsoft.com/playwright:v1.40.0-focal
+  needs: ["install"]
+  cache:
+    <<: *node_cache
+    policy: pull
+  script:
+    - corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
+    - pnpm test:e2e
+  artifacts:
+    when: always
+    paths:
+      - playwright-report/
+    expire_in: 1 week
+
+# 빌드
+build:staging:
+  stage: build
+  image: node:${NODE_VERSION}
+  needs: ["lint", "test:unit"]
+  cache:
+    <<: *node_cache
+    policy: pull
+  script:
+    - corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
+    - pnpm build --mode staging
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 week
+  only:
+    - develop
+
+build:production:
+  stage: build
+  image: node:${NODE_VERSION}
+  needs: ["lint", "test:unit"]
+  cache:
+    <<: *node_cache
+    policy: pull
+  script:
+    - corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
+    - pnpm build --mode production
+  artifacts:
+    paths:
+      - dist/
+    expire_in: 1 week
+  only:
+    - main
+    - tags
+
+# 배포
+deploy:staging:
+  stage: deploy
+  image: docker:24
+  needs: ["build:staging"]
+  services:
+    - docker:24-dind
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE:staging .
+    - docker push $CI_REGISTRY_IMAGE:staging
+    - |
+      curl -X POST \
+        -H "Content-Type: application/json" \
+        -d '{"service":"frontend","tag":"staging"}' \
+        $DEPLOY_WEBHOOK_URL
+  environment:
+    name: staging
+    url: https://staging.example.com
+  only:
+    - develop
+
+deploy:production:
+  stage: deploy
+  image: docker:24
+  needs: ["build:production"]
+  services:
+    - docker:24-dind
+  script:
+    - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG .
+    - docker build -t $CI_REGISTRY_IMAGE:latest .
+    - docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+    - docker push $CI_REGISTRY_IMAGE:latest
+  environment:
+    name: production
+    url: https://example.com
+  only:
+    - tags
+  when: manual
+```
+
+### 20.2 Dockerfile
+
+```dockerfile
+# Build stage
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# pnpm 설치
+RUN corepack enable && corepack prepare pnpm@9 --activate
+
+# 의존성 파일 복사
+COPY package.json pnpm-lock.yaml ./
+
+# 의존성 설치
+RUN pnpm install --frozen-lockfile
+
+# 소스 복사 및 빌드
+COPY . .
+RUN pnpm build
+
+# Production stage
+FROM nginx:1.25-alpine
+
+# Nginx 설정 복사
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY default.conf /etc/nginx/conf.d/default.conf
+
+# 빌드 결과물 복사
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# 권한 설정
+RUN chown -R nginx:nginx /usr/share/nginx/html
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+### 20.3 Nginx 설정
+
+```nginx
+# default.conf
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Gzip 압축
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_proxied any;
+    gzip_types text/plain text/css text/xml text/javascript application/javascript application/json application/xml;
+
+    # Brotli (옵션)
+    # brotli on;
+    # brotli_types text/plain text/css text/xml text/javascript application/javascript application/json application/xml;
+
+    # 보안 헤더
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+    # 정적 자산 캐싱
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # SPA 라우팅
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # API 프록시
+    location /api {
+        proxy_pass http://backend:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # WebSocket 프록시
+    location /ws {
+        proxy_pass http://backend:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_read_timeout 86400;
+    }
+
+    # Health check
+    location /health {
+        return 200 'OK';
+        add_header Content-Type text/plain;
+    }
+}
+```
+
+---
+
+## 21. 구현 체크리스트
 
 ### Phase 1: 프로젝트 설정 (Week 1-2)
 
@@ -2685,6 +4166,8 @@ const MyComponent = () => {
 | 버전 | 날짜 | 작성자 | 변경 내용 |
 |------|------|--------|----------|
 | 1.0 | 2026-01-15 | Claude Code | 초안 작성 |
+| 1.1 | 2026-01-17 | Claude Code | UUID 통일, 에러 코드 표준 연계 |
+| 1.2 | 2026-01-17 | Claude Code | WebSocket 실시간 채팅, MSW API 모킹, 번들 최적화, Storybook, PWA, CI/CD 섹션 추가 |
 
 ---
 

@@ -1,8 +1,9 @@
 # 통합 API 설계서
 ## External API (Frontend ↔ Backend) + Internal API (Backend ↔ AI Service)
 
-**버전**: 1.0
+**버전**: 1.2
 **작성일**: 2026-01-16
+**수정일**: 2026-01-17
 **상태**: Draft
 **OpenAPI 버전**: 3.0.3
 
@@ -13,7 +14,7 @@
 | 항목 | 내용 |
 |------|------|
 | **문서명** | 통합 API 설계서 |
-| **버전** | 1.0 |
+| **버전** | 1.2 |
 | **작성일** | 2026-01-16 |
 | **작성자** | Claude Code (Opus 4.5) |
 | **상태** | Draft |
@@ -26,6 +27,8 @@
 | 버전 | 일자 | 작성자 | 변경 내용 |
 |------|------|--------|----------|
 | 1.0 | 2026-01-16 | Claude Code | 초안 작성 - External/Internal API 통합 |
+| 1.1 | 2026-01-17 | Claude Code | 데이터 타입 규약(UUID, Timestamp) 섹션 추가 |
+| 1.2 | 2026-01-17 | Claude Code | 장애 대응 및 Circuit Breaker 섹션 추가 (7.5) |
 
 ---
 
@@ -34,10 +37,12 @@
 1. [개요](#1-개요)
 2. [아키텍처 개요](#2-아키텍처-개요)
 3. [공통 사항](#3-공통-사항)
+   - [3.5 데이터 타입 규약](#35-데이터-타입-규약) ← **ID/Timestamp 표준**
 4. [Part 1: External API (Frontend ↔ Backend)](#4-part-1-external-api-frontend--backend)
 5. [Part 2: Internal API (Backend ↔ AI Service)](#5-part-2-internal-api-backend--ai-service)
 6. [Part 3: 공통 스키마](#6-part-3-공통-스키마)
 7. [에러 코드 정의](#7-에러-코드-정의)
+   - [7.5 장애 대응 및 Circuit Breaker](#75-장애-대응-및-circuit-breaker) ← **Resilience4j 연동**
 8. [보안 고려사항](#8-보안-고려사항)
 9. [버전 관리 전략](#9-버전-관리-전략)
 
@@ -236,6 +241,56 @@ X-User-Id: user-uuid-from-jwt
 | `429` | Too Many Requests | Rate Limit 초과 |
 | `500` | Internal Server Error | 서버 오류 |
 | `503` | Service Unavailable | 서비스 불가 (AI Service 장애 등) |
+
+### 3.5 데이터 타입 규약
+
+#### 3.5.1 ID 타입 (UUID)
+
+모든 엔티티의 식별자(ID)는 **UUID v4** 형식을 사용합니다.
+
+| 항목 | 형식 | 예시 |
+|------|------|------|
+| **표준 UUID** | `xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx` | `550e8400-e29b-41d4-a716-446655440000` |
+| **길이** | 36자 (하이픈 포함) | - |
+| **정규식** | `^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$` | - |
+
+```json
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "authorId": "123e4567-e89b-12d3-a456-426614174000",
+  "categoryId": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+  "projectId": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+}
+```
+
+> **참고**: 본 문서의 예시에서는 가독성을 위해 `"k-001"`, `"user-001"` 등 축약 형태를 사용할 수 있으나, 실제 구현에서는 반드시 UUID 형식을 사용합니다.
+
+#### 3.5.2 Timestamp 타입
+
+모든 날짜/시간 필드는 **ISO 8601** 형식을 사용합니다.
+
+| 필드 유형 | 형식 | 예시 | 설명 |
+|----------|------|------|------|
+| **DateTime** | `YYYY-MM-DDTHH:mm:ssZ` | `"2026-01-17T10:30:00Z"` | UTC 시간대 |
+| **Date** | `YYYY-MM-DD` | `"2026-01-17"` | 날짜만 |
+| **Unix Timestamp** | 정수 (JWT 전용) | `1705485000` | JWT exp, iat 필드 |
+
+```json
+{
+  "createdAt": "2026-01-17T10:30:00Z",
+  "updatedAt": "2026-01-17T15:45:30Z",
+  "validStartDate": "2026-01-01",
+  "validEndDate": "2026-12-31"
+}
+```
+
+#### 3.5.3 ID 타입별 용도
+
+| ID 타입 | 용도 | 생성 방식 |
+|---------|------|----------|
+| **Entity ID (PK)** | 데이터베이스 레코드 식별 | `UUID.randomUUID()` |
+| **Trace ID (X-Request-Id)** | 요청 추적/로깅 | `UUID.randomUUID()` 또는 축약 |
+| **Session ID** | 세션/토큰 관리 | Keycloak 생성 UUID |
 
 ---
 
@@ -2640,6 +2695,60 @@ sort=field,direction
 | `SYSTEM_001` | 500 | 내부 서버 오류가 발생했습니다. | 예상치 못한 오류 |
 | `SYSTEM_002` | 503 | 서비스를 일시적으로 사용할 수 없습니다. | 서비스 불가 |
 | `SYSTEM_003` | 429 | 요청이 너무 많습니다. | Rate Limit 초과 |
+
+### 7.5 장애 대응 및 Circuit Breaker
+
+> **상세 구현**: [백엔드 상세 설계서](./backend_detailed_design.md#102-resilience4j-설정) 참조
+
+#### 7.5.1 Circuit Breaker 상태 전이
+
+Backend에서 AI Service 호출 시 Resilience4j Circuit Breaker 패턴을 적용하여 장애 전파를 방지합니다.
+
+```mermaid
+stateDiagram-v2
+    [*] --> CLOSED
+
+    CLOSED --> OPEN: 실패율 ≥ 50%
+    OPEN --> HALF_OPEN: 30초 후
+    HALF_OPEN --> CLOSED: 복구 성공
+    HALF_OPEN --> OPEN: 복구 실패
+```
+
+#### 7.5.2 상태별 API 응답
+
+| Circuit Breaker 상태 | API 동작 | HTTP 응답 | 사용자 메시지 |
+|---------------------|---------|----------|-------------|
+| **CLOSED** | 정상 처리 | 200 | 정상 응답 |
+| **OPEN** | Fallback 실행 | 200 (부분) / 503 | "AI 서비스가 일시적으로 응답하지 않습니다" |
+| **HALF_OPEN** | 제한적 요청 | 200 / 503 | 복구 시도 중 |
+
+#### 7.5.3 Fallback 전략
+
+| API | Fallback 응답 | 설명 |
+|-----|--------------|------|
+| `POST /search/chat` | 빈 결과 + fallback 플래그 | `{ "results": [], "fallback": true }` |
+| `POST /search/hybrid` | 캐시된 결과 또는 빈 결과 | Redis 캐시 활용 |
+| `POST /internal/v1/extract/*` | 빈 메타데이터 | `{ "metadata": {} }` |
+| `POST /internal/v1/embed` | 빈 임베딩 | 재시도 필요 안내 |
+
+#### 7.5.4 Resilience4j 설정 요약
+
+| 설정 | 값 | 설명 |
+|------|-----|------|
+| `failureRateThreshold` | 50% | OPEN 전환 실패율 |
+| `slidingWindowSize` | 10 | 집계 윈도우 |
+| `waitDurationInOpenState` | 30초 | OPEN 유지 시간 |
+| `timeoutDuration` | 30초 | 요청 타임아웃 |
+| `maxAttempts` (Retry) | 3회 | 재시도 횟수 |
+
+#### 7.5.5 클라이언트 재시도 가이드
+
+```
+HTTP 503 응답 시:
+1. Retry-After 헤더 확인
+2. 지수 백오프로 재시도 (1s → 2s → 4s)
+3. 최대 3회 재시도 후 사용자에게 안내
+```
 
 ---
 

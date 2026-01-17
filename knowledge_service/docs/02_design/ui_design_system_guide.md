@@ -7,10 +7,10 @@
 | 항목 | 내용 |
 |------|------|
 | **문서명** | UI 디자인 시스템 가이드 |
-| **버전** | 1.0 |
-| **작성일** | 2026-01-16 |
+| **버전** | 1.1 |
+| **작성일** | 2026-01-17 |
 | **작성자** | Claude Code (Opus 4.5) |
-| **상태** | Draft |
+| **상태** | Approved |
 | **관련 문서** | [프론트엔드 설계서](./frontend_detailed_design.md), [UI 스토리보드](./ui_storyboard/), [용어집](./glossary.md) |
 
 ---
@@ -20,6 +20,7 @@
 | 버전 | 일자 | 작성자 | 변경 내용 |
 |------|------|--------|----------|
 | 1.0 | 2026-01-16 | Claude Code | 초안 작성 |
+| 1.1 | 2026-01-17 | Claude Code | 복합 컴포넌트 추가 (Dropdown, Tabs, Pagination), ARIA 접근성 상세화, 레이아웃 패턴 확장, 페이지 전환 애니메이션, 마크다운 렌더러 스타일, 차트 색상 팔레트 추가 |
 
 ---
 
@@ -31,13 +32,16 @@
 4. [타이포그래피](#4-타이포그래피)
 5. [스페이싱 시스템](#5-스페이싱-시스템)
 6. [아이콘 가이드라인](#6-아이콘-가이드라인)
-7. [컴포넌트 가이드라인](#7-컴포넌트-가이드라인)
-8. [레이아웃 패턴](#8-레이아웃-패턴)
-9. [모션 & 애니메이션](#9-모션--애니메이션)
-10. [접근성 가이드](#10-접근성-가이드)
-11. [다크 모드](#11-다크-모드)
-12. [반응형 디자인](#12-반응형-디자인)
-13. [UI 카피 가이드](#13-ui-카피-가이드)
+7. [기본 컴포넌트 가이드라인](#7-기본-컴포넌트-가이드라인)
+8. [복합 컴포넌트 가이드라인](#8-복합-컴포넌트-가이드라인) ⭐ NEW
+9. [레이아웃 패턴](#9-레이아웃-패턴)
+10. [모션 & 애니메이션](#10-모션--애니메이션)
+11. [접근성 가이드](#11-접근성-가이드)
+12. [다크 모드](#12-다크-모드)
+13. [반응형 디자인](#13-반응형-디자인)
+14. [UI 카피 가이드](#14-ui-카피-가이드)
+15. [마크다운 렌더러 스타일](#15-마크다운-렌더러-스타일) ⭐ NEW
+16. [차트 & 데이터 시각화](#16-차트--데이터-시각화) ⭐ NEW
 
 ---
 
@@ -565,7 +569,7 @@ p, li, td {
 
 ---
 
-## 7. 컴포넌트 가이드라인
+## 7. 기본 컴포넌트 가이드라인
 
 ### 7.1 버튼 (Button)
 
@@ -775,9 +779,628 @@ flowchart TD
 
 ---
 
-## 8. 레이아웃 패턴
+## 8. 복합 컴포넌트 가이드라인
 
-### 8.1 페이지 구조
+### 8.1 드롭다운 (Dropdown / Select)
+
+> 목록에서 하나 또는 여러 항목을 선택하는 컴포넌트
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Dropdown Variants                         │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   Standard Select                                           │
+│   ┌─────────────────────────────────────────────┐          │
+│   │ 선택하세요                               ▼ │          │
+│   └─────────────────────────────────────────────┘          │
+│                                                             │
+│   Expanded State                                            │
+│   ┌─────────────────────────────────────────────┐          │
+│   │ 옵션 1                                   ▲ │          │
+│   ├─────────────────────────────────────────────┤          │
+│   │ ○ 옵션 1                                    │          │
+│   │ ● 옵션 2 (선택됨)                          │          │
+│   │ ○ 옵션 3                                    │          │
+│   │ ○ 옵션 4                                    │          │
+│   │─────────────────────────────────────────────│          │
+│   │ ○ 그룹: 기타 옵션                          │          │
+│   │   ○ 옵션 5                                  │          │
+│   │   ○ 옵션 6                                  │          │
+│   └─────────────────────────────────────────────┘          │
+│                                                             │
+│   With Search (Autocomplete)                                │
+│   ┌─────────────────────────────────────────────┐          │
+│   │ 🔍 검색어 입력...                        ✕ │          │
+│   ├─────────────────────────────────────────────┤          │
+│   │ 검색 결과: 3건                              │          │
+│   │ ● 검색결과 1                                │          │
+│   │ ○ 검색결과 2                                │          │
+│   │ ○ 검색결과 3                                │          │
+│   └─────────────────────────────────────────────┘          │
+│                                                             │
+│   Multi-Select                                              │
+│   ┌─────────────────────────────────────────────┐          │
+│   │ [태그1] [태그2] [+2]                     ▼ │          │
+│   ├─────────────────────────────────────────────┤          │
+│   │ ☑ 태그1                                     │          │
+│   │ ☑ 태그2                                     │          │
+│   │ ☑ 태그3                                     │          │
+│   │ ☑ 태그4                                     │          │
+│   │ ☐ 태그5                                     │          │
+│   └─────────────────────────────────────────────┘          │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Dropdown 상태
+
+```mermaid
+stateDiagram-v2
+    [*] --> Closed
+    Closed --> Focused: Tab/Click
+    Focused --> Open: Enter/Space/ArrowDown
+    Open --> ItemFocused: ArrowUp/Down
+    ItemFocused --> ItemFocused: ArrowUp/Down
+    ItemFocused --> Closed: Enter (선택)
+    Open --> Closed: Escape/ClickOutside
+    Focused --> Closed: Blur
+    Closed --> [*]
+```
+
+#### Dropdown Props
+
+| Prop | Type | Default | 설명 |
+|------|------|---------|------|
+| `options` | `Option[]` | required | 선택 옵션 배열 |
+| `value` | `string \| string[]` | - | 현재 선택값 |
+| `onChange` | `(value) => void` | - | 값 변경 핸들러 |
+| `multiple` | `boolean` | `false` | 다중 선택 허용 |
+| `searchable` | `boolean` | `false` | 검색 필터 활성화 |
+| `disabled` | `boolean` | `false` | 비활성화 |
+| `placeholder` | `string` | "선택하세요" | 플레이스홀더 |
+| `groupBy` | `string` | - | 그룹화 기준 필드 |
+| `maxHeight` | `number` | 300 | 드롭다운 최대 높이(px) |
+
+#### Dropdown 키보드 네비게이션
+
+| 키 | 동작 |
+|---|------|
+| `Enter` / `Space` | 드롭다운 열기/닫기, 항목 선택 |
+| `Escape` | 드롭다운 닫기 |
+| `ArrowDown` | 다음 항목으로 이동 |
+| `ArrowUp` | 이전 항목으로 이동 |
+| `Home` | 첫 번째 항목으로 이동 |
+| `End` | 마지막 항목으로 이동 |
+| `A-Z` | 해당 문자로 시작하는 항목으로 점프 |
+
+---
+
+### 8.2 탭 (Tabs)
+
+> 관련 콘텐츠를 그룹화하여 탭으로 전환하는 컴포넌트
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Tab Variants                            │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   Horizontal Tabs (Default)                                 │
+│   ┌────────┬────────┬────────┬────────┐                    │
+│   │  탭 1  │  탭 2  │  탭 3  │  탭 4  │                    │
+│   │ (활성) │        │        │        │                    │
+│   ├────────┴────────┴────────┴────────┴──────────────────┐ │
+│   │                                                      │ │
+│   │              탭 1의 콘텐츠 영역                       │ │
+│   │                                                      │ │
+│   └──────────────────────────────────────────────────────┘ │
+│                                                             │
+│   Tabs with Icons                                           │
+│   ┌───────────┬───────────┬───────────┬───────────┐        │
+│   │ 📄 문서   │ 💬 댓글   │ 📊 통계   │ ⚙️ 설정  │        │
+│   │  (활성)   │    (3)    │           │           │        │
+│   └───────────┴───────────┴───────────┴───────────┘        │
+│                                                             │
+│   Vertical Tabs                                             │
+│   ┌────────────┬────────────────────────────────────────┐  │
+│   │  탭 1      │                                        │  │
+│   │  ━━━━━━━━  │                                        │  │
+│   │  탭 2      │         콘텐츠 영역                    │  │
+│   │            │                                        │  │
+│   │  탭 3      │                                        │  │
+│   └────────────┴────────────────────────────────────────┘  │
+│                                                             │
+│   Scrollable Tabs (많은 탭)                                 │
+│   ┌─┬────────┬────────┬────────┬────────┬────────┬─┐      │
+│   │◀│  탭 1  │  탭 2  │  탭 3  │  탭 4  │  탭 5  │▶│      │
+│   └─┴────────┴────────┴────────┴────────┴────────┴─┘      │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Tab 스타일 가이드
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Tab Styles                              │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   Default State                                             │
+│   ┌─────────┐                                               │
+│   │  탭 이름 │  color: text.secondary (#757575)            │
+│   └─────────┘  background: transparent                     │
+│                                                             │
+│   Hover State                                               │
+│   ┌─────────┐                                               │
+│   │  탭 이름 │  color: text.primary (#212121)              │
+│   └─────────┘  background: action.hover (rgba(0,0,0,0.04)) │
+│                                                             │
+│   Active State                                              │
+│   ┌─────────┐                                               │
+│   │  탭 이름 │  color: primary (#1976D2)                   │
+│   │ ═══════ │  border-bottom: 2px solid primary           │
+│   └─────────┘                                              │
+│                                                             │
+│   Focus State                                               │
+│   ┌─────────┐                                               │
+│   │  탭 이름 │  + focus ring (outline: 2px solid primary)  │
+│   └─────────┘                                              │
+│                                                             │
+│   Disabled State                                            │
+│   ┌─────────┐                                               │
+│   │  탭 이름 │  color: text.disabled (#9E9E9E)             │
+│   └─────────┘  cursor: not-allowed                         │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Tab Props
+
+| Prop | Type | Default | 설명 |
+|------|------|---------|------|
+| `tabs` | `Tab[]` | required | 탭 배열 `{id, label, icon?, badge?, disabled?}` |
+| `value` | `string` | - | 현재 활성 탭 ID |
+| `onChange` | `(tabId) => void` | - | 탭 변경 핸들러 |
+| `orientation` | `'horizontal' \| 'vertical'` | `'horizontal'` | 탭 방향 |
+| `variant` | `'standard' \| 'scrollable' \| 'fullWidth'` | `'standard'` | 탭 변형 |
+| `centered` | `boolean` | `false` | 중앙 정렬 (horizontal만) |
+
+#### Tab 키보드 네비게이션
+
+| 키 | 동작 |
+|---|------|
+| `ArrowLeft` / `ArrowRight` | 이전/다음 탭으로 포커스 이동 (horizontal) |
+| `ArrowUp` / `ArrowDown` | 이전/다음 탭으로 포커스 이동 (vertical) |
+| `Home` | 첫 번째 탭으로 이동 |
+| `End` | 마지막 탭으로 이동 |
+| `Enter` / `Space` | 포커스된 탭 활성화 |
+
+#### Tab ARIA 속성
+
+```html
+<!-- Tab List -->
+<div role="tablist" aria-label="지식 상세 정보">
+  <button
+    role="tab"
+    id="tab-1"
+    aria-selected="true"
+    aria-controls="panel-1"
+    tabindex="0">
+    문서 내용
+  </button>
+  <button
+    role="tab"
+    id="tab-2"
+    aria-selected="false"
+    aria-controls="panel-2"
+    tabindex="-1">
+    관련 지식
+  </button>
+</div>
+
+<!-- Tab Panels -->
+<div
+  role="tabpanel"
+  id="panel-1"
+  aria-labelledby="tab-1"
+  tabindex="0">
+  문서 내용...
+</div>
+<div
+  role="tabpanel"
+  id="panel-2"
+  aria-labelledby="tab-2"
+  tabindex="0"
+  hidden>
+  관련 지식...
+</div>
+```
+
+---
+
+### 8.3 페이지네이션 (Pagination)
+
+> 대량의 데이터를 페이지 단위로 나누어 탐색하는 컴포넌트
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   Pagination Variants                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   Standard Pagination                                       │
+│   ┌───┬───┬───┬───┬───┬───┬───┬───┬───┐                   │
+│   │ ◀ │ 1 │ 2 │ 3 │ 4 │ 5 │...│ 10│ ▶ │                   │
+│   └───┴───┴───┴───┴───┴───┴───┴───┴───┘                   │
+│             └───┘ (현재 페이지: 3)                          │
+│                                                             │
+│   With First/Last                                           │
+│   ┌───┬───┬───┬───┬───┬───┬───┬───┬───┬───┬───┐           │
+│   │◀◀ │ ◀ │ 1 │ 2 │ 3 │ 4 │ 5 │...│ 10│ ▶ │▶▶ │           │
+│   └───┴───┴───┴───┴───┴───┴───┴───┴───┴───┴───┘           │
+│                                                             │
+│   Compact (모바일)                                          │
+│   ┌───────────────────────────────────┐                    │
+│   │  ◀  │   3 / 10 페이지   │  ▶  │                       │
+│   └───────────────────────────────────┘                    │
+│                                                             │
+│   With Page Size Selector                                   │
+│   ┌─────────────────────────────────────────────────────┐  │
+│   │ 페이지당: [10 ▼]   ◀  1  2  3  ...  10  ▶          │  │
+│   │                                총 95건 중 1-10     │  │
+│   └─────────────────────────────────────────────────────┘  │
+│                                                             │
+│   Infinite Scroll Trigger                                   │
+│   ┌─────────────────────────────────────────────────────┐  │
+│   │                     결과 목록                        │  │
+│   │                       ...                            │  │
+│   │                       ...                            │  │
+│   ├─────────────────────────────────────────────────────┤  │
+│   │              [더 보기 +20건]                         │  │
+│   │           또는 스크롤하면 자동 로드                   │  │
+│   └─────────────────────────────────────────────────────┘  │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Pagination 상태
+
+```mermaid
+stateDiagram-v2
+    [*] --> Idle
+    Idle --> Loading: 페이지 변경
+    Loading --> Idle: 데이터 로드 완료
+    Loading --> Error: 로드 실패
+    Error --> Loading: 재시도
+
+    state Idle {
+        [*] --> HasPrev: page > 1
+        [*] --> NoPrev: page == 1
+        HasPrev --> HasNext: page < totalPages
+        HasPrev --> NoNext: page == totalPages
+        NoPrev --> HasNext: totalPages > 1
+        NoPrev --> NoNext: totalPages == 1
+    }
+```
+
+#### Pagination Props
+
+| Prop | Type | Default | 설명 |
+|------|------|---------|------|
+| `page` | `number` | `1` | 현재 페이지 (1-based) |
+| `totalPages` | `number` | required | 총 페이지 수 |
+| `totalItems` | `number` | - | 총 항목 수 (정보 표시용) |
+| `pageSize` | `number` | `10` | 페이지당 항목 수 |
+| `onChange` | `(page, pageSize) => void` | - | 페이지/사이즈 변경 핸들러 |
+| `siblingCount` | `number` | `1` | 현재 페이지 양옆에 표시할 페이지 수 |
+| `boundaryCount` | `number` | `1` | 처음/끝에 항상 표시할 페이지 수 |
+| `showFirstButton` | `boolean` | `false` | 처음으로 버튼 표시 |
+| `showLastButton` | `boolean` | `false` | 끝으로 버튼 표시 |
+| `pageSizeOptions` | `number[]` | `[10, 20, 50]` | 페이지 사이즈 선택 옵션 |
+| `disabled` | `boolean` | `false` | 비활성화 |
+
+#### Pagination 키보드 네비게이션
+
+| 키 | 동작 |
+|---|------|
+| `Tab` | 페이지네이션 컨트롤 간 이동 |
+| `Enter` / `Space` | 버튼 활성화 |
+| `ArrowLeft` | 이전 페이지 (포커스가 페이지 번호에 있을 때) |
+| `ArrowRight` | 다음 페이지 (포커스가 페이지 번호에 있을 때) |
+
+#### Pagination 구현 예시
+
+```typescript
+// usePagination 훅
+interface UsePaginationOptions {
+  totalItems: number;
+  pageSize?: number;
+  initialPage?: number;
+}
+
+const usePagination = ({
+  totalItems,
+  pageSize = 10,
+  initialPage = 1
+}: UsePaginationOptions) => {
+  const [page, setPage] = useState(initialPage);
+
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const offset = (page - 1) * pageSize;
+
+  const hasPrevPage = page > 1;
+  const hasNextPage = page < totalPages;
+
+  const goToPage = (newPage: number) => {
+    const validPage = Math.max(1, Math.min(newPage, totalPages));
+    setPage(validPage);
+  };
+
+  const nextPage = () => goToPage(page + 1);
+  const prevPage = () => goToPage(page - 1);
+  const firstPage = () => goToPage(1);
+  const lastPage = () => goToPage(totalPages);
+
+  return {
+    page,
+    totalPages,
+    offset,
+    pageSize,
+    hasPrevPage,
+    hasNextPage,
+    goToPage,
+    nextPage,
+    prevPage,
+    firstPage,
+    lastPage
+  };
+};
+
+// 페이지 번호 생성 유틸
+const getPageNumbers = (
+  currentPage: number,
+  totalPages: number,
+  siblingCount: number = 1,
+  boundaryCount: number = 1
+): (number | 'ellipsis')[] => {
+  const range = (start: number, end: number) =>
+    Array.from({ length: end - start + 1 }, (_, i) => start + i);
+
+  const startPages = range(1, Math.min(boundaryCount, totalPages));
+  const endPages = range(
+    Math.max(totalPages - boundaryCount + 1, boundaryCount + 1),
+    totalPages
+  );
+
+  const siblingsStart = Math.max(
+    Math.min(
+      currentPage - siblingCount,
+      totalPages - boundaryCount - siblingCount * 2 - 1
+    ),
+    boundaryCount + 2
+  );
+
+  const siblingsEnd = Math.min(
+    Math.max(
+      currentPage + siblingCount,
+      boundaryCount + siblingCount * 2 + 2
+    ),
+    endPages.length > 0 ? endPages[0] - 2 : totalPages - 1
+  );
+
+  const items: (number | 'ellipsis')[] = [
+    ...startPages,
+    ...(siblingsStart > boundaryCount + 2
+      ? ['ellipsis' as const]
+      : boundaryCount + 1 < totalPages - boundaryCount
+      ? [boundaryCount + 1]
+      : []),
+    ...range(siblingsStart, siblingsEnd),
+    ...(siblingsEnd < totalPages - boundaryCount - 1
+      ? ['ellipsis' as const]
+      : totalPages - boundaryCount > boundaryCount
+      ? [totalPages - boundaryCount]
+      : []),
+    ...endPages
+  ];
+
+  return items;
+};
+```
+
+---
+
+### 8.4 토스트/스낵바 (Toast / Snackbar)
+
+> 일시적인 피드백 메시지를 화면 하단에 표시하는 컴포넌트
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   Toast Variants                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   Success Toast                                             │
+│   ┌─────────────────────────────────────────────────────┐  │
+│   │ ✅ 문서가 성공적으로 저장되었습니다.           ✕   │  │
+│   └─────────────────────────────────────────────────────┘  │
+│                                                             │
+│   Error Toast                                               │
+│   ┌─────────────────────────────────────────────────────┐  │
+│   │ ❌ 저장에 실패했습니다. 다시 시도해주세요.     ✕   │  │
+│   └─────────────────────────────────────────────────────┘  │
+│                                                             │
+│   Warning Toast                                             │
+│   ┌─────────────────────────────────────────────────────┐  │
+│   │ ⚠️ 30분 후 세션이 만료됩니다.                  ✕   │  │
+│   └─────────────────────────────────────────────────────┘  │
+│                                                             │
+│   Info Toast                                                │
+│   ┌─────────────────────────────────────────────────────┐  │
+│   │ ℹ️ 새로운 업데이트가 있습니다.          [업데이트] │  │
+│   └─────────────────────────────────────────────────────┘  │
+│                                                             │
+│   Toast with Action                                         │
+│   ┌─────────────────────────────────────────────────────┐  │
+│   │ 🗑️ 문서가 삭제되었습니다.        [실행 취소]  ✕   │  │
+│   └─────────────────────────────────────────────────────┘  │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Toast 위치
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Toast Positions                                            │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   ┌───────────────────────────────────────────────────┐    │
+│   │ [top-left]        [top-center]        [top-right] │    │
+│   │                                                   │    │
+│   │                                                   │    │
+│   │                                                   │    │
+│   │                                                   │    │
+│   │                                                   │    │
+│   │ [bottom-left]  [bottom-center]  [bottom-right]   │    │
+│   └───────────────────────────────────────────────────┘    │
+│                                                             │
+│   권장 위치:                                                │
+│   • 일반 알림: bottom-center (모바일) / bottom-left (데스크탑)
+│   • 중요 알림: top-center                                   │
+│   • 실행 취소: bottom-left (접근하기 쉬운 위치)            │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Toast Props
+
+| Prop | Type | Default | 설명 |
+|------|------|---------|------|
+| `message` | `string` | required | 표시할 메시지 |
+| `severity` | `'success' \| 'error' \| 'warning' \| 'info'` | `'info'` | 알림 유형 |
+| `duration` | `number \| null` | `5000` | 자동 닫힘 시간(ms), null이면 수동 닫기만 |
+| `action` | `{ label: string, onClick: () => void }` | - | 액션 버튼 |
+| `position` | `ToastPosition` | `'bottom-left'` | 표시 위치 |
+| `closable` | `boolean` | `true` | 닫기 버튼 표시 |
+
+#### Toast 접근성
+
+```typescript
+// Toast 컴포넌트 접근성 구현
+<div
+  role="alert"
+  aria-live={severity === 'error' ? 'assertive' : 'polite'}
+  aria-atomic="true"
+>
+  <span className="sr-only">
+    {severity === 'success' && '성공: '}
+    {severity === 'error' && '오류: '}
+    {severity === 'warning' && '경고: '}
+    {severity === 'info' && '알림: '}
+  </span>
+  {message}
+</div>
+```
+
+---
+
+### 8.5 툴팁 (Tooltip)
+
+> 요소에 대한 추가 정보를 호버/포커스 시 표시하는 컴포넌트
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   Tooltip Placements                         │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│                   ┌─────────────┐                           │
+│                   │ 위쪽 툴팁   │                           │
+│                   └──────┬──────┘                           │
+│                          ▼                                  │
+│                       [버튼]                                │
+│                          ▲                                  │
+│                   ┌──────┴──────┐                           │
+│                   │ 아래쪽 툴팁 │                           │
+│                   └─────────────┘                           │
+│                                                             │
+│   ┌─────────────┐           ┌─────────────┐                │
+│   │ 왼쪽 툴팁  │──▶[버튼]◀──│ 오른쪽 툴팁│                │
+│   └─────────────┘           └─────────────┘                │
+│                                                             │
+│   Tooltip Content Types                                     │
+│   ┌─────────────────────────────────────────┐              │
+│   │ 간단한 텍스트 툴팁                       │              │
+│   └─────────────────────────────────────────┘              │
+│                                                             │
+│   ┌─────────────────────────────────────────┐              │
+│   │ 📋 **제목**                             │              │
+│   │ 상세 설명이 들어가는                     │              │
+│   │ Rich 콘텐츠 툴팁                         │              │
+│   │ [자세히 보기]                            │              │
+│   └─────────────────────────────────────────┘              │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Tooltip Props
+
+| Prop | Type | Default | 설명 |
+|------|------|---------|------|
+| `title` | `ReactNode` | required | 툴팁 내용 |
+| `placement` | `'top' \| 'bottom' \| 'left' \| 'right'` | `'top'` | 위치 |
+| `arrow` | `boolean` | `true` | 화살표 표시 |
+| `enterDelay` | `number` | `200` | 표시 지연 시간(ms) |
+| `leaveDelay` | `number` | `0` | 숨김 지연 시간(ms) |
+| `interactive` | `boolean` | `false` | 툴팁 내 인터랙션 허용 |
+
+#### Tooltip 접근성
+
+```html
+<!-- 기본 툴팁 -->
+<button aria-describedby="tooltip-1">
+  🔍 검색
+</button>
+<div id="tooltip-1" role="tooltip">
+  문서를 검색합니다
+</div>
+
+<!-- 중요 정보 툴팁 -->
+<button aria-labelledby="tooltip-2">
+  ⓘ
+</button>
+<div id="tooltip-2" role="tooltip">
+  이 필드는 필수 입력 항목입니다
+</div>
+```
+
+---
+
+### 8.6 컴포넌트 선택 가이드 (확장)
+
+```mermaid
+flowchart TD
+    A[선택/입력 필요?] -->|Yes| B{선택 유형}
+    A -->|No| Z[정보 표시 컴포넌트]
+
+    B -->|단일 선택<br/>옵션 5개 이하| C[Radio Group]
+    B -->|단일 선택<br/>옵션 6개 이상| D[Dropdown/Select]
+    B -->|다중 선택<br/>옵션 5개 이하| E[Checkbox Group]
+    B -->|다중 선택<br/>옵션 6개 이상| F[Multi-Select Dropdown]
+    B -->|ON/OFF| G[Switch/Toggle]
+    B -->|검색 가능| H[Autocomplete]
+
+    Z --> I{콘텐츠 유형}
+    I -->|관련 콘텐츠 그룹| J[Tabs]
+    I -->|대량 데이터 목록| K[Table + Pagination]
+    I -->|피드백 메시지| L[Toast/Snackbar]
+    I -->|추가 정보| M[Tooltip]
+    I -->|확인 필요| N[Dialog/Modal]
+```
+
+---
+
+## 9. 레이아웃 패턴
+
+### 9.1 페이지 구조
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -810,7 +1433,7 @@ flowchart TD
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 8.2 콘텐츠 영역 패턴
+### 9.2 콘텐츠 영역 패턴
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -854,7 +1477,7 @@ flowchart TD
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 8.3 그리드 시스템
+### 9.3 그리드 시스템
 
 ```css
 /* 12 Column Grid */
@@ -887,9 +1510,356 @@ flowchart TD
 
 ---
 
-## 9. 모션 & 애니메이션
+### 9.4 반응형 사이드바 패턴
 
-### 9.1 모션 원칙
+> 화면 크기에 따라 사이드바 동작을 변경하는 패턴
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                Responsive Sidebar Pattern                    │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   Desktop (lg+): Persistent Sidebar                         │
+│   ┌──────────┬──────────────────────────────────────────┐  │
+│   │ Sidebar  │                                          │  │
+│   │ (240px)  │           Main Content                   │  │
+│   │          │                                          │  │
+│   │ 항상     │  • 사이드바 항상 표시                    │  │
+│   │ 표시     │  • 콘텐츠 영역 축소                      │  │
+│   │          │  • 접기 버튼 제공 (선택)                 │  │
+│   └──────────┴──────────────────────────────────────────┘  │
+│                                                             │
+│   Tablet (md): Collapsible Sidebar                          │
+│   ┌────┬────────────────────────────────────────────────┐  │
+│   │ ≡  │                                                │  │
+│   │ 📁 │           Main Content                         │  │
+│   │ 📄 │                                                │  │
+│   │ ⚙️ │  • 아이콘만 표시 (64px)                       │  │
+│   │    │  • 호버 시 라벨 툴팁                          │  │
+│   │    │  • 클릭 시 확장 가능                          │  │
+│   └────┴────────────────────────────────────────────────┘  │
+│                                                             │
+│   Mobile (xs-sm): Drawer Sidebar                            │
+│   ┌─────────────────────┐  ┌──────────────────────────┐   │
+│   │ [☰]  Logo  [🔔]    │  │ ┌────────────────────┐   │   │
+│   ├─────────────────────┤  │ │     Overlay       │   │   │
+│   │                     │  │ │  ┌────────────┐   │   │   │
+│   │   Main Content      │  │ │  │ Sidebar    │   │   │   │
+│   │                     │  │ │  │ (280px)    │   │   │   │
+│   │                     │  │ │  │            │   │   │   │
+│   │  • 햄버거 메뉴 클릭 │──│▶│  │ [Nav]      │   │   │
+│   │    시 드로어 열림   │  │ │  │ [Nav]      │   │   │   │
+│   │                     │  │ │  │ [Nav]      │   │   │   │
+│   │                     │  │ │  └────────────┘   │   │   │
+│   └─────────────────────┘  │ └────────────────────┘   │   │
+│                            └──────────────────────────┘   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### 사이드바 상태 관리
+
+```mermaid
+stateDiagram-v2
+    [*] --> Desktop: viewport >= 1200px
+
+    state Desktop {
+        [*] --> Expanded
+        Expanded --> Collapsed: 접기 버튼
+        Collapsed --> Expanded: 펼치기 버튼
+    }
+
+    Desktop --> Tablet: viewport < 1200px
+    Tablet --> Mobile: viewport < 900px
+    Mobile --> Tablet: viewport >= 900px
+    Tablet --> Desktop: viewport >= 1200px
+
+    state Tablet {
+        [*] --> IconOnly
+        IconOnly --> TempExpanded: 호버/클릭
+        TempExpanded --> IconOnly: 마우스 아웃/외부 클릭
+    }
+
+    state Mobile {
+        [*] --> Hidden
+        Hidden --> DrawerOpen: 햄버거 클릭
+        DrawerOpen --> Hidden: 외부 클릭/Escape/닫기
+    }
+```
+
+#### 사이드바 구현 코드
+
+```typescript
+// useSidebar 훅
+interface SidebarState {
+  isOpen: boolean;
+  mode: 'persistent' | 'collapsible' | 'drawer';
+  width: number;
+}
+
+const useSidebar = () => {
+  const [state, setState] = useState<SidebarState>({
+    isOpen: true,
+    mode: 'persistent',
+    width: 240
+  });
+
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+
+      if (width >= 1200) {
+        setState(prev => ({
+          ...prev,
+          mode: 'persistent',
+          isOpen: prev.mode === 'persistent' ? prev.isOpen : true
+        }));
+      } else if (width >= 900) {
+        setState(prev => ({
+          ...prev,
+          mode: 'collapsible',
+          width: 64
+        }));
+      } else {
+        setState(prev => ({
+          ...prev,
+          mode: 'drawer',
+          isOpen: false
+        }));
+      }
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const toggle = () => setState(prev => ({ ...prev, isOpen: !prev.isOpen }));
+  const open = () => setState(prev => ({ ...prev, isOpen: true }));
+  const close = () => setState(prev => ({ ...prev, isOpen: false }));
+
+  return { ...state, toggle, open, close };
+};
+```
+
+---
+
+### 9.5 모달 스택 패턴
+
+> 여러 개의 모달이 중첩되어 표시될 때의 관리 패턴
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                   Modal Stack Pattern                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   Single Modal (기본)                                       │
+│   ┌─────────────────────────────────────────────────────┐  │
+│   │                   Backdrop                           │  │
+│   │          ┌───────────────────────┐                  │  │
+│   │          │                       │                  │  │
+│   │          │      Modal 1          │                  │  │
+│   │          │      z-index: 1000    │                  │  │
+│   │          │                       │                  │  │
+│   │          └───────────────────────┘                  │  │
+│   │                   z-index: 999                       │  │
+│   └─────────────────────────────────────────────────────┘  │
+│                                                             │
+│   Stacked Modals (중첩)                                     │
+│   ┌─────────────────────────────────────────────────────┐  │
+│   │               Backdrop 1 (dimmed)                    │  │
+│   │      ┌───────────────────────┐                      │  │
+│   │      │   Modal 1             │                      │  │
+│   │      │   z-index: 1000       │  Backdrop 2          │  │
+│   │      │   ┌─────────────────────────┐                │  │
+│   │      │   │                         │                │  │
+│   │      │   │   Modal 2               │                │  │
+│   │      │   │   z-index: 1002         │                │  │
+│   │      │   │                         │                │  │
+│   │      │   └─────────────────────────┘                │  │
+│   │      │                       │  z-index: 1001       │  │
+│   │      └───────────────────────┘                      │  │
+│   └─────────────────────────────────────────────────────┘  │
+│                                                             │
+│   z-index 규칙:                                             │
+│   • Backdrop N: 999 + (N * 2)                              │
+│   • Modal N: 1000 + (N * 2)                                │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### 모달 스택 관리
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant App
+    participant ModalStack
+
+    User->>App: Modal 1 열기
+    App->>ModalStack: push(Modal1)
+    ModalStack-->>App: stack: [Modal1]
+
+    User->>App: Modal 2 열기 (Modal 1 위에)
+    App->>ModalStack: push(Modal2)
+    ModalStack-->>App: stack: [Modal1, Modal2]
+
+    User->>App: Escape 키 또는 닫기
+    App->>ModalStack: pop()
+    ModalStack-->>App: stack: [Modal1]
+
+    User->>App: Modal 1 닫기
+    App->>ModalStack: pop()
+    ModalStack-->>App: stack: []
+```
+
+#### 모달 스택 구현
+
+```typescript
+// ModalStackContext
+interface ModalConfig {
+  id: string;
+  component: React.ComponentType<any>;
+  props?: Record<string, any>;
+  options?: {
+    closeOnEscape?: boolean;
+    closeOnBackdrop?: boolean;
+    preventScroll?: boolean;
+  };
+}
+
+const useModalStack = () => {
+  const [stack, setStack] = useState<ModalConfig[]>([]);
+
+  const open = (config: ModalConfig) => {
+    setStack(prev => [...prev, config]);
+    document.body.style.overflow = 'hidden';
+  };
+
+  const close = (id?: string) => {
+    setStack(prev => {
+      if (id) {
+        return prev.filter(modal => modal.id !== id);
+      }
+      return prev.slice(0, -1);
+    });
+
+    if (stack.length <= 1) {
+      document.body.style.overflow = '';
+    }
+  };
+
+  const closeAll = () => {
+    setStack([]);
+    document.body.style.overflow = '';
+  };
+
+  // Escape 키 핸들링
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && stack.length > 0) {
+        const topModal = stack[stack.length - 1];
+        if (topModal.options?.closeOnEscape !== false) {
+          close();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [stack]);
+
+  return { stack, open, close, closeAll };
+};
+
+// ModalStack 렌더러
+const ModalStackRenderer = () => {
+  const { stack, close } = useModalStack();
+
+  return (
+    <>
+      {stack.map((modal, index) => {
+        const zIndexBackdrop = 999 + index * 2;
+        const zIndexModal = 1000 + index * 2;
+
+        return (
+          <React.Fragment key={modal.id}>
+            <div
+              className="modal-backdrop"
+              style={{ zIndex: zIndexBackdrop }}
+              onClick={() => {
+                if (modal.options?.closeOnBackdrop !== false) {
+                  close(modal.id);
+                }
+              }}
+              aria-hidden="true"
+            />
+            <div
+              className="modal-container"
+              style={{ zIndex: zIndexModal }}
+              role="dialog"
+              aria-modal="true"
+            >
+              <modal.component {...modal.props} onClose={() => close(modal.id)} />
+            </div>
+          </React.Fragment>
+        );
+      })}
+    </>
+  );
+};
+```
+
+#### 모달 포커스 트랩
+
+```typescript
+// useFocusTrap 훅 - 모달 내 포커스 가두기
+const useFocusTrap = (isActive: boolean) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!isActive || !containerRef.current) return;
+
+    const container = containerRef.current;
+    const focusableElements = container.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+
+    const firstElement = focusableElements[0] as HTMLElement;
+    const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
+    // 모달 열릴 때 첫 번째 요소에 포커스
+    firstElement?.focus();
+
+    const handleTab = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+
+      if (e.shiftKey) {
+        if (document.activeElement === firstElement) {
+          e.preventDefault();
+          lastElement?.focus();
+        }
+      } else {
+        if (document.activeElement === lastElement) {
+          e.preventDefault();
+          firstElement?.focus();
+        }
+      }
+    };
+
+    container.addEventListener('keydown', handleTab);
+    return () => container.removeEventListener('keydown', handleTab);
+  }, [isActive]);
+
+  return containerRef;
+};
+```
+
+---
+
+## 10. 모션 & 애니메이션
+
+### 10.1 모션 원칙
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -914,7 +1884,7 @@ flowchart TD
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 9.2 타이밍 시스템
+### 10.2 타이밍 시스템
 
 ```css
 :root {
@@ -932,7 +1902,7 @@ flowchart TD
 }
 ```
 
-### 9.3 모션 패턴
+### 10.3 모션 패턴
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -981,7 +1951,7 @@ flowchart TD
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 9.4 Reduced Motion 지원
+### 10.4 Reduced Motion 지원
 
 ```css
 /* 모션 민감 사용자를 위한 설정 */
@@ -1003,9 +1973,9 @@ flowchart TD
 
 ---
 
-## 10. 접근성 가이드
+## 11. 접근성 가이드
 
-### 10.1 WCAG 2.1 준수 기준
+### 11.1 WCAG 2.1 준수 기준
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -1034,7 +2004,7 @@ flowchart TD
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 10.2 키보드 네비게이션
+### 11.2 키보드 네비게이션
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -1065,7 +2035,7 @@ flowchart TD
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 10.3 포커스 인디케이터
+### 11.3 포커스 인디케이터
 
 ```css
 /* 포커스 스타일 - 절대 제거 금지! */
@@ -1098,7 +2068,7 @@ textarea:focus-visible {
 }
 ```
 
-### 10.4 스크린 리더 지원
+### 11.4 스크린 리더 지원
 
 ```html
 <!-- 시맨틱 구조 -->
@@ -1136,7 +2106,7 @@ textarea:focus-visible {
 </div>
 ```
 
-### 10.5 색상과 접근성
+### 11.5 색상과 접근성
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -1168,9 +2138,9 @@ textarea:focus-visible {
 
 ---
 
-## 11. 다크 모드
+## 12. 다크 모드
 
-### 11.1 다크 모드 원칙
+### 12.1 다크 모드 원칙
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -1196,7 +2166,7 @@ textarea:focus-visible {
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 11.2 다크 모드 색상 매핑
+### 12.2 다크 모드 색상 매핑
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -1225,7 +2195,7 @@ textarea:focus-visible {
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 11.3 다크 모드 엘리베이션
+### 12.3 다크 모드 엘리베이션
 
 ```css
 /* 라이트 모드: 그림자로 깊이 */
@@ -1258,7 +2228,7 @@ textarea:focus-visible {
 }
 ```
 
-### 11.4 시스템 테마 감지
+### 12.4 시스템 테마 감지
 
 ```typescript
 // 시스템 테마 감지 및 적용
@@ -1294,9 +2264,9 @@ const useTheme = () => {
 
 ---
 
-## 12. 반응형 디자인
+## 13. 반응형 디자인
 
-### 12.1 브레이크포인트
+### 13.1 브레이크포인트
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -1321,7 +2291,7 @@ const useTheme = () => {
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 12.2 반응형 레이아웃 전환
+### 13.2 반응형 레이아웃 전환
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -1363,7 +2333,7 @@ const useTheme = () => {
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 12.3 컴포넌트별 반응형 동작
+### 13.3 컴포넌트별 반응형 동작
 
 | 컴포넌트 | Desktop | Tablet | Mobile |
 |----------|---------|--------|--------|
@@ -1374,7 +2344,7 @@ const useTheme = () => {
 | **Dialog** | 중앙 팝업 | 중앙 팝업 | 전체 화면 |
 | **Navigation** | Top + Side | Top + Drawer | Bottom Tab |
 
-### 12.4 터치 최적화
+### 13.4 터치 최적화
 
 ```css
 /* 터치 타겟 최소 크기 */
@@ -1404,9 +2374,9 @@ const useTheme = () => {
 
 ---
 
-## 13. UI 카피 가이드
+## 14. UI 카피 가이드
 
-### 13.1 작성 원칙
+### 14.1 작성 원칙
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -1436,7 +2406,7 @@ const useTheme = () => {
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 13.2 버튼 레이블
+### 14.2 버튼 레이블
 
 | 동작 | 권장 | 피하기 |
 |------|------|--------|
@@ -1449,7 +2419,7 @@ const useTheme = () => {
 | 제출 | 제출, 보내기 | Submit |
 | 검색 | 검색 | 찾기, Search |
 
-### 13.3 오류 메시지
+### 14.3 오류 메시지
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -1480,7 +2450,7 @@ const useTheme = () => {
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 13.4 빈 상태 메시지
+### 14.4 빈 상태 메시지
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -1514,7 +2484,7 @@ const useTheme = () => {
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 13.5 성공/확인 메시지
+### 14.5 성공/확인 메시지
 
 | 동작 | 메시지 |
 |------|--------|
@@ -1523,6 +2493,564 @@ const useTheme = () => {
 | 복사 완료 | "클립보드에 복사되었습니다." |
 | 업로드 완료 | "파일이 업로드되었습니다." |
 | 공유 완료 | "공유 링크가 생성되었습니다." |
+
+---
+
+## 15. 마크다운 렌더러 스타일
+
+> AI 응답 및 문서 내용 표시를 위한 마크다운 렌더링 스타일 가이드
+
+### 15.1 기본 타이포그래피
+
+```css
+/* 마크다운 컨테이너 기본 스타일 */
+.markdown-body {
+  font-family: var(--font-family-primary);
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--text-primary);
+  word-break: keep-all;
+  overflow-wrap: break-word;
+}
+
+/* 제목 스타일 */
+.markdown-body h1 {
+  font-size: 2em;
+  font-weight: 700;
+  margin-top: 32px;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.markdown-body h2 {
+  font-size: 1.5em;
+  font-weight: 600;
+  margin-top: 24px;
+  margin-bottom: 12px;
+}
+
+.markdown-body h3 {
+  font-size: 1.25em;
+  font-weight: 600;
+  margin-top: 20px;
+  margin-bottom: 8px;
+}
+
+.markdown-body h4, .markdown-body h5, .markdown-body h6 {
+  font-size: 1em;
+  font-weight: 600;
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+/* 단락 */
+.markdown-body p {
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+/* 링크 */
+.markdown-body a {
+  color: var(--interactive-primary);
+  text-decoration: none;
+}
+
+.markdown-body a:hover {
+  text-decoration: underline;
+}
+
+/* 인용문 */
+.markdown-body blockquote {
+  margin: 16px 0;
+  padding: 12px 20px;
+  border-left: 4px solid var(--color-primary);
+  background-color: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.markdown-body blockquote p:last-child {
+  margin-bottom: 0;
+}
+```
+
+### 15.2 코드 하이라이트
+
+```css
+/* 인라인 코드 */
+.markdown-body code {
+  font-family: 'D2Coding', 'Consolas', monospace;
+  font-size: 0.875em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background-color: rgba(25, 118, 210, 0.08);
+  color: var(--color-primary-dark);
+}
+
+/* 코드 블록 */
+.markdown-body pre {
+  margin: 16px 0;
+  padding: 16px;
+  border-radius: 8px;
+  background-color: #1e1e1e;
+  overflow-x: auto;
+}
+
+.markdown-body pre code {
+  font-size: 14px;
+  line-height: 1.5;
+  padding: 0;
+  background: none;
+  color: #d4d4d4;
+}
+
+/* 코드 블록 언어 태그 */
+.markdown-body pre[data-language]::before {
+  content: attr(data-language);
+  display: block;
+  font-size: 12px;
+  color: #808080;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+/* 복사 버튼 */
+.markdown-body pre .copy-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #d4d4d4;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.markdown-body pre:hover .copy-button {
+  opacity: 1;
+}
+```
+
+### 15.3 테이블 스타일
+
+```css
+/* 마크다운 테이블 */
+.markdown-body table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 14px;
+}
+
+.markdown-body th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  background-color: var(--bg-secondary);
+  border-bottom: 2px solid var(--border-default);
+}
+
+.markdown-body td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.markdown-body tr:hover td {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+/* 다크 모드 */
+[data-theme="dark"] .markdown-body tr:hover td {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* 반응형 테이블 */
+@media (max-width: 768px) {
+  .markdown-body table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+```
+
+### 15.4 리스트 스타일
+
+```css
+/* 순서 없는 목록 */
+.markdown-body ul {
+  padding-left: 24px;
+  margin: 16px 0;
+}
+
+.markdown-body ul li {
+  margin-bottom: 8px;
+  line-height: 1.6;
+}
+
+.markdown-body ul li::marker {
+  color: var(--color-primary);
+}
+
+/* 순서 있는 목록 */
+.markdown-body ol {
+  padding-left: 24px;
+  margin: 16px 0;
+}
+
+.markdown-body ol li {
+  margin-bottom: 8px;
+  line-height: 1.6;
+}
+
+/* 중첩 리스트 */
+.markdown-body ul ul,
+.markdown-body ol ol,
+.markdown-body ul ol,
+.markdown-body ol ul {
+  margin-top: 8px;
+  margin-bottom: 0;
+}
+
+/* 체크리스트 */
+.markdown-body ul.task-list {
+  padding-left: 0;
+  list-style: none;
+}
+
+.markdown-body .task-list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.markdown-body .task-list-item input[type="checkbox"] {
+  margin-top: 4px;
+  accent-color: var(--color-primary);
+}
+```
+
+### 15.5 이미지 및 미디어
+
+```css
+/* 이미지 */
+.markdown-body img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 16px 0;
+}
+
+/* 이미지 캡션 */
+.markdown-body img + em {
+  display: block;
+  text-align: center;
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-top: -8px;
+  margin-bottom: 16px;
+}
+
+/* 구분선 */
+.markdown-body hr {
+  height: 1px;
+  margin: 32px 0;
+  background-color: var(--border-default);
+  border: none;
+}
+```
+
+### 15.6 AI 응답 특화 스타일
+
+```css
+/* AI 응답 컨테이너 */
+.ai-response {
+  position: relative;
+  padding: 16px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+}
+
+[data-theme="dark"] .ai-response {
+  background: linear-gradient(135deg, #1e1e1e 0%, #2c2c2c 100%);
+}
+
+/* 스트리밍 커서 */
+.ai-response .streaming-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 16px;
+  background-color: var(--color-primary);
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+/* 생각 중 인디케이터 */
+.ai-thinking {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.ai-thinking .dots {
+  display: flex;
+  gap: 4px;
+}
+
+.ai-thinking .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+  animation: thinking 1.4s ease-in-out infinite;
+}
+
+.ai-thinking .dot:nth-child(2) { animation-delay: 0.2s; }
+.ai-thinking .dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes thinking {
+  0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1); }
+}
+```
+
+---
+
+## 16. 차트 & 데이터 시각화
+
+> 대시보드 및 분석 화면을 위한 차트 색상 및 스타일 가이드
+
+### 16.1 차트 색상 팔레트
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Chart Color Palette                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   Primary Series (순서대로 사용)                            │
+│   ┌─────────────────────────────────────────────────────┐  │
+│   │ #1976D2 │ #2196F3 │ #64B5F6 │ #90CAF9 │ #BBDEFB │  │  │
+│   │  Blue   │  Blue   │  Blue   │  Blue   │  Blue   │  │  │
+│   │  800    │  500    │  300    │  200    │  100    │  │  │
+│   └─────────────────────────────────────────────────────┘  │
+│                                                             │
+│   Categorical (다중 카테고리)                               │
+│   ┌─────────────────────────────────────────────────────┐  │
+│   │ #1976D2 │ #388E3C │ #F57C00 │ #7B1FA2 │ #D32F2F │  │  │
+│   │  Blue   │  Green  │ Orange  │ Purple  │  Red    │  │  │
+│   └─────────────────────────────────────────────────────┘  │
+│                                                             │
+│   Sequential (크기/강도)                                    │
+│   ┌─────────────────────────────────────────────────────┐  │
+│   │ #E3F2FD → #1565C0                                   │  │
+│   │  낮음   →   높음                                    │  │
+│   └─────────────────────────────────────────────────────┘  │
+│                                                             │
+│   Diverging (양극단)                                        │
+│   ┌─────────────────────────────────────────────────────┐  │
+│   │ #D32F2F ← #FFECB3 → #388E3C                         │  │
+│   │  부정    중립      긍정                              │  │
+│   └─────────────────────────────────────────────────────┘  │
+│                                                             │
+│   Semantic (의미 기반)                                      │
+│   ┌─────────────────────────────────────────────────────┐  │
+│   │ Success: #2E7D32 │ Warning: #ED6C02 │ Error: #D32F2F│  │
+│   │ Info: #0288D1    │ Neutral: #757575  │              │  │
+│   └─────────────────────────────────────────────────────┘  │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 16.2 차트 유형 선택 가이드
+
+```mermaid
+flowchart TD
+    A[데이터 유형?] --> B{비교}
+    A --> C{추세}
+    A --> D{구성}
+    A --> E{관계}
+    A --> F{분포}
+
+    B -->|카테고리 간| G[Bar Chart]
+    B -->|시간 기반| H[Grouped Bar]
+
+    C -->|연속 데이터| I[Line Chart]
+    C -->|누적 데이터| J[Area Chart]
+
+    D -->|전체 대비 부분| K[Pie/Donut]
+    D -->|시간별 구성| L[Stacked Bar]
+
+    E -->|두 변수| M[Scatter Plot]
+    E -->|상관관계| N[Heatmap]
+
+    F -->|단일 변수| O[Histogram]
+    F -->|범위| P[Box Plot]
+```
+
+### 16.3 차트 컴포넌트 스타일
+
+```typescript
+// 차트 기본 설정 (recharts 기준)
+const chartConfig = {
+  // 여백
+  margin: {
+    top: 20,
+    right: 30,
+    bottom: 20,
+    left: 40
+  },
+
+  // 색상 팔레트
+  colors: {
+    primary: ['#1976D2', '#2196F3', '#64B5F6', '#90CAF9', '#BBDEFB'],
+    categorical: ['#1976D2', '#388E3C', '#F57C00', '#7B1FA2', '#D32F2F'],
+    success: '#2E7D32',
+    warning: '#ED6C02',
+    error: '#D32F2F'
+  },
+
+  // 축 스타일
+  axis: {
+    stroke: '#E0E0E0',
+    fontSize: 12,
+    tickLine: false,
+    axisLine: { stroke: '#E0E0E0' }
+  },
+
+  // 그리드 스타일
+  grid: {
+    stroke: '#F5F5F5',
+    strokeDasharray: '3 3'
+  },
+
+  // 툴팁 스타일
+  tooltip: {
+    backgroundColor: '#FFFFFF',
+    border: '1px solid #E0E0E0',
+    borderRadius: 8,
+    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+    padding: 12
+  },
+
+  // 범례 스타일
+  legend: {
+    iconType: 'circle',
+    iconSize: 10,
+    fontSize: 12
+  }
+};
+```
+
+### 16.4 대시보드 레이아웃
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  Dashboard Layout Pattern                    │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   Stats Cards Row                                           │
+│   ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐ │
+│   │ Total     │ │ Active    │ │ Completed │ │ Accuracy  │ │
+│   │ 12,345    │ │ 1,234     │ │ 10,456    │ │ 92.5%     │ │
+│   │ +12% ↑    │ │ +5% ↑     │ │ +8% ↑     │ │ +2.3% ↑   │ │
+│   └───────────┘ └───────────┘ └───────────┘ └───────────┘ │
+│                                                             │
+│   Main Chart Area                                           │
+│   ┌─────────────────────────────────┬───────────────────┐  │
+│   │                                 │                   │  │
+│   │     Line/Area Chart             │   Pie/Donut       │  │
+│   │     (2/3 width)                 │   (1/3 width)     │  │
+│   │                                 │                   │  │
+│   │                                 │                   │  │
+│   └─────────────────────────────────┴───────────────────┘  │
+│                                                             │
+│   Detail Tables/Lists                                       │
+│   ┌─────────────────────────────────────────────────────┐  │
+│   │                                                     │  │
+│   │   Data Table with Pagination                        │  │
+│   │                                                     │  │
+│   └─────────────────────────────────────────────────────┘  │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 16.5 접근성 고려사항
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│              Chart Accessibility Guidelines                  │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   1. 색상만 의존 금지                                       │
+│   ─────────────────                                         │
+│   ❌ 색상만으로 데이터 구분                                 │
+│   ✅ 패턴, 라벨, 텍스처 병행 사용                          │
+│                                                             │
+│   2. 대체 텍스트 제공                                       │
+│   ─────────────────                                         │
+│   • 차트에 aria-label 또는 desc 태그 추가                  │
+│   • "2026년 1월 검색 건수: 12,345건, 전월 대비 12% 증가"  │
+│                                                             │
+│   3. 키보드 탐색 지원                                       │
+│   ─────────────────                                         │
+│   • 데이터 포인트 간 Tab 이동                              │
+│   • Enter로 상세 정보 표시                                 │
+│   • Escape로 툴팁 닫기                                     │
+│                                                             │
+│   4. 색맹 친화적 팔레트                                     │
+│   ─────────────────                                         │
+│   • 파랑-주황 대비 사용 권장                               │
+│   • 빨강-녹색 조합 피하기                                  │
+│   • ColorBrewer 팔레트 참조                                │
+│                                                             │
+│   5. 반응형 차트                                            │
+│   ─────────────────                                         │
+│   • 모바일에서 터치로 툴팁 표시                            │
+│   • 작은 화면에서 범례 접기                                │
+│   • 가로 스크롤 대신 데이터 요약                           │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 16.6 다크 모드 차트 스타일
+
+```typescript
+// 다크 모드 차트 설정
+const darkChartConfig = {
+  colors: {
+    primary: ['#90CAF9', '#64B5F6', '#42A5F5', '#2196F3', '#1976D2'],
+    categorical: ['#90CAF9', '#81C784', '#FFB74D', '#CE93D8', '#EF5350'],
+    background: '#121212',
+    surface: '#1E1E1E'
+  },
+
+  axis: {
+    stroke: '#424242',
+    fontSize: 12,
+    fill: '#A0A0A0'
+  },
+
+  grid: {
+    stroke: '#2C2C2C',
+    strokeDasharray: '3 3'
+  },
+
+  tooltip: {
+    backgroundColor: '#2C2C2C',
+    border: '1px solid #424242',
+    borderRadius: 8,
+    color: '#E0E0E0'
+  }
+};
+```
 
 ---
 

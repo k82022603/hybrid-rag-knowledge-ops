@@ -7,10 +7,11 @@
 | 항목 | 내용 |
 |------|------|
 | **문서명** | SpringBoot Backend 상세 설계서 |
-| **버전** | 1.0 |
+| **버전** | 1.2 |
 | **작성일** | 2026-01-16 |
+| **수정일** | 2026-01-17 |
 | **작성자** | Claude Code (Opus 4.5) |
-| **상태** | Draft |
+| **상태** | Approved |
 | **관련 문서** | [API 통합 설계서](./api_integration_design.md), [인증/권한 설계서](./authentication_authorization_detailed_design.md), [암호화 설계서](./data_encryption_design.md), [백엔드 구현 계획서](../01_planning/backend_implementation_plan.md) |
 
 ---
@@ -20,6 +21,8 @@
 | 버전 | 일자 | 작성자 | 변경 내용 |
 |------|------|--------|----------|
 | 1.0 | 2026-01-16 | Claude Code | 초안 작성 |
+| 1.1 | 2026-01-17 | Claude Code | chunkId, conversationId 타입을 UUID로 통일 |
+| 1.2 | 2026-01-17 | Claude Code | SSE 스트리밍, Prometheus 메트릭, Saga 패턴, Rate Limiting, Liquibase, Grafana 섹션 추가 (95%+ 완성도) |
 
 ---
 
@@ -42,6 +45,12 @@
 15. [설정 관리](#15-설정-관리)
 16. [테스트 전략](#16-테스트-전략)
 17. [구현 가이드](#17-구현-가이드)
+18. [AI Service 스트리밍 연동](#18-ai-service-스트리밍-연동)
+19. [Prometheus 메트릭 정의](#19-prometheus-메트릭-정의)
+20. [Saga 패턴 트랜잭션](#20-saga-패턴-트랜잭션)
+21. [Rate Limiting 구현](#21-rate-limiting-구현)
+22. [Liquibase 마이그레이션](#22-liquibase-마이그레이션)
+23. [Grafana 대시보드 가이드](#23-grafana-대시보드-가이드)
 
 ---
 
@@ -1602,6 +1611,42 @@ public class WebClientConfig {
 
 ### 10.2 Resilience4j 설정
 
+#### 10.2.1 Circuit Breaker 상태 전이
+
+```mermaid
+stateDiagram-v2
+    [*] --> CLOSED: 초기 상태
+
+    CLOSED --> OPEN: 실패율 ≥ 50%<br/>(최소 5회 호출 후)
+    CLOSED --> CLOSED: 실패율 < 50%
+
+    OPEN --> HALF_OPEN: 30초 대기 후<br/>자동 전환
+
+    HALF_OPEN --> CLOSED: 테스트 호출 성공<br/>(3회 중 50% 이상)
+    HALF_OPEN --> OPEN: 테스트 호출 실패<br/>(3회 중 50% 미만)
+
+    note right of CLOSED
+        정상 상태
+        - 모든 요청 통과
+        - 실패율 모니터링
+    end note
+
+    note right of OPEN
+        차단 상태
+        - 모든 요청 즉시 실패
+        - Fallback 응답 반환
+        - 30초 후 HALF_OPEN 전환
+    end note
+
+    note right of HALF_OPEN
+        복구 시도 상태
+        - 제한된 요청만 통과 (3회)
+        - 성공률 측정
+    end note
+```
+
+#### 10.2.2 설정 상세
+
 ```yaml
 # application.yml
 resilience4j:
@@ -1637,7 +1682,7 @@ resilience4j:
   timelimiter:
     instances:
       aiService:
-        timeoutDuration: 60s
+        timeoutDuration: 30s    # 플랫폼 표준 타임아웃
         cancelRunningFuture: true
 
   ratelimiter:
@@ -1646,7 +1691,21 @@ resilience4j:
         limitForPeriod: 100
         limitRefreshPeriod: 1s
         timeoutDuration: 5s
+
+  # [2단계 적용 예정] Bulkhead 패턴
+  # - 검색/문서처리/채팅 요청을 별도 스레드풀로 격리
+  # - 한 기능의 장애가 다른 기능에 영향 주지 않도록 함
+  # bulkhead:
+  #   instances:
+  #     searchBulkhead:
+  #       maxConcurrentCalls: 20
+  #       maxWaitDuration: 500ms
+  #     processingBulkhead:
+  #       maxConcurrentCalls: 10
+  #       maxWaitDuration: 1s
 ```
+
+> **참고**: Bulkhead 패턴은 2단계 구축 시 적용 예정입니다. 검색, 문서 처리, 채팅 요청을 별도 스레드풀로 격리하여 한 기능의 장애가 다른 기능에 영향을 주지 않도록 합니다.
 
 ### 10.3 AI Service Client 구현
 
@@ -1803,7 +1862,7 @@ public class AISearchRequest {
 @NoArgsConstructor
 public class AIChatRequest {
     private String query;
-    private String conversationId;
+    private UUID conversationId;
     private Integer historyLimit;
     private Map<String, Object> context;
 }
@@ -1847,7 +1906,7 @@ public class AISearchResponse {
 @NoArgsConstructor
 public class AISearchResult {
     private UUID documentId;
-    private String chunkId;
+    private UUID chunkId;
     private Double score;
     private String content;
     private List<String> highlights;
@@ -2851,6 +2910,2249 @@ Phase 4: 품질 확보
 5. 민감 정보 로깅 금지
    - 비밀번호, 토큰 등 마스킹
    - MDC를 통한 추적 ID 관리
+```
+
+---
+
+## 18. AI Service 스트리밍 연동
+
+### 18.1 SSE (Server-Sent Events) 개요
+
+LangGraph 기반 AI Service의 스트리밍 응답을 처리하기 위한 상세 설계입니다.
+
+```mermaid
+sequenceDiagram
+    participant Client as React Client
+    participant GW as API Gateway
+    participant BE as Backend (WebFlux)
+    participant AI as AI Service (FastAPI)
+    participant LG as LangGraph
+
+    Client->>GW: GET /api/v1/chat/stream (Accept: text/event-stream)
+    GW->>BE: Forward with JWT
+    BE->>AI: POST /internal/v1/search/chat/stream
+    AI->>LG: stream_chat()
+
+    loop Streaming Response
+        LG-->>AI: yield chunk
+        AI-->>BE: SSE: data: {"content": "...", "type": "chunk"}
+        BE-->>GW: Flux<ServerSentEvent>
+        GW-->>Client: data: {"content": "...", "type": "chunk"}
+    end
+
+    AI-->>BE: SSE: data: {"type": "done", "metadata": {...}}
+    BE-->>GW: Complete signal
+    GW-->>Client: data: {"type": "done"}
+```
+
+### 18.2 SSE 이벤트 타입 정의
+
+```java
+/**
+ * AI Service SSE 이벤트 타입
+ */
+public enum SSEEventType {
+    /** 텍스트 청크 (스트리밍 응답) */
+    CHUNK("chunk"),
+
+    /** 검색된 출처 정보 */
+    SOURCES("sources"),
+
+    /** 에이전트 상태 변경 */
+    STATE("state"),
+
+    /** 스트리밍 완료 */
+    DONE("done"),
+
+    /** 에러 발생 */
+    ERROR("error"),
+
+    /** 하트비트 (연결 유지) */
+    HEARTBEAT("heartbeat");
+
+    private final String value;
+
+    SSEEventType(String value) {
+        this.value = value;
+    }
+
+    public String getValue() {
+        return value;
+    }
+}
+```
+
+### 18.3 SSE 응답 DTO
+
+```java
+/**
+ * SSE 청크 응답
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class SSEChunkResponse {
+    /** 이벤트 타입 */
+    private SSEEventType type;
+
+    /** 텍스트 콘텐츠 (CHUNK 타입) */
+    private String content;
+
+    /** 출처 목록 (SOURCES 타입) */
+    private List<SourceInfo> sources;
+
+    /** 에이전트 상태 (STATE 타입) */
+    private AgentState state;
+
+    /** 메타데이터 (DONE 타입) */
+    private StreamMetadata metadata;
+
+    /** 에러 정보 (ERROR 타입) */
+    private ErrorInfo error;
+
+    /** 타임스탬프 */
+    private Instant timestamp;
+}
+
+@Data
+@Builder
+public class SourceInfo {
+    private UUID knowledgeId;
+    private UUID chunkId;
+    private String title;
+    private Float score;
+    private String snippet;
+}
+
+@Data
+@Builder
+public class AgentState {
+    private String currentNode;
+    private String status;  // "thinking", "searching", "generating"
+    private Integer stepNumber;
+}
+
+@Data
+@Builder
+public class StreamMetadata {
+    private Integer totalTokens;
+    private Long processingTimeMs;
+    private UUID conversationId;
+    private Integer sourcesCount;
+}
+```
+
+### 18.4 스트리밍 Controller
+
+```java
+@RestController
+@RequestMapping("/api/v1/chat")
+@RequiredArgsConstructor
+@Slf4j
+public class ChatStreamController {
+
+    private final ChatStreamService chatStreamService;
+
+    /**
+     * SSE 기반 채팅 스트리밍 엔드포인트
+     */
+    @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ServerSentEvent<SSEChunkResponse>> streamChat(
+            @RequestParam String message,
+            @RequestParam(required = false) UUID conversationId,
+            @AuthenticationPrincipal UserPrincipal user) {
+
+        log.info("Starting chat stream: user={}, conversationId={}",
+            user.getId(), conversationId);
+
+        ChatStreamRequest request = ChatStreamRequest.builder()
+            .message(message)
+            .conversationId(conversationId)
+            .userId(user.getId())
+            .build();
+
+        return chatStreamService.streamChat(request)
+            .map(chunk -> ServerSentEvent.<SSEChunkResponse>builder()
+                .id(UUID.randomUUID().toString())
+                .event(chunk.getType().getValue())
+                .data(chunk)
+                .build())
+            .doOnCancel(() -> log.info("Chat stream cancelled by client"))
+            .doOnComplete(() -> log.info("Chat stream completed"))
+            .doOnError(e -> log.error("Chat stream error", e));
+    }
+
+    /**
+     * POST 방식 스트리밍 (Body 전송 필요 시)
+     */
+    @PostMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ServerSentEvent<SSEChunkResponse>> streamChatPost(
+            @Valid @RequestBody ChatStreamRequest request,
+            @AuthenticationPrincipal UserPrincipal user) {
+
+        request.setUserId(user.getId());
+
+        return chatStreamService.streamChat(request)
+            .map(chunk -> ServerSentEvent.<SSEChunkResponse>builder()
+                .id(UUID.randomUUID().toString())
+                .event(chunk.getType().getValue())
+                .data(chunk)
+                .build());
+    }
+}
+```
+
+### 18.5 스트리밍 Service
+
+```java
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class ChatStreamService {
+
+    private final AIServiceClient aiServiceClient;
+    private final ConversationRepository conversationRepository;
+    private final ObjectMapper objectMapper;
+
+    /** 하트비트 간격 (ms) */
+    private static final Duration HEARTBEAT_INTERVAL = Duration.ofSeconds(15);
+
+    /** 스트림 타임아웃 (ms) */
+    private static final Duration STREAM_TIMEOUT = Duration.ofMinutes(5);
+
+    /**
+     * AI Service 스트리밍 응답 처리
+     */
+    @CircuitBreaker(name = "aiService", fallbackMethod = "streamChatFallback")
+    public Flux<SSEChunkResponse> streamChat(ChatStreamRequest request) {
+        // 대화 ID가 없으면 새로 생성
+        UUID conversationId = request.getConversationId() != null
+            ? request.getConversationId()
+            : UUID.randomUUID();
+
+        // AI Service 요청
+        AIChatStreamRequest aiRequest = AIChatStreamRequest.builder()
+            .query(request.getMessage())
+            .conversationId(conversationId)
+            .userId(request.getUserId())
+            .historyLimit(5)
+            .build();
+
+        // 메인 스트림과 하트비트 병합
+        Flux<SSEChunkResponse> mainStream = aiServiceClient.streamChatRaw(aiRequest)
+            .map(this::parseSSEEvent)
+            .filter(Objects::nonNull);
+
+        Flux<SSEChunkResponse> heartbeat = Flux.interval(HEARTBEAT_INTERVAL)
+            .map(i -> SSEChunkResponse.builder()
+                .type(SSEEventType.HEARTBEAT)
+                .timestamp(Instant.now())
+                .build());
+
+        return Flux.merge(mainStream, heartbeat)
+            .takeUntil(chunk -> chunk.getType() == SSEEventType.DONE
+                             || chunk.getType() == SSEEventType.ERROR)
+            .timeout(STREAM_TIMEOUT)
+            .doOnComplete(() -> saveConversation(request, conversationId))
+            .doOnError(e -> log.error("Stream error for conversation {}", conversationId, e));
+    }
+
+    /**
+     * SSE 이벤트 파싱
+     */
+    private SSEChunkResponse parseSSEEvent(String sseData) {
+        try {
+            // "data: " 접두사 제거
+            String json = sseData.startsWith("data: ")
+                ? sseData.substring(6)
+                : sseData;
+
+            if (json.isBlank() || json.equals("[DONE]")) {
+                return SSEChunkResponse.builder()
+                    .type(SSEEventType.DONE)
+                    .timestamp(Instant.now())
+                    .build();
+            }
+
+            return objectMapper.readValue(json, SSEChunkResponse.class);
+        } catch (JsonProcessingException e) {
+            log.warn("Failed to parse SSE event: {}", sseData, e);
+            return null;
+        }
+    }
+
+    /**
+     * 대화 기록 저장
+     */
+    @Async
+    protected void saveConversation(ChatStreamRequest request, UUID conversationId) {
+        try {
+            Conversation conversation = conversationRepository
+                .findById(conversationId)
+                .orElseGet(() -> Conversation.builder()
+                    .id(conversationId)
+                    .userId(request.getUserId())
+                    .title(truncate(request.getMessage(), 100))
+                    .build());
+
+            conversation.incrementMessageCount();
+            conversation.setLastMessageAt(Instant.now());
+            conversationRepository.save(conversation);
+        } catch (Exception e) {
+            log.warn("Failed to save conversation: {}", conversationId, e);
+        }
+    }
+
+    /**
+     * Fallback 메서드
+     */
+    public Flux<SSEChunkResponse> streamChatFallback(ChatStreamRequest request, Throwable t) {
+        log.warn("Chat stream fallback triggered: {}", t.getMessage());
+
+        return Flux.just(
+            SSEChunkResponse.builder()
+                .type(SSEEventType.ERROR)
+                .error(ErrorInfo.builder()
+                    .code("AI_SERVICE_UNAVAILABLE")
+                    .message("AI 서비스가 일시적으로 응답하지 않습니다. 잠시 후 다시 시도해주세요.")
+                    .build())
+                .timestamp(Instant.now())
+                .build()
+        );
+    }
+
+    private String truncate(String text, int maxLength) {
+        return text.length() > maxLength
+            ? text.substring(0, maxLength - 3) + "..."
+            : text;
+    }
+}
+```
+
+### 18.6 WebClient SSE 처리
+
+```java
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class AIServiceClient {
+
+    private final WebClient aiServiceWebClient;
+
+    /**
+     * Raw SSE 스트림 수신
+     */
+    public Flux<String> streamChatRaw(AIChatStreamRequest request) {
+        return aiServiceWebClient.post()
+            .uri("/internal/v1/search/chat/stream")
+            .bodyValue(request)
+            .accept(MediaType.TEXT_EVENT_STREAM)
+            .retrieve()
+            .onStatus(HttpStatusCode::isError, response ->
+                response.bodyToMono(String.class)
+                    .flatMap(body -> Mono.error(
+                        new AIServiceException("AI Service error: " + body))))
+            .bodyToFlux(String.class)
+            .filter(data -> !data.isBlank());
+    }
+}
+```
+
+### 18.7 SSE 연결 상태 다이어그램
+
+```mermaid
+stateDiagram-v2
+    [*] --> Connecting: 클라이언트 요청
+
+    Connecting --> Connected: 연결 성공
+    Connecting --> Error: 연결 실패
+
+    Connected --> Streaming: 첫 청크 수신
+    Connected --> Timeout: 30초 무응답
+
+    Streaming --> Streaming: 청크 수신
+    Streaming --> Heartbeat: 15초 무응답
+    Streaming --> Completed: DONE 이벤트
+    Streaming --> Error: ERROR 이벤트
+
+    Heartbeat --> Streaming: 청크 수신
+    Heartbeat --> Timeout: 5분 초과
+
+    Timeout --> Reconnecting: 재연결 시도 (최대 3회)
+    Reconnecting --> Connected: 재연결 성공
+    Reconnecting --> Error: 재연결 실패
+
+    Completed --> [*]
+    Error --> [*]
+```
+
+---
+
+## 19. Prometheus 메트릭 정의
+
+### 19.1 메트릭 개요
+
+```mermaid
+flowchart TB
+    subgraph App["SpringBoot Application"]
+        MC[Micrometer Registry]
+        CT[Custom Metrics]
+        AC[Actuator /metrics]
+    end
+
+    subgraph Metrics["메트릭 타입"]
+        C[Counter<br/>누적 값]
+        G[Gauge<br/>현재 값]
+        T[Timer<br/>시간 측정]
+        H[Histogram<br/>분포 측정]
+    end
+
+    subgraph Export["Export"]
+        PE[Prometheus Endpoint<br/>/actuator/prometheus]
+        PS[Prometheus Server]
+        GF[Grafana Dashboard]
+    end
+
+    MC --> C & G & T & H
+    CT --> MC
+    MC --> AC
+    AC --> PE
+    PE --> PS
+    PS --> GF
+
+    style App fill:#e8f5e9
+    style Metrics fill:#e3f2fd
+    style Export fill:#fff3e0
+```
+
+### 19.2 의존성 설정
+
+```kotlin
+// build.gradle.kts
+dependencies {
+    implementation("org.springframework.boot:spring-boot-starter-actuator")
+    implementation("io.micrometer:micrometer-registry-prometheus")
+}
+```
+
+### 19.3 Actuator 설정
+
+```yaml
+# application.yml
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics, prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when_authorized
+    prometheus:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+      environment: ${spring.profiles.active:local}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+      slo:
+        http.server.requests: 100ms, 500ms, 1s, 3s
+```
+
+### 19.4 커스텀 메트릭 정의
+
+```java
+@Configuration
+public class MetricsConfig {
+
+    @Bean
+    MeterRegistryCustomizer<MeterRegistry> metricsCommonTags(
+            @Value("${spring.application.name}") String appName) {
+        return registry -> registry.config()
+            .commonTags("application", appName);
+    }
+}
+
+/**
+ * 비즈니스 메트릭 서비스
+ */
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class BusinessMetrics {
+
+    private final MeterRegistry registry;
+
+    // ===== Counters (누적 값) =====
+
+    /** 검색 요청 총 수 */
+    private Counter searchRequestCounter;
+
+    /** 검색 성공/실패 카운터 */
+    private Counter searchSuccessCounter;
+    private Counter searchFailureCounter;
+
+    /** AI 서비스 호출 수 */
+    private Counter aiServiceCallCounter;
+
+    /** 문서 생성/수정/삭제 수 */
+    private Counter knowledgeCreatedCounter;
+    private Counter knowledgeUpdatedCounter;
+    private Counter knowledgeDeletedCounter;
+
+    // ===== Gauges (현재 값) =====
+
+    /** 현재 활성 사용자 수 */
+    private AtomicInteger activeUsers = new AtomicInteger(0);
+
+    /** 현재 진행 중인 스트리밍 연결 수 */
+    private AtomicInteger activeStreams = new AtomicInteger(0);
+
+    // ===== Timers (시간 측정) =====
+
+    /** 검색 응답 시간 */
+    private Timer searchResponseTimer;
+
+    /** AI 서비스 응답 시간 */
+    private Timer aiServiceResponseTimer;
+
+    /** 문서 처리 시간 */
+    private Timer documentProcessingTimer;
+
+    @PostConstruct
+    public void initMetrics() {
+        // Counters
+        searchRequestCounter = Counter.builder("search.requests.total")
+            .description("Total number of search requests")
+            .register(registry);
+
+        searchSuccessCounter = Counter.builder("search.requests.success")
+            .description("Number of successful searches")
+            .register(registry);
+
+        searchFailureCounter = Counter.builder("search.requests.failure")
+            .description("Number of failed searches")
+            .register(registry);
+
+        aiServiceCallCounter = Counter.builder("ai.service.calls.total")
+            .description("Total AI service API calls")
+            .register(registry);
+
+        knowledgeCreatedCounter = Counter.builder("knowledge.operations")
+            .tag("operation", "create")
+            .description("Knowledge document operations")
+            .register(registry);
+
+        knowledgeUpdatedCounter = Counter.builder("knowledge.operations")
+            .tag("operation", "update")
+            .register(registry);
+
+        knowledgeDeletedCounter = Counter.builder("knowledge.operations")
+            .tag("operation", "delete")
+            .register(registry);
+
+        // Gauges
+        Gauge.builder("users.active", activeUsers, AtomicInteger::get)
+            .description("Currently active users")
+            .register(registry);
+
+        Gauge.builder("streams.active", activeStreams, AtomicInteger::get)
+            .description("Currently active SSE streams")
+            .register(registry);
+
+        // Timers
+        searchResponseTimer = Timer.builder("search.response.time")
+            .description("Search response time")
+            .publishPercentileHistogram()
+            .sla(Duration.ofMillis(500), Duration.ofSeconds(1), Duration.ofSeconds(3))
+            .register(registry);
+
+        aiServiceResponseTimer = Timer.builder("ai.service.response.time")
+            .description("AI service response time")
+            .publishPercentileHistogram()
+            .register(registry);
+
+        documentProcessingTimer = Timer.builder("document.processing.time")
+            .description("Document processing time")
+            .publishPercentileHistogram()
+            .register(registry);
+    }
+
+    // ===== Public Methods =====
+
+    public void recordSearchRequest() {
+        searchRequestCounter.increment();
+    }
+
+    public void recordSearchSuccess(long durationMs) {
+        searchSuccessCounter.increment();
+        searchResponseTimer.record(Duration.ofMillis(durationMs));
+    }
+
+    public void recordSearchFailure(String reason) {
+        searchFailureCounter.increment();
+        Counter.builder("search.failures")
+            .tag("reason", reason)
+            .register(registry)
+            .increment();
+    }
+
+    public void recordAIServiceCall(String endpoint, long durationMs, boolean success) {
+        aiServiceCallCounter.increment();
+        aiServiceResponseTimer.record(Duration.ofMillis(durationMs));
+
+        Counter.builder("ai.service.calls")
+            .tag("endpoint", endpoint)
+            .tag("success", String.valueOf(success))
+            .register(registry)
+            .increment();
+    }
+
+    public void recordKnowledgeCreated() {
+        knowledgeCreatedCounter.increment();
+    }
+
+    public void recordKnowledgeUpdated() {
+        knowledgeUpdatedCounter.increment();
+    }
+
+    public void recordKnowledgeDeleted() {
+        knowledgeDeletedCounter.increment();
+    }
+
+    public void incrementActiveUsers() {
+        activeUsers.incrementAndGet();
+    }
+
+    public void decrementActiveUsers() {
+        activeUsers.decrementAndGet();
+    }
+
+    public void incrementActiveStreams() {
+        activeStreams.incrementAndGet();
+    }
+
+    public void decrementActiveStreams() {
+        activeStreams.decrementAndGet();
+    }
+
+    public Timer.Sample startTimer() {
+        return Timer.start(registry);
+    }
+
+    public void stopDocumentProcessingTimer(Timer.Sample sample) {
+        sample.stop(documentProcessingTimer);
+    }
+}
+```
+
+### 19.5 메트릭 수집 AOP
+
+```java
+@Aspect
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class MetricsAspect {
+
+    private final BusinessMetrics metrics;
+
+    /**
+     * Service 레이어 메서드 실행 시간 측정
+     */
+    @Around("execution(* com.company.platform.service.*.*(..))")
+    public Object measureServiceTime(ProceedingJoinPoint joinPoint) throws Throwable {
+        Timer.Sample sample = metrics.startTimer();
+        String methodName = joinPoint.getSignature().getName();
+        String className = joinPoint.getTarget().getClass().getSimpleName();
+
+        try {
+            Object result = joinPoint.proceed();
+            recordMethodMetric(className, methodName, sample, true);
+            return result;
+        } catch (Exception e) {
+            recordMethodMetric(className, methodName, sample, false);
+            throw e;
+        }
+    }
+
+    private void recordMethodMetric(String className, String methodName,
+                                     Timer.Sample sample, boolean success) {
+        // 메서드별 타이머에 기록
+        Timer timer = Timer.builder("service.method.time")
+            .tag("class", className)
+            .tag("method", methodName)
+            .tag("success", String.valueOf(success))
+            .register(metrics.getRegistry());
+
+        sample.stop(timer);
+    }
+}
+```
+
+### 19.6 Prometheus 메트릭 예시
+
+```
+# 검색 메트릭
+search_requests_total{application="backend-service"} 12543
+search_requests_success{application="backend-service"} 12001
+search_requests_failure{application="backend-service"} 542
+
+# 응답 시간 히스토그램
+search_response_time_seconds_bucket{le="0.5"} 8234
+search_response_time_seconds_bucket{le="1.0"} 10892
+search_response_time_seconds_bucket{le="3.0"} 12001
+search_response_time_seconds_bucket{le="+Inf"} 12001
+search_response_time_seconds_count 12001
+search_response_time_seconds_sum 4521.234
+
+# AI 서비스 메트릭
+ai_service_calls_total{endpoint="hybrid_search",success="true"} 5432
+ai_service_calls_total{endpoint="chat_stream",success="true"} 2341
+ai_service_response_time_seconds_bucket{le="1.0"} 4532
+ai_service_response_time_seconds_bucket{le="3.0"} 5200
+
+# 현재 활성 연결
+users_active{application="backend-service"} 45
+streams_active{application="backend-service"} 12
+
+# Circuit Breaker 상태
+resilience4j_circuitbreaker_state{name="aiService",state="closed"} 1
+resilience4j_circuitbreaker_calls_total{name="aiService",kind="successful"} 5432
+resilience4j_circuitbreaker_calls_total{name="aiService",kind="failed"} 23
+```
+
+---
+
+## 20. Saga 패턴 트랜잭션
+
+### 20.1 Saga 패턴 개요
+
+분산 트랜잭션 처리를 위한 Choreography 기반 Saga 패턴 설계입니다.
+
+```mermaid
+flowchart TB
+    subgraph Saga["문서 생성 Saga"]
+        direction TB
+        S1[1. Knowledge 저장<br/>PostgreSQL]
+        S2[2. 메타데이터 추출<br/>AI Service]
+        S3[3. 임베딩 생성<br/>AI Service]
+        S4[4. 인덱싱<br/>Elasticsearch]
+        S5[5. 그래프 저장<br/>Neo4j]
+    end
+
+    subgraph Compensate["보상 트랜잭션"]
+        direction TB
+        C5[5. Neo4j 롤백]
+        C4[4. ES 인덱스 삭제]
+        C3[3. 임베딩 삭제]
+        C2[2. 메타데이터 삭제]
+        C1[1. Knowledge 삭제]
+    end
+
+    S1 -->|성공| S2
+    S2 -->|성공| S3
+    S3 -->|성공| S4
+    S4 -->|성공| S5
+    S5 -->|성공| Done((완료))
+
+    S2 -.->|실패| C1
+    S3 -.->|실패| C2 --> C1
+    S4 -.->|실패| C3 --> C2 --> C1
+    S5 -.->|실패| C4 --> C3 --> C2 --> C1
+
+    style Saga fill:#e8f5e9
+    style Compensate fill:#ffebee
+```
+
+### 20.2 Saga 상태 Enum
+
+```java
+/**
+ * Saga 실행 상태
+ */
+public enum SagaStatus {
+    /** 시작됨 */
+    STARTED,
+
+    /** 단계 실행 중 */
+    STEP_IN_PROGRESS,
+
+    /** 단계 완료 */
+    STEP_COMPLETED,
+
+    /** 보상 트랜잭션 실행 중 */
+    COMPENSATING,
+
+    /** Saga 완료 */
+    COMPLETED,
+
+    /** Saga 실패 */
+    FAILED,
+
+    /** 보상 트랜잭션 완료 */
+    COMPENSATED
+}
+```
+
+### 20.3 Saga 실행 엔티티
+
+```java
+@Entity
+@Table(name = "saga_executions")
+@Getter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+public class SagaExecution extends BaseTimeEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
+
+    @Column(nullable = false)
+    private String sagaType;
+
+    @Column(nullable = false)
+    private String correlationId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private SagaStatus status;
+
+    @Column(nullable = false)
+    private Integer currentStep;
+
+    @Column(columnDefinition = "TEXT")
+    private String payload;
+
+    @Column(columnDefinition = "TEXT")
+    private String completedSteps;
+
+    @Column(columnDefinition = "TEXT")
+    private String failureReason;
+
+    @Column
+    private Instant completedAt;
+
+    public static SagaExecution start(String sagaType, String correlationId, String payload) {
+        SagaExecution execution = new SagaExecution();
+        execution.sagaType = sagaType;
+        execution.correlationId = correlationId;
+        execution.payload = payload;
+        execution.status = SagaStatus.STARTED;
+        execution.currentStep = 0;
+        execution.completedSteps = "[]";
+        return execution;
+    }
+
+    public void advanceStep(String stepName) {
+        this.currentStep++;
+        this.status = SagaStatus.STEP_IN_PROGRESS;
+        addCompletedStep(stepName);
+    }
+
+    public void complete() {
+        this.status = SagaStatus.COMPLETED;
+        this.completedAt = Instant.now();
+    }
+
+    public void fail(String reason) {
+        this.status = SagaStatus.FAILED;
+        this.failureReason = reason;
+        this.completedAt = Instant.now();
+    }
+
+    public void startCompensation() {
+        this.status = SagaStatus.COMPENSATING;
+    }
+
+    public void compensated() {
+        this.status = SagaStatus.COMPENSATED;
+        this.completedAt = Instant.now();
+    }
+
+    private void addCompletedStep(String stepName) {
+        // JSON 배열에 추가
+        List<String> steps = parseCompletedSteps();
+        steps.add(stepName);
+        this.completedSteps = JsonUtils.toJson(steps);
+    }
+
+    public List<String> parseCompletedSteps() {
+        return JsonUtils.fromJsonList(this.completedSteps, String.class);
+    }
+}
+```
+
+### 20.4 Saga 오케스트레이터
+
+```java
+/**
+ * 문서 생성 Saga 오케스트레이터
+ */
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class DocumentCreationSagaOrchestrator {
+
+    private final SagaExecutionRepository sagaRepository;
+    private final KnowledgeRepository knowledgeRepository;
+    private final AIServiceClient aiServiceClient;
+    private final ElasticsearchClient esClient;
+    private final Neo4jClient neo4jClient;
+    private final ApplicationEventPublisher eventPublisher;
+
+    private static final String SAGA_TYPE = "DOCUMENT_CREATION";
+
+    /**
+     * Saga 실행
+     */
+    @Transactional
+    public UUID execute(DocumentCreationRequest request) {
+        String correlationId = UUID.randomUUID().toString();
+
+        // Saga 실행 기록 생성
+        SagaExecution saga = SagaExecution.start(
+            SAGA_TYPE,
+            correlationId,
+            JsonUtils.toJson(request)
+        );
+        sagaRepository.save(saga);
+
+        try {
+            // Step 1: Knowledge 저장
+            Knowledge knowledge = executeStep1_SaveKnowledge(saga, request);
+
+            // Step 2: 메타데이터 추출
+            AIMetadataResponse metadata = executeStep2_ExtractMetadata(saga, knowledge);
+
+            // Step 3: 임베딩 생성
+            List<Float> embedding = executeStep3_CreateEmbedding(saga, knowledge);
+
+            // Step 4: Elasticsearch 인덱싱
+            executeStep4_IndexDocument(saga, knowledge, embedding);
+
+            // Step 5: Neo4j 그래프 저장
+            executeStep5_SaveGraph(saga, knowledge, metadata);
+
+            // 완료
+            saga.complete();
+            sagaRepository.save(saga);
+
+            eventPublisher.publishEvent(new SagaCompletedEvent(saga));
+
+            return knowledge.getId();
+
+        } catch (Exception e) {
+            log.error("Saga failed: correlationId={}", correlationId, e);
+            saga.fail(e.getMessage());
+            sagaRepository.save(saga);
+
+            // 보상 트랜잭션 실행
+            compensate(saga);
+
+            throw new SagaFailedException("Document creation failed", e);
+        }
+    }
+
+    /**
+     * Step 1: Knowledge 저장
+     */
+    private Knowledge executeStep1_SaveKnowledge(SagaExecution saga,
+                                                   DocumentCreationRequest request) {
+        saga.advanceStep("SAVE_KNOWLEDGE");
+        sagaRepository.save(saga);
+
+        Knowledge knowledge = Knowledge.builder()
+            .title(request.getTitle())
+            .content(request.getContent())
+            .documentType(request.getDocumentType())
+            .visibility(request.getVisibility())
+            .createdBy(request.getUserId())
+            .build();
+
+        return knowledgeRepository.save(knowledge);
+    }
+
+    /**
+     * Step 2: 메타데이터 추출
+     */
+    private AIMetadataResponse executeStep2_ExtractMetadata(SagaExecution saga,
+                                                             Knowledge knowledge) {
+        saga.advanceStep("EXTRACT_METADATA");
+        sagaRepository.save(saga);
+
+        return aiServiceClient.extractMetadata(
+            AIMetadataRequest.builder()
+                .content(knowledge.getContent())
+                .documentType(knowledge.getDocumentType().name())
+                .build()
+        ).block(Duration.ofSeconds(30));
+    }
+
+    /**
+     * Step 3: 임베딩 생성
+     */
+    private List<Float> executeStep3_CreateEmbedding(SagaExecution saga,
+                                                      Knowledge knowledge) {
+        saga.advanceStep("CREATE_EMBEDDING");
+        sagaRepository.save(saga);
+
+        return aiServiceClient.createEmbedding(
+            AIEmbeddingRequest.builder()
+                .text(knowledge.getTitle() + "\n" + knowledge.getContent())
+                .build()
+        ).block(Duration.ofSeconds(30)).getEmbedding();
+    }
+
+    /**
+     * Step 4: Elasticsearch 인덱싱
+     */
+    private void executeStep4_IndexDocument(SagaExecution saga,
+                                             Knowledge knowledge,
+                                             List<Float> embedding) {
+        saga.advanceStep("INDEX_DOCUMENT");
+        sagaRepository.save(saga);
+
+        esClient.indexDocument(KnowledgeDocument.builder()
+            .id(knowledge.getId().toString())
+            .title(knowledge.getTitle())
+            .content(knowledge.getContent())
+            .embedding(embedding)
+            .documentType(knowledge.getDocumentType().name())
+            .createdAt(knowledge.getCreatedAt())
+            .build());
+    }
+
+    /**
+     * Step 5: Neo4j 그래프 저장
+     */
+    private void executeStep5_SaveGraph(SagaExecution saga,
+                                         Knowledge knowledge,
+                                         AIMetadataResponse metadata) {
+        saga.advanceStep("SAVE_GRAPH");
+        sagaRepository.save(saga);
+
+        neo4jClient.createKnowledgeNode(
+            knowledge.getId(),
+            knowledge.getTitle(),
+            metadata.getEntities(),
+            metadata.getRelationships()
+        );
+    }
+
+    /**
+     * 보상 트랜잭션 실행
+     */
+    private void compensate(SagaExecution saga) {
+        saga.startCompensation();
+        sagaRepository.save(saga);
+
+        List<String> completedSteps = saga.parseCompletedSteps();
+
+        // 역순으로 보상 트랜잭션 실행
+        for (int i = completedSteps.size() - 1; i >= 0; i--) {
+            String step = completedSteps.get(i);
+            try {
+                switch (step) {
+                    case "SAVE_GRAPH" -> compensateStep5_DeleteGraph(saga);
+                    case "INDEX_DOCUMENT" -> compensateStep4_DeleteIndex(saga);
+                    case "CREATE_EMBEDDING" -> compensateStep3_DeleteEmbedding(saga);
+                    case "EXTRACT_METADATA" -> compensateStep2_DeleteMetadata(saga);
+                    case "SAVE_KNOWLEDGE" -> compensateStep1_DeleteKnowledge(saga);
+                }
+            } catch (Exception e) {
+                log.error("Compensation failed for step {}: {}", step, e.getMessage());
+                // 보상 실패는 로깅하고 계속 진행
+            }
+        }
+
+        saga.compensated();
+        sagaRepository.save(saga);
+    }
+
+    private void compensateStep1_DeleteKnowledge(SagaExecution saga) {
+        DocumentCreationRequest request = JsonUtils.fromJson(
+            saga.getPayload(), DocumentCreationRequest.class);
+        knowledgeRepository.deleteByCorrelationId(saga.getCorrelationId());
+        log.info("Compensated: Knowledge deleted for saga {}", saga.getId());
+    }
+
+    private void compensateStep4_DeleteIndex(SagaExecution saga) {
+        esClient.deleteDocument(saga.getCorrelationId());
+        log.info("Compensated: ES index deleted for saga {}", saga.getId());
+    }
+
+    private void compensateStep5_DeleteGraph(SagaExecution saga) {
+        neo4jClient.deleteKnowledgeNode(saga.getCorrelationId());
+        log.info("Compensated: Neo4j node deleted for saga {}", saga.getId());
+    }
+
+    // 나머지 보상 메서드들...
+}
+```
+
+### 20.5 Saga 상태 모니터링
+
+```java
+@RestController
+@RequestMapping("/internal/admin/sagas")
+@RequiredArgsConstructor
+public class SagaAdminController {
+
+    private final SagaExecutionRepository sagaRepository;
+
+    @GetMapping
+    public Page<SagaExecution> listSagas(
+            @RequestParam(required = false) SagaStatus status,
+            Pageable pageable) {
+        if (status != null) {
+            return sagaRepository.findByStatus(status, pageable);
+        }
+        return sagaRepository.findAll(pageable);
+    }
+
+    @GetMapping("/{id}")
+    public SagaExecution getSaga(@PathVariable UUID id) {
+        return sagaRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Saga not found: " + id));
+    }
+
+    @PostMapping("/{id}/retry")
+    public SagaExecution retrySaga(@PathVariable UUID id) {
+        // 실패한 Saga 재시도 로직
+        // ...
+    }
+}
+```
+
+---
+
+## 21. Rate Limiting 구현
+
+### 21.1 Rate Limiting 개요
+
+```mermaid
+flowchart TB
+    subgraph Client["Client Requests"]
+        C1[User A]
+        C2[User B]
+        C3[Anonymous]
+    end
+
+    subgraph RateLimit["Rate Limiter"]
+        RL[Bucket4j Rate Limiter]
+
+        subgraph Buckets["Token Buckets"]
+            B1[User Bucket<br/>100 req/min]
+            B2[IP Bucket<br/>50 req/min]
+            B3[Global Bucket<br/>1000 req/min]
+        end
+    end
+
+    subgraph Response["Response"]
+        OK[200 OK]
+        TM[429 Too Many Requests]
+    end
+
+    C1 --> RL
+    C2 --> RL
+    C3 --> RL
+
+    RL --> B1 & B2 & B3
+    B1 & B2 & B3 -->|토큰 있음| OK
+    B1 & B2 & B3 -->|토큰 없음| TM
+
+    style RateLimit fill:#e3f2fd
+    style Response fill:#e8f5e9
+```
+
+### 21.2 의존성 설정
+
+```kotlin
+// build.gradle.kts
+dependencies {
+    implementation("com.bucket4j:bucket4j-core:8.7.0")
+    implementation("com.bucket4j:bucket4j-redis:8.7.0")
+}
+```
+
+### 21.3 Rate Limit 설정
+
+```yaml
+# application.yml
+rate-limit:
+  enabled: true
+
+  # 사용자별 제한
+  user:
+    capacity: 100
+    refill-tokens: 100
+    refill-duration: 1m
+
+  # IP별 제한 (비인증 요청)
+  ip:
+    capacity: 50
+    refill-tokens: 50
+    refill-duration: 1m
+
+  # 전역 제한
+  global:
+    capacity: 1000
+    refill-tokens: 1000
+    refill-duration: 1m
+
+  # 엔드포인트별 커스텀 제한
+  endpoints:
+    - path: "/api/v1/search/**"
+      capacity: 30
+      refill-tokens: 30
+      refill-duration: 1m
+    - path: "/api/v1/chat/**"
+      capacity: 20
+      refill-tokens: 20
+      refill-duration: 1m
+```
+
+### 21.4 Rate Limiter 구현
+
+```java
+@Configuration
+@ConfigurationProperties(prefix = "rate-limit")
+@Data
+public class RateLimitConfig {
+    private boolean enabled = true;
+    private BucketConfig user;
+    private BucketConfig ip;
+    private BucketConfig global;
+    private List<EndpointRateLimit> endpoints;
+
+    @Data
+    public static class BucketConfig {
+        private long capacity;
+        private long refillTokens;
+        private Duration refillDuration;
+    }
+
+    @Data
+    public static class EndpointRateLimit {
+        private String path;
+        private long capacity;
+        private long refillTokens;
+        private Duration refillDuration;
+    }
+}
+
+/**
+ * Bucket4j 기반 Rate Limiter
+ */
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class RateLimiterService {
+
+    private final RateLimitConfig config;
+    private final RedisTemplate<String, String> redisTemplate;
+
+    // In-Memory 캐시 (Redis 장애 시 Fallback)
+    private final Map<String, Bucket> localBuckets = new ConcurrentHashMap<>();
+
+    /**
+     * 요청 허용 여부 확인
+     */
+    public RateLimitResult tryConsume(String key, RateLimitType type) {
+        if (!config.isEnabled()) {
+            return RateLimitResult.allowed();
+        }
+
+        Bucket bucket = resolveBucket(key, type);
+        ConsumptionProbe probe = bucket.tryConsumeAndReturnRemaining(1);
+
+        if (probe.isConsumed()) {
+            return RateLimitResult.allowed(
+                probe.getRemainingTokens(),
+                probe.getNanosToWaitForRefill()
+            );
+        } else {
+            log.warn("Rate limit exceeded: key={}, type={}", key, type);
+            return RateLimitResult.exceeded(
+                0,
+                probe.getNanosToWaitForRefill()
+            );
+        }
+    }
+
+    /**
+     * 버킷 조회 또는 생성
+     */
+    private Bucket resolveBucket(String key, RateLimitType type) {
+        String bucketKey = type.name() + ":" + key;
+
+        return localBuckets.computeIfAbsent(bucketKey, k -> {
+            BucketConfiguration configuration = createBucketConfig(type);
+            return Bucket.builder()
+                .addLimit(Bandwidth.classic(
+                    configuration.getCapacity(),
+                    Refill.greedy(
+                        configuration.getRefillTokens(),
+                        configuration.getRefillDuration()
+                    )
+                ))
+                .build();
+        });
+    }
+
+    private RateLimitConfig.BucketConfig createBucketConfig(RateLimitType type) {
+        return switch (type) {
+            case USER -> config.getUser();
+            case IP -> config.getIp();
+            case GLOBAL -> config.getGlobal();
+        };
+    }
+}
+
+public enum RateLimitType {
+    USER, IP, GLOBAL
+}
+
+@Data
+@Builder
+public class RateLimitResult {
+    private boolean allowed;
+    private long remainingTokens;
+    private long retryAfterNanos;
+
+    public static RateLimitResult allowed() {
+        return RateLimitResult.builder().allowed(true).build();
+    }
+
+    public static RateLimitResult allowed(long remaining, long retryAfter) {
+        return RateLimitResult.builder()
+            .allowed(true)
+            .remainingTokens(remaining)
+            .retryAfterNanos(retryAfter)
+            .build();
+    }
+
+    public static RateLimitResult exceeded(long remaining, long retryAfter) {
+        return RateLimitResult.builder()
+            .allowed(false)
+            .remainingTokens(remaining)
+            .retryAfterNanos(retryAfter)
+            .build();
+    }
+}
+```
+
+### 21.5 Rate Limit 필터
+
+```java
+@Component
+@Order(Ordered.HIGHEST_PRECEDENCE)
+@RequiredArgsConstructor
+@Slf4j
+public class RateLimitFilter extends OncePerRequestFilter {
+
+    private final RateLimiterService rateLimiterService;
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request,
+                                     HttpServletResponse response,
+                                     FilterChain chain)
+            throws ServletException, IOException {
+
+        String clientKey = resolveClientKey(request);
+        RateLimitType type = resolveRateLimitType(request);
+
+        RateLimitResult result = rateLimiterService.tryConsume(clientKey, type);
+
+        // Rate Limit 헤더 추가
+        response.setHeader("X-RateLimit-Remaining",
+            String.valueOf(result.getRemainingTokens()));
+        response.setHeader("X-RateLimit-Retry-After",
+            String.valueOf(TimeUnit.NANOSECONDS.toSeconds(result.getRetryAfterNanos())));
+
+        if (!result.isAllowed()) {
+            response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            response.getWriter().write("""
+                {
+                    "success": false,
+                    "error": {
+                        "code": "RATE_LIMIT_EXCEEDED",
+                        "message": "요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.",
+                        "retryAfterSeconds": %d
+                    }
+                }
+                """.formatted(TimeUnit.NANOSECONDS.toSeconds(result.getRetryAfterNanos())));
+            return;
+        }
+
+        chain.doFilter(request, response);
+    }
+
+    private String resolveClientKey(HttpServletRequest request) {
+        // 인증된 사용자: userId
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() &&
+            !(auth instanceof AnonymousAuthenticationToken)) {
+            return "user:" + auth.getName();
+        }
+
+        // 비인증: IP 주소
+        return "ip:" + getClientIp(request);
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String xForwardedFor = request.getHeader("X-Forwarded-For");
+        if (xForwardedFor != null && !xForwardedFor.isBlank()) {
+            return xForwardedFor.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
+    }
+
+    private RateLimitType resolveRateLimitType(HttpServletRequest request) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() &&
+            !(auth instanceof AnonymousAuthenticationToken)) {
+            return RateLimitType.USER;
+        }
+        return RateLimitType.IP;
+    }
+}
+```
+
+### 21.6 Rate Limit 어노테이션
+
+```java
+/**
+ * 메서드 레벨 Rate Limit 어노테이션
+ */
+@Target(ElementType.METHOD)
+@Retention(RetentionPolicy.RUNTIME)
+public @interface RateLimit {
+    /** 버킷 용량 */
+    long capacity() default 10;
+
+    /** 리필 토큰 수 */
+    long refillTokens() default 10;
+
+    /** 리필 주기 (초) */
+    long refillSeconds() default 60;
+
+    /** 키 생성 전략 */
+    RateLimitKeyType keyType() default RateLimitKeyType.USER;
+}
+
+public enum RateLimitKeyType {
+    USER, IP, METHOD
+}
+
+/**
+ * Rate Limit AOP
+ */
+@Aspect
+@Component
+@RequiredArgsConstructor
+public class RateLimitAspect {
+
+    private final RateLimiterService rateLimiterService;
+
+    @Around("@annotation(rateLimit)")
+    public Object checkRateLimit(ProceedingJoinPoint joinPoint, RateLimit rateLimit)
+            throws Throwable {
+
+        String key = generateKey(joinPoint, rateLimit);
+        RateLimitResult result = rateLimiterService.tryConsume(key, RateLimitType.USER);
+
+        if (!result.isAllowed()) {
+            throw new RateLimitExceededException(
+                "요청 한도를 초과했습니다.",
+                TimeUnit.NANOSECONDS.toSeconds(result.getRetryAfterNanos())
+            );
+        }
+
+        return joinPoint.proceed();
+    }
+
+    private String generateKey(ProceedingJoinPoint joinPoint, RateLimit rateLimit) {
+        String methodName = joinPoint.getSignature().toShortString();
+        return switch (rateLimit.keyType()) {
+            case USER -> "method:" + methodName + ":" + getCurrentUserId();
+            case IP -> "method:" + methodName + ":" + getCurrentIp();
+            case METHOD -> "method:" + methodName;
+        };
+    }
+}
+```
+
+---
+
+## 22. Liquibase 마이그레이션
+
+### 22.1 Liquibase 개요
+
+```mermaid
+flowchart LR
+    subgraph Dev["개발 환경"]
+        D1[changelog.xml]
+        D2[001_init.xml]
+        D3[002_indexes.xml]
+    end
+
+    subgraph LB["Liquibase"]
+        LC[Liquibase Core]
+        DL[DATABASECHANGELOG]
+    end
+
+    subgraph DB["PostgreSQL"]
+        T1[Tables]
+        T2[Indexes]
+        T3[Constraints]
+    end
+
+    D1 --> LC
+    D2 --> LC
+    D3 --> LC
+    LC --> DL
+    LC --> T1 & T2 & T3
+
+    style Dev fill:#e3f2fd
+    style LB fill:#fff3e0
+    style DB fill:#e8f5e9
+```
+
+### 22.2 의존성 설정
+
+```kotlin
+// build.gradle.kts
+dependencies {
+    implementation("org.liquibase:liquibase-core")
+}
+```
+
+### 22.3 Liquibase 설정
+
+```yaml
+# application.yml
+spring:
+  liquibase:
+    enabled: true
+    change-log: classpath:db/changelog/db.changelog-master.xml
+    default-schema: public
+    liquibase-schema: public
+    database-change-log-table: DATABASECHANGELOG
+    database-change-log-lock-table: DATABASECHANGELOGLOCK
+```
+
+### 22.4 마스터 Changelog
+
+```xml
+<!-- src/main/resources/db/changelog/db.changelog-master.xml -->
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- 환경별 프로퍼티 -->
+    <property name="uuid.type" value="uuid" dbms="postgresql"/>
+    <property name="uuid.type" value="varchar(36)" dbms="h2"/>
+
+    <property name="timestamp.type" value="timestamp with time zone" dbms="postgresql"/>
+    <property name="timestamp.type" value="timestamp" dbms="h2"/>
+
+    <!-- 변경 세트 포함 -->
+    <include file="changes/001-init-schema.xml" relativeToChangelogFile="true"/>
+    <include file="changes/002-init-indexes.xml" relativeToChangelogFile="true"/>
+    <include file="changes/003-init-data.xml" relativeToChangelogFile="true"/>
+    <include file="changes/004-add-saga-tables.xml" relativeToChangelogFile="true"/>
+
+</databaseChangeLog>
+```
+
+### 22.5 스키마 생성 Changelog
+
+```xml
+<!-- src/main/resources/db/changelog/changes/001-init-schema.xml -->
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- Users 테이블 -->
+    <changeSet id="001-01-create-users" author="claude-code">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="users"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="users">
+            <column name="id" type="${uuid.type}">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="email" type="varchar(255)">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="name" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="department" type="varchar(100)"/>
+            <column name="role" type="varchar(50)" defaultValue="USER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="varchar(50)" defaultValue="ACTIVE">
+                <constraints nullable="false"/>
+            </column>
+            <column name="keycloak_id" type="varchar(255)">
+                <constraints unique="true"/>
+            </column>
+            <column name="last_login_at" type="${timestamp.type}"/>
+            <column name="created_at" type="${timestamp.type}" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="${timestamp.type}" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <rollback>
+            <dropTable tableName="users"/>
+        </rollback>
+    </changeSet>
+
+    <!-- Knowledge 테이블 -->
+    <changeSet id="001-02-create-knowledge" author="claude-code">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="knowledge"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="knowledge">
+            <column name="id" type="${uuid.type}">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="title" type="varchar(500)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="content" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="document_type" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="source_type" type="varchar(50)" defaultValue="MANUAL"/>
+            <column name="source_url" type="varchar(2000)"/>
+            <column name="version" type="integer" defaultValue="1">
+                <constraints nullable="false"/>
+            </column>
+            <column name="visibility" type="varchar(50)" defaultValue="PUBLIC">
+                <constraints nullable="false"/>
+            </column>
+            <column name="project_id" type="${uuid.type}"/>
+            <column name="valid_from" type="date"/>
+            <column name="valid_until" type="date"/>
+            <column name="view_count" type="integer" defaultValue="0"/>
+            <column name="quality_score" type="decimal(5,2)"/>
+            <column name="created_by" type="${uuid.type}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_by" type="${uuid.type}"/>
+            <column name="deleted_at" type="${timestamp.type}"/>
+            <column name="created_at" type="${timestamp.type}" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="${timestamp.type}" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <!-- Foreign Key -->
+        <addForeignKeyConstraint
+            baseTableName="knowledge"
+            baseColumnNames="created_by"
+            referencedTableName="users"
+            referencedColumnNames="id"
+            constraintName="fk_knowledge_created_by"
+            onDelete="RESTRICT"/>
+
+        <rollback>
+            <dropTable tableName="knowledge"/>
+        </rollback>
+    </changeSet>
+
+    <!-- Conversations 테이블 -->
+    <changeSet id="001-03-create-conversations" author="claude-code">
+        <createTable tableName="conversations">
+            <column name="id" type="${uuid.type}">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="${uuid.type}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="title" type="varchar(500)"/>
+            <column name="message_count" type="integer" defaultValue="0"/>
+            <column name="last_message_at" type="${timestamp.type}"/>
+            <column name="created_at" type="${timestamp.type}" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="${timestamp.type}" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+            baseTableName="conversations"
+            baseColumnNames="user_id"
+            referencedTableName="users"
+            referencedColumnNames="id"
+            constraintName="fk_conversations_user_id"
+            onDelete="CASCADE"/>
+    </changeSet>
+
+    <!-- Messages 테이블 -->
+    <changeSet id="001-04-create-messages" author="claude-code">
+        <createTable tableName="messages">
+            <column name="id" type="${uuid.type}">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="conversation_id" type="${uuid.type}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="role" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="content" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="sources" type="jsonb"/>
+            <column name="metadata" type="jsonb"/>
+            <column name="created_at" type="${timestamp.type}" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+            baseTableName="messages"
+            baseColumnNames="conversation_id"
+            referencedTableName="conversations"
+            referencedColumnNames="id"
+            constraintName="fk_messages_conversation_id"
+            onDelete="CASCADE"/>
+    </changeSet>
+
+    <!-- Bookmarks 테이블 -->
+    <changeSet id="001-05-create-bookmarks" author="claude-code">
+        <createTable tableName="bookmarks">
+            <column name="id" type="${uuid.type}">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="${uuid.type}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="knowledge_id" type="${uuid.type}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="note" type="varchar(1000)"/>
+            <column name="created_at" type="${timestamp.type}" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <addForeignKeyConstraint
+            baseTableName="bookmarks"
+            baseColumnNames="user_id"
+            referencedTableName="users"
+            referencedColumnNames="id"
+            constraintName="fk_bookmarks_user_id"
+            onDelete="CASCADE"/>
+
+        <addForeignKeyConstraint
+            baseTableName="bookmarks"
+            baseColumnNames="knowledge_id"
+            referencedTableName="knowledge"
+            referencedColumnNames="id"
+            constraintName="fk_bookmarks_knowledge_id"
+            onDelete="CASCADE"/>
+
+        <addUniqueConstraint
+            tableName="bookmarks"
+            columnNames="user_id, knowledge_id"
+            constraintName="uk_bookmarks_user_knowledge"/>
+    </changeSet>
+
+</databaseChangeLog>
+```
+
+### 22.6 인덱스 Changelog
+
+```xml
+<!-- src/main/resources/db/changelog/changes/002-init-indexes.xml -->
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <!-- Knowledge 인덱스 -->
+    <changeSet id="002-01-knowledge-indexes" author="claude-code">
+        <createIndex tableName="knowledge" indexName="idx_knowledge_document_type">
+            <column name="document_type"/>
+        </createIndex>
+
+        <createIndex tableName="knowledge" indexName="idx_knowledge_visibility">
+            <column name="visibility"/>
+        </createIndex>
+
+        <createIndex tableName="knowledge" indexName="idx_knowledge_project_id">
+            <column name="project_id"/>
+        </createIndex>
+
+        <createIndex tableName="knowledge" indexName="idx_knowledge_created_by">
+            <column name="created_by"/>
+        </createIndex>
+
+        <createIndex tableName="knowledge" indexName="idx_knowledge_created_at">
+            <column name="created_at" descending="true"/>
+        </createIndex>
+
+        <!-- 복합 인덱스: Soft Delete 조회 최적화 -->
+        <createIndex tableName="knowledge" indexName="idx_knowledge_deleted_at_created_at">
+            <column name="deleted_at"/>
+            <column name="created_at" descending="true"/>
+        </createIndex>
+
+        <!-- 시간 범위 검색용 인덱스 -->
+        <createIndex tableName="knowledge" indexName="idx_knowledge_valid_range">
+            <column name="valid_from"/>
+            <column name="valid_until"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Messages 인덱스 -->
+    <changeSet id="002-02-messages-indexes" author="claude-code">
+        <createIndex tableName="messages" indexName="idx_messages_conversation_id">
+            <column name="conversation_id"/>
+        </createIndex>
+
+        <createIndex tableName="messages" indexName="idx_messages_created_at">
+            <column name="created_at" descending="true"/>
+        </createIndex>
+    </changeSet>
+
+    <!-- Users 인덱스 -->
+    <changeSet id="002-03-users-indexes" author="claude-code">
+        <createIndex tableName="users" indexName="idx_users_keycloak_id">
+            <column name="keycloak_id"/>
+        </createIndex>
+
+        <createIndex tableName="users" indexName="idx_users_status">
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
+```
+
+### 22.7 Saga 테이블 Changelog
+
+```xml
+<!-- src/main/resources/db/changelog/changes/004-add-saga-tables.xml -->
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd">
+
+    <changeSet id="004-01-create-saga-executions" author="claude-code">
+        <createTable tableName="saga_executions">
+            <column name="id" type="${uuid.type}">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="saga_type" type="varchar(100)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="correlation_id" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="current_step" type="integer">
+                <constraints nullable="false"/>
+            </column>
+            <column name="payload" type="text"/>
+            <column name="completed_steps" type="text"/>
+            <column name="failure_reason" type="text"/>
+            <column name="completed_at" type="${timestamp.type}"/>
+            <column name="created_at" type="${timestamp.type}" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="${timestamp.type}" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <createIndex tableName="saga_executions" indexName="idx_saga_correlation_id">
+            <column name="correlation_id"/>
+        </createIndex>
+
+        <createIndex tableName="saga_executions" indexName="idx_saga_status">
+            <column name="status"/>
+        </createIndex>
+
+        <createIndex tableName="saga_executions" indexName="idx_saga_type_status">
+            <column name="saga_type"/>
+            <column name="status"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>
+```
+
+### 22.8 롤백 및 마이그레이션 명령어
+
+```bash
+# 마이그레이션 실행 (자동 - 애플리케이션 시작 시)
+# Spring Boot가 자동으로 실행
+
+# 수동 마이그레이션 (Gradle)
+./gradlew liquibaseUpdate
+
+# 롤백 (마지막 1개 changeset)
+./gradlew liquibaseRollbackCount -PliquibaseCommandValue=1
+
+# 특정 태그로 롤백
+./gradlew liquibaseRollback -PliquibaseCommandValue=v1.0.0
+
+# 변경 이력 확인
+./gradlew liquibaseStatus
+
+# SQL 미리보기 (실제 실행 X)
+./gradlew liquibaseUpdateSQL
+```
+
+---
+
+## 23. Grafana 대시보드 가이드
+
+### 23.1 대시보드 구성
+
+```mermaid
+flowchart TB
+    subgraph Sources["Data Sources"]
+        P[Prometheus]
+        L[Loki]
+        J[Jaeger]
+    end
+
+    subgraph Dashboards["Grafana Dashboards"]
+        D1[Overview Dashboard]
+        D2[API Performance]
+        D3[AI Service Health]
+        D4[Business Metrics]
+        D5[Error Analysis]
+    end
+
+    subgraph Alerts["Alert Rules"]
+        A1[High Error Rate]
+        A2[Slow Response]
+        A3[Circuit Open]
+        A4[Resource Usage]
+    end
+
+    P --> D1 & D2 & D3 & D4
+    L --> D5
+    J --> D2
+
+    D1 --> A1 & A2
+    D3 --> A3
+    D2 --> A4
+
+    style Sources fill:#e3f2fd
+    style Dashboards fill:#e8f5e9
+    style Alerts fill:#ffebee
+```
+
+### 23.2 Overview 대시보드 패널 구성
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        Platform Overview Dashboard                          │
+├─────────────────────┬─────────────────────┬─────────────────────────────────┤
+│   Active Users      │   Requests/min      │   Error Rate                    │
+│   ┌───────────┐     │   ┌───────────┐     │   ┌───────────┐                 │
+│   │    45     │     │   │   1,234   │     │   │   0.3%    │                 │
+│   └───────────┘     │   └───────────┘     │   └───────────┘                 │
+├─────────────────────┴─────────────────────┴─────────────────────────────────┤
+│                          Response Time (P50, P95, P99)                      │
+│   ┌─────────────────────────────────────────────────────────────────────┐   │
+│   │  ━━━━ P50: 234ms   ━━━━ P95: 890ms   ━━━━ P99: 1.2s                │   │
+│   │  █▓░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░│   │
+│   └─────────────────────────────────────────────────────────────────────┘   │
+├───────────────────────────────────┬─────────────────────────────────────────┤
+│     Request Distribution          │      Top Endpoints by Traffic          │
+│   ┌───────────────────────────┐   │   ┌─────────────────────────────────┐   │
+│   │  Search: 45%              │   │   │  /api/v1/search        3,421   │   │
+│   │  Chat: 30%                │   │   │  /api/v1/chat/stream   2,103   │   │
+│   │  Knowledge: 20%           │   │   │  /api/v1/knowledge     1,892   │   │
+│   │  Other: 5%                │   │   │  /api/v1/bookmarks       342   │   │
+│   └───────────────────────────┘   │   └─────────────────────────────────┘   │
+└───────────────────────────────────┴─────────────────────────────────────────┘
+```
+
+### 23.3 Prometheus 쿼리 예시
+
+```yaml
+# 1. 요청 수 (Rate)
+- title: "Requests per Second"
+  query: |
+    sum(rate(http_server_requests_seconds_count{
+      application="backend-service"
+    }[5m]))
+
+# 2. 응답 시간 Percentile
+- title: "Response Time P95"
+  query: |
+    histogram_quantile(0.95,
+      sum(rate(http_server_requests_seconds_bucket{
+        application="backend-service"
+      }[5m])) by (le))
+
+# 3. 에러율
+- title: "Error Rate"
+  query: |
+    sum(rate(http_server_requests_seconds_count{
+      application="backend-service",
+      status=~"5.."
+    }[5m]))
+    /
+    sum(rate(http_server_requests_seconds_count{
+      application="backend-service"
+    }[5m])) * 100
+
+# 4. Circuit Breaker 상태
+- title: "Circuit Breaker State"
+  query: |
+    resilience4j_circuitbreaker_state{
+      name="aiService",
+      application="backend-service"
+    }
+
+# 5. AI Service 호출 성공률
+- title: "AI Service Success Rate"
+  query: |
+    sum(rate(ai_service_calls_total{
+      success="true"
+    }[5m]))
+    /
+    sum(rate(ai_service_calls_total[5m])) * 100
+
+# 6. 활성 스트리밍 연결
+- title: "Active SSE Streams"
+  query: |
+    streams_active{application="backend-service"}
+
+# 7. JVM 메모리 사용량
+- title: "JVM Heap Usage"
+  query: |
+    sum(jvm_memory_used_bytes{
+      area="heap",
+      application="backend-service"
+    })
+    /
+    sum(jvm_memory_max_bytes{
+      area="heap",
+      application="backend-service"
+    }) * 100
+```
+
+### 23.4 Alert Rules
+
+```yaml
+# prometheus/alerts/backend-alerts.yml
+groups:
+  - name: backend-service-alerts
+    rules:
+      # 높은 에러율 경고
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_server_requests_seconds_count{
+            application="backend-service",
+            status=~"5.."
+          }[5m]))
+          /
+          sum(rate(http_server_requests_seconds_count{
+            application="backend-service"
+          }[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} (> 5%)"
+
+      # 느린 응답 시간
+      - alert: SlowResponseTime
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(http_server_requests_seconds_bucket{
+              application="backend-service"
+            }[5m])) by (le)) > 3
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow response time detected"
+          description: "P95 response time is {{ $value }}s (> 3s)"
+
+      # Circuit Breaker Open
+      - alert: CircuitBreakerOpen
+        expr: |
+          resilience4j_circuitbreaker_state{
+            name="aiService",
+            state="open"
+          } == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Circuit breaker is OPEN"
+          description: "AI Service circuit breaker has opened"
+
+      # AI Service 높은 실패율
+      - alert: AIServiceHighFailureRate
+        expr: |
+          sum(rate(ai_service_calls_total{
+            success="false"
+          }[5m]))
+          /
+          sum(rate(ai_service_calls_total[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High AI service failure rate"
+          description: "AI service failure rate is {{ $value | humanizePercentage }}"
+
+      # JVM 메모리 부족
+      - alert: HighJVMMemoryUsage
+        expr: |
+          sum(jvm_memory_used_bytes{area="heap"})
+          /
+          sum(jvm_memory_max_bytes{area="heap"}) > 0.85
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High JVM heap memory usage"
+          description: "JVM heap usage is {{ $value | humanizePercentage }}"
+```
+
+### 23.5 Grafana Dashboard JSON (발췌)
+
+```json
+{
+  "dashboard": {
+    "title": "Backend Service Overview",
+    "uid": "backend-overview",
+    "tags": ["backend", "springboot"],
+    "timezone": "Asia/Seoul",
+    "panels": [
+      {
+        "id": 1,
+        "title": "Request Rate",
+        "type": "stat",
+        "gridPos": { "x": 0, "y": 0, "w": 6, "h": 4 },
+        "targets": [
+          {
+            "expr": "sum(rate(http_server_requests_seconds_count{application=\"backend-service\"}[5m]))",
+            "legendFormat": "req/s"
+          }
+        ],
+        "options": {
+          "colorMode": "value",
+          "graphMode": "area"
+        }
+      },
+      {
+        "id": 2,
+        "title": "Response Time",
+        "type": "timeseries",
+        "gridPos": { "x": 0, "y": 4, "w": 12, "h": 8 },
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, sum(rate(http_server_requests_seconds_bucket{application=\"backend-service\"}[5m])) by (le))",
+            "legendFormat": "P50"
+          },
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_server_requests_seconds_bucket{application=\"backend-service\"}[5m])) by (le))",
+            "legendFormat": "P95"
+          },
+          {
+            "expr": "histogram_quantile(0.99, sum(rate(http_server_requests_seconds_bucket{application=\"backend-service\"}[5m])) by (le))",
+            "legendFormat": "P99"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "s",
+            "thresholds": {
+              "steps": [
+                { "color": "green", "value": null },
+                { "color": "yellow", "value": 1 },
+                { "color": "red", "value": 3 }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Circuit Breaker Status",
+        "type": "state-timeline",
+        "gridPos": { "x": 12, "y": 4, "w": 12, "h": 4 },
+        "targets": [
+          {
+            "expr": "resilience4j_circuitbreaker_state{name=\"aiService\"}",
+            "legendFormat": "{{state}}"
+          }
+        ],
+        "options": {
+          "showValue": "always",
+          "alignValue": "center"
+        }
+      }
+    ]
+  }
+}
+```
+
+### 23.6 대시보드 프로비저닝
+
+```yaml
+# grafana/provisioning/dashboards/dashboards.yml
+apiVersion: 1
+
+providers:
+  - name: 'Backend Dashboards'
+    orgId: 1
+    folder: 'Backend'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/dashboards/backend
 ```
 
 ---
