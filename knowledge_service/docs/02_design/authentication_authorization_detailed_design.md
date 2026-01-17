@@ -1332,38 +1332,22 @@ export const PermissionGate: React.FC<PermissionGateProps> = ({
 
 ### 8.2 로그아웃 플로우
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Logout Flow                                   │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as 사용자
+    participant F as Frontend
+    participant B as Backend
+    participant K as Keycloak
 
-  [사용자]                [Frontend]              [Backend]           [Keycloak]
-     │                       │                      │                    │
-     │  (1) 로그아웃 클릭    │                      │                    │
-     │ ─────────────────────>│                      │                    │
-     │                       │                      │                    │
-     │                       │  (2) 로그아웃 요청   │                    │
-     │                       │ ────────────────────>│                    │
-     │                       │                      │                    │
-     │                       │                      │  (3) 토큰 무효화   │
-     │                       │                      │ ──────────────────>│
-     │                       │                      │                    │
-     │                       │                      │  (4) 블랙리스트    │
-     │                       │                      │     등록 (Redis)   │
-     │                       │                      │                    │
-     │                       │  (5) 성공 응답       │                    │
-     │                       │ <────────────────────│                    │
-     │                       │                      │                    │
-     │                       │  (6) 메모리 정리     │                    │
-     │                       │     (토큰, 상태)     │                    │
-     │                       │                      │                    │
-     │                       │  (7) Keycloak        │                    │
-     │                       │     로그아웃 URL     │                    │
-     │                       │ ────────────────────────────────────────>│
-     │                       │                      │                    │
-     │  (8) 로그인 페이지    │                      │                    │
-     │ <─────────────────────────────────────────────────────────────────│
-     │                       │                      │                    │
+    U->>F: 로그아웃 클릭
+    F->>B: POST /api/v1/auth/logout
+    B->>K: 토큰 무효화 요청
+    Note over B: Access Token<br/>블랙리스트 등록 (Redis)
+    B-->>F: 200 OK (성공 응답)
+    Note over F: 메모리 정리<br/>(토큰, 상태)
+    F->>K: Keycloak 로그아웃 URL 리다이렉트
+    K-->>U: 로그인 페이지 표시
 ```
 
 ### 8.3 백엔드 로그아웃 처리
@@ -1517,21 +1501,16 @@ export const useIdleTimeout = () => {
 
 **RBAC (Role-Based Access Control)** 은 사용자에게 역할(Role)을 할당하고, 역할에 권한(Permission)을 부여하여 접근을 제어하는 방식입니다.
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        RBAC 구성 요소                                │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│   ┌──────────┐      ┌──────────┐      ┌──────────────┐             │
-│   │   User   │─────▶│   Role   │─────▶│  Permission  │             │
-│   └──────────┘ 할당  └──────────┘ 포함  └──────────────┘             │
-│        │                 │                   │                      │
-│        │                 │                   │                      │
-│        ▼                 ▼                   ▼                      │
-│   사용자 계정         역할 그룹            리소스 접근 권한           │
-│   (Keycloak)        (ADMIN,USER)       (READ,WRITE,DELETE)         │
-│                                                                     │
-└─────────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    subgraph RBAC["RBAC 구성 요소"]
+        U["👤 User<br/><small>사용자 계정<br/>(Keycloak)</small>"]
+        R["🏷️ Role<br/><small>역할 그룹<br/>(ADMIN, USER)</small>"]
+        P["🔐 Permission<br/><small>리소스 접근 권한<br/>(READ, WRITE, DELETE)</small>"]
+
+        U -->|"할당"| R
+        R -->|"포함"| P
+    end
 ```
 
 #### 본 시스템의 RBAC 구현 구조
@@ -1547,20 +1526,18 @@ export const useIdleTimeout = () => {
 
 ### 9.1 역할 계층 구조
 
-```
-                    ┌─────────┐
-                    │  ADMIN  │
-                    └────┬────┘
-                         │
-                         ▼
-              ┌─────────────────────┐
-              │  KNOWLEDGE_MANAGER  │
-              └──────────┬──────────┘
-                         │
-                         ▼
-                    ┌─────────┐
-                    │  USER   │
-                    └─────────┘
+```mermaid
+flowchart TD
+    ADMIN["🛡️ ADMIN<br/><small>시스템 관리자</small>"]
+    KM["📚 KNOWLEDGE_MANAGER<br/><small>지식 관리자</small>"]
+    USER["👤 USER<br/><small>일반 사용자</small>"]
+
+    ADMIN --> KM
+    KM --> USER
+
+    style ADMIN fill:#e74c3c,color:#fff
+    style KM fill:#f39c12,color:#fff
+    style USER fill:#3498db,color:#fff
 ```
 
 ### 9.2 권한 매트릭스
@@ -1932,50 +1909,36 @@ Keycloak Admin Console
 
 #### 9.6.1 전체 흐름도
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           RBAC 인증/인가 흐름                                │
-└─────────────────────────────────────────────────────────────────────────────┘
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Client (React)
+    participant K as Keycloak
+    participant B as SpringBoot Backend
 
-  [1] 로그인                    [2] 역할 포함 토큰 발급
-  ┌──────────┐                 ┌────────────────┐
-  │  Client  │────────────────▶│    Keycloak    │
-  │ (React)  │                 │                │
-  └──────────┘                 └────────────────┘
-       │                              │
-       │                              │ JWT (roles: ["KNOWLEDGE_MANAGER"])
-       │                              ▼
-       │                       ┌────────────────┐
-       │                       │   JWT Token    │
-       │                       │ {              │
-       │                       │   sub: "uuid", │
-       │                       │   realm_access:│
-       │                       │   { roles:[..]}│
-       │                       │ }              │
-       │                       └────────────────┘
-       │                              │
-  [3] API 요청 (with JWT)             │
-       │◀─────────────────────────────┘
-       │
-       ▼
-  ┌──────────────────────────────────────────────────────────────────────────┐
-  │                         SpringBoot Backend                               │
-  ├──────────────────────────────────────────────────────────────────────────┤
-  │                                                                          │
-  │  [4] JwtAuthFilter          [5] SecurityConfig       [6] @PreAuthorize   │
-  │  ┌─────────────────┐       ┌─────────────────┐      ┌─────────────────┐  │
-  │  │ JWT 파싱/검증    │──────▶│ URL 패턴 권한   │─────▶│ 메서드 레벨     │  │
-  │  │ 역할 추출        │       │ 체크            │      │ 권한 체크       │  │
-  │  └─────────────────┘       └─────────────────┘      └─────────────────┘  │
-  │         │                         │                        │             │
-  │         ▼                         ▼                        ▼             │
-  │  roles 추출됨              /admin/** → ADMIN만      @PreAuthorize(...)   │
-  │  ["KNOWLEDGE_MANAGER"]     /api/** → 인증 필요      권한 조건 평가        │
-  │                                                                          │
-  └──────────────────────────────────────────────────────────────────────────┘
-                                       │
-                                       ▼
-                               [7] 비즈니스 로직 실행 또는 403 반환
+    rect rgb(240, 248, 255)
+        Note over C,K: 1. 인증 단계
+        C->>K: 로그인 요청
+        K-->>C: JWT Token 발급<br/>{roles: ["KNOWLEDGE_MANAGER"]}
+    end
+
+    rect rgb(255, 248, 240)
+        Note over C,B: 2. API 요청 단계
+        C->>B: API 요청 (Authorization: Bearer JWT)
+    end
+
+    rect rgb(240, 255, 240)
+        Note over B: 3. 권한 검증 단계 (SpringBoot Backend)
+        B->>B: [4] JwtAuthFilter<br/>JWT 파싱/검증, 역할 추출
+        B->>B: [5] SecurityConfig<br/>URL 패턴 권한 체크<br/>(/admin/** → ADMIN만)
+        B->>B: [6] @PreAuthorize<br/>메서드 레벨 권한 체크
+    end
+
+    alt 권한 검증 성공
+        B-->>C: [7] 비즈니스 로직 실행 결과
+    else 권한 검증 실패
+        B-->>C: 403 Forbidden
+    end
 ```
 
 #### 9.6.2 역할별 사용 시나리오

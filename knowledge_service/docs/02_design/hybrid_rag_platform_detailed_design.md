@@ -3666,29 +3666,27 @@ graph LR
 
 기존 StateGraph는 순차적으로 각 단계를 실행하지만, ReAct Agent는 지능적으로 작업을 분해하고 병렬 처리합니다.
 
-```
-[기존 StateGraph 방식 - 복잡 쿼리]
+```mermaid
+gantt
+    title StateGraph vs ReAct Agent 성능 비교 (복잡 쿼리)
+    dateFormat X
+    axisFormat %s초
 
-1. 벡터 검색 실행 ────────────────────▶ 3초
-2. 결과 분석 후 그래프 검색 필요 판단 ─▶ 1초
-3. 그래프 검색 실행 ──────────────────▶ 3초
-4. 시계열 필터 필요 판단 ──────────────▶ 1초
-5. 시계열 필터 실행 ──────────────────▶ 2초
-                              ─────────────
-                              합계: 10초+ (순차적)
-```
+    section StateGraph (순차)
+    벡터 검색        :s1, 0, 3
+    결과 분석        :s2, after s1, 1
+    그래프 검색      :s3, after s2, 3
+    시계열 판단      :s4, after s3, 1
+    시계열 필터      :s5, after s4, 2
+    합계 10초+ :milestone, m1, after s5, 0
 
-```
-[ReAct Agent 방식 - 복잡 쿼리]
-
-1. 쿼리 분석 + 작업 분해 (write_todos) ▶ 1초
-2. 도구 병렬 호출:
-   ├─ vector_search ──────────────────▶ ┐
-   ├─ graph_traversal ────────────────▶ ├─ 3초 (병렬)
-   └─ temporal_filter ────────────────▶ ┘
-3. 결과 통합 + 답변 생성 ──────────────▶ 1초
-                              ─────────────
-                              합계: 5초 (병렬 + 지능적)
+    section ReAct Agent (병렬)
+    쿼리 분석/분해   :r1, 0, 1
+    벡터 검색        :r2, after r1, 3
+    그래프 탐색      :r3, after r1, 3
+    시계열 필터      :r4, after r1, 3
+    결과 통합        :r5, after r4, 1
+    합계 5초 :milestone, m2, after r5, 0
 ```
 
 **정확도 개선 원리**

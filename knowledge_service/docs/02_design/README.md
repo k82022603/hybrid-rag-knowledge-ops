@@ -115,7 +115,8 @@ UI 스토리보드 및 프레젠테이션
 | authentication_authorization_detailed_design | 1.1 | 2026-01-17 |
 | observability_detailed_design | 1.0 | 2026-01-17 |
 | integrated_detailed_design | 1.1 | 2026-01-17 |
-| backend_detailed_design | 1.1 | 2026-01-17 |
-| frontend_detailed_design | 1.1 | 2026-01-17 |
+| backend_detailed_design | 1.2 | 2026-01-17 |
+| frontend_detailed_design | 1.2 | 2026-01-17 |
+| ui_design_system_guide | 1.1 | 2026-01-17 |
 | error_code_standards | 1.1 | 2026-01-17 |
 | 기타 문서 | 1.0 | 2026-01-15~16 |

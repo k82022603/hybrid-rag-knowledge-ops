@@ -193,20 +193,26 @@ flowchart TB
 
 ### 2.3 의존성 규칙
 
+```mermaid
+flowchart LR
+    subgraph layers["계층형 아키텍처 의존성 방향"]
+        P["🖥️ Presentation<br/><small>Controller</small>"]
+        A["⚙️ Application<br/><small>Service</small>"]
+        D["💎 Domain<br/><small>Entity</small>"]
+        I["🗄️ Infrastructure<br/><small>Repository</small>"]
+
+        P --> A
+        A --> D
+        I -.->|"구현"| D
+    end
+
+    style D fill:#e8f5e9,stroke:#2e7d32
+    style I fill:#fff3e0,stroke:#ef6c00
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      의존성 방향                             │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│   Presentation → Application → Domain ← Infrastructure     │
-│                                                             │
-│   [Controller] → [Service] → [Entity] ← [Repository]       │
-│                                                             │
-│   ※ Domain 레이어는 다른 레이어에 의존하지 않음              │
-│   ※ Infrastructure는 Domain의 인터페이스를 구현             │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+
+> **Note**
+> - Domain 레이어는 다른 레이어에 의존하지 않음
+> - Infrastructure는 Domain의 인터페이스를 구현 (의존성 역전)
 
 ---
 
