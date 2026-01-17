@@ -671,7 +671,12 @@ CI/CD Pipeline (GitHub Actions)
   - Backend: SSE 스트리밍, Prometheus 메트릭, Saga 패턴, Rate Limiting, Liquibase, Grafana
   - Frontend: WebSocket 통신, MSW API Mocking, Bundle 최적화, Storybook, PWA, CI/CD
   - UI Design System: 복합 컴포넌트 5종, 반응형 사이드바, 모달 스택, Markdown 렌더러, 차트 시각화
-- **Mermaid 다이어그램 15개+ 추가**
+- **Mermaid 다이어그램 21개+ 추가** (오전 15개 + 저녁 6개)
+- **텍스트 도식 → Mermaid 변환** (저녁 세션)
+  - authentication_authorization: 로그아웃 플로우, RBAC 구성요소, 역할 계층, 인증/인가 흐름
+  - backend: 계층 아키텍처 의존성 방향
+  - hybrid_rag_platform: StateGraph vs ReAct 성능 비교 (gantt)
+- **02_design README 현행화**: 버전 정보 업데이트
 - **작업 일지 & 바이브 코딩 일지 작성**
 - **Phase 2 진행률**: 95% → 100% 완료 ✅
 - **다음 단계**: 인력 확보 및 역할 배정 후 Phase 3 착수
