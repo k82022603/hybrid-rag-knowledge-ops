@@ -1,6 +1,6 @@
 ---
 description: OWASP Top 10 보안 취약점 스캔
-model: claude-sonnet-4-0
+model: claude-opus-4-5-20251101  # 비용 최적화: claude-sonnet-4-1 | 균형: claude-opus-4-1
 ---
 description: OWASP Top 10 보안 취약점 스캔
 

@@ -1,6 +1,6 @@
 ---
 description: TDD 자동화 (Red-Green-Refactor)
-model: claude-opus-4-1
+model: claude-opus-4-5-20251101  # 비용 최적화: claude-sonnet-4-1 | 균형: claude-opus-4-1
 ---
 
 Execute a comprehensive Test-Driven Development (TDD) workflow with strict red-green-refactor discipline:

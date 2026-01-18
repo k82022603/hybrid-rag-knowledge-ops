@@ -1,6 +1,6 @@
 ---
 description: 보안 강화 워크플로우
-model: claude-opus-4-1
+model: claude-opus-4-5-20251101  # 비용 최적화: claude-sonnet-4-1 | 균형: claude-opus-4-1
 ---
 
 Implement security-first architecture and hardening measures with coordinated agent orchestration:

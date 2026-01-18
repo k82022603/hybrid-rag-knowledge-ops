@@ -1,6 +1,6 @@
 ---
 description: API 및 코드 문서 자동 생성
-model: claude-sonnet-4-0
+model: claude-opus-4-5-20251101  # 비용 최적화: claude-sonnet-4-1 | 균형: claude-opus-4-1
 ---
 description: API 및 코드 문서 자동 생성
 

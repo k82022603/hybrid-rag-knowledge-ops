@@ -1,6 +1,6 @@
 ---
 description: 종합 코드 리뷰
-model: claude-opus-4-1
+model: claude-opus-4-5-20251101  # 비용 최적화: claude-sonnet-4-1 | 균형: claude-opus-4-1
 ---
 
 Perform a comprehensive review using multiple specialized agents with explicit Task tool invocations:

@@ -1,6 +1,6 @@
 ---
 description: 기능 개발 전체 사이클 (설계-구현-테스트-배포)
-model: claude-opus-4-1
+model: claude-opus-4-5-20251101  # 비용 최적화: claude-sonnet-4-1 | 균형: claude-opus-4-1
 ---
 
 Implement a new feature using specialized agents with explicit Task tool invocations:

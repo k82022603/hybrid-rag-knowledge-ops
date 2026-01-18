@@ -1,6 +1,6 @@
 ---
 description: 지능형 문제 해결 (자동 에이전트 선택)
-model: claude-opus-4-1
+model: claude-opus-4-5-20251101  # 비용 최적화: claude-sonnet-4-1 | 균형: claude-opus-4-1
 ---
 
 Intelligently fix the issue using automatic agent selection with explicit Task tool invocations:

@@ -27,7 +27,14 @@
       "Bash(.venv/bin/pip:*)",
       "Bash(.venv/bin/python:*)",
       "WebFetch(domain:arxiv.org)",
-      "Bash(wc:*)"
+      "Bash(wc:*)",
+      "Bash(for file in /mnt/d/Users/KTDS/Documents/06.과제/hybrid-rag-knowledge-ops/knowledge_service/docs/02_design/{hybrid_rag_platform_detailed_design,backend_detailed_design,frontend_detailed_design,infrastructure_detailed_design,api_integration_design,devops_detailed_design,observability_detailed_design,authentication_authorization_detailed_design}.md)",
+      "Bash(do if [ -f $file ])",
+      "Bash(then echo '=== $\\(basename $file\\) ===' grep -n \"┌\\\\|├\\\\|└\\\\|│\\\\|─\\\\|┐\\\\|┤\\\\|┘\" $file)",
+      "Bash(ls:*)",
+      "WebFetch(domain:pypi.org)",
+      "Bash(chmod:*)",
+      "Skill(daily:daily-close)"
     ]
   }
 }

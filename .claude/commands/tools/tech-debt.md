@@ -1,6 +1,6 @@
 ---
 description: 기술 부채 분석 및 개선 계획
-model: claude-sonnet-4-0
+model: claude-opus-4-5-20251101  # 비용 최적화: claude-sonnet-4-1 | 균형: claude-opus-4-1
 ---
 description: 기술 부채 분석 및 개선 계획
 

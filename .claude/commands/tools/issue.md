@@ -1,6 +1,6 @@
 ---
 description: GitHub 이슈 분석 및 수정
-model: claude-sonnet-4-0
+model: claude-opus-4-5-20251101  # 비용 최적화: claude-sonnet-4-1 | 균형: claude-opus-4-1
 ---
 description: GitHub 이슈 분석 및 수정
 

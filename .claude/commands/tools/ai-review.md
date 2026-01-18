@@ -1,6 +1,6 @@
 ---
 description: AI/ML 코드 리뷰 (LLM, Vector DB, RAG)
-model: claude-sonnet-4-0
+model: claude-opus-4-5-20251101  # 비용 최적화: claude-sonnet-4-1 | 균형: claude-opus-4-1
 ---
 
 # AI/ML Code Review

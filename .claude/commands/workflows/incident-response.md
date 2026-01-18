@@ -1,6 +1,6 @@
 ---
 description: 장애 대응 프로세스
-model: claude-opus-4-1
+model: claude-opus-4-5-20251101  # 비용 최적화: claude-sonnet-4-1 | 균형: claude-opus-4-1
 ---
 
 Respond to production incidents with coordinated agent expertise for rapid resolution:

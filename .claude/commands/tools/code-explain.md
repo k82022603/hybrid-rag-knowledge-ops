@@ -1,6 +1,6 @@
 ---
 description: 코드 설명 및 문서화 생성
-model: claude-sonnet-4-0
+model: claude-opus-4-5-20251101  # 비용 최적화: claude-sonnet-4-1 | 균형: claude-opus-4-1
 ---
 description: 코드 설명 및 문서화 생성
 

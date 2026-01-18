@@ -1,6 +1,6 @@
 ---
 description: 프로젝트 컨텍스트 저장
-model: claude-sonnet-4-0
+model: claude-opus-4-5-20251101  # 비용 최적화: claude-sonnet-4-1 | 균형: claude-opus-4-1
 ---
 description: 프로젝트 컨텍스트 저장
 
