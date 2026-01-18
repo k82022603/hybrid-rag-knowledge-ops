@@ -2,7 +2,7 @@
 
 🤖 Hybrid RAG Knowledge Operations 프로젝트 개발 규칙
 
-**Version**: 2.6 | **Updated**: 2026-01-17
+**Version**: 2.7 | **Updated**: 2026-01-18
 
 ---
 
@@ -198,4 +198,7 @@ api_key = "sk-xxx..."  # 하드코딩 절대 금지
 - [기술 검토 문서](./knowledge_service/docs/02_design/technical_assessment/) - Gleaning, K8s 백업 등
 - [Claude Commands README](./.claude/commands/README.md) - 설치된 명령어 전체 목록
 - [개발자 에이전트 가이드](./knowledge_service/docs/05_development/developer_agent_guide.md) - AI 에이전트 도구 사용법 ⭐
+- [개발자 통합 가이드](./knowledge_service/docs/05_development/developer_integration_guide.md) - MCP/Agent/Skills 설정 ⭐
 - [테스트 계획서](./knowledge_service/docs/04_testing/unit_integration_test_plan.md) - TDD/Test-Along 기준
+- [백로그 관리 가이드](./backlog/README.md) - Jira-free 백로그 관리
+- [ALM 완전가이드](./docs/claude_code_virtual_team_alm_guide/) - 가상팀 협업 가이드 (4개 문서)
