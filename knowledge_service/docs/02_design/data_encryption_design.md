@@ -257,7 +257,7 @@ graph TB
     subgraph "Key Management"
         KMS[키 관리 시스템]
         KMS --> VAULT[HashiCorp Vault]
-        KMS --> HSM[HSM (선택)]
+        KMS --> HSM["HSM (선택)"]
     end
 
     FE --> KMS

@@ -3,9 +3,9 @@
 | 항목 | 내용 |
 |------|------|
 | **프로젝트** | Hybrid RAG Knowledge Operations Platform |
-| **버전** | 2.1 |
+| **버전** | 3.0 |
 | **작성일** | 2026-01-16 |
-| **최종 수정** | 2026-01-16 |
+| **최종 수정** | 2026-01-18 |
 | **작성자** | Claude AI Architect |
 
 ---
@@ -19,9 +19,10 @@
 5. [RAG 성능 평가 용어](#5-rag-성능-평가-용어)
 6. [DevOps 용어](#6-devops-용어)
 7. [보안 용어](#7-보안-용어)
-8. [프론트엔드 용어](#8-프론트엔드-용어)
-9. [약어 목록](#9-약어-목록)
-10. [용어 사용 규칙](#10-용어-사용-규칙)
+8. [Observability 용어](#8-observability-용어)
+9. [프론트엔드 용어](#9-프론트엔드-용어)
+10. [약어 목록](#10-약어-목록)
+11. [용어 사용 규칙](#11-용어-사용-규칙)
 
 ---
 
@@ -311,10 +312,16 @@
 | 이미지 | Image | 컨테이너 실행을 위한 템플릿 | Docker |
 | Dockerfile | Dockerfile | 이미지 빌드 스크립트 | Docker |
 | 레지스트리 | Registry | 이미지 저장소 | Docker Hub, GitLab |
-| 볼륨 | Volume | 컨테이너 영속 저장소 | Docker Volume |
+| 볼륨 | Volume | 컨테이너 영속 저장소 (호스트와 데이터 공유) | Docker Volume |
 | 네트워크 | Network | 컨테이너 간 통신 네트워크 | Docker Network |
-| Docker Compose | Docker Compose | 멀티 컨테이너 오케스트레이션 | docker-compose.yml |
+| 브릿지 네트워크 | Bridge Network | Docker 기본 네트워크 드라이버 (컨테이너 간 통신) | Docker |
+| 내부 네트워크 | Internal Network | 외부 접근 불가능한 격리 네트워크 | Docker |
+| Docker Compose | Docker Compose | 멀티 컨테이너 정의/실행 도구 (yaml 기반) | docker-compose.yml |
 | 서비스 | Service (Docker) | Compose에서 정의된 컨테이너 단위 | Docker Compose |
+| 헬스 체크 | Health Check | 컨테이너/서비스 상태 자동 확인 | Docker Compose |
+| 롤링 업데이트 | Rolling Update | 무중단 배포로 서비스 업데이트 | Docker Compose |
+| MinIO | MinIO | S3 호환 오브젝트 스토리지 (데이터 저장소) | 파일 저장 |
+| 컨테이너 오케스트레이션 | Container Orchestration | 여러 컨테이너 자동 관리/배포/스케일링 | Docker Compose, K8s |
 
 ### 6.4 빌드 도구
 
@@ -355,6 +362,17 @@
 | 리프레시 토큰 | Refresh Token | 액세스 토큰 갱신용 장기 토큰 | - |
 | RBAC | Role-Based Access Control | 역할 기반 접근 제어 | Spring Security |
 | ABAC | Attribute-Based Access Control | 속성 기반 접근 제어 | - |
+| IdP | Identity Provider | 사용자 인증을 담당하는 시스템 | Keycloak |
+| SP | Service Provider | 인증된 사용자에게 서비스 제공하는 시스템 | Backend |
+| Realm | Realm (Keycloak) | Keycloak의 격리된 조직/테넌트 단위 | Keycloak |
+| Federation | Federation | 외부 IdP (Azure AD 등)와 Keycloak 연동 | Keycloak |
+| PKCE | Proof Key for Code Exchange | Authorization Code 탈취 방지 메커니즘 | OAuth 2.0 |
+| Bearer Token | Bearer Token | HTTP Authorization 헤더에 사용되는 토큰 형식 | JWT |
+| Grant Type | Grant Type | OAuth 2.0 토큰 발급 방식 | OAuth 2.0 |
+| Client Credentials | Client Credentials | 서비스 간 인증 (사용자 없이 클라이언트만) | OAuth 2.0 |
+| SAML | Security Assertion Markup Language | XML 기반 인증/인가 프로토콜 | Keycloak |
+| LDAP | Lightweight Directory Access Protocol | 디렉토리 서비스 프로토콜 (AD 연동) | Keycloak |
+| MFA | Multi-Factor Authentication | 다중 인증 (2FA, TOTP 등) | Keycloak |
 
 ### 7.2 암호화
 
@@ -365,10 +383,20 @@
 | 해시 | Hash | 단방향 암호화 (복호화 불가) | SHA-256 |
 | 솔트 | Salt | 해시 강화를 위한 랜덤 값 | bcrypt |
 | TLS | Transport Layer Security | 전송 구간 암호화 | HTTPS |
+| mTLS | mutual TLS | 클라이언트와 서버 양방향 인증서 인증 | 서비스 간 통신 |
 | 봉투 암호화 | Envelope Encryption | 데이터 키를 마스터 키로 암호화 | Vault |
 | KMS | Key Management Service | 암호화 키 관리 서비스 | Vault |
 | DEK | Data Encryption Key | 데이터 암호화 키 | - |
 | KEK | Key Encryption Key | 키 암호화 키 (마스터 키) | - |
+| AES-GCM | AES-256-GCM | 인증 암호화 모드 (AEAD), 무결성 검증 포함 | 필드 암호화 |
+| TDE | Transparent Data Encryption | DB 저장 데이터 자동 암호화/복호화 | PostgreSQL, ES |
+| 키 래핑 | Key Wrapping (AES-KW) | 암호화 키를 마스터 키로 암호화하는 기법 | Vault |
+| 키 교체 | Key Rotation | 주기적 암호화 키 변경 (월/분기/연간) | Vault |
+| HSM | Hardware Security Module | 암호화 키를 안전하게 저장/관리하는 하드웨어 | Vault 연동 |
+| HSTS | HTTP Strict Transport Security | 브라우저에 HTTPS만 사용하도록 강제 | Nginx |
+| OCSP Stapling | OCSP Stapling | 인증서 유효성 검사를 미리 수행하여 성능 개선 | TLS 설정 |
+| Vault | HashiCorp Vault | 시크릿/암호화 키 관리 시스템 | 키 관리 |
+| Transit Engine | Transit Engine | Vault의 암호화/복호화 서비스 엔진 | Vault |
 
 ### 7.3 보안 취약점
 
@@ -382,9 +410,76 @@
 
 ---
 
-## 8. 프론트엔드 용어
+## 8. Observability 용어
 
-### 8.1 React/웹 기본
+### 8.1 개념
+
+| 용어 (한글) | 용어 (영문) | 정의 | 관련 기술 |
+|-------------|-------------|------|-----------|
+| 관측 가능성 | Observability | 메트릭, 로그, 트레이스를 통한 시스템 상태 관측 능력 | - |
+| 3대 기둥 | Three Pillars | Metrics + Logs + Traces (관측 가능성의 3대 요소) | - |
+| 메트릭 | Metrics | 시간에 따른 수치 측정값 (CPU, 메모리, 요청 수 등) | Prometheus |
+| 로그 | Logs | 시스템에서 발생하는 이벤트 기록 | Loki |
+| 트레이스 | Traces | 분산 시스템에서 요청의 전체 흐름 추적 | Jaeger |
+
+### 8.2 메트릭
+
+| 용어 (한글) | 용어 (영문) | 정의 | 관련 기술 |
+|-------------|-------------|------|-----------|
+| Prometheus | Prometheus | 시계열 메트릭 수집/저장 도구 | TSDB |
+| Grafana | Grafana | 메트릭/로그/트레이스 시각화 대시보드 | - |
+| PromQL | PromQL | Prometheus 메트릭 쿼리 언어 | Prometheus |
+| Counter | Counter | 누적값만 증가하는 메트릭 유형 | Prometheus |
+| Gauge | Gauge | 현재 값을 나타내는 메트릭 유형 (증감 가능) | Prometheus |
+| Histogram | Histogram | 데이터 분포를 버킷별로 측정하는 메트릭 유형 | Prometheus |
+| Recording Rule | Recording Rules | 미리 계산된 메트릭 규칙 | Prometheus |
+| TSDB | Time Series Database | 시계열 데이터 저장소 | Prometheus |
+| AlertManager | AlertManager | Prometheus 알림 라우팅/집계/발송 시스템 | Prometheus |
+| Micrometer | Micrometer | Java 애플리케이션 메트릭 수집 라이브러리 | SpringBoot |
+
+### 8.3 로그
+
+| 용어 (한글) | 용어 (영문) | 정의 | 관련 기술 |
+|-------------|-------------|------|-----------|
+| Loki | Loki | 로그 집계 및 쿼리 엔진 (Grafana 스택) | Grafana |
+| Promtail | Promtail | 로그 수집기 (Loki로 전송) | Loki |
+| LogQL | LogQL | Loki 로그 쿼리 언어 | Loki |
+| MDC | Mapped Diagnostic Context | 로그에 자동으로 추가되는 컨텍스트 (TraceId 등) | Logback |
+
+### 8.4 분산 트레이싱
+
+| 용어 (한글) | 용어 (영문) | 정의 | 관련 기술 |
+|-------------|-------------|------|-----------|
+| 분산 트레이싱 | Distributed Tracing | 마이크로서비스 간 요청 흐름 추적 | Jaeger |
+| Jaeger | Jaeger | 분산 트레이싱 시스템 | OpenTelemetry |
+| Span | Span | 트레이스의 단일 작업 단위 (시작-종료 시간 포함) | Jaeger |
+| TraceId | Trace ID | 전체 요청의 고유 식별자 (모든 Span 연결) | Jaeger |
+| SpanId | Span ID | 개별 Span의 고유 식별자 | Jaeger |
+| OpenTelemetry | OpenTelemetry (OTEL) | 메트릭/로그/트레이스 표준화 API/SDK | - |
+| OTLP | OpenTelemetry Protocol | 텔레메트리 데이터 전송 프로토콜 | OpenTelemetry |
+
+### 8.5 SLO/SLA
+
+| 용어 (한글) | 용어 (영문) | 정의 | 관련 기술 |
+|-------------|-------------|------|-----------|
+| SLO | Service Level Objective | 서비스 품질 목표 (99.9% 가용성 등) | - |
+| SLA | Service Level Agreement | 서비스 수준 협약 (계약적 보장) | - |
+| SLI | Service Level Indicator | 서비스 수준 지표 (실제 측정값) | - |
+| Error Budget | Error Budget | SLO 달성을 위한 허용 가능한 오류/다운타임 | - |
+
+### 8.6 모니터링 도구
+
+| 용어 (한글) | 용어 (영문) | 정의 | 관련 기술 |
+|-------------|-------------|------|-----------|
+| cAdvisor | cAdvisor | 컨테이너 메트릭 수집기 | Docker |
+| Node Exporter | Node Exporter | 호스트 시스템 메트릭 수집기 | Prometheus |
+| PagerDuty | PagerDuty | 온콜 관리/인시던트 대응 플랫폼 | AlertManager |
+
+---
+
+## 9. 프론트엔드 용어
+
+### 9.1 React/웹 기본
 
 | 용어 (한글) | 용어 (영문) | 정의 | 관련 기술 |
 |-------------|-------------|------|-----------|
@@ -396,7 +491,7 @@
 | 가상 DOM | Virtual DOM | 메모리 상의 UI 표현 | React |
 | SPA | Single Page Application | 단일 페이지 애플리케이션 | React Router |
 
-### 8.2 상태 관리
+### 9.2 상태 관리
 
 | 용어 (한글) | 용어 (영문) | 정의 | 관련 기술 |
 |-------------|-------------|------|-----------|
@@ -406,7 +501,7 @@
 | 옵티미스틱 업데이트 | Optimistic Update | 서버 응답 전 UI 선 반영 | TanStack Query |
 | 스토어 | Store | 상태 저장소 | Zustand |
 
-### 8.3 스타일링
+### 9.3 스타일링
 
 | 용어 (한글) | 용어 (영문) | 정의 | 관련 기술 |
 |-------------|-------------|------|-----------|
@@ -417,7 +512,7 @@
 | 다크 모드 | Dark Mode | 어두운 색상 테마 | prefers-color-scheme |
 | 접근성 | Accessibility (a11y) | 장애인도 사용 가능한 UI | WCAG |
 
-### 8.4 빌드/번들링
+### 9.4 빌드/번들링
 
 | 용어 (한글) | 용어 (영문) | 정의 | 관련 기술 |
 |-------------|-------------|------|-----------|
@@ -429,9 +524,9 @@
 
 ---
 
-## 9. 약어 목록
+## 10. 약어 목록
 
-### 9.1 기술 약어
+### 10.1 기술 약어
 
 | 약어 | 전체 표현 | 한글 설명 |
 |------|-----------|-----------|
@@ -451,8 +546,19 @@
 | ABAC | Attribute-Based Access Control | 속성 기반 접근 제어 |
 | JSON | JavaScript Object Notation | 자바스크립트 객체 표기법 |
 | YAML | YAML Ain't Markup Language | YAML 데이터 직렬화 형식 |
+| mTLS | mutual TLS | 상호 TLS (양방향 인증) |
+| TDE | Transparent Data Encryption | 투명 데이터 암호화 |
+| GCM | Galois/Counter Mode | AES 인증 암호화 모드 |
+| HSTS | HTTP Strict Transport Security | HTTP 엄격 전송 보안 |
+| HSM | Hardware Security Module | 하드웨어 보안 모듈 |
+| IdP | Identity Provider | ID 제공자 |
+| SP | Service Provider | 서비스 제공자 |
+| PKCE | Proof Key for Code Exchange | 코드 교환 증명 키 |
+| MFA | Multi-Factor Authentication | 다중 인증 |
+| SAML | Security Assertion Markup Language | 보안 어설션 마크업 언어 |
+| LDAP | Lightweight Directory Access Protocol | 경량 디렉토리 액세스 프로토콜 |
 
-### 9.2 데이터베이스 약어
+### 10.2 데이터베이스 약어
 
 | 약어 | 전체 표현 | 한글 설명 |
 |------|-----------|-----------|
@@ -466,7 +572,7 @@
 | SQL | Structured Query Language | 구조화 질의 언어 |
 | ACID | Atomicity, Consistency, Isolation, Durability | 원자성, 일관성, 격리성, 지속성 |
 
-### 9.3 인프라/DevOps 약어
+### 10.3 인프라/DevOps 약어
 
 | 약어 | 전체 표현 | 한글 설명 |
 |------|-----------|-----------|
@@ -483,7 +589,7 @@
 | SSH | Secure Shell | 보안 셸 |
 | SCP | Secure Copy Protocol | 보안 복사 프로토콜 |
 
-### 9.4 모니터링/성능 약어
+### 10.4 모니터링/Observability 약어
 
 | 약어 | 전체 표현 | 한글 설명 |
 |------|-----------|-----------|
@@ -499,8 +605,12 @@
 | SLO | Service Level Objective | 서비스 수준 목표 |
 | SLA | Service Level Agreement | 서비스 수준 협약 |
 | SLI | Service Level Indicator | 서비스 수준 지표 |
+| OTEL | OpenTelemetry | 관측 가능성 표준 프레임워크 |
+| OTLP | OpenTelemetry Protocol | 텔레메트리 데이터 전송 프로토콜 |
+| MDC | Mapped Diagnostic Context | 매핑된 진단 컨텍스트 (로깅) |
+| TSDB | Time Series Database | 시계열 데이터베이스 |
 
-### 9.5 AI/ML 약어
+### 10.5 AI/ML 약어
 
 | 약어 | 전체 표현 | 한글 설명 |
 |------|-----------|-----------|
@@ -514,7 +624,7 @@
 | GPU | Graphics Processing Unit | 그래픽 처리 장치 |
 | TPU | Tensor Processing Unit | 텐서 처리 장치 |
 
-### 9.6 프로젝트 특화 약어
+### 10.6 프로젝트 특화 약어
 
 | 약어 | 전체 표현 | 한글 설명 |
 |------|-----------|-----------|
@@ -531,16 +641,16 @@
 
 ---
 
-## 10. 용어 사용 규칙
+## 11. 용어 사용 규칙
 
-### 10.1 일반 규칙
+### 11.1 일반 규칙
 
 1. **한글 우선**: 문서에서는 한글 용어를 우선 사용
 2. **영문 병기**: 최초 사용 시 한글(영문) 형식으로 표기
 3. **약어 정의**: 약어 최초 사용 시 전체 표현 병기
 4. **일관성**: 동일 문서 내에서 동일 용어 사용
 
-### 10.2 코드 규칙
+### 11.2 코드 규칙
 
 ```python
 # Python 코드 내 용어 사용
@@ -564,7 +674,7 @@ answer_relevance = 0.78
 context_relevance = 0.72
 ```
 
-### 10.3 API 규칙
+### 11.3 API 규칙
 
 ```yaml
 # API 경로: 영문 소문자 + 하이픈
@@ -581,7 +691,7 @@ context_relevance = 0.72
 }
 ```
 
-### 10.4 문서 작성 예시
+### 11.4 문서 작성 예시
 
 ```markdown
 ## 좋은 예시
@@ -604,6 +714,7 @@ RAG 시스템의 Faithfulness는 생성된 answer가 검색된 context에
 | 1.0 | 2026-01-16 | 초기 작성 | Claude AI |
 | 2.0 | 2026-01-16 | RAG 성능 평가, DevOps, 보안, 프론트엔드 용어 추가 | Claude AI |
 | 2.1 | 2026-01-16 | Gleaning, max_gleanings 용어 추가 | Claude AI |
+| 3.0 | 2026-01-18 | 대규모 현행화: Observability 섹션 신규 추가 (37개 용어), 인증/보안/암호화 용어 확장 (22개), 인프라/컨테이너 용어 확장 (6개), 약어 18개 추가 | Claude AI |
 
 ---
 

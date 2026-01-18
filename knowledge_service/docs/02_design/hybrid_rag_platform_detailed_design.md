@@ -272,9 +272,9 @@ graph TB
 ```mermaid
 flowchart LR
     subgraph SB["SpringBoot<br/>WebClient"]
-        S1[/search]
-        S2[/extract]
-        S3[/embed]
+        S1["/search"]
+        S2["/extract"]
+        S3["/embed"]
     end
 
     subgraph AI["AI Service<br/>FastAPI"]
@@ -472,9 +472,9 @@ Gleaning은 Microsoft GraphRAG에서 검증된 다중 추출(Multi-pass Extracti
 flowchart TB
     subgraph "Gleaning 프로세스"
         A[텍스트 청크 입력] --> B[1차 추출<br/>Primary Extraction]
-        B --> C{완료 확인<br/>"모든 엔티티 추출?"}
+        B --> C{완료 확인<br/>모든 엔티티 추출?}
         C -->|Yes| E[결과 병합 및 반환]
-        C -->|No| D[Gleaning 패스<br/>"누락 엔티티 추출"]
+        C -->|No| D[Gleaning 패스<br/>누락 엔티티 추출]
         D --> F{max_gleanings<br/>도달?}
         F -->|No| C
         F -->|Yes| E
