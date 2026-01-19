@@ -4,11 +4,11 @@
 
 | 항목 | 값 |
 |------|-----|
-| **Jira ID** | - (미등록) |
+| **Jira ID** | SCRUM-5 |
 | **Status** | ready |
 | **Priority** | Critical |
 | **Owner** | TBD |
-| **Target Sprint** | Sprint 1-2 |
+| **Target Sprint** | Sprint 2 |
 | **Total Story Points** | 34 |
 
 ---
@@ -32,23 +32,23 @@
 - Knowledge Graph 자동 생성으로 문서 간 관계 추출
 
 ### 성공 지표
-- [ ] 문서 파싱 정확도 ≥ 97%
+- [ ] 문서 파싱 정확도 >= 97%
 - [ ] 평균 처리 시간 < 30초/문서
-- [ ] 청크 품질 점수 ≥ 0.85
+- [ ] 청크 품질 점수 >= 0.85
 - [ ] 고아 노드 비율 < 1%
 
 ---
 
 ## User Stories
 
-| ID | 제목 | Points | Status | Sprint |
-|----|------|--------|--------|--------|
-| STORY-001 | 문서 업로드 API | 3 | draft | 1 |
-| STORY-002 | Docling 문서 파싱 | 8 | draft | 1 |
-| STORY-003 | Semantic Chunking | 8 | draft | 1 |
-| STORY-004 | BGE-M3 임베딩 생성 | 5 | draft | 2 |
-| STORY-005 | Knowledge Graph 엔티티 추출 | 5 | draft | 2 |
-| STORY-006 | Neo4j/ES 저장 | 5 | draft | 2 |
+| ID | Jira | 제목 | Points | Status | Sprint |
+|----|------|------|--------|--------|--------|
+| STORY-001 | SCRUM-6 | 문서 업로드 API | 3 | To Do | 2 |
+| STORY-002 | SCRUM-7 | Docling 문서 파싱 | 8 | To Do | 2 |
+| STORY-003 | SCRUM-8 | Semantic Chunking | 8 | To Do | 2 |
+| STORY-004 | - | BGE-M3 임베딩 생성 | 5 | draft | 3 |
+| STORY-005 | - | Knowledge Graph 엔티티 추출 | 5 | draft | 3 |
+| STORY-006 | - | Neo4j/ES 저장 | 5 | draft | 3 |
 
 ---
 
@@ -102,6 +102,15 @@
 | 단일 문서 처리 | < 30초 |
 | 배치 처리 (100개) | < 10분 |
 | 동시 처리 | 5개 병렬 |
+
+---
+
+## 선행 조건 (Sprint 1 완료 필요)
+
+- [ ] Docker Compose 환경 구축 (STORY-010)
+- [ ] 데이터베이스 초기화 (STORY-011)
+- [ ] MinIO 스토리지 설정
+- [ ] 프로젝트 골격 생성 (STORY-013)
 
 ---
 

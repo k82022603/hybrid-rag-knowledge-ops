@@ -41,6 +41,7 @@ env/
 .env
 .env.local
 .env.*.local
+.mcp.json
 
 # Logs
 *.log
@@ -77,3 +78,4 @@ npm-debug.log
 .dockerignore
 docker-compose.override.yml
 tmpclaude-*
+.mcp.json

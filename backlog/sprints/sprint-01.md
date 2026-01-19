@@ -1,59 +1,69 @@
-# Sprint 01: Document Processing 기반 구축
+# Sprint 01: Infrastructure Setup
 
 ## 스프린트 정보
 
 | 항목 | 값 |
 |------|-----|
 | **기간** | 2026-01-20 ~ 2026-01-31 (2주) |
-| **Velocity (계획)** | 19 pts |
+| **Velocity (계획)** | 21 pts |
 | **Velocity (실제)** | - |
-| **Status** | planning |
+| **Status** | ready |
+| **Jira Sprint ID** | 3 |
 
 ---
 
 ## 스프린트 목표
 
-> **문서 업로드부터 Semantic Chunking까지의 ETL 파이프라인 1단계 완성**
+> **Docker Compose 기반 개발 환경 구축 및 프로젝트 골격 생성**
 
 핵심 목표:
-1. 다양한 형식의 문서를 업로드하고 저장하는 API 구현
-2. Docling 기반 고품질 문서 파싱 (97%+ 정확도)
-3. 의미 기반 청킹으로 검색 품질 기반 마련
+1. 18개 컨테이너 환경 구축 (docker-compose up 단일 명령)
+2. 데이터베이스 스키마 자동 초기화 (PostgreSQL, ES, Neo4j)
+3. Keycloak 인증 인프라 설정
+4. 각 서비스 프로젝트 골격 생성 및 빌드 가능 상태
 
 ---
 
 ## 백로그
 
-### Committed (19 pts)
+### Committed (21 pts)
 
-| Priority | ID | 제목 | Points | Assignee | Status |
-|----------|-----|------|--------|----------|--------|
-| P0 | STORY-001 | 문서 업로드 API | 3 | - | To Do |
-| P0 | STORY-002 | Docling 문서 파싱 | 8 | - | To Do |
-| P0 | STORY-003 | Semantic Chunking | 8 | - | To Do |
+| Priority | ID | Jira | 제목 | Points | Assignee | Status |
+|----------|-----|------|------|--------|----------|--------|
+| P0 | STORY-010 | SCRUM-10 | Docker Compose 환경 구성 | 5 | DevOps | To Do |
+| P0 | STORY-011 | SCRUM-11 | 데이터베이스 초기화 | 5 | Data | To Do |
+| P0 | STORY-012 | SCRUM-12 | 인증 인프라 (Keycloak) | 5 | Backend, DevOps | To Do |
+| P0 | STORY-013 | SCRUM-13 | 프로젝트 골격 생성 | 5 | Backend, Frontend, MLRag | To Do |
+| P1 | STORY-014 | SCRUM-14 | 개발 환경 가이드 | 1 | TechLead | To Do |
 
 ### Stretch (여유 시 추가)
 
 | ID | 제목 | Points |
 |----|------|--------|
-| - | HWP 파서 고도화 (pyhwpx 최적화) | 3 |
-| - | 업로드 진행률 WebSocket 알림 | 2 |
+| - | Observability 기본 설정 (Prometheus, Grafana) | 3 |
+| - | CI/CD 파이프라인 초기 구성 | 2 |
 
 ---
 
 ## 기술 의존성 (사전 준비)
 
-### 인프라 (Sprint 시작 전 완료 필요)
-- [ ] MinIO 컨테이너 설정
-- [ ] PostgreSQL 스키마 초기화
-- [ ] Redis 캐시 설정
-- [ ] Celery Worker 설정
+### 환경 요구사항
+- [x] Docker Desktop 설치
+- [x] Docker Compose v2 설치
+- [ ] 최소 16GB RAM (권장 32GB)
+- [ ] 50GB 디스크 공간
 
-### 개발 환경
-- [ ] Python 3.11+ 환경 구성
-- [ ] Poetry 의존성 설치
-- [ ] Docling 모델 다운로드
-- [ ] BGE-M3 모델 다운로드 (청킹용)
+### 환경 변수 (.env 파일)
+```bash
+POSTGRES_PASSWORD=
+KEYCLOAK_ADMIN_PASSWORD=
+KEYCLOAK_DB_PASSWORD=
+NEO4J_PASSWORD=
+MINIO_ROOT_USER=
+MINIO_ROOT_PASSWORD=
+GRAFANA_PASSWORD=
+DEEPSEEK_API_KEY=
+```
 
 ---
 
@@ -62,46 +72,49 @@
 ### Week 1
 
 #### Day 1 (01-20, Mon)
-- [ ] 스프린트 킥오프 미팅
-- [ ] 개발 환경 최종 점검
-- [ ] STORY-001 착수: API 엔드포인트 설계
+- [ ] 스프린트 킥오프
+- [ ] STORY-010 착수: docker-compose.yml 기본 구조
+- [ ] Application Layer 컨테이너 설정
 
 #### Day 2 (01-21, Tue)
-- [ ] STORY-001: FastAPI 엔드포인트 구현
-- [ ] STORY-001: 파일 검증 로직
+- [ ] STORY-010: Data Layer 컨테이너 설정
+- [ ] STORY-010: Observability Layer 설정
 
 #### Day 3 (01-22, Wed)
-- [ ] STORY-001: MinIO 업로드 서비스
-- [ ] STORY-001: 단위 테스트 작성
+- [ ] STORY-010: 네트워크 및 볼륨 설정, .env.example
+- [ ] STORY-010 완료
+- [ ] STORY-011 착수: PostgreSQL 초기화
 
 #### Day 4 (01-23, Thu)
-- [ ] STORY-001: 통합 테스트 및 완료
-- [ ] STORY-002 착수: Docling 환경 설정
+- [ ] STORY-011: Elasticsearch 인덱스 생성
+- [ ] STORY-011: Neo4j 제약조건 생성
 
 #### Day 5 (01-24, Fri)
-- [ ] STORY-002: PDF 파서 구현
+- [ ] STORY-011 완료
+- [ ] STORY-012 착수: Keycloak Realm 설정
 - [ ] Week 1 리뷰
 
 ### Week 2
 
 #### Day 6 (01-27, Mon)
-- [ ] STORY-002: DOCX/HWP 파서 구현
-- [ ] STORY-002: 파싱 결과 표준화
+- [ ] STORY-012: Client 설정, 역할 정의
+- [ ] STORY-012: 초기 사용자 생성
 
 #### Day 7 (01-28, Tue)
-- [ ] STORY-002: 테스트 및 완료
-- [ ] STORY-003 착수: Chunker 설계
+- [ ] STORY-012 완료
+- [ ] STORY-013 착수: Backend/API Gateway 초기화
 
 #### Day 8 (01-29, Wed)
-- [ ] STORY-003: SemanticChunker 구현
-- [ ] STORY-003: 한국어 문장 경계 처리
+- [ ] STORY-013: Frontend/AI Service 초기화
+- [ ] STORY-013: 공통 설정
 
 #### Day 9 (01-30, Thu)
-- [ ] STORY-003: 특수 블록 보존 로직
-- [ ] STORY-003: 테스트 작성
+- [ ] STORY-013 완료
+- [ ] STORY-014: README 및 가이드 작성
 
 #### Day 10 (01-31, Fri)
-- [ ] STORY-003 완료
+- [ ] STORY-014 완료
+- [ ] 전체 통합 테스트
 - [ ] 스프린트 리뷰 & 회고
 - [ ] Sprint 2 계획 준비
 
@@ -111,9 +124,9 @@
 
 각 Story 완료 기준:
 - [ ] 모든 Acceptance Criteria 충족
-- [ ] 단위 테스트 작성 (커버리지 80%+)
+- [ ] 단위 테스트 작성 (해당 시)
 - [ ] 코드 리뷰 완료
-- [ ] API 문서 업데이트 (해당 시)
+- [ ] 문서 업데이트
 - [ ] 기술 부채 없음
 
 ---
@@ -122,43 +135,42 @@
 
 | 유형 | 설명 | 영향 | 대응 | 상태 |
 |------|------|------|------|------|
-| Risk | HWP 파싱 정확도 미달 | Medium | pyhwpx 폴백 준비 | Monitoring |
-| Risk | Docling 모델 다운로드 지연 | Low | 사전 다운로드 완료 | Resolved |
-| Blocker | MinIO 미설정 | High | 인프라 사전 준비 | Open |
+| Risk | 메모리 부족 | High | Observability 선택적 기동 | Monitoring |
+| Risk | 포트 충돌 | Medium | .env 포트 커스터마이징 | Open |
+| Risk | Keycloak 초기 설정 복잡 | Medium | 자동화 스크립트 | Open |
 
 ---
 
 ## 산출물
 
-### 코드
+### 코드/설정
 ```
-knowledge_service/src/app/
-├── api/routes/
-│   └── documents.py          # STORY-001
-├── services/
-│   └── storage.py            # STORY-001
-├── etl/
-│   ├── parser.py             # STORY-002
-│   ├── docling_adapter.py    # STORY-002
-│   └── chunker.py            # STORY-003
-└── models/
-    ├── document.py           # STORY-001
-    ├── parsed_document.py    # STORY-002
-    └── chunk.py              # STORY-003
+infrastructure/
+├── docker-compose.yml
+├── docker-compose.override.yml
+├── .env.example
+├── nginx/nginx.conf
+├── init-db/
+│   ├── 01-init-postgres.sql
+│   ├── 02-init-elasticsearch.sh
+│   └── 03-init-neo4j.cypher
+├── keycloak/realm-export.json
+└── prometheus/prometheus.yml
 ```
 
-### 테스트
+### 프로젝트 골격
 ```
-knowledge_service/src/tests/
-├── test_document_api.py
-├── test_parser.py
-└── test_chunker.py
+backend/
+├── api-gateway/
+└── backend-service/
+frontend/
+ai-service/
 ```
 
 ### 문서
-- [ ] API 문서 (OpenAPI/Swagger)
-- [ ] ETL 파이프라인 아키텍처 다이어그램
-- [ ] 파싱 정확도 벤치마크 결과
+- [ ] README.md 업데이트
+- [ ] docs/development/local-setup.md
+- [ ] docs/development/ide-setup.md
 
 ---
 
@@ -166,10 +178,10 @@ knowledge_service/src/tests/
 
 | 메트릭 | 목표 | 측정 방법 |
 |--------|------|-----------|
-| 문서 파싱 정확도 | ≥ 97% | Ground Truth 비교 |
-| 업로드 API 응답시간 | < 500ms | pytest-benchmark |
-| 청크 품질 점수 | ≥ 0.85 | 커스텀 평가 함수 |
-| 테스트 커버리지 | ≥ 80% | pytest-cov |
+| 컨테이너 기동 | 18개 healthy | docker-compose ps |
+| Keycloak 로그인 | 성공 | 수동 테스트 |
+| 프로젝트 빌드 | 모두 성공 | 빌드 스크립트 |
+| 문서 완성도 | 100% | 체크리스트 |
 
 ---
 
@@ -201,7 +213,10 @@ knowledge_service/src/tests/
 
 ## 참고 자료
 
-- [EPIC-001: Document Processing](../epics/EPIC-001-document-processing.md)
-- [STORY-001: 문서 업로드 API](../stories/STORY-001-document-upload-api.md)
-- [STORY-002: Docling 문서 파싱](../stories/STORY-002-docling-parser.md)
-- [STORY-003: Semantic Chunking](../stories/STORY-003-semantic-chunking.md)
+- [EPIC-000: Infrastructure Setup](../epics/EPIC-000-infrastructure.md)
+- [STORY-010: Docker Compose 환경 구성](../stories/STORY-010-docker-compose.md)
+- [STORY-011: 데이터베이스 초기화](../stories/STORY-011-database-init.md)
+- [STORY-012: 인증 인프라 (Keycloak)](../stories/STORY-012-keycloak.md)
+- [STORY-013: 프로젝트 골격 생성](../stories/STORY-013-project-skeleton.md)
+- [STORY-014: 개발 환경 가이드](../stories/STORY-014-dev-guide.md)
+- [스프린트 실행 계획서](../../docs/02_스프린트_실행_계획서.md)

@@ -34,7 +34,12 @@
       "Bash(ls:*)",
       "WebFetch(domain:pypi.org)",
       "Bash(chmod:*)",
-      "Skill(daily:daily-close)"
+      "Skill(daily:daily-close)",
+      "Bash(curl:*)",
+      "Bash(source .env)",
+      "Bash(./scripts/jira-sync.sh:*)",
+      "Bash(sudo apt-get:*)",
+      "Bash(source:*)"
     ]
   }
 }

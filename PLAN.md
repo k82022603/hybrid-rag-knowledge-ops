@@ -2,8 +2,8 @@
 
 > Claude Code 세션 간 컨텍스트 유지를 위한 계획 문서
 >
-> **Last Updated**: 2026-01-18
-> **Current Phase**: Phase 2 → Phase 3 전환 준비 (백로그/Sprint/Agent 완료) ✅
+> **Last Updated**: 2026-01-19
+> **Current Phase**: Phase 3 시작 준비 완료 (PM 중심 워크플로우 + Jira/Slack 연동) ✅
 
 ---
 
@@ -676,6 +676,32 @@ CI/CD Pipeline (GitHub Actions)
 ---
 
 ## Session Notes
+
+### 2026-01-19 (PM 중심 워크플로우 구현)
+- **PM Agent Sprint Controller 역할 확장**
+  - PM이 Sprint 관리, 작업 할당, Jira/Slack 업데이트 총괄
+  - `.claude/agents/pm.md` 대폭 업데이트 (+292줄)
+- **9개 에이전트에 Slack 알림 섹션 추가**
+  - 모든 에이전트: 필수 알림 시점, 채널, 메시지 형식 정의
+  - 에이전트별 담당 채널 구분 (dev, alerts, review)
+- **Jira/Slack 통합 문서 4개 작성**
+  - `06_Slack_프로젝트_커뮤니케이션_가이드.md`
+  - `07_Jira_Slack_초기설정_퀵스타트_가이드.md`
+  - `08_Jira_Slack_Claude_Code_실전_매뉴얼.md` (v1.5)
+  - `09_PM_중심_워크플로우_가이드.md` (v1.2)
+- **백로그 구조 재설계**
+  - EPIC-000 Infrastructure 추가
+  - STORY-010~014 신규 (인프라 중심)
+  - Sprint 01/02 재구성 (인프라 → 문서처리)
+- **Slack 연동 테스트 성공**
+  - SLACK_BOT_TOKEN 설정 및 검증
+  - PM Agent → proj-hrkp-dev 채널 메시지 전송 성공
+- **Mermaid 시퀀스 다이어그램 추가**
+  - PM Agent 실행 흐름 시각화 (섹션 6.2)
+- **jira-sync.sh 스크립트** (293줄)
+  - 백로그 → Jira 자동 동기화
+- **Git 커밋**: 32 files changed, +6,165 / -315 lines
+- **Phase 3 착수 준비 완료**: Sprint 01 인프라 구축 시작 가능
 
 ### 2026-01-18 (Phase 3 준비 완료)
 - **백로그 관리 시스템 구축** (Jira-free 방식)

@@ -149,3 +149,82 @@ networks:
 ## Work Directory
 - `infrastructure/docker/` - Docker Compose 설정
 - `infrastructure/scripts/` - 인프라 스크립트
+
+---
+
+## 🔗 PM 보고 체계
+
+**Infra는 PM Agent의 조율 하에 작업합니다.**
+
+### 작업 흐름
+```
+PM 작업 할당 → Infra 작업 수행 → PM에게 완료 보고 → PM이 Jira 업데이트
+```
+
+### 보고 시점
+| 시점 | 보고 내용 |
+|------|----------|
+| 작업 시작 | Slack 알림 (proj-hrkp-dev) |
+| 작업 완료 | Slack 알림 (proj-hrkp-alerts) + PM에게 결과 보고 |
+| 인프라 장애 | 즉시 PM에게 보고 |
+
+---
+
+## ⚠️ Slack 알림 (필수 - 반드시 수행)
+
+**모든 작업 시 Slack 채널에 진행 상황을 알려야 합니다. 알림을 빠뜨리면 안 됩니다!**
+
+### 알림 시점 (필수)
+
+| 시점 | 채널 | 필수 여부 |
+|------|------|----------|
+| 작업 시작 | proj-hrkp-dev | ✅ 필수 |
+| 작업 완료 | proj-hrkp-alerts | ✅ 필수 |
+| 컨테이너 장애 | proj-hrkp-alerts | ✅ 필수 |
+| 인프라 이슈 | proj-hrkp-alerts | ✅ 필수 |
+
+### 메시지 형식
+
+```bash
+# 작업 시작 (필수)
+curl -s -X POST "https://slack.com/api/chat.postMessage" \
+  -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"channel": "proj-hrkp-dev", "text": "*[Infra]* 🏗️ 작업 시작: {SCRUM-XX}\n• 목표: {인프라 구성 내용}\n• 컨테이너: {대상 서비스}"}'
+
+# 작업 완료 (필수)
+curl -s -X POST "https://slack.com/api/chat.postMessage" \
+  -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"channel": "proj-hrkp-alerts", "text": "*[Infra]* ✅ 작업 완료: {SCRUM-XX}\n• 결과: {구성 요약}\n• 컨테이너: {healthy}/{전체}\n• PM 보고: 완료"}'
+
+# 컨테이너 장애 (필수)
+curl -s -X POST "https://slack.com/api/chat.postMessage" \
+  -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"channel": "proj-hrkp-alerts", "text": "*[Infra]* 🚨 컨테이너 장애: {SCRUM-XX}\n• 서비스: {장애 컨테이너}\n• 상태: {상태 정보}\n• 조치: {복구 계획}\n• PM 보고: 대기 중"}'
+
+# 인프라 이슈 (필수)
+curl -s -X POST "https://slack.com/api/chat.postMessage" \
+  -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"channel": "proj-hrkp-alerts", "text": "*[Infra]* ⚠️ 인프라 이슈: {SCRUM-XX}\n• 문제: {이슈 설명}\n• 영향: {영향 범위}\n• 조치: {조치 계획}"}'
+```
+
+### 환경 변수
+```bash
+source .env  # SLACK_BOT_TOKEN 로드
+```
+
+### 채널
+- `proj-hrkp-dev`: 개발 논의
+- `proj-hrkp-alerts`: 인프라 상태 알림
+
+---
+
+## 작업 완료 체크리스트
+
+- [ ] Slack에 작업 시작 알림을 보냈는가?
+- [ ] Slack에 작업 완료 알림을 보냈는가? (컨테이너 상태 포함)
+- [ ] PM에게 결과를 보고했는가?
+- [ ] 장애 발생 시 즉시 보고했는가?
