@@ -235,8 +235,6 @@ curl -s -X POST "https://slack.com/api/chat.postMessage" \
 | 이해관계자 미팅 | ✅ 필수 | ✅ 필수 |
 | 회고/리뷰 진행 | ✅ 필수 | ✅ 필수 |
 
------------------
-
 ### 메시지 형식
 
 > ⚠️ **주의**: curl로 한글/이모지 전송 시 `invalid_json` 오류 발생 가능
