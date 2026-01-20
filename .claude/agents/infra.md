@@ -14,12 +14,11 @@ model: claude-opus-4-5-20251101  # 비용 최적화: claude-sonnet-4-1 | 균형:
 > **작업 시작과 종료 시 반드시 Slack 알림을 보내야 합니다!**
 
 ```bash
-source .env
 # 작업 시작 시 (필수)
-curl -s -X POST "https://slack.com/api/chat.postMessage" -H "Authorization: Bearer $SLACK_BOT_TOKEN" -H "Content-Type: application/json" -d '{"channel": "proj-hrkp-dev", "text": "*[Infra]* 작업 시작: {작업명}"}'
+./scripts/send_slack.sh proj-hrkp-dev Infra "작업 시작: {작업명}"
 
 # 작업 종료 시 (필수)
-curl -s -X POST "https://slack.com/api/chat.postMessage" -H "Authorization: Bearer $SLACK_BOT_TOKEN" -H "Content-Type: application/json" -d '{"channel": "proj-hrkp-dev", "text": "*[Infra]* 작업 완료: {작업명} - {결과 요약}"}'
+./scripts/send_slack.sh proj-hrkp-alerts Infra "작업 완료: {작업명} - {결과 요약}"
 ```
 
 **⚠️ Slack 알림 없이 작업을 시작하거나 종료하면 안 됩니다!**
@@ -227,74 +226,30 @@ PM 작업 할당 → Infra 작업 수행 → PM에게 완료 보고 → PM이 Ji
 
 ### 메시지 형식
 
-> ⚠️ **주의**: curl로 한글/이모지 전송 시 `invalid_json` 오류 발생 가능
-> → 해결: 스크립트 함수로 분리하거나 임시 파일 사용
-> → 참조: `developer_integration_guide.md` 섹션 7.2.1
+> ✅ **표준화된 스크립트 사용** - 구분자 자동 추가, 한글/이모지 안전
+> → `./scripts/send_slack.sh <채널> <에이전트> "메시지"`
 
 ```bash
-# Slack 메시지 전송 함수 (권장)
-send_slack() {
-    local channel="$1"
-    local text="$2"
-    curl -s -X POST "https://slack.com/api/chat.postMessage" \
-        -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-        -H "Content-Type: application/json; charset=utf-8" \
-        -d "{\"channel\": \"$channel\", \"text\": \"$text\"}"
-}
-
 # 작업 시작 (필수)
-send_slack "proj-hrkp-dev" "*[Infra]* 작업 시작: {SCRUM-XX} - {작업명}"
+./scripts/send_slack.sh proj-hrkp-dev Infra "작업 시작: {SCRUM-XX} - {작업명}"
 
 # 작업 완료 (필수)
-send_slack "proj-hrkp-alerts" "*[Infra]* 작업 완료: {SCRUM-XX} - 컨테이너 {n}개 구성"
+./scripts/send_slack.sh proj-hrkp-alerts Infra "작업 완료: {SCRUM-XX} - 컨테이너 {n}개 구성"
 
 # 컨테이너 장애 (필수)
-send_slack "proj-hrkp-alerts" "*[Infra]* CONTAINER DOWN: {컨테이너명} - {원인}"
+./scripts/send_slack.sh proj-hrkp-alerts Infra "CONTAINER DOWN: {컨테이너명} - {원인}"
 
 # 인프라 이슈 (필수)
-send_slack "proj-hrkp-alerts" "*[Infra]* INFRA ISSUE: {문제 설명}"
+./scripts/send_slack.sh proj-hrkp-alerts Infra "INFRA ISSUE: {문제 설명}"
 
 # 중요 이벤트 발생 (필수)
-send_slack "proj-hrkp-alerts" "*[Infra]* EVENT: {이벤트 유형} - {상세 내용}"
+./scripts/send_slack.sh proj-hrkp-alerts Infra "EVENT: {이벤트 유형} - {상세 내용}"
 
 # 중요 작업 시작 (필수)
-send_slack "proj-hrkp-dev" "*[Infra]* IMPORTANT START: {작업 유형} - {영향 범위}"
+./scripts/send_slack.sh proj-hrkp-dev Infra "IMPORTANT START: {작업 유형} - {영향 범위}"
 
 # 중요 작업 종료 (필수)
-send_slack "proj-hrkp-alerts" "*[Infra]* IMPORTANT DONE: {작업 유형} - {결과 요약}"
-```
-
-### 메시지 형식
-
-```bash
-# 작업 시작 (필수)
-curl -s -X POST "https://slack.com/api/chat.postMessage" \
-  -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"channel": "proj-hrkp-dev", "text": "*[Infra]* 🏗️ 작업 시작: {SCRUM-XX}\n• 목표: {인프라 구성 내용}\n• 컨테이너: {대상 서비스}"}'
-
-# 작업 완료 (필수)
-curl -s -X POST "https://slack.com/api/chat.postMessage" \
-  -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"channel": "proj-hrkp-alerts", "text": "*[Infra]* ✅ 작업 완료: {SCRUM-XX}\n• 결과: {구성 요약}\n• 컨테이너: {healthy}/{전체}\n• PM 보고: 완료"}'
-
-# 컨테이너 장애 (필수)
-curl -s -X POST "https://slack.com/api/chat.postMessage" \
-  -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"channel": "proj-hrkp-alerts", "text": "*[Infra]* 🚨 컨테이너 장애: {SCRUM-XX}\n• 서비스: {장애 컨테이너}\n• 상태: {상태 정보}\n• 조치: {복구 계획}\n• PM 보고: 대기 중"}'
-
-# 인프라 이슈 (필수)
-curl -s -X POST "https://slack.com/api/chat.postMessage" \
-  -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"channel": "proj-hrkp-alerts", "text": "*[Infra]* ⚠️ 인프라 이슈: {SCRUM-XX}\n• 문제: {이슈 설명}\n• 영향: {영향 범위}\n• 조치: {조치 계획}"}'
-```
-
-### 환경 변수
-```bash
-source .env  # SLACK_BOT_TOKEN 로드
+./scripts/send_slack.sh proj-hrkp-alerts Infra "IMPORTANT DONE: {작업 유형} - {결과 요약}"
 ```
 
 ### 채널

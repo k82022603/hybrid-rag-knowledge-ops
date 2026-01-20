@@ -2,8 +2,8 @@
 
 Jira/Slack 계정 생성부터 Claude Code를 통한 자동화까지 실전 과정 가이드
 
-**Version**: 1.5 | **Updated**: 2026-01-19
-**기반**: 2026-01-19 실제 구축 세션
+**Version**: 1.6 | **Updated**: 2026-01-20
+**기반**: 2026-01-19~20 실제 구축 세션
 
 ---
 
@@ -546,7 +546,36 @@ SLACK_CHANNEL_ALERTS=#proj-hrkp-alerts
 
 ### 8.4 Claude Code에서 Slack 메시지 전송
 
-#### 기본 메시지 전송
+#### 표준화된 스크립트 사용 (권장)
+
+> ✅ **2026-01-20 업데이트**: 표준화된 `send_slack.sh` 스크립트 도입
+> - 자동 구분자 (`───────────────────────`) 추가
+> - jq 불필요 (의존성 최소화)
+> - 한글/이모지 안전 처리
+
+```bash
+# 스크립트 위치: scripts/send_slack.sh
+# 사용법: ./scripts/send_slack.sh <채널> <에이전트> "메시지"
+
+# PM 메시지
+./scripts/send_slack.sh proj-hrkp-dev PM "Sprint 01 요구사항 정의 완료"
+
+# Backend 메시지
+./scripts/send_slack.sh proj-hrkp-dev Backend "STORY-001 착수합니다"
+
+# TechLead 메시지
+./scripts/send_slack.sh proj-hrkp-review TechLead "아키텍처 검토 완료"
+```
+
+**전체 에이전트 일괄 인사**:
+```bash
+# 9개 에이전트 일괄 인사 전송
+./scripts/standup_all.sh
+```
+
+#### 기본 curl 방식 (참고용)
+
+직접 curl을 사용해야 하는 경우:
 
 ```bash
 curl -s -X POST "https://slack.com/api/chat.postMessage" \
@@ -558,7 +587,7 @@ curl -s -X POST "https://slack.com/api/chat.postMessage" \
   }'
 ```
 
-#### 가상 팀원별 메시지 전송
+#### 가상 팀원별 메시지 전송 (curl 직접 사용)
 
 ```bash
 # PM 메시지
@@ -588,6 +617,8 @@ curl -s -X POST "https://slack.com/api/chat.postMessage" \
     "text": "*[Backend]* STORY-001 착수합니다. /api/v1/documents 엔드포인트 구현 시작."
   }'
 ```
+
+> ⚠️ **주의**: curl 직접 사용 시 한글/이모지가 포함된 메시지는 JSON 인코딩 문제가 발생할 수 있습니다. `send_slack.sh` 스크립트를 사용하면 이 문제가 자동으로 해결됩니다.
 
 ### 8.5 가상 팀원 메시지 포맷 규칙
 
@@ -1478,12 +1509,14 @@ PM Agent는 다음 시점에 **반드시** Slack 알림을 보내야 합니다:
 
 ---
 
-**문서 버전**: 1.5
+**문서 버전**: 1.6
 **작성일**: 2026-01-19
+**최종 업데이트**: 2026-01-20
 **업데이트**:
 - v1.1: 가상 팀원 Slack 자동화 섹션 추가
 - v1.2: GitHub MCP 설정, Agent Mail & Beads 검토 섹션 추가
 - v1.3: MCP 설정 파일 위치 수정 (`.mcp.json` → `.claude/settings.json`)
 - v1.4: Sprint 실행 가이드 섹션 추가 (역할 구조, Slack 오해, 구현 내용 설명)
 - v1.5: PM 중심 워크플로우 테스트 섹션 추가 (Sprint 확인, Slack 알림, 트러블슈팅)
+- v1.6: 표준화된 Slack 메시지 스크립트 (`send_slack.sh`) 반영, 한글/이모지 인코딩 해결책 추가
 **기반**: 실제 구축 세션

@@ -14,12 +14,11 @@ model: claude-opus-4-5-20251101  # 비용 최적화: claude-sonnet-4-1 | 균형:
 > **작업 시작과 종료 시 반드시 Slack 알림을 보내야 합니다!**
 
 ```bash
-source .env
 # 작업 시작 시 (필수)
-curl -s -X POST "https://slack.com/api/chat.postMessage" -H "Authorization: Bearer $SLACK_BOT_TOKEN" -H "Content-Type: application/json" -d '{"channel": "proj-hrkp-dev", "text": "*[QA]* 작업 시작: {작업명}"}'
+./scripts/send_slack.sh proj-hrkp-dev QA "작업 시작: {작업명}"
 
 # 작업 종료 시 (필수)
-curl -s -X POST "https://slack.com/api/chat.postMessage" -H "Authorization: Bearer $SLACK_BOT_TOKEN" -H "Content-Type: application/json" -d '{"channel": "proj-hrkp-dev", "text": "*[QA]* 작업 완료: {작업명} - {결과 요약}"}'
+./scripts/send_slack.sh proj-hrkp-dev QA "작업 완료: {작업명} - {결과 요약}"
 ```
 
 **⚠️ Slack 알림 없이 작업을 시작하거나 종료하면 안 됩니다!**
@@ -134,73 +133,30 @@ PM 작업 할당 → QA 테스트 수행 → PM에게 완료 보고 → PM이 Ji
 
 ### 메시지 형식
 
-> ⚠️ **주의**: curl로 한글/이모지 전송 시 `invalid_json` 오류 발생 가능
-> → 해결: 스크립트 함수로 분리하거나 임시 파일 사용
-> → 참조: `developer_integration_guide.md` 섹션 7.2.1
+> ✅ **표준화된 스크립트 사용** - 구분자 자동 추가, 한글/이모지 안전
+> → `./scripts/send_slack.sh <채널> <에이전트> "메시지"`
 
 ```bash
-# Slack 메시지 전송 함수 (권장)
-send_slack() {
-    local text="$1"
-    curl -s -X POST "https://slack.com/api/chat.postMessage" \
-        -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-        -H "Content-Type: application/json; charset=utf-8" \
-        -d "{\"channel\": \"proj-hrkp-dev\", \"text\": \"$text\"}"
-}
-
 # 테스트 시작 (필수)
-send_slack "*[QA]* 테스트 시작: {SCRUM-XX} - {테스트 유형}"
+./scripts/send_slack.sh proj-hrkp-dev QA "테스트 시작: {SCRUM-XX} - {테스트 유형}"
 
 # 테스트 완료 (필수)
-send_slack "*[QA]* 테스트 완료: {SCRUM-XX} - {통과율}%, 커버리지 {n}%"
+./scripts/send_slack.sh proj-hrkp-dev QA "테스트 완료: {SCRUM-XX} - {통과율}%, 커버리지 {n}%"
 
 # 품질 이슈 발견 (필수)
-send_slack "*[QA]* QUALITY ISSUE: {위치} - {문제 설명} (심각도: {High/Medium/Low})"
+./scripts/send_slack.sh proj-hrkp-dev QA "QUALITY ISSUE: {위치} - {문제 설명} (심각도: {High/Medium/Low})"
 
 # 테스트 실패 (필수)
-send_slack "*[QA]* TEST FAILED: {n}개 케이스 실패 - {담당 에이전트}에게 수정 요청"
+./scripts/send_slack.sh proj-hrkp-dev QA "TEST FAILED: {n}개 케이스 실패 - {담당 에이전트}에게 수정 요청"
 
 # 중요 이벤트 발생 (필수)
-send_slack "*[QA]* EVENT: {이벤트 유형} - {상세 내용}"
+./scripts/send_slack.sh proj-hrkp-dev QA "EVENT: {이벤트 유형} - {상세 내용}"
 
 # 중요 작업 시작 (필수)
-send_slack "*[QA]* IMPORTANT START: {작업 유형} - {테스트 범위}"
+./scripts/send_slack.sh proj-hrkp-dev QA "IMPORTANT START: {작업 유형} - {테스트 범위}"
 
 # 중요 작업 종료 (필수)
-send_slack "*[QA]* IMPORTANT DONE: {작업 유형} - {결과 요약}"
-```
-
-### 메시지 형식
-
-```bash
-# 테스트 시작 (필수)
-curl -s -X POST "https://slack.com/api/chat.postMessage" \
-  -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"channel": "proj-hrkp-dev", "text": "*[QA]* 🧪 테스트 시작: {SCRUM-XX}\n• 유형: {테스트 유형}\n• 범위: {테스트 대상}\n• 예상: {테스트 케이스 수}"}'
-
-# 테스트 완료 (필수)
-curl -s -X POST "https://slack.com/api/chat.postMessage" \
-  -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"channel": "proj-hrkp-dev", "text": "*[QA]* ✅ 테스트 완료: {SCRUM-XX}\n• 결과: {통과}/{전체} ({통과율}%)\n• 커버리지: {n}%\n• PM 보고: 완료"}'
-
-# 품질 이슈 발견 (필수)
-curl -s -X POST "https://slack.com/api/chat.postMessage" \
-  -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"channel": "proj-hrkp-dev", "text": "*[QA]* ⚠️ 품질 이슈: {SCRUM-XX}\n• 위치: {파일:라인}\n• 문제: {이슈 설명}\n• 심각도: {High/Medium/Low}\n• PM 보고: 완료"}'
-
-# 테스트 실패 (필수)
-curl -s -X POST "https://slack.com/api/chat.postMessage" \
-  -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"channel": "proj-hrkp-dev", "text": "*[QA]* 🚨 테스트 실패: {SCRUM-XX}\n• 실패: {n}개 케이스\n• 원인: {실패 원인}\n• 담당: {담당 에이전트}에게 수정 요청"}'
-```
-
-### 환경 변수
-```bash
-source .env  # SLACK_BOT_TOKEN 로드
+./scripts/send_slack.sh proj-hrkp-dev QA "IMPORTANT DONE: {작업 유형} - {결과 요약}"
 ```
 
 ### 채널

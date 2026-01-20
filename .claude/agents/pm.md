@@ -14,12 +14,11 @@ model: claude-opus-4-5-20251101  # 비용 최적화: claude-sonnet-4-1 | 균형:
 > **작업 시작과 종료 시 반드시 Slack 알림을 보내야 합니다!**
 
 ```bash
-source .env
 # 작업 시작 시 (필수)
-curl -s -X POST "https://slack.com/api/chat.postMessage" -H "Authorization: Bearer $SLACK_BOT_TOKEN" -H "Content-Type: application/json" -d '{"channel": "proj-hrkp-dev", "text": "*[PM]* 작업 시작: {작업명}"}'
+./scripts/send_slack.sh proj-hrkp-dev PM "작업 시작: {작업명}"
 
 # 작업 종료 시 (필수)
-curl -s -X POST "https://slack.com/api/chat.postMessage" -H "Authorization: Bearer $SLACK_BOT_TOKEN" -H "Content-Type: application/json" -d '{"channel": "proj-hrkp-dev", "text": "*[PM]* 작업 완료: {작업명} - {결과 요약}"}'
+./scripts/send_slack.sh proj-hrkp-dev PM "작업 완료: {작업명} - {결과 요약}"
 ```
 
 **⚠️ Slack 알림 없이 작업을 시작하거나 종료하면 안 됩니다!**
@@ -237,94 +236,33 @@ curl -s -X POST "https://slack.com/api/chat.postMessage" \
 
 ### 메시지 형식
 
-> ⚠️ **주의**: curl로 한글/이모지 전송 시 `invalid_json` 오류 발생 가능
-> → 해결: 스크립트 함수로 분리하거나 임시 파일 사용
-> → 참조: `developer_integration_guide.md` 섹션 7.2.1
+> ✅ **표준화된 스크립트 사용** - 구분자 자동 추가, 한글/이모지 안전
+> → `./scripts/send_slack.sh <채널> <에이전트> "메시지"`
 
 ```bash
-# Slack 메시지 전송 함수 (권장)
-send_slack() {
-    local text="$1"
-    curl -s -X POST "https://slack.com/api/chat.postMessage" \
-        -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-        -H "Content-Type: application/json; charset=utf-8" \
-        -d "{\"channel\": \"proj-hrkp-dev\", \"text\": \"$text\"}"
-}
-
 # Sprint 시작 (필수)
-send_slack "*[PM]* Sprint {번호} 시작 - {Story 수}개 ({SP} SP)"
+./scripts/send_slack.sh proj-hrkp-dev PM "Sprint {번호} 시작 - {Story 수}개 ({SP} SP)"
 
 # Story 할당 (필수)
-send_slack "*[PM]* 작업 할당: {SCRUM-XX} -> {Agent명}"
+./scripts/send_slack.sh proj-hrkp-dev PM "작업 할당: {SCRUM-XX} -> {Agent명}"
 
 # Story 완료 (필수)
-send_slack "*[PM]* Story 완료: {SCRUM-XX} - 진행률 {완료}/{전체}"
+./scripts/send_slack.sh proj-hrkp-dev PM "Story 완료: {SCRUM-XX} - 진행률 {완료}/{전체}"
 
 # Sprint 종료 (필수)
-send_slack "*[PM]* Sprint {번호} 종료 - Velocity: {SP} SP"
+./scripts/send_slack.sh proj-hrkp-dev PM "Sprint {번호} 종료 - Velocity: {SP} SP"
 
 # 블로커 발생 (필수)
-send_slack "*[PM]* BLOCKER: {SCRUM-XX} - {문제 설명}"
+./scripts/send_slack.sh proj-hrkp-dev PM "BLOCKER: {SCRUM-XX} - {문제 설명}"
 
 # 중요 이벤트 발생 (필수)
-send_slack "*[PM]* EVENT: {이벤트 유형} - {상세 내용}"
+./scripts/send_slack.sh proj-hrkp-dev PM "EVENT: {이벤트 유형} - {상세 내용}"
 
 # 중요 작업 시작 (필수)
-send_slack "*[PM]* IMPORTANT START: {작업 유형} - {영향 범위}"
+./scripts/send_slack.sh proj-hrkp-dev PM "IMPORTANT START: {작업 유형} - {영향 범위}"
 
 # 중요 작업 종료 (필수)
-send_slack "*[PM]* IMPORTANT DONE: {작업 유형} - {결과 요약}"
-
-# (기존 형식 - 레거시)
-# Sprint 시작
-curl -s -X POST "https://slack.com/api/chat.postMessage" \
-  -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "channel": "proj-hrkp-dev",
-    "text": "*[PM]* 🚀 Sprint {번호} 시작\n• 기간: {시작일} ~ {종료일}\n• Story: {개수}개 ({총 SP} SP)\n• 목표: {Sprint 목표}"
-  }'
-
-# Story 할당
-curl -s -X POST "https://slack.com/api/chat.postMessage" \
-  -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "channel": "proj-hrkp-dev",
-    "text": "*[PM]* 📋 작업 할당: {SCRUM-XX}\n• 담당: {Agent명}\n• 내용: {Story 제목}\n• SP: {Story Points}"
-  }'
-
-# Story 완료
-curl -s -X POST "https://slack.com/api/chat.postMessage" \
-  -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "channel": "proj-hrkp-dev",
-    "text": "*[PM]* ✅ Story 완료: {SCRUM-XX}\n• 결과: {완료 요약}\n• 진행률: {완료}/{전체} Stories"
-  }'
-
-# Sprint 종료
-curl -s -X POST "https://slack.com/api/chat.postMessage" \
-  -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "channel": "proj-hrkp-dev",
-    "text": "*[PM]* 🏁 Sprint {번호} 종료\n• 완료: {완료 수}/{전체 수} Stories\n• Velocity: {SP} SP\n• 다음 Sprint: {예고}"
-  }'
-
-# 블로커 발생
-curl -s -X POST "https://slack.com/api/chat.postMessage" \
-  -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "channel": "proj-hrkp-dev",
-    "text": "*[PM]* 🚨 블로커 발생: {SCRUM-XX}\n• 문제: {문제 설명}\n• 영향: {영향 범위}\n• 필요 조치: {요청 사항}"
-  }'
-```
-
-### 환경 변수
-```bash
-source .env  # SLACK_BOT_TOKEN, JIRA_EMAIL, JIRA_API_TOKEN 로드
+./scripts/send_slack.sh proj-hrkp-dev PM "IMPORTANT DONE: {작업 유형} - {결과 요약}"
 ```
 
 ### 채널

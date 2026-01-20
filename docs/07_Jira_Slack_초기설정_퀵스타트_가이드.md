@@ -2,7 +2,7 @@
 
 Jira와 Slack을 처음부터 설정하여 개발팀 협업을 시작하는 종합 가이드
 
-**Version**: 1.0 | **Updated**: 2026-01-19
+**Version**: 1.1 | **Updated**: 2026-01-20
 
 ---
 
@@ -546,7 +546,9 @@ echo ".env" >> .gitignore
 
 ### 6.3 MCP Server 설정
 
-**프로젝트 루트에 .mcp.json 생성**:
+> ⚠️ **주의**: MCP 설정은 `.mcp.json`이 아닌 **`.claude/settings.json`** 파일에 작성해야 합니다. Claude Code는 `.mcp.json`을 읽지 않습니다.
+
+**`.claude/settings.json` 파일**에 `mcpServers` 섹션 추가:
 
 ```json
 {
@@ -555,28 +557,26 @@ echo ".env" >> .gitignore
       "command": "npx",
       "args": ["-y", "@anthropic/mcp-server-jira"],
       "env": {
-        "JIRA_HOST": "${JIRA_HOST}",
-        "JIRA_EMAIL": "${JIRA_EMAIL}",
+        "JIRA_HOST": "your-project.atlassian.net",
+        "JIRA_EMAIL": "your-email@example.com",
         "JIRA_API_TOKEN": "${JIRA_API_TOKEN}"
       }
     },
     "github": {
       "command": "npx",
-      "args": ["-y", "@anthropic/mcp-server-github"],
+      "args": ["-y", "@modelcontextprotocol/server-github"],
       "env": {
-        "GITHUB_TOKEN": "${GITHUB_TOKEN}"
-      }
-    },
-    "slack": {
-      "command": "npx",
-      "args": ["-y", "@anthropic/mcp-server-slack"],
-      "env": {
-        "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN}"
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
       }
     }
   }
 }
 ```
+
+> 📝 **참고**:
+> - Slack은 공식 MCP 서버가 없어 Bot Token + REST API 방식 사용 (섹션 6.1.2 참조)
+> - API 토큰은 `${환경변수}` 형식으로 참조하여 보안 유지
+> - 기존 `.claude/settings.json`에 다른 설정이 있다면 `mcpServers` 키만 추가
 
 ### 6.4 연결 테스트
 
@@ -763,7 +763,7 @@ Story 정보:
 - [ ] Slack Bot 토큰 발급
 - [ ] GitHub PAT 발급
 - [ ] .env 파일 생성
-- [ ] .mcp.json 설정
+- [ ] .claude/settings.json에 mcpServers 설정
 - [ ] MCP 연결 테스트
 
 **Phase 6: 팀 온보딩**
