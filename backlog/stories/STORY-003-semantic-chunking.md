@@ -4,13 +4,13 @@
 
 | 항목 | 값 |
 |------|-----|
-| **Jira ID** | - |
+| **Jira ID** | SCRUM-8 |
 | **Epic** | EPIC-001 |
-| **Status** | ready |
+| **Status** | To Do |
 | **Priority** | Critical |
 | **Story Points** | 8 |
 | **Assignee** | - |
-| **Sprint** | 1 |
+| **Sprint** | 2 |
 
 ---
 

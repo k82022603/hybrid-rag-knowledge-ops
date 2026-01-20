@@ -32,6 +32,13 @@
 | `/tools:security-scan` | 보안 취약점 스캔 | OWASP Top 10 |
 | `/tools:tech-debt` | 기술 부채 분석 | 코드 품질 관리 |
 
+### PM Commands (2개) - `/pm:명령어`
+
+| 명령어 | 설명 | 활용 시나리오 |
+|--------|------|---------------|
+| `/pm:backlog-sync` | Story 상태 동기화 | Sprint/Story/Jira/Slack 동시 업데이트 |
+| `/pm:jira-sync` | Jira 일괄 동기화 | Sprint 전체 상태 동기화 |
+
 ### Workflows (6개) - `/workflows:명령어`
 
 | 명령어 | 설명 | 활용 시나리오 |
@@ -44,6 +51,18 @@
 | `/workflows:incident-response` | 장애 대응 | 프로덕션 장애 |
 
 ## 사용 예시
+
+### PM 백로그 관리
+```bash
+# Story 완료 처리 (Sprint 문서 + Story 파일 + Jira + Slack)
+/pm:backlog-sync STORY-010 SCRUM-10 Done 01
+
+# Sprint 전체 Jira 동기화
+/pm:jira-sync 01
+
+# 스크립트 직접 실행
+./scripts/backlog-sync.sh STORY-010 SCRUM-10 Done 01
+```
 
 ### 개발 워크플로우
 ```bash
@@ -133,4 +152,5 @@
 ---
 
 **설치일**: 2026-01-16
-**총 명령어**: 23개 (Daily 4개 + Tools 13개 + Workflows 6개)
+**최종 업데이트**: 2026-01-20
+**총 명령어**: 26개 (Daily 5개 + Tools 13개 + PM 2개 + Workflows 6개)

@@ -6,11 +6,11 @@
 |------|-----|
 | **Jira ID** | - |
 | **Epic** | EPIC-001 |
-| **Status** | ready |
+| **Status** | To Do |
 | **Priority** | High |
 | **Story Points** | 5 |
-| **Assignee** | - |
-| **Sprint** | 2 |
+| **Assignee** | Data |
+| **Sprint** | 3 |
 
 ---
 

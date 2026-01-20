@@ -1,12 +1,10 @@
 # =============================================================================
 # Hybrid RAG Knowledge Platform - Docker Compose (18 Containers)
 # =============================================================================
-# Version: 1.0.0
+# Version: 1.0.2
 # Created: 2026-01-20
 # Description: Complete development environment with 18 containers
 # =============================================================================
-
-version: '3.8'
 
 name: knowledge-platform
 
@@ -22,7 +20,7 @@ networks:
     name: kp-backend
   database:
     driver: bridge
-    internal: true
+    # internal: true  # 개발 환경에서 localhost 포트 접근을 위해 비활성화
     name: kp-database
   monitoring:
     driver: bridge
@@ -406,7 +404,7 @@ services:
       - "${NEO4J_BOLT_PORT:-7687}:7687"
     volumes:
       - neo4j_data:/data
-      - ../database/neo4j/schema.cypher:/var/lib/neo4j/init/schema.cypher:ro
+      - ../database/neo4j/schema.cypher:/import/schema.cypher:ro
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "-O", "/dev/null", "http://localhost:7474"]
       interval: 30s
@@ -498,7 +496,7 @@ services:
   # 12. MinIO - Object Storage (S3 Compatible)
   # ---------------------------------------------------------------------------
   minio:
-    image: minio/minio:RELEASE.2024-01-01T00-00-00Z
+    image: minio/minio:latest
     container_name: kp-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"

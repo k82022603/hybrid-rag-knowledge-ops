@@ -5,7 +5,7 @@
 | 항목 | 값 |
 |------|-----|
 | **기간** | 2026-02-03 ~ 2026-02-14 (2주) |
-| **Velocity (계획)** | 19 pts |
+| **Velocity (계획)** | 30 pts |
 | **Velocity (실제)** | - |
 | **Status** | planned |
 | **Jira Sprint ID** | 36 |
@@ -44,13 +44,16 @@ Sprint 1 완료 항목 (필수):
 
 ## 백로그
 
-### Committed (19 pts)
+### Committed (30 pts)
 
 | Priority | ID | Jira | 제목 | Points | Assignee | Status |
 |----------|-----|------|------|--------|----------|--------|
 | P0 | STORY-001 | SCRUM-6 | 문서 업로드 API | 3 | Backend | To Do |
 | P0 | STORY-002 | SCRUM-7 | Docling 문서 파싱 | 8 | MLRag | To Do |
 | P0 | STORY-003 | SCRUM-8 | Semantic Chunking | 8 | MLRag | To Do |
+| P0 | STORY-021 | SCRUM-21 | API Gateway 라우팅 구현 | 5 | Backend | To Do |
+| P0 | STORY-022 | SCRUM-22 | JWT 인증 필터 | 3 | Backend | To Do |
+| P1 | STORY-023 | SCRUM-23 | CI/CD 파이프라인 기초 | 3 | DevOps | To Do |
 
 ### Stretch (여유 시 추가)
 
@@ -225,4 +228,7 @@ knowledge_service/src/tests/
 - [STORY-001: 문서 업로드 API](../stories/STORY-001-document-upload-api.md)
 - [STORY-002: Docling 문서 파싱](../stories/STORY-002-docling-parser.md)
 - [STORY-003: Semantic Chunking](../stories/STORY-003-semantic-chunking.md)
+- [STORY-021: API Gateway 라우팅](../stories/STORY-021-api-gateway-routing.md)
+- [STORY-022: JWT 인증 필터](../stories/STORY-022-jwt-auth-filter.md)
+- [STORY-023: CI/CD 파이프라인](../stories/STORY-023-cicd-pipeline-basic.md)
 - [스프린트 실행 계획서](../../docs/02_스프린트_실행_계획서.md)

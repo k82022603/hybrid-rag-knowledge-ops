@@ -80,17 +80,19 @@ if [ -n "$JIRA_EMAIL" ] && [ -n "$JIRA_API_TOKEN" ]; then
     JIRA_HOST="${JIRA_HOST:-hybridrag.atlassian.net}"
 
     if [ "$NEW_STATUS" = "In Progress" ]; then
-        TRANSITION_ID="21"
+        TRANSITION_ID="21"  # 진행 중
+    elif [ "$NEW_STATUS" = "In Review" ]; then
+        TRANSITION_ID="31"  # 검토 중
     elif [ "$NEW_STATUS" = "Done" ]; then
-        TRANSITION_ID="31"
+        TRANSITION_ID="41"  # 완료
     else
         TRANSITION_ID=""
     fi
 
     if [ -n "$TRANSITION_ID" ]; then
-        RESPONSE=$(curl -s -w "%{http_code}" -o /tmp/jira_response.json \
+        RESPONSE=$(curl -sS --connect-timeout 10 -w "%{http_code}" -o /tmp/jira_response.json \
             -X POST "https://${JIRA_HOST}/rest/api/3/issue/${JIRA_ID}/transitions" \
-            -H "Authorization: Basic $(echo -n ${JIRA_EMAIL}:${JIRA_API_TOKEN} | base64)" \
+            -u "${JIRA_EMAIL}:${JIRA_API_TOKEN}" \
             -H "Content-Type: application/json" \
             -d "{\"transition\": {\"id\": \"${TRANSITION_ID}\"}}")
 

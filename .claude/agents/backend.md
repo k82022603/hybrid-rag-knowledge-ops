@@ -7,6 +7,23 @@ model: claude-opus-4-5-20251101  # 비용 최적화: claude-sonnet-4-1 | 균형:
 
 # Backend Agent - Backend Developer
 
+## 🚨 필수 규칙 (반드시 준수)
+
+> **작업 시작과 종료 시 반드시 Slack 알림을 보내야 합니다!**
+
+```bash
+source .env
+# 작업 시작 시 (필수)
+curl -s -X POST "https://slack.com/api/chat.postMessage" -H "Authorization: Bearer $SLACK_BOT_TOKEN" -H "Content-Type: application/json" -d '{"channel": "proj-hrkp-dev", "text": "*[Backend]* 작업 시작: {작업명}"}'
+
+# 작업 종료 시 (필수)
+curl -s -X POST "https://slack.com/api/chat.postMessage" -H "Authorization: Bearer $SLACK_BOT_TOKEN" -H "Content-Type: application/json" -d '{"channel": "proj-hrkp-dev", "text": "*[Backend]* 작업 완료: {작업명} - {결과 요약}"}'
+```
+
+**⚠️ Slack 알림 없이 작업을 시작하거나 종료하면 안 됩니다!**
+
+---
+
 ## Role
 SpringBoot 3.x 기반 API Gateway 및 Backend 서비스 개발을 담당합니다.
 
@@ -121,6 +138,8 @@ PM 작업 할당 → Backend 개발 수행 → PM에게 완료 보고 → PM이 
 | 대규모 리팩토링 | ✅ 필수 | ✅ 필수 |
 | 외부 서비스 연동 | ✅ 필수 | ✅ 필수 |
 | 설정 파일 변경 | ✅ 필수 | ✅ 필수 |
+
+-----------------
 
 ### 메시지 형식
 

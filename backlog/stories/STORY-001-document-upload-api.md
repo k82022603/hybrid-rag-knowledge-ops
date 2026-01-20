@@ -4,13 +4,13 @@
 
 | 항목 | 값 |
 |------|-----|
-| **Jira ID** | - |
+| **Jira ID** | SCRUM-6 |
 | **Epic** | EPIC-001 |
-| **Status** | ready |
+| **Status** | To Do |
 | **Priority** | High |
 | **Story Points** | 3 |
 | **Assignee** | - |
-| **Sprint** | 1 |
+| **Sprint** | 2 |
 
 ---
 

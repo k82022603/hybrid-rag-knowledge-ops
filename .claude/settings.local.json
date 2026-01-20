@@ -1,42 +1,4 @@
 {
-  "hooks": {
-    "Notification": [
-      {
-        "matcher": ".*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": ".claude/hooks/slack-notify.sh",
-            "timeout": 5
-          }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": ".claude/hooks/session-context.sh",
-            "timeout": 10,
-            "statusMessage": "Loading session context..."
-          }
-        ]
-      }
-    ],
-    "SessionEnd": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": ".claude/hooks/worklog-update.sh",
-            "timeout": 10,
-            "statusMessage": "Updating work log..."
-          }
-        ]
-      }
-    ]
-  },
   "permissions": {
     "allow": [
       "Bash(perl -i -pe:*)",
@@ -80,7 +42,58 @@
       "Bash(source:*)",
       "Skill(tools:context-restore)",
       "Bash(python3:*)",
-      "Bash(echo:*)"
+      "Bash(echo:*)",
+      "Bash(if [ -n \"$JIRA_API_TOKEN\" ])",
+      "Bash(then echo \"✅ JIRA_API_TOKEN 설정됨\")",
+      "Bash(else echo \"❌ JIRA_API_TOKEN 미설정\")",
+      "Bash(fi)",
+      "Bash(ping:*)",
+      "Bash(docker:*)",
+      "Bash(docker compose:*)",
+      "Bash(source /mnt/d/Users/KTDS/Documents/06.과제/hybrid-rag-knowledge-ops/.env && curl:*)",
+      "Bash(cat << 'EOF':*)",
+      "Bash(docker-compose:*)",
+      "Bash(/mnt/d/Users/KTDS/Documents/06.과제/hybrid-rag-knowledge-ops/.venv/bin/pip list:*)",
+      "Bash(/mnt/d/Users/KTDS/Documents/06.과제/hybrid-rag-knowledge-ops/.venv/bin/pip install:*)",
+      "Bash(pytest:*)"
+    ]
+  },
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/slack-notify.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/session-context.sh",
+            "timeout": 10,
+            "statusMessage": "Loading session context..."
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/worklog-update.sh",
+            "timeout": 10,
+            "statusMessage": "Updating work log..."
+          }
+        ]
+      }
     ]
   }
 }

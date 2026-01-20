@@ -5,7 +5,7 @@
 | 항목 | 값 |
 |------|-----|
 | **Jira ID** | SCRUM-9 |
-| **Status** | ready |
+| **Status** | Done |
 | **Priority** | Critical |
 | **Owner** | DevOps |
 | **Target Sprint** | Sprint 1 |
