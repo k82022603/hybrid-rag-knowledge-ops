@@ -1,0 +1,17 @@
+# =============================================================================
+# Grafana Dashboard Provisioning - Knowledge Platform
+# =============================================================================
+
+apiVersion: 1
+
+providers:
+  - name: 'Knowledge Platform Dashboards'
+    orgId: 1
+    folder: 'Knowledge Platform'
+    folderUid: 'knowledge-platform'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards

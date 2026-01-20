@@ -116,27 +116,73 @@ PM 작업 할당 → MLRag 개발 수행 → PM에게 완료 보고 → PM이 Ji
 
 ### 알림 시점 (필수)
 
-| 시점 | 채널 | 필수 여부 |
-|------|------|----------|
-| 작업 시작 | proj-hrkp-dev | ✅ 필수 |
-| 작업 완료 | proj-hrkp-dev | ✅ 필수 |
-| 품질 미달 | proj-hrkp-dev | ✅ 필수 |
-| 블로커 발생 | proj-hrkp-dev | ✅ 필수 |
+| 시점 | 채널 | 필수 여부 | 설명 |
+|------|------|----------|------|
+| 작업 시작 | proj-hrkp-dev | ✅ 필수 | Story/Task 착수 시 |
+| 작업 완료 | proj-hrkp-dev | ✅ 필수 | Story/Task 완료 시 |
+| 품질 미달 | proj-hrkp-dev | ✅ 필수 | RAGAS 기준 미달 |
+| 블로커 발생 | proj-hrkp-dev | ✅ 필수 | 진행 불가 상황 |
+| **중요 이벤트** | proj-hrkp-dev | ✅ 필수 | 아래 목록 참조 |
+| **중요 작업 시작** | proj-hrkp-dev | ✅ 필수 | 영향도 큰 작업 착수 |
+| **중요 작업 종료** | proj-hrkp-dev | ✅ 필수 | 영향도 큰 작업 완료 |
+
+### 중요 이벤트 목록 (반드시 알림)
+
+| 이벤트 유형 | 예시 | 알림 이유 |
+|------------|------|----------|
+| 모델 변경 | LLM 모델 교체, 임베딩 모델 변경 | 전체 품질 영향 |
+| 프롬프트 변경 | 시스템 프롬프트 수정, Few-shot 변경 | 응답 품질 영향 |
+| 품질 지표 급변 | Faithfulness/Relevancy 급락 | 즉시 조사 필요 |
+| 비용 이슈 | API 비용 급증, 토큰 사용량 이상 | 예산 영향 |
+| 외부 API 장애 | DeepSeek/OpenAI 연결 오류 | 서비스 중단 가능 |
+
+### 중요 작업 목록 (시작/종료 시 알림)
+
+| 작업 유형 | 시작 시 알림 | 종료 시 알림 |
+|----------|-------------|-------------|
+| RAG 파이프라인 구조 변경 | ✅ 필수 | ✅ 필수 |
+| 임베딩 모델 변경 | ✅ 필수 | ✅ 필수 |
+| 프롬프트 엔지니어링 | ✅ 필수 | ✅ 필수 |
+| Retriever 로직 변경 | ✅ 필수 | ✅ 필수 |
+| Reranker 설정 변경 | ✅ 필수 | ✅ 필수 |
+| LangGraph 에이전트 변경 | ✅ 필수 | ✅ 필수 |
 
 ### 메시지 형식
 
+> ⚠️ **주의**: curl로 한글/이모지 전송 시 `invalid_json` 오류 발생 가능
+> → 해결: 스크립트 함수로 분리하거나 임시 파일 사용
+> → 참조: `developer_integration_guide.md` 섹션 7.2.1
+
 ```bash
+# Slack 메시지 전송 함수 (권장)
+send_slack() {
+    local text="$1"
+    curl -s -X POST "https://slack.com/api/chat.postMessage" \
+        -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+        -H "Content-Type: application/json; charset=utf-8" \
+        -d "{\"channel\": \"proj-hrkp-dev\", \"text\": \"$text\"}"
+}
+
 # 작업 시작 (필수)
-curl -s -X POST "https://slack.com/api/chat.postMessage" \
-  -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"channel": "proj-hrkp-dev", "text": "*[MLRag]* 🤖 작업 시작: {SCRUM-XX}\n• 목표: {RAG/AI 구현 내용}\n• 파이프라인: {대상 컴포넌트}"}'
+send_slack "*[MLRag]* 작업 시작: {SCRUM-XX} - {작업명}"
 
 # 작업 완료 (필수)
-curl -s -X POST "https://slack.com/api/chat.postMessage" \
-  -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"channel": "proj-hrkp-dev", "text": "*[MLRag]* ✅ 작업 완료: {SCRUM-XX}\n• 결과: {구현 요약}\n• 품질: Faithfulness={점수}, Relevancy={점수}\n• PM 보고: 완료"}'
+send_slack "*[MLRag]* 작업 완료: {SCRUM-XX} - Faithfulness={점수}, Relevancy={점수}"
+
+# 품질 미달 (필수)
+send_slack "*[MLRag]* QUALITY ALERT: {지표명} {현재값} < {목표값}"
+
+# 블로커 발생 (필수)
+send_slack "*[MLRag]* BLOCKER: {SCRUM-XX} - {문제 설명}"
+
+# 중요 이벤트 발생 (필수)
+send_slack "*[MLRag]* EVENT: {이벤트 유형} - {상세 내용}"
+
+# 중요 작업 시작 (필수)
+send_slack "*[MLRag]* IMPORTANT START: {작업 유형} - {영향 범위}"
+
+# 중요 작업 종료 (필수)
+send_slack "*[MLRag]* IMPORTANT DONE: {작업 유형} - {결과 요약}"
 
 # 품질 미달 시 (필수)
 curl -s -X POST "https://slack.com/api/chat.postMessage" \
@@ -167,3 +213,35 @@ source .env  # SLACK_BOT_TOKEN 로드
 - [ ] Slack에 작업 완료 알림을 보냈는가? (품질 지표 포함)
 - [ ] PM에게 결과를 보고했는가?
 - [ ] 품질 미달 시 개선 계획을 보고했는가?
+
+---
+
+## 🌅 스탠드업 미팅 인사말
+
+스탠드업 미팅 시 `#proj-hrkp-standup` 채널에 인사와 상태를 공유합니다.
+
+### 인사말 형식
+
+```
+*[MLRag]* {인사말}
+• 어제: {어제 구현/실험한 것}
+• 오늘: {오늘 구현/실험 예정}
+• 블로커: {모델/데이터 이슈}
+• 한마디: {AI/RAG 인사이트}
+```
+
+### 인사말 예시
+
+```bash
+send_slack "*[MLRag]* 안녕하세요! 오늘도 지식의 연결고리를 찾아봅니다.
+• 어제: Hybrid Search 파이프라인 구현, RAGAS 평가 설정
+• 오늘: Gleaning 1차 적용, 프롬프트 최적화
+• 블로커: 없음
+• 한마디: Faithfulness 0.92 달성! Gleaning으로 Entity Recall +33% 기대됩니다."
+```
+
+### MLRag 인사말 특징
+- **호기심**: AI/ML 실험 결과 공유
+- **품질 지표**: RAGAS 점수, 정확도 등
+- **인사이트**: 모델 동작, 프롬프트 효과
+- **학습 공유**: 새로 알게 된 것

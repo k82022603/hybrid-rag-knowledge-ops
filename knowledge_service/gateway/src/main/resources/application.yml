@@ -1,0 +1,263 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: knowledge-gateway
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+
+  # Cloud Gateway Configuration
+  cloud:
+    gateway:
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:3000"
+              - "http://localhost:5173"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders:
+              - "*"
+            allowCredentials: true
+            maxAge: 3600
+
+      routes:
+        # Backend Service Routes
+        - id: backend-api
+          uri: ${BACKEND_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/v1/**
+          filters:
+            - TokenRelay=
+            - name: CircuitBreaker
+              args:
+                name: backend-circuit-breaker
+                fallbackUri: forward:/fallback/backend
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 50
+                redis-rate-limiter.burstCapacity: 100
+                redis-rate-limiter.requestedTokens: 1
+
+        # AI Service Routes (Streaming)
+        - id: ai-service-stream
+          uri: ${AI_SERVICE_URL:http://localhost:8000}
+          predicates:
+            - Path=/api/v1/search/stream/**
+          filters:
+            - TokenRelay=
+            - name: CircuitBreaker
+              args:
+                name: ai-service-circuit-breaker
+
+        # AI Service Routes (Regular)
+        - id: ai-service
+          uri: ${AI_SERVICE_URL:http://localhost:8000}
+          predicates:
+            - Path=/ai/**
+          filters:
+            - TokenRelay=
+            - StripPrefix=1
+            - name: CircuitBreaker
+              args:
+                name: ai-service-circuit-breaker
+                fallbackUri: forward:/fallback/ai-service
+            - name: Retry
+              args:
+                retries: 2
+                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT
+                methods: GET,POST
+
+        # Keycloak Auth Routes
+        - id: keycloak
+          uri: ${KEYCLOAK_URL:http://localhost:8180}
+          predicates:
+            - Path=/auth/**
+          filters:
+            - StripPrefix=1
+
+  # Redis for Rate Limiting
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+  # Security (OAuth2)
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_URL:http://localhost:8180}/realms/${KEYCLOAK_REALM:knowledge-platform}
+          jwk-set-uri: ${KEYCLOAK_URL:http://localhost:8180}/realms/${KEYCLOAK_REALM:knowledge-platform}/protocol/openid-connect/certs
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,gateway,metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+    gateway:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    export:
+      prometheus:
+        enabled: true
+
+# Resilience4j Configuration
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        register-health-indicator: true
+        sliding-window-size: 10
+        permitted-number-of-calls-in-half-open-state: 3
+        wait-duration-in-open-state: 5s
+        failure-rate-threshold: 50
+    instances:
+      backend-circuit-breaker:
+        base-config: default
+      ai-service-circuit-breaker:
+        base-config: default
+        sliding-window-size: 5
+        wait-duration-in-open-state: 10s
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 30s
+    instances:
+      backend-circuit-breaker:
+        timeout-duration: 30s
+      ai-service-circuit-breaker:
+        timeout-duration: 60s
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.knowledge.gateway: DEBUG
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.security: DEBUG
+
+---
+# Docker Profile
+spring:
+  config:
+    activate:
+      on-profile: docker
+
+  cloud:
+    gateway:
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost"
+              - "http://localhost:80"
+              - "${FRONTEND_URL:http://localhost:3000}"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders:
+              - "*"
+            allowCredentials: true
+
+      routes:
+        - id: backend-api
+          uri: http://backend:8081
+          predicates:
+            - Path=/api/v1/**
+          filters:
+            - TokenRelay=
+            - name: CircuitBreaker
+              args:
+                name: backend-circuit-breaker
+                fallbackUri: forward:/fallback/backend
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT
+                methods: GET
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 50
+                redis-rate-limiter.burstCapacity: 100
+                redis-rate-limiter.requestedTokens: 1
+
+        - id: ai-service-stream
+          uri: http://ai-service:8000
+          predicates:
+            - Path=/api/v1/search/stream/**
+          filters:
+            - TokenRelay=
+            - name: CircuitBreaker
+              args:
+                name: ai-service-circuit-breaker
+
+        - id: ai-service
+          uri: http://ai-service:8000
+          predicates:
+            - Path=/ai/**
+          filters:
+            - TokenRelay=
+            - StripPrefix=1
+            - name: CircuitBreaker
+              args:
+                name: ai-service-circuit-breaker
+                fallbackUri: forward:/fallback/ai-service
+
+        - id: keycloak
+          uri: http://keycloak:8080
+          predicates:
+            - Path=/auth/**
+          filters:
+            - StripPrefix=1
+
+  data:
+    redis:
+      host: redis
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://keycloak:8080/realms/${KEYCLOAK_REALM:knowledge-platform}
+          jwk-set-uri: http://keycloak:8080/realms/${KEYCLOAK_REALM:knowledge-platform}/protocol/openid-connect/certs
+
+# CORS Configuration
+cors:
+  allowed-origins: http://localhost,http://localhost:80,${FRONTEND_URL:http://localhost:3000}
+
+logging:
+  level:
+    root: INFO
+    com.knowledge.gateway: INFO
+    org.springframework.cloud.gateway: INFO

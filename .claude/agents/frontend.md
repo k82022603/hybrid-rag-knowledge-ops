@@ -122,20 +122,69 @@ PM 작업 할당 → Frontend 개발 수행 → PM에게 완료 보고 → PM이
 
 ### 알림 시점 (필수)
 
-| 시점 | 채널 | 필수 여부 |
-|------|------|----------|
-| 작업 시작 | proj-hrkp-dev | ✅ 필수 |
-| 작업 완료 | proj-hrkp-dev | ✅ 필수 |
-| 블로커 발생 | proj-hrkp-dev | ✅ 필수 |
+| 시점 | 채널 | 필수 여부 | 설명 |
+|------|------|----------|------|
+| 작업 시작 | proj-hrkp-dev | ✅ 필수 | Story/Task 착수 시 |
+| 작업 완료 | proj-hrkp-dev | ✅ 필수 | Story/Task 완료 시 |
+| 블로커 발생 | proj-hrkp-dev | ✅ 필수 | 진행 불가 상황 |
+| **중요 이벤트** | proj-hrkp-dev | ✅ 필수 | 아래 목록 참조 |
+| **중요 작업 시작** | proj-hrkp-dev | ✅ 필수 | 영향도 큰 작업 착수 |
+| **중요 작업 종료** | proj-hrkp-dev | ✅ 필수 | 영향도 큰 작업 완료 |
+
+### 중요 이벤트 목록 (반드시 알림)
+
+| 이벤트 유형 | 예시 | 알림 이유 |
+|------------|------|----------|
+| UI/UX 변경 | 레이아웃 변경, 디자인 시스템 수정 | 사용자 경험 영향 |
+| API 연동 변경 | 엔드포인트 변경, 요청/응답 형식 수정 | Backend 협조 필요 |
+| 상태관리 변경 | Redux/Context 구조 변경 | 전체 앱 영향 |
+| 라우팅 변경 | 경로 추가/수정, 인증 가드 변경 | 네비게이션 영향 |
+| 성능 이슈 | 렌더링 병목, 번들 크기 문제 | 사용자 경험 영향 |
+
+### 중요 작업 목록 (시작/종료 시 알림)
+
+| 작업 유형 | 시작 시 알림 | 종료 시 알림 |
+|----------|-------------|-------------|
+| 컴포넌트 대규모 리팩토링 | ✅ 필수 | ✅ 필수 |
+| 새로운 페이지/뷰 추가 | ✅ 필수 | ✅ 필수 |
+| 상태관리 구조 변경 | ✅ 필수 | ✅ 필수 |
+| 외부 라이브러리 도입/변경 | ✅ 필수 | ✅ 필수 |
+| 빌드 설정 변경 | ✅ 필수 | ✅ 필수 |
+| 인증/권한 UI 변경 | ✅ 필수 | ✅ 필수 |
 
 ### 메시지 형식
 
+> ⚠️ **주의**: curl로 한글/이모지 전송 시 `invalid_json` 오류 발생 가능
+> → 해결: 스크립트 함수로 분리하거나 임시 파일 사용
+> → 참조: `developer_integration_guide.md` 섹션 7.2.1
+
 ```bash
+# Slack 메시지 전송 함수 (권장)
+send_slack() {
+    local text="$1"
+    curl -s -X POST "https://slack.com/api/chat.postMessage" \
+        -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+        -H "Content-Type: application/json; charset=utf-8" \
+        -d "{\"channel\": \"proj-hrkp-dev\", \"text\": \"$text\"}"
+}
+
 # 작업 시작 (필수)
-curl -s -X POST "https://slack.com/api/chat.postMessage" \
-  -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"channel": "proj-hrkp-dev", "text": "*[Frontend]* 🎨 작업 시작: {SCRUM-XX}\n• 목표: {UI 구현 내용}\n• 컴포넌트: {컴포넌트 목록}"}'
+send_slack "*[Frontend]* 작업 시작: {SCRUM-XX} - {작업명}"
+
+# 작업 완료 (필수)
+send_slack "*[Frontend]* 작업 완료: {SCRUM-XX} - 컴포넌트 {n}개 구현"
+
+# 블로커 발생 (필수)
+send_slack "*[Frontend]* BLOCKER: {SCRUM-XX} - {문제 설명}"
+
+# 중요 이벤트 발생 (필수)
+send_slack "*[Frontend]* EVENT: {이벤트 유형} - {상세 내용}"
+
+# 중요 작업 시작 (필수)
+send_slack "*[Frontend]* IMPORTANT START: {작업 유형} - {영향 범위}"
+
+# 중요 작업 종료 (필수)
+send_slack "*[Frontend]* IMPORTANT DONE: {작업 유형} - {결과 요약}"
 
 # 작업 완료 (필수)
 curl -s -X POST "https://slack.com/api/chat.postMessage" \
@@ -166,3 +215,35 @@ source .env  # SLACK_BOT_TOKEN 로드
 - [ ] Slack에 작업 완료 알림을 보냈는가?
 - [ ] PM에게 결과를 보고했는가?
 - [ ] 블로커가 있다면 PM에게 보고했는가?
+
+---
+
+## 🌅 스탠드업 미팅 인사말
+
+스탠드업 미팅 시 `#proj-hrkp-standup` 채널에 인사와 상태를 공유합니다.
+
+### 인사말 형식
+
+```
+*[Frontend]* {인사말}
+• 어제: {어제 구현한 UI}
+• 오늘: {오늘 구현 예정}
+• 블로커: {디자인/API 이슈}
+• 한마디: {UX 아이디어 또는 디자인 인사이트}
+```
+
+### 인사말 예시
+
+```bash
+send_slack "*[Frontend]* 좋은 아침이에요! 오늘도 사용자를 위한 UI 만들어봐요!
+• 어제: 검색 컴포넌트, 결과 카드 UI 완성
+• 오늘: Knowledge Graph 시각화 컴포넌트
+• 블로커: 없음
+• 한마디: 사용자가 3초 안에 원하는 걸 찾을 수 있게! UX가 곧 경쟁력입니다."
+```
+
+### Frontend 인사말 특징
+- **밝고 친근**: 긍정적인 톤
+- **UX 강조**: 사용자 경험 관점
+- **디자인 공유**: UI/UX 아이디어
+- **시각적**: 컴포넌트, 애니메이션 언급

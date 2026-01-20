@@ -4,10 +4,11 @@
 
 ## 설치된 명령어
 
-### Daily Commands (4개) - `/daily:명령어`
+### Daily Commands (5개) - `/daily:명령어`
 
 | 명령어 | 설명 |
 |--------|------|
+| `/daily:standup` | 🆕 데일리 스탠드업 (팀원 인사 + 상태 공유) |
 | `/daily:daily-close` | 전체 마무리 (작업일지+바이브로그+문서현행화+푸시) |
 | `/daily:daily-log` | 작업일지 작성/업데이트 |
 | `/daily:vibe-log` | 바이브 코딩 일지 작성/업데이트 |
@@ -82,6 +83,47 @@
 # 프로젝트 문서 동기화
 /daily:sync-docs
 ```
+
+## 💡 일상 워크플로우 팁
+
+### 세션 시작 시
+
+| 상황 | 추천 방법 | 비고 |
+|------|----------|------|
+| 어제 작업 이어서 | `git log -5` + 작업일지 확인 | 가볍고 빠름 |
+| 오랜만에 복귀 | `/tools:context-restore` | 전체 맥락 파악 |
+| 여러 프로젝트 병행 | `/tools:context-save` → 전환 → `/tools:context-restore` | 컨텍스트 스위칭 |
+| 새 팀원 온보딩 | `CLAUDE.md` + `PLAN.md` 읽기 | 자동 로드됨 |
+
+### 하루 마무리 시
+
+| 상황 | 추천 방법 | 비고 |
+|------|----------|------|
+| 빠른 마무리 | `/daily:daily-log` | 일지만 작성 |
+| 전체 마무리 | `/daily:daily-close` | 일지+문서+커밋+푸시 |
+| 아이디어 기록 | `/daily:vibe-log` | 영감/인사이트 저장 |
+| 문서만 동기화 | `/daily:sync-docs` | README/CLAUDE/PLAN |
+
+### 코드 리뷰 & 품질
+
+| 상황 | 추천 방법 | 비고 |
+|------|----------|------|
+| AI/RAG 코드 작성 후 | `/tools:ai-review` | LLM/Vector DB 특화 |
+| 일반 코드 점검 | `/workflows:full-review` | 종합 리뷰 |
+| PR 올리기 전 | `/tools:pr-enhance` | PR 품질 개선 |
+| 보안 점검 필요 | `/tools:security-scan` | OWASP Top 10 |
+| 기술 부채 파악 | `/tools:tech-debt` | 리팩토링 우선순위 |
+
+### 문제 해결
+
+| 상황 | 추천 방법 | 비고 |
+|------|----------|------|
+| 버그 원인 모를 때 | `/tools:debug-trace` | 근본 원인 분석 |
+| 복잡한 문제 | `/workflows:smart-fix` | 자동 에이전트 선택 |
+| 에러 메시지 분석 | `/tools:error-analysis` | 해결책 제시 |
+| GitHub 이슈 처리 | `/tools:issue` | 이슈 분석 및 수정 |
+
+---
 
 ## 출처
 

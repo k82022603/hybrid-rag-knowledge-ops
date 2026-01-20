@@ -69,32 +69,70 @@ PM 작업 할당 → TechLead 리뷰 수행 → PM에게 완료 보고
 
 ### 알림 시점 (필수)
 
-| 시점 | 채널 | 필수 여부 |
-|------|------|----------|
-| 리뷰 시작 | proj-hrkp-review | ✅ 필수 |
-| 리뷰 완료 | proj-hrkp-review | ✅ 필수 |
-| 이슈 발견 | proj-hrkp-dev | ✅ 필수 |
+| 시점 | 채널 | 필수 여부 | 설명 |
+|------|------|----------|------|
+| 리뷰 시작 | proj-hrkp-review | ✅ 필수 | 코드/아키텍처 리뷰 시작 |
+| 리뷰 완료 | proj-hrkp-review | ✅ 필수 | 리뷰 완료 및 결과 |
+| 이슈 발견 | proj-hrkp-dev | ✅ 필수 | 심각한 문제 발견 |
+| **중요 이벤트** | proj-hrkp-dev | ✅ 필수 | 아래 목록 참조 |
+| **중요 작업 시작** | proj-hrkp-dev | ✅ 필수 | 영향도 큰 작업 착수 |
+| **중요 작업 종료** | proj-hrkp-dev | ✅ 필수 | 영향도 큰 작업 완료 |
+
+### 중요 이벤트 목록 (반드시 알림)
+
+| 이벤트 유형 | 예시 | 알림 이유 |
+|------------|------|----------|
+| 아키텍처 결정 | 설계 패턴 변경, 기술 스택 수정 | 전체 개발 방향 영향 |
+| 코딩 표준 변경 | 네이밍 규칙, 코드 스타일 수정 | 팀 전체 적용 필요 |
+| 보안 취약점 발견 | OWASP 이슈, 인증 문제 | 즉시 조치 필요 |
+| 성능 병목 발견 | 심각한 N+1, 메모리 누수 | 아키텍처 수정 필요 |
+| 기술 부채 경고 | 임계치 초과, 리팩토링 필요 | 계획 수립 필요 |
+
+### 중요 작업 목록 (시작/종료 시 알림)
+
+| 작업 유형 | 시작 시 알림 | 종료 시 알림 |
+|----------|-------------|-------------|
+| 아키텍처 리뷰 | ✅ 필수 | ✅ 필수 |
+| 기술 표준 수립/변경 | ✅ 필수 | ✅ 필수 |
+| 대규모 리팩토링 결정 | ✅ 필수 | ✅ 필수 |
+| 기술 스택 평가 | ✅ 필수 | ✅ 필수 |
+| 보안 아키텍처 검토 | ✅ 필수 | ✅ 필수 |
+| 성능 아키텍처 검토 | ✅ 필수 | ✅ 필수 |
 
 ### 메시지 형식
 
+> ⚠️ **주의**: curl로 한글/이모지 전송 시 `invalid_json` 오류 발생 가능
+> → 해결: 스크립트 함수로 분리하거나 임시 파일 사용
+> → 참조: `developer_integration_guide.md` 섹션 7.2.1
+
 ```bash
+# Slack 메시지 전송 함수 (권장)
+send_slack() {
+    local channel="$1"
+    local text="$2"
+    curl -s -X POST "https://slack.com/api/chat.postMessage" \
+        -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+        -H "Content-Type: application/json; charset=utf-8" \
+        -d "{\"channel\": \"$channel\", \"text\": \"$text\"}"
+}
+
 # 리뷰 시작 (필수)
-curl -s -X POST "https://slack.com/api/chat.postMessage" \
-  -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"channel": "proj-hrkp-review", "text": "*[TechLead]* 🔍 리뷰 시작: {Story ID}\n• 대상: {파일/PR 목록}\n• 검토 항목: {아키텍처/코드/보안}"}'
+send_slack "proj-hrkp-review" "*[TechLead]* 리뷰 시작: {Story ID} - {리뷰 유형}"
 
 # 리뷰 완료 (필수)
-curl -s -X POST "https://slack.com/api/chat.postMessage" \
-  -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"channel": "proj-hrkp-review", "text": "*[TechLead]* ✅ 리뷰 완료: {Story ID}\n• 결과: {승인/수정요청}\n• 코멘트: {주요 피드백}\n• PM 보고: 완료"}'
+send_slack "proj-hrkp-review" "*[TechLead]* 리뷰 완료: {Story ID} - {승인/수정요청}"
 
 # 이슈 발견 시 (필수)
-curl -s -X POST "https://slack.com/api/chat.postMessage" \
-  -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"channel": "proj-hrkp-dev", "text": "*[TechLead]* ⚠️ 리뷰 이슈: {Story ID}\n• 문제: {이슈 설명}\n• 심각도: {High/Medium/Low}\n• 권장 조치: {수정 방향}"}'
+send_slack "proj-hrkp-dev" "*[TechLead]* REVIEW ISSUE: {Story ID} - {문제 설명} (심각도: {High/Medium/Low})"
+
+# 중요 이벤트 발생 (필수)
+send_slack "proj-hrkp-dev" "*[TechLead]* EVENT: {이벤트 유형} - {상세 내용}"
+
+# 중요 작업 시작 (필수)
+send_slack "proj-hrkp-dev" "*[TechLead]* IMPORTANT START: {작업 유형} - {영향 범위}"
+
+# 중요 작업 종료 (필수)
+send_slack "proj-hrkp-dev" "*[TechLead]* IMPORTANT DONE: {작업 유형} - {결과 요약}"
 ```
 
 ### 환경 변수
@@ -111,6 +149,40 @@ source .env  # SLACK_BOT_TOKEN 로드
 ## 작업 완료 체크리스트
 
 - [ ] Slack에 리뷰 시작 알림을 보냈는가?
+- [ ] 중요 이벤트 발생 시 즉시 알림을 보냈는가?
+- [ ] 중요 작업 시작/종료 알림을 보냈는가?
 - [ ] Slack에 리뷰 완료 알림을 보냈는가?
 - [ ] PM에게 결과를 보고했는가?
 - [ ] 이슈가 있다면 Slack에 공유했는가?
+
+---
+
+## 🌅 스탠드업 미팅 인사말
+
+스탠드업 미팅 시 `#proj-hrkp-standup` 채널에 인사와 기술 인사이트를 공유합니다.
+
+### 인사말 형식
+
+```
+*[TechLead]* {인사말}
+• 어제: {어제 리뷰/검토한 것}
+• 오늘: {오늘 리뷰 예정}
+• 블로커: {기술적 이슈}
+• 한마디: {기술 인사이트 또는 아키텍처 팁}
+```
+
+### 인사말 예시
+
+```bash
+send_slack "*[TechLead]* 반갑습니다. 좋은 코드는 좋은 설계에서 시작됩니다.
+• 어제: Backend API 설계 리뷰 완료
+• 오늘: MLRag 파이프라인 아키텍처 검토
+• 블로커: 없음
+• 한마디: DRY보다 중요한 건 명확한 의도입니다. 오늘도 읽기 좋은 코드 작성합시다!"
+```
+
+### TechLead 인사말 특징
+- **기술 격언**: 개발 철학이나 원칙 공유
+- **아키텍처 팁**: 설계 관련 인사이트
+- **품질 강조**: 코드 품질, 테스트 중요성
+- **트렌드 공유**: 새로운 기술이나 패턴 언급

@@ -8,9 +8,12 @@ Hybrid RAG Knowledge Operations Platform의 개발 관련 가이드 문서 모�
 
 ```
 05_development/
-├── README.md                      # 본 문서
-├── developer_agent_guide.md       # 개발자 에이전트 도구 가이드
-└── coding_standards.md            # 코딩 표준 (예정)
+├── README.md                          # 본 문서
+├── development_environment_setup.md   # 개발 환경 설정 가이드 (NEW)
+├── quick_start_guide.md               # 빠른 시작 가이드 (NEW)
+├── development_conventions.md         # 개발 컨벤션 (NEW)
+├── developer_agent_guide.md           # 개발자 에이전트 도구 가이드
+└── developer_integration_guide.md     # 개발자 통합 가이드
 ```
 
 ---
@@ -19,20 +22,40 @@ Hybrid RAG Knowledge Operations Platform의 개발 관련 가이드 문서 모�
 
 | 문서 | 설명 | 대상 | 버전 |
 |------|------|------|------|
+| [development_environment_setup.md](./development_environment_setup.md) | 로컬 개발 환경 설정, Docker Compose 실행 | 개발자 | 1.0 |
+| [quick_start_guide.md](./quick_start_guide.md) | 5분 만에 개발 환경 구축 | 개발자 | 1.0 |
+| [development_conventions.md](./development_conventions.md) | 코드 스타일, 커밋 규칙, PR 가이드 | 개발자 | 1.0 |
 | [developer_agent_guide.md](./developer_agent_guide.md) | Claude Code 개발자 에이전트 도구 가이드 | AI 에이전트 | 1.0 |
+| [developer_integration_guide.md](./developer_integration_guide.md) | Jira, Slack, GitHub 연동 가이드 | 개발자 | 1.0 |
 
 ---
 
 ## 문서 목적
 
+### 개발 환경 설정 가이드 (NEW)
+- **목적**: 로컬 개발 환경 구축 및 Docker Compose 실행 안내
+- **대상**: 신규 개발자, 환경 설정이 필요한 개발자
+- **내용**: 시스템 요구사항, 도구 설치, 서비스별 실행 방법
+
+### 빠른 시작 가이드 (NEW)
+- **목적**: 5분 만에 개발 환경 구축
+- **대상**: 빠르게 시작하려는 개발자
+- **내용**: 필수 체크리스트, 단계별 실행 명령어, FAQ
+
+### 개발 컨벤션 (NEW)
+- **목적**: 일관된 코드 스타일 및 개발 프로세스 유지
+- **대상**: 모든 개발자
+- **내용**: 코드 스타일, 커밋 규칙, 브랜치 전략, PR 가이드
+
 ### 개발자 에이전트 가이드
-- **목적**: Claude Code 기반 개발자 에이전트가 효율적으로 작업할 수 있도록 도구 사용법 안내
+- **목적**: Claude Code 기반 개발자 에이전트 도구 사용법 안내
 - **대상**: Claude Code, AI 개발자 에이전트
-- **내용**:
-  - 상황별 도구/명령어 선택 가이드
-  - Subagent 유형 및 활용법
-  - Skill/Workflow 명령어 레퍼런스
-  - 작업 유형별 권장 접근법
+- **내용**: 상황별 도구 선택, Subagent 활용법, 명령어 레퍼런스
+
+### 개발자 통합 가이드
+- **목적**: 개발 도구 연동 및 워크플로우 안내
+- **대상**: 개발자
+- **내용**: GitHub 브랜치 전략, Jira/Slack 연동, Claude Code 활용
 
 ---
 
@@ -48,4 +71,8 @@ Hybrid RAG Knowledge Operations Platform의 개발 관련 가이드 문서 모�
 
 | 문서 | 버전 | 최종 수정 |
 |------|------|----------|
+| development_environment_setup | 1.0 | 2026-01-20 |
+| quick_start_guide | 1.0 | 2026-01-20 |
+| development_conventions | 1.0 | 2026-01-20 |
 | developer_agent_guide | 1.0 | 2026-01-17 |
+| developer_integration_guide | 1.0 | 2026-01-18 |

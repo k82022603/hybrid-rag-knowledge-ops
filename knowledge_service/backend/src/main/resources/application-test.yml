@@ -1,0 +1,27 @@
+# Test Profile Configuration
+spring:
+  r2dbc:
+    url: r2dbc:h2:mem:///testdb
+    username: sa
+    password:
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8180/realms/test
+          jwk-set-uri: http://localhost:8180/realms/test/protocol/openid-connect/certs
+
+ai-service:
+  url: http://localhost:8000
+
+minio:
+  url: http://localhost:9000
+  access-key: test
+  secret-key: test
+  bucket: test
+
+logging:
+  level:
+    root: INFO
+    com.knowledge.backend: DEBUG

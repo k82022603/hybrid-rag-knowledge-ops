@@ -1,0 +1,45 @@
+# =============================================================================
+# Grafana Datasources Provisioning - Knowledge Platform
+# =============================================================================
+
+apiVersion: 1
+
+datasources:
+  # Prometheus - Metrics
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: false
+    jsonData:
+      timeInterval: "15s"
+      httpMethod: POST
+
+  # Loki - Logs
+  - name: Loki
+    type: loki
+    access: proxy
+    url: http://loki:3100
+    editable: false
+    jsonData:
+      maxLines: 1000
+
+  # Jaeger - Traces
+  - name: Jaeger
+    type: jaeger
+    access: proxy
+    url: http://jaeger:16686
+    editable: false
+
+  # Elasticsearch - Search & Analytics
+  - name: Elasticsearch
+    type: elasticsearch
+    access: proxy
+    url: http://elasticsearch:9200
+    editable: false
+    jsonData:
+      esVersion: "8.11.0"
+      timeField: "@timestamp"
+      logLevelField: "level"
+      logMessageField: "message"

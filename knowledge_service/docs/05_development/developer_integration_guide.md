@@ -821,6 +821,7 @@ curl -u "$JIRA_EMAIL:$JIRA_API_TOKEN" \
 | channel_not_found | 채널 미존재 | 채널명 확인, Bot 채널 초대 |
 | not_in_channel | Bot 미초대 | `/invite @bot-name` 실행 |
 | rate_limited | API 제한 | 재시도 로직 구현, 호출 간격 조정 |
+| **invalid_json** | 한글/이모지 인코딩 오류 | 아래 해결책 참조 |
 
 ```bash
 # 연결 테스트
@@ -829,6 +830,54 @@ curl -X POST -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
   -d '{"channel":"#test","text":"Hello"}' \
   https://slack.com/api/chat.postMessage
 ```
+
+#### 7.2.1 JSON 인코딩 오류 (invalid_json) 해결
+
+**문제 상황**: curl로 Slack API 호출 시 한글, 이모지, 특수문자가 포함된 JSON에서 `invalid_json` 오류 발생
+
+```bash
+# ❌ 실패 - 직접 JSON에 한글/이모지 포함
+curl -X POST "https://slack.com/api/chat.postMessage" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"channel": "C123", "text": "안녕하세요 🚀"}'
+# 결과: {"ok":false,"error":"invalid_json"}
+```
+
+**해결책 1**: 쉘 스크립트 파일로 분리
+
+```bash
+# ✅ 성공 - 스크립트 내 함수로 처리
+send_message() {
+    local text="$1"
+    curl -s -X POST "https://slack.com/api/chat.postMessage" \
+        -H "Authorization: Bearer $TOKEN" \
+        -H "Content-Type: application/json; charset=utf-8" \
+        -d "{\"channel\": \"$CHANNEL\", \"text\": \"$text\"}"
+}
+send_message "[Agent] 안녕하세요! 메시지입니다."
+```
+
+**해결책 2**: ASCII 문자만 사용 (이모지 Slack 코드 활용)
+
+```bash
+# ✅ 성공 - Slack 이모지 코드 사용
+curl -X POST "https://slack.com/api/chat.postMessage" \
+  -H "Authorization: Bearer $TOKEN" \
+  -d '{"channel": "C123", "text": ":rocket: Hello World"}'
+```
+
+**해결책 3**: 임시 파일 활용
+
+```bash
+# ✅ 성공 - JSON 파일로 저장 후 전송
+echo '{"channel": "C123", "text": "안녕하세요"}' > /tmp/msg.json
+curl -X POST "https://slack.com/api/chat.postMessage" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d @/tmp/msg.json
+```
+
+> **참고**: 2026-01-20 실제 발생 사례. 9개 에이전트 인사 메시지 전송 중 발견됨.
 
 ### 7.3 GitHub 연결 문제
 

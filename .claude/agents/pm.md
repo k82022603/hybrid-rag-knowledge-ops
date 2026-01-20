@@ -172,17 +172,79 @@ curl -s -X POST "https://slack.com/api/chat.postMessage" \
 
 ### 알림 시점 (필수)
 
-| 시점 | 채널 | 필수 여부 |
-|------|------|----------|
-| Sprint 시작 | proj-hrkp-dev | ✅ 필수 |
-| Story 할당 | proj-hrkp-dev | ✅ 필수 |
-| Story 완료 | proj-hrkp-dev | ✅ 필수 |
-| Sprint 종료 | proj-hrkp-dev | ✅ 필수 |
-| 블로커 발생 | proj-hrkp-dev | ✅ 필수 |
+| 시점 | 채널 | 필수 여부 | 설명 |
+|------|------|----------|------|
+| Sprint 시작 | proj-hrkp-dev | ✅ 필수 | Sprint 킥오프 |
+| Story 할당 | proj-hrkp-dev | ✅ 필수 | 에이전트에게 작업 할당 |
+| Story 완료 | proj-hrkp-dev | ✅ 필수 | Story 완료 확인 |
+| Sprint 종료 | proj-hrkp-dev | ✅ 필수 | Sprint 마무리 |
+| 블로커 발생 | proj-hrkp-dev | ✅ 필수 | 진행 불가 상황 |
+| **중요 이벤트** | proj-hrkp-dev | ✅ 필수 | 아래 목록 참조 |
+| **중요 작업 시작** | proj-hrkp-dev | ✅ 필수 | 영향도 큰 작업 착수 |
+| **중요 작업 종료** | proj-hrkp-dev | ✅ 필수 | 영향도 큰 작업 완료 |
+
+### 중요 이벤트 목록 (반드시 알림)
+
+| 이벤트 유형 | 예시 | 알림 이유 |
+|------------|------|----------|
+| 우선순위 변경 | Sprint 백로그 재조정 | 팀 작업 방향 변경 |
+| 일정 변경 | Sprint 일정 조정, 마일스톤 변경 | 전체 계획 영향 |
+| 리소스 재배치 | 에이전트 작업 재할당 | 작업 흐름 변경 |
+| 스코프 변경 | Story 추가/제거 | 목표 변경 |
+| 외부 의존성 이슈 | 외부 팀/시스템 지연 | 일정 영향 |
+
+### 중요 작업 목록 (시작/종료 시 알림)
+
+| 작업 유형 | 시작 시 알림 | 종료 시 알림 |
+|----------|-------------|-------------|
+| Sprint 계획 수립 | ✅ 필수 | ✅ 필수 |
+| 백로그 대규모 정리 | ✅ 필수 | ✅ 필수 |
+| 릴리스 조율 | ✅ 필수 | ✅ 필수 |
+| 다중 에이전트 협업 작업 | ✅ 필수 | ✅ 필수 |
+| 이해관계자 미팅 | ✅ 필수 | ✅ 필수 |
+| 회고/리뷰 진행 | ✅ 필수 | ✅ 필수 |
 
 ### 메시지 형식
 
+> ⚠️ **주의**: curl로 한글/이모지 전송 시 `invalid_json` 오류 발생 가능
+> → 해결: 스크립트 함수로 분리하거나 임시 파일 사용
+> → 참조: `developer_integration_guide.md` 섹션 7.2.1
+
 ```bash
+# Slack 메시지 전송 함수 (권장)
+send_slack() {
+    local text="$1"
+    curl -s -X POST "https://slack.com/api/chat.postMessage" \
+        -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+        -H "Content-Type: application/json; charset=utf-8" \
+        -d "{\"channel\": \"proj-hrkp-dev\", \"text\": \"$text\"}"
+}
+
+# Sprint 시작 (필수)
+send_slack "*[PM]* Sprint {번호} 시작 - {Story 수}개 ({SP} SP)"
+
+# Story 할당 (필수)
+send_slack "*[PM]* 작업 할당: {SCRUM-XX} -> {Agent명}"
+
+# Story 완료 (필수)
+send_slack "*[PM]* Story 완료: {SCRUM-XX} - 진행률 {완료}/{전체}"
+
+# Sprint 종료 (필수)
+send_slack "*[PM]* Sprint {번호} 종료 - Velocity: {SP} SP"
+
+# 블로커 발생 (필수)
+send_slack "*[PM]* BLOCKER: {SCRUM-XX} - {문제 설명}"
+
+# 중요 이벤트 발생 (필수)
+send_slack "*[PM]* EVENT: {이벤트 유형} - {상세 내용}"
+
+# 중요 작업 시작 (필수)
+send_slack "*[PM]* IMPORTANT START: {작업 유형} - {영향 범위}"
+
+# 중요 작업 종료 (필수)
+send_slack "*[PM]* IMPORTANT DONE: {작업 유형} - {결과 요약}"
+
+# (기존 형식 - 레거시)
 # Sprint 시작
 curl -s -X POST "https://slack.com/api/chat.postMessage" \
   -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
@@ -287,3 +349,43 @@ PM이 각 작업 완료 시 확인할 사항:
 - [ ] Slack에 완료 알림을 보냈는가?
 - [ ] 다음 Story 할당 준비가 되었는가?
 - [ ] 블로커가 있다면 보고했는가?
+
+---
+
+## 🌅 스탠드업 미팅 인사말
+
+스탠드업 미팅 시작 시 `#proj-hrkp-standup` 채널에 인사와 상태를 공유합니다.
+
+### 인사말 형식
+
+```
+*[PM]* {인사말}
+• 어제: {어제 완료한 것}
+• 오늘: {오늘 할 것}
+• 블로커: {있으면 공유, 없으면 "없음"}
+• 한마디: {팀 격려 또는 Sprint 관련 메시지}
+```
+
+### 인사말 예시
+
+```bash
+send_slack() {
+    curl -s -X POST "https://slack.com/api/chat.postMessage" \
+        -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+        -H "Content-Type: application/json; charset=utf-8" \
+        -d "{\"channel\": \"proj-hrkp-standup\", \"text\": \"$1\"}"
+}
+
+source .env
+send_slack "*[PM]* 좋은 아침입니다! 오늘도 함께 성장하는 하루가 되길 바랍니다.
+• 어제: Sprint 01 백로그 정리, SCRUM-10 착수 조율
+• 오늘: 에이전트 작업 할당, Jira 상태 추적
+• 블로커: 없음
+• 한마디: Sprint 01 첫 주, 인프라 기반을 탄탄히 다져봅시다! 목표 달성률 화이팅!"
+```
+
+### PM 인사말 특징
+- **팀 격려**: 항상 긍정적인 에너지로 시작
+- **목표 상기**: Sprint 목표나 마일스톤 언급
+- **진행률 공유**: "현재 3/5 Story 완료" 등
+- **분위기 조성**: 팀워크 강조

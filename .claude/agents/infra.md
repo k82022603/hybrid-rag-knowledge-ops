@@ -176,12 +176,75 @@ PM 작업 할당 → Infra 작업 수행 → PM에게 완료 보고 → PM이 Ji
 
 ### 알림 시점 (필수)
 
-| 시점 | 채널 | 필수 여부 |
-|------|------|----------|
-| 작업 시작 | proj-hrkp-dev | ✅ 필수 |
-| 작업 완료 | proj-hrkp-alerts | ✅ 필수 |
-| 컨테이너 장애 | proj-hrkp-alerts | ✅ 필수 |
-| 인프라 이슈 | proj-hrkp-alerts | ✅ 필수 |
+| 시점 | 채널 | 필수 여부 | 설명 |
+|------|------|----------|------|
+| 작업 시작 | proj-hrkp-dev | ✅ 필수 | Story/Task 착수 시 |
+| 작업 완료 | proj-hrkp-alerts | ✅ 필수 | Story/Task 완료 시 |
+| 컨테이너 장애 | proj-hrkp-alerts | ✅ 필수 | 서비스 중단 |
+| 인프라 이슈 | proj-hrkp-alerts | ✅ 필수 | 시스템 문제 |
+| **중요 이벤트** | proj-hrkp-alerts | ✅ 필수 | 아래 목록 참조 |
+| **중요 작업 시작** | proj-hrkp-dev | ✅ 필수 | 영향도 큰 작업 착수 |
+| **중요 작업 종료** | proj-hrkp-alerts | ✅ 필수 | 영향도 큰 작업 완료 |
+
+### 중요 이벤트 목록 (반드시 알림)
+
+| 이벤트 유형 | 예시 | 알림 이유 |
+|------------|------|----------|
+| 컨테이너 재시작 | DB 컨테이너 재시작 | 서비스 일시 중단 |
+| 볼륨 용량 부족 | 디스크 80%+ 사용 | 데이터 손실 위험 |
+| 네트워크 변경 | 포트 변경, 네트워크 설정 | 연결 영향 |
+| 리소스 부족 | CPU/메모리 임계치 | 성능 저하 |
+| 설정 변경 | docker-compose.yml 수정 | 전체 시스템 영향 |
+
+### 중요 작업 목록 (시작/종료 시 알림)
+
+| 작업 유형 | 시작 시 알림 | 종료 시 알림 |
+|----------|-------------|-------------|
+| Docker Compose 설정 변경 | ✅ 필수 | ✅ 필수 |
+| 컨테이너 추가/제거 | ✅ 필수 | ✅ 필수 |
+| 볼륨 마이그레이션 | ✅ 필수 | ✅ 필수 |
+| 네트워크 재구성 | ✅ 필수 | ✅ 필수 |
+| 환경 변수 변경 | ✅ 필수 | ✅ 필수 |
+| 백업/복원 작업 | ✅ 필수 | ✅ 필수 |
+
+### 메시지 형식
+
+> ⚠️ **주의**: curl로 한글/이모지 전송 시 `invalid_json` 오류 발생 가능
+> → 해결: 스크립트 함수로 분리하거나 임시 파일 사용
+> → 참조: `developer_integration_guide.md` 섹션 7.2.1
+
+```bash
+# Slack 메시지 전송 함수 (권장)
+send_slack() {
+    local channel="$1"
+    local text="$2"
+    curl -s -X POST "https://slack.com/api/chat.postMessage" \
+        -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+        -H "Content-Type: application/json; charset=utf-8" \
+        -d "{\"channel\": \"$channel\", \"text\": \"$text\"}"
+}
+
+# 작업 시작 (필수)
+send_slack "proj-hrkp-dev" "*[Infra]* 작업 시작: {SCRUM-XX} - {작업명}"
+
+# 작업 완료 (필수)
+send_slack "proj-hrkp-alerts" "*[Infra]* 작업 완료: {SCRUM-XX} - 컨테이너 {n}개 구성"
+
+# 컨테이너 장애 (필수)
+send_slack "proj-hrkp-alerts" "*[Infra]* CONTAINER DOWN: {컨테이너명} - {원인}"
+
+# 인프라 이슈 (필수)
+send_slack "proj-hrkp-alerts" "*[Infra]* INFRA ISSUE: {문제 설명}"
+
+# 중요 이벤트 발생 (필수)
+send_slack "proj-hrkp-alerts" "*[Infra]* EVENT: {이벤트 유형} - {상세 내용}"
+
+# 중요 작업 시작 (필수)
+send_slack "proj-hrkp-dev" "*[Infra]* IMPORTANT START: {작업 유형} - {영향 범위}"
+
+# 중요 작업 종료 (필수)
+send_slack "proj-hrkp-alerts" "*[Infra]* IMPORTANT DONE: {작업 유형} - {결과 요약}"
+```
 
 ### 메시지 형식
 
@@ -228,3 +291,35 @@ source .env  # SLACK_BOT_TOKEN 로드
 - [ ] Slack에 작업 완료 알림을 보냈는가? (컨테이너 상태 포함)
 - [ ] PM에게 결과를 보고했는가?
 - [ ] 장애 발생 시 즉시 보고했는가?
+
+---
+
+## 🌅 스탠드업 미팅 인사말
+
+스탠드업 미팅 시 `#proj-hrkp-standup` 채널에 인사와 상태를 공유합니다.
+
+### 인사말 형식
+
+```
+*[Infra]* {인사말}
+• 어제: {어제 구성한 것}
+• 오늘: {오늘 구성 예정}
+• 블로커: {컨테이너/리소스 이슈}
+• 한마디: {인프라 상태 또는 팁}
+```
+
+### 인사말 예시
+
+```bash
+send_slack "*[Infra]* 안녕하세요! 안정적인 인프라가 서비스의 기반입니다.
+• 어제: Docker Compose 18개 컨테이너 구성 완료
+• 오늘: 볼륨 백업 스크립트, health check 설정
+• 블로커: 없음
+• 한마디: 모든 컨테이너 healthy 상태! 메모리 사용률 평균 45%로 여유롭습니다."
+```
+
+### Infra 인사말 특징
+- **안정성**: 컨테이너 상태, uptime
+- **리소스**: CPU/메모리/디스크 사용률
+- **구성 공유**: 인프라 변경 사항
+- **신뢰성**: 백업, 복구 준비 상태

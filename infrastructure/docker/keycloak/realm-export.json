@@ -1,0 +1,340 @@
+{
+  "id": "knowledge-platform",
+  "realm": "knowledge-platform",
+  "displayName": "Knowledge Platform",
+  "displayNameHtml": "<b>Knowledge Platform</b>",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "permanentLockout": false,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "waitIncrementSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "failureFactor": 5,
+  "defaultSignatureAlgorithm": "RS256",
+  "accessTokenLifespan": 3600,
+  "accessTokenLifespanForImplicitFlow": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "offlineSessionIdleTimeout": 2592000,
+  "accessCodeLifespan": 60,
+  "accessCodeLifespanUserAction": 300,
+  "accessCodeLifespanLogin": 1800,
+  "actionTokenGeneratedByAdminLifespan": 43200,
+  "actionTokenGeneratedByUserLifespan": 300,
+  "roles": {
+    "realm": [
+      {
+        "name": "admin",
+        "description": "Administrator role with full access",
+        "composite": true,
+        "composites": {
+          "realm": ["user", "developer"]
+        }
+      },
+      {
+        "name": "developer",
+        "description": "Developer role with API and debug access",
+        "composite": true,
+        "composites": {
+          "realm": ["user"]
+        }
+      },
+      {
+        "name": "user",
+        "description": "Standard user role",
+        "composite": false
+      },
+      {
+        "name": "viewer",
+        "description": "Read-only access role",
+        "composite": false
+      }
+    ],
+    "client": {
+      "knowledge-frontend": [
+        {
+          "name": "document:read",
+          "description": "Can read documents"
+        },
+        {
+          "name": "document:write",
+          "description": "Can create and edit documents"
+        },
+        {
+          "name": "document:delete",
+          "description": "Can delete documents"
+        },
+        {
+          "name": "search:execute",
+          "description": "Can execute searches"
+        },
+        {
+          "name": "admin:manage",
+          "description": "Can manage system settings"
+        },
+        {
+          "name": "api:debug",
+          "description": "Can access debug endpoints"
+        }
+      ],
+      "knowledge-backend": [
+        {
+          "name": "api:read",
+          "description": "Can read via API"
+        },
+        {
+          "name": "api:write",
+          "description": "Can write via API"
+        },
+        {
+          "name": "api:admin",
+          "description": "Admin API access"
+        }
+      ],
+      "knowledge-ai-service": [
+        {
+          "name": "search:vector",
+          "description": "Can perform vector search"
+        },
+        {
+          "name": "search:graph",
+          "description": "Can perform graph search"
+        },
+        {
+          "name": "search:hybrid",
+          "description": "Can perform hybrid search"
+        },
+        {
+          "name": "model:inference",
+          "description": "Can call LLM inference"
+        }
+      ]
+    }
+  },
+  "groups": [
+    {
+      "name": "Administrators",
+      "path": "/Administrators",
+      "realmRoles": ["admin"]
+    },
+    {
+      "name": "Developers",
+      "path": "/Developers",
+      "realmRoles": ["developer"]
+    },
+    {
+      "name": "Users",
+      "path": "/Users",
+      "realmRoles": ["user"]
+    },
+    {
+      "name": "Viewers",
+      "path": "/Viewers",
+      "realmRoles": ["viewer"]
+    }
+  ],
+  "defaultDefaultClientScopes": [
+    "email",
+    "profile",
+    "roles",
+    "web-origins"
+  ],
+  "clients": [
+    {
+      "clientId": "knowledge-frontend",
+      "name": "Knowledge Platform Frontend",
+      "description": "React SPA Frontend Application",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect",
+      "rootUrl": "${FRONTEND_URL:http://localhost}",
+      "baseUrl": "/",
+      "redirectUris": [
+        "http://localhost/*",
+        "http://localhost:3000/*",
+        "http://localhost:80/*"
+      ],
+      "webOrigins": [
+        "http://localhost",
+        "http://localhost:3000",
+        "http://localhost:80"
+      ],
+      "defaultClientScopes": [
+        "email",
+        "profile",
+        "roles",
+        "web-origins"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost/*"
+      }
+    },
+    {
+      "clientId": "knowledge-backend",
+      "name": "Knowledge Platform Backend",
+      "description": "Spring Boot Backend Service",
+      "enabled": true,
+      "publicClient": false,
+      "bearerOnly": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "knowledge-api-gateway",
+      "name": "Knowledge Platform API Gateway",
+      "description": "Spring Cloud Gateway",
+      "enabled": true,
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocol": "openid-connect",
+      "secret": "${GATEWAY_CLIENT_SECRET:change-me-in-production}",
+      "redirectUris": [
+        "http://localhost:8080/*"
+      ],
+      "webOrigins": [
+        "http://localhost:8080"
+      ]
+    },
+    {
+      "clientId": "knowledge-ai-service",
+      "name": "Knowledge Platform AI Service",
+      "description": "FastAPI AI/ML Service",
+      "enabled": true,
+      "publicClient": false,
+      "bearerOnly": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "protocol": "openid-connect",
+      "secret": "${AI_SERVICE_CLIENT_SECRET:change-me-in-production}",
+      "attributes": {
+        "service.accounts.enabled": "true"
+      }
+    }
+  ],
+  "users": [
+    {
+      "username": "admin",
+      "email": "admin@knowledge-platform.local",
+      "firstName": "System",
+      "lastName": "Administrator",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin123",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["admin", "user"],
+      "groups": ["/Administrators"]
+    },
+    {
+      "username": "demo",
+      "email": "demo@knowledge-platform.local",
+      "firstName": "Demo",
+      "lastName": "User",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["user"],
+      "groups": ["/Users"]
+    },
+    {
+      "username": "developer",
+      "email": "developer@knowledge-platform.local",
+      "firstName": "Dev",
+      "lastName": "User",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "dev123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["developer"],
+      "groups": ["/Developers"]
+    }
+  ],
+  "scopeMappings": [
+    {
+      "client": "knowledge-frontend",
+      "roles": ["user", "viewer"]
+    }
+  ],
+  "clientScopeMappings": {
+    "knowledge-frontend": [
+      {
+        "client": "knowledge-frontend",
+        "roles": ["document:read", "search:execute"]
+      }
+    ]
+  },
+  "components": {
+    "org.keycloak.keys.KeyProvider": [
+      {
+        "name": "rsa-generated",
+        "providerId": "rsa-generated",
+        "config": {
+          "priority": ["100"],
+          "keySize": ["2048"]
+        }
+      }
+    ]
+  },
+  "browserSecurityHeaders": {
+    "contentSecurityPolicyReportOnly": "",
+    "xContentTypeOptions": "nosniff",
+    "xRobotsTag": "none",
+    "xFrameOptions": "SAMEORIGIN",
+    "contentSecurityPolicy": "frame-src 'self'; frame-ancestors 'self'; object-src 'none';",
+    "xXSSProtection": "1; mode=block",
+    "strictTransportSecurity": "max-age=31536000; includeSubDomains"
+  },
+  "smtpServer": {},
+  "eventsEnabled": true,
+  "eventsListeners": ["jboss-logging"],
+  "enabledEventTypes": [
+    "LOGIN",
+    "LOGIN_ERROR",
+    "LOGOUT",
+    "REGISTER",
+    "REGISTER_ERROR",
+    "CODE_TO_TOKEN",
+    "CODE_TO_TOKEN_ERROR"
+  ],
+  "adminEventsEnabled": true,
+  "adminEventsDetailsEnabled": true
+}

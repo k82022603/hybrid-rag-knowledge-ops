@@ -1,0 +1,20 @@
+"""
+API 라우터 모듈
+
+모든 API 엔드포인트를 하나의 라우터로 통합
+"""
+
+from fastapi import APIRouter
+
+from app.api.routes.health import router as health_router
+from app.api.routes.search import router as search_router
+from app.api.routes.extract import router as extract_router
+from app.api.routes.embed import router as embed_router
+
+router = APIRouter()
+
+# 라우터 등록
+router.include_router(health_router, prefix="/health", tags=["Health"])
+router.include_router(search_router, prefix="/search", tags=["Search"])
+router.include_router(extract_router, prefix="/extract", tags=["Extract"])
+router.include_router(embed_router, prefix="/embed", tags=["Embed"])

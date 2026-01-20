@@ -39,7 +39,10 @@
       "Bash(source .env)",
       "Bash(./scripts/jira-sync.sh:*)",
       "Bash(sudo apt-get:*)",
-      "Bash(source:*)"
+      "Bash(source:*)",
+      "Skill(tools:context-restore)",
+      "Bash(python3:*)",
+      "Bash(echo:*)"
     ]
   }
 }

@@ -1,0 +1,384 @@
+{
+  "index_templates": {
+    "knowledge-chunks": {
+      "description": "Index template for document chunks with dense and sparse vectors",
+      "index_patterns": ["knowledge-chunks-*"],
+      "priority": 100,
+      "template": {
+        "settings": {
+          "number_of_shards": 1,
+          "number_of_replicas": 0,
+          "index.codec": "best_compression",
+          "analysis": {
+            "analyzer": {
+              "korean_analyzer": {
+                "type": "custom",
+                "tokenizer": "nori_tokenizer",
+                "filter": ["lowercase", "nori_part_of_speech"]
+              },
+              "text_analyzer": {
+                "type": "custom",
+                "tokenizer": "standard",
+                "filter": ["lowercase", "asciifolding"]
+              }
+            },
+            "filter": {
+              "nori_part_of_speech": {
+                "type": "nori_part_of_speech",
+                "stoptags": ["E", "IC", "J", "MAG", "MAJ", "MM", "SP", "SSC", "SSO", "SC", "SE", "XPN", "XSA", "XSN", "XSV", "UNA", "NA", "VSV"]
+              }
+            }
+          },
+          "index.knn": true
+        },
+        "mappings": {
+          "properties": {
+            "chunk_id": {
+              "type": "keyword"
+            },
+            "document_id": {
+              "type": "keyword"
+            },
+            "chunk_index": {
+              "type": "integer"
+            },
+            "text": {
+              "type": "text",
+              "analyzer": "korean_analyzer",
+              "search_analyzer": "korean_analyzer",
+              "fields": {
+                "standard": {
+                  "type": "text",
+                  "analyzer": "text_analyzer"
+                }
+              }
+            },
+            "dense_vector": {
+              "type": "dense_vector",
+              "dims": 1024,
+              "index": true,
+              "similarity": "cosine"
+            },
+            "sparse_vector": {
+              "type": "sparse_vector"
+            },
+            "heading": {
+              "type": "text",
+              "analyzer": "korean_analyzer",
+              "fields": {
+                "keyword": {
+                  "type": "keyword"
+                }
+              }
+            },
+            "token_count": {
+              "type": "integer"
+            },
+            "metadata": {
+              "type": "object",
+              "properties": {
+                "document_type": {
+                  "type": "keyword"
+                },
+                "project_name": {
+                  "type": "keyword"
+                },
+                "project_code": {
+                  "type": "keyword"
+                },
+                "author_name": {
+                  "type": "keyword"
+                },
+                "valid_start_date": {
+                  "type": "date",
+                  "format": "yyyy-MM-dd||yyyy-MM-dd'T'HH:mm:ss||epoch_millis"
+                },
+                "valid_end_date": {
+                  "type": "date",
+                  "format": "yyyy-MM-dd||yyyy-MM-dd'T'HH:mm:ss||epoch_millis"
+                },
+                "categories": {
+                  "type": "keyword"
+                },
+                "keywords": {
+                  "type": "keyword"
+                },
+                "language": {
+                  "type": "keyword"
+                }
+              }
+            },
+            "neo4j_entity_ids": {
+              "type": "keyword"
+            },
+            "neo4j_community_id": {
+              "type": "keyword"
+            },
+            "total_chunks": {
+              "type": "integer"
+            },
+            "created_at": {
+              "type": "date",
+              "format": "yyyy-MM-dd'T'HH:mm:ss.SSSZ||yyyy-MM-dd'T'HH:mm:ssZ||epoch_millis"
+            },
+            "updated_at": {
+              "type": "date",
+              "format": "yyyy-MM-dd'T'HH:mm:ss.SSSZ||yyyy-MM-dd'T'HH:mm:ssZ||epoch_millis"
+            }
+          }
+        }
+      }
+    },
+    "knowledge-documents": {
+      "description": "Index template for document metadata (denormalized for zero-join)",
+      "index_patterns": ["knowledge-documents-*"],
+      "priority": 100,
+      "template": {
+        "settings": {
+          "number_of_shards": 1,
+          "number_of_replicas": 0,
+          "index.codec": "best_compression",
+          "analysis": {
+            "analyzer": {
+              "korean_analyzer": {
+                "type": "custom",
+                "tokenizer": "nori_tokenizer",
+                "filter": ["lowercase", "nori_part_of_speech"]
+              }
+            },
+            "filter": {
+              "nori_part_of_speech": {
+                "type": "nori_part_of_speech",
+                "stoptags": ["E", "IC", "J", "MAG", "MAJ", "MM", "SP", "SSC", "SSO", "SC", "SE", "XPN", "XSA", "XSN", "XSV", "UNA", "NA", "VSV"]
+              }
+            }
+          }
+        },
+        "mappings": {
+          "properties": {
+            "document_id": {
+              "type": "keyword"
+            },
+            "title": {
+              "type": "text",
+              "analyzer": "korean_analyzer",
+              "fields": {
+                "keyword": {
+                  "type": "keyword"
+                }
+              }
+            },
+            "document_type": {
+              "type": "keyword"
+            },
+            "project": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "keyword"
+                },
+                "name": {
+                  "type": "keyword"
+                },
+                "code": {
+                  "type": "keyword"
+                }
+              }
+            },
+            "author": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "keyword"
+                },
+                "name": {
+                  "type": "keyword"
+                },
+                "department": {
+                  "type": "keyword"
+                }
+              }
+            },
+            "valid_start_date": {
+              "type": "date",
+              "format": "yyyy-MM-dd||yyyy-MM-dd'T'HH:mm:ss||epoch_millis"
+            },
+            "valid_end_date": {
+              "type": "date",
+              "format": "yyyy-MM-dd||yyyy-MM-dd'T'HH:mm:ss||epoch_millis"
+            },
+            "categories": {
+              "type": "nested",
+              "properties": {
+                "id": {
+                  "type": "keyword"
+                },
+                "name": {
+                  "type": "keyword"
+                },
+                "code": {
+                  "type": "keyword"
+                },
+                "level": {
+                  "type": "integer"
+                }
+              }
+            },
+            "entities": {
+              "type": "nested",
+              "properties": {
+                "id": {
+                  "type": "keyword"
+                },
+                "name": {
+                  "type": "keyword"
+                },
+                "type": {
+                  "type": "keyword"
+                },
+                "relevance_score": {
+                  "type": "float"
+                }
+              }
+            },
+            "file_info": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "keyword"
+                },
+                "size": {
+                  "type": "long"
+                },
+                "type": {
+                  "type": "keyword"
+                }
+              }
+            },
+            "chunk_count": {
+              "type": "integer"
+            },
+            "entity_count": {
+              "type": "integer"
+            },
+            "processing_status": {
+              "type": "keyword"
+            },
+            "keywords": {
+              "type": "keyword"
+            },
+            "summary": {
+              "type": "text",
+              "analyzer": "korean_analyzer"
+            },
+            "created_at": {
+              "type": "date",
+              "format": "yyyy-MM-dd'T'HH:mm:ss.SSSZ||yyyy-MM-dd'T'HH:mm:ssZ||epoch_millis"
+            },
+            "updated_at": {
+              "type": "date",
+              "format": "yyyy-MM-dd'T'HH:mm:ss.SSSZ||yyyy-MM-dd'T'HH:mm:ssZ||epoch_millis"
+            }
+          }
+        }
+      }
+    },
+    "knowledge-search-logs": {
+      "description": "Index template for search analytics",
+      "index_patterns": ["knowledge-search-logs-*"],
+      "priority": 100,
+      "template": {
+        "settings": {
+          "number_of_shards": 1,
+          "number_of_replicas": 0
+        },
+        "mappings": {
+          "properties": {
+            "search_id": {
+              "type": "keyword"
+            },
+            "user_id": {
+              "type": "keyword"
+            },
+            "query_text": {
+              "type": "text"
+            },
+            "query_vector": {
+              "type": "dense_vector",
+              "dims": 1024,
+              "index": false
+            },
+            "intent": {
+              "type": "keyword"
+            },
+            "filters": {
+              "type": "object",
+              "enabled": false
+            },
+            "result_count": {
+              "type": "integer"
+            },
+            "search_duration_ms": {
+              "type": "integer"
+            },
+            "search_type": {
+              "type": "keyword"
+            },
+            "timestamp": {
+              "type": "date",
+              "format": "yyyy-MM-dd'T'HH:mm:ss.SSSZ||epoch_millis"
+            }
+          }
+        }
+      }
+    }
+  },
+  "initial_indices": [
+    {
+      "name": "knowledge-chunks-v1",
+      "alias": "knowledge-chunks"
+    },
+    {
+      "name": "knowledge-documents-v1",
+      "alias": "knowledge-documents"
+    },
+    {
+      "name": "knowledge-search-logs-v1",
+      "alias": "knowledge-search-logs"
+    }
+  ],
+  "ilm_policies": {
+    "knowledge-logs-policy": {
+      "policy": {
+        "phases": {
+          "hot": {
+            "min_age": "0ms",
+            "actions": {
+              "rollover": {
+                "max_age": "30d",
+                "max_primary_shard_size": "50gb"
+              }
+            }
+          },
+          "warm": {
+            "min_age": "30d",
+            "actions": {
+              "shrink": {
+                "number_of_shards": 1
+              },
+              "forcemerge": {
+                "max_num_segments": 1
+              }
+            }
+          },
+          "delete": {
+            "min_age": "90d",
+            "actions": {
+              "delete": {}
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,97 @@
+# =============================================================================
+# Promtail Configuration - Knowledge Platform Log Collection
+# =============================================================================
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: info
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # Docker container logs
+  - job_name: containers
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: containerlogs
+          __path__: /var/lib/docker/containers/*/*-json.log
+
+    pipeline_stages:
+      # Parse Docker JSON log format
+      - json:
+          expressions:
+            output: log
+            stream: stream
+            timestamp: time
+
+      # Extract container info from path
+      - regex:
+          expression: "/var/lib/docker/containers/(?P<container_id>[^/]+)/.*"
+          source: filename
+
+      # Add labels
+      - labels:
+          stream:
+          container_id:
+
+      # Parse application logs if JSON
+      - match:
+          selector: '{job="containerlogs"}'
+          stages:
+            - json:
+                expressions:
+                  level: level
+                  message: message
+                  logger: logger
+                  timestamp: timestamp
+                source: output
+
+            - labels:
+                level:
+                logger:
+
+      # Output the log line
+      - output:
+          source: output
+
+  # System logs (optional)
+  - job_name: system
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: syslog
+          __path__: /var/log/syslog
+
+  # Application-specific log patterns
+  - job_name: knowledge-platform
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: knowledge-platform
+          __path__: /var/log/*.log
+
+    pipeline_stages:
+      # Match Spring Boot log pattern
+      - regex:
+          expression: '^(?P<timestamp>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z?)\s+(?P<level>\w+)\s+\[(?P<service>[^\]]+)\]\s+(?P<logger>[^\s]+)\s*:\s*(?P<message>.*)$'
+
+      - labels:
+          level:
+          service:
+          logger:
+
+      - timestamp:
+          source: timestamp
+          format: "2006-01-02T15:04:05.000Z07:00"
+
+      - output:
+          source: message

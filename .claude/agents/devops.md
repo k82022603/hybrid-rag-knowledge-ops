@@ -109,16 +109,76 @@ PM 작업 할당 → DevOps 작업 수행 → PM에게 완료 보고 → PM이 J
 
 ### 알림 시점 (필수)
 
-| 시점 | 채널 | 필수 여부 |
-|------|------|----------|
-| 작업 시작 | proj-hrkp-dev | ✅ 필수 |
-| 작업 완료 | proj-hrkp-alerts | ✅ 필수 |
-| 배포 실패 | proj-hrkp-alerts | ✅ 필수 |
-| 인프라 이슈 | proj-hrkp-alerts | ✅ 필수 |
+| 시점 | 채널 | 필수 여부 | 설명 |
+|------|------|----------|------|
+| 작업 시작 | proj-hrkp-dev | ✅ 필수 | Story/Task 착수 시 |
+| 작업 완료 | proj-hrkp-alerts | ✅ 필수 | Story/Task 완료 시 |
+| 배포 실패 | proj-hrkp-alerts | ✅ 필수 | CI/CD 파이프라인 실패 |
+| 인프라 이슈 | proj-hrkp-alerts | ✅ 필수 | 시스템 장애 |
+| **중요 이벤트** | proj-hrkp-alerts | ✅ 필수 | 아래 목록 참조 |
+| **중요 작업 시작** | proj-hrkp-dev | ✅ 필수 | 영향도 큰 작업 착수 |
+| **중요 작업 종료** | proj-hrkp-alerts | ✅ 필수 | 영향도 큰 작업 완료 |
+
+### 중요 이벤트 목록 (반드시 알림)
+
+| 이벤트 유형 | 예시 | 알림 이유 |
+|------------|------|----------|
+| 배포 시작/완료 | Staging/Production 배포 | 서비스 상태 변경 |
+| 파이프라인 변경 | CI/CD 워크플로우 수정 | 빌드 프로세스 영향 |
+| 환경 변수 변경 | 시크릿, 설정값 수정 | 서비스 동작 영향 |
+| 모니터링 알람 | CPU/메모리 임계치 초과 | 즉시 조사 필요 |
+| 롤백 수행 | 배포 실패로 인한 롤백 | 서비스 영향 |
+
+### 중요 작업 목록 (시작/종료 시 알림)
+
+| 작업 유형 | 시작 시 알림 | 종료 시 알림 |
+|----------|-------------|-------------|
+| Production 배포 | ✅ 필수 | ✅ 필수 |
+| CI/CD 파이프라인 변경 | ✅ 필수 | ✅ 필수 |
+| 환경 변수/시크릿 변경 | ✅ 필수 | ✅ 필수 |
+| 모니터링 설정 변경 | ✅ 필수 | ✅ 필수 |
+| 백업/복원 작업 | ✅ 필수 | ✅ 필수 |
+| 인프라 스케일링 | ✅ 필수 | ✅ 필수 |
 
 ### 메시지 형식
 
+> ⚠️ **주의**: curl로 한글/이모지 전송 시 `invalid_json` 오류 발생 가능
+> → 해결: 스크립트 함수로 분리하거나 임시 파일 사용
+> → 참조: `developer_integration_guide.md` 섹션 7.2.1
+
 ```bash
+# Slack 메시지 전송 함수 (권장)
+send_slack() {
+    local channel="$1"
+    local text="$2"
+    curl -s -X POST "https://slack.com/api/chat.postMessage" \
+        -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
+        -H "Content-Type: application/json; charset=utf-8" \
+        -d "{\"channel\": \"$channel\", \"text\": \"$text\"}"
+}
+
+# 작업 시작 (필수)
+send_slack "proj-hrkp-dev" "*[DevOps]* 작업 시작: {SCRUM-XX} - {작업명}"
+
+# 작업 완료 (필수)
+send_slack "proj-hrkp-alerts" "*[DevOps]* 작업 완료: {SCRUM-XX} - {결과 요약}"
+
+# 배포 실패 (필수)
+send_slack "proj-hrkp-alerts" "*[DevOps]* DEPLOY FAILED: {환경} - {실패 원인}"
+
+# 인프라 이슈 (필수)
+send_slack "proj-hrkp-alerts" "*[DevOps]* INFRA ISSUE: {문제 설명} - {영향 범위}"
+
+# 중요 이벤트 발생 (필수)
+send_slack "proj-hrkp-alerts" "*[DevOps]* EVENT: {이벤트 유형} - {상세 내용}"
+
+# 중요 작업 시작 (필수)
+send_slack "proj-hrkp-dev" "*[DevOps]* IMPORTANT START: {작업 유형} - {영향 범위}"
+
+# 중요 작업 종료 (필수)
+send_slack "proj-hrkp-alerts" "*[DevOps]* IMPORTANT DONE: {작업 유형} - {결과 요약}"
+
+# (기존 형식 - 레거시)
 # 작업 시작 (필수)
 curl -s -X POST "https://slack.com/api/chat.postMessage" \
   -H "Authorization: Bearer $SLACK_BOT_TOKEN" \
@@ -161,3 +221,35 @@ source .env  # SLACK_BOT_TOKEN 로드
 - [ ] Slack에 작업 완료 알림을 보냈는가?
 - [ ] PM에게 결과를 보고했는가?
 - [ ] 배포 실패 시 롤백 및 보고를 했는가?
+
+---
+
+## 🌅 스탠드업 미팅 인사말
+
+스탠드업 미팅 시 `#proj-hrkp-standup` 채널에 인사와 상태를 공유합니다.
+
+### 인사말 형식
+
+```
+*[DevOps]* {인사말}
+• 어제: {어제 구성한 것}
+• 오늘: {오늘 구성 예정}
+• 블로커: {CI/CD/인프라 이슈}
+• 한마디: {배포/모니터링 인사이트}
+```
+
+### 인사말 예시
+
+```bash
+send_slack "*[DevOps]* 안녕하세요! 자동화가 개발자를 자유롭게 합니다.
+• 어제: GitHub Actions 파이프라인 구성, 테스트 자동화
+• 오늘: Prometheus/Grafana 대시보드 설정
+• 블로커: 없음
+• 한마디: CI 빌드 시간 3분 → 2분으로 단축! 캐싱 전략이 효과적이었어요."
+```
+
+### DevOps 인사말 특징
+- **시스템 관점**: 인프라 상태
+- **자동화 강조**: CI/CD 개선
+- **모니터링**: 메트릭, 알람 상태
+- **효율성**: 빌드 시간, 배포 주기

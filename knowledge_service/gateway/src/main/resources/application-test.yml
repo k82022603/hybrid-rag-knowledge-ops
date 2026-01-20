@@ -1,0 +1,22 @@
+# Test Profile Configuration
+spring:
+  cloud:
+    gateway:
+      routes: []
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8180/realms/test
+          jwk-set-uri: http://localhost:8180/realms/test/protocol/openid-connect/certs
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+logging:
+  level:
+    root: INFO
+    com.knowledge.gateway: DEBUG
