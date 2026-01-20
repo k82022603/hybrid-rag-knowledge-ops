@@ -6,9 +6,9 @@
 |------|-----|
 | **Jira ID** | SCRUM-14 |
 | **Epic** | EPIC-000 Infrastructure |
-| **Status** | To Do |
+| **Status** | Done |
 | **Priority** | Medium |
-| **Story Points** | 1 |
+| **Story Points** | 3 |
 | **Assignee** | TechLead |
 | **Sprint** | 1 |
 

@@ -6,9 +6,9 @@
 |------|-----|
 | **Jira ID** | SCRUM-11 |
 | **Epic** | EPIC-000 Infrastructure |
-| **Status** | To Do |
+| **Status** | Done |
 | **Priority** | Critical |
-| **Story Points** | 5 |
+| **Story Points** | 3 |
 | **Assignee** | Data |
 | **Sprint** | 1 |
 

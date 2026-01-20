@@ -6,7 +6,7 @@
 |------|-----|
 | **Jira ID** | SCRUM-12 |
 | **Epic** | EPIC-000 Infrastructure |
-| **Status** | To Do |
+| **Status** | Done |
 | **Priority** | High |
 | **Story Points** | 5 |
 | **Assignee** | Backend, DevOps |

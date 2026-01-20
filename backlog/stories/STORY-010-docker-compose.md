@@ -6,10 +6,10 @@
 |------|-----|
 | **Jira ID** | SCRUM-10 |
 | **Epic** | EPIC-000 Infrastructure |
-| **Status** | To Do |
+| **Status** | Done |
 | **Priority** | Critical |
 | **Story Points** | 5 |
-| **Assignee** | DevOps |
+| **Assignee** | Infra |
 | **Sprint** | 1 |
 
 ---
