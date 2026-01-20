@@ -341,14 +341,123 @@ jira_update_status "SCRUM-10" "31"  # Done
 
 ---
 
-## 작업 완료 체크리스트
+## 📁 백로그 파일 동기화 (필수)
 
-PM이 각 작업 완료 시 확인할 사항:
+**PM은 Story 상태 변경 시 Sprint 문서와 개별 Story 파일을 모두 동시에 업데이트해야 합니다.**
 
-- [ ] Jira 상태가 "Done"으로 업데이트 되었는가?
-- [ ] Slack에 완료 알림을 보냈는가?
+### 업데이트 대상 파일
+
+| 상태 변경 시점 | Sprint 파일 | Story 파일 |
+|--------------|------------|------------|
+| Story 시작 | ✅ Status: In Progress | ✅ Status: In Progress |
+| Story 완료 | ✅ Status: Done | ✅ Status: Done |
+| Sprint 완료 | ✅ Status: completed | - |
+
+### 파일 경로
+
+```
+backlog/
+├── sprints/
+│   └── sprint-{XX}.md      # Sprint 문서 (백로그 테이블)
+└── stories/
+    └── STORY-{XXX}-*.md    # 개별 Story 파일 (메타데이터)
+```
+
+### Story 상태 변경 프로세스
+
+```mermaid
+flowchart LR
+    A[Story 상태 변경] --> B[Sprint 문서 업데이트]
+    A --> C[Story 파일 업데이트]
+    B --> D[Jira 상태 업데이트]
+    C --> D
+    D --> E[Slack 알림]
+```
+
+### 백로그 동기화 함수
+
+```bash
+# Story 상태 업데이트 (Sprint 문서 + Story 파일 + Jira)
+update_story_status() {
+    local STORY_ID=$1      # STORY-010
+    local JIRA_ID=$2       # SCRUM-10
+    local NEW_STATUS=$3    # "In Progress" or "Done"
+    local SPRINT_NUM=$4    # 01
+
+    SPRINT_FILE="backlog/sprints/sprint-${SPRINT_NUM}.md"
+    STORY_FILE="backlog/stories/${STORY_ID}-*.md"
+
+    # 1. Sprint 문서 업데이트
+    sed -i "s/| ${JIRA_ID} |.*| To Do |/| ${JIRA_ID} |.*| **${NEW_STATUS}** |/" "$SPRINT_FILE"
+    echo "[PM] Sprint 문서 업데이트: ${JIRA_ID} → ${NEW_STATUS}"
+
+    # 2. Story 파일 업데이트
+    STORY_FILE_PATH=$(ls $STORY_FILE 2>/dev/null)
+    if [ -f "$STORY_FILE_PATH" ]; then
+        if [ "$NEW_STATUS" = "Done" ]; then
+            sed -i 's/| \*\*Status\*\* | .* |/| **Status** | Done |/' "$STORY_FILE_PATH"
+        elif [ "$NEW_STATUS" = "In Progress" ]; then
+            sed -i 's/| \*\*Status\*\* | .* |/| **Status** | In Progress |/' "$STORY_FILE_PATH"
+        fi
+        echo "[PM] Story 파일 업데이트: ${STORY_ID} → ${NEW_STATUS}"
+    fi
+
+    # 3. Jira 상태 업데이트
+    if [ "$NEW_STATUS" = "In Progress" ]; then
+        jira_update_status "$JIRA_ID" "21"
+    elif [ "$NEW_STATUS" = "Done" ]; then
+        jira_update_status "$JIRA_ID" "31"
+    fi
+}
+
+# 사용 예시
+update_story_status "STORY-010" "SCRUM-10" "Done" "01"
+```
+
+### Story 완료 시 전체 프로세스
+
+```bash
+#!/bin/bash
+# PM이 Story 완료 처리 시 수행하는 전체 프로세스
+
+STORY_ID="STORY-010"
+JIRA_ID="SCRUM-10"
+SPRINT_NUM="01"
+AGENT="Infra"
+SUMMARY="Docker Compose 18개 컨테이너 구성 완료"
+
+# 1. 백로그 파일 동기화 (Sprint + Story)
+update_story_status "$STORY_ID" "$JIRA_ID" "Done" "$SPRINT_NUM"
+
+# 2. Slack 완료 알림
+send_slack "*[PM]* ✅ Story 완료: ${JIRA_ID}\n• 담당: ${AGENT}\n• 결과: ${SUMMARY}"
+
+# 3. 다음 Story 확인 및 할당 준비
+echo "[PM] 완료 처리 완료. 다음 Story 할당 준비."
+```
+
+---
+
+## ✅ 작업 완료 체크리스트 (필수)
+
+PM이 각 작업 완료 시 **반드시** 확인할 사항:
+
+### Story 완료 시
+- [ ] **Sprint 문서** 상태가 "Done"으로 업데이트 되었는가?
+- [ ] **Story 파일** 상태가 "Done"으로 업데이트 되었는가?
+- [ ] **Jira** 상태가 "Done"으로 업데이트 되었는가?
+- [ ] **Slack**에 완료 알림을 보냈는가?
 - [ ] 다음 Story 할당 준비가 되었는가?
 - [ ] 블로커가 있다면 보고했는가?
+
+### Sprint 완료 시
+- [ ] **Sprint 문서** 상태가 "completed"로 업데이트 되었는가?
+- [ ] 모든 Story 파일 상태가 "Done"인가?
+- [ ] Sprint 리뷰/회고 섹션이 작성되었는가?
+- [ ] 다음 Sprint 준비가 되었는가?
+
+> ⚠️ **중요**: Sprint 문서와 Story 파일의 상태가 불일치하면 안 됩니다.
+> 상태 변경 시 반드시 **두 파일 모두** 업데이트하세요.
 
 ---
 
