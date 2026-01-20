@@ -2,10 +2,10 @@
 
 🧠 Graph RAG 기반 지능형 지식 검색 시스템 + Antigravity 협업 공간
 
-**프로젝트 버전**: 3.5
+**프로젝트 버전**: 3.6
 **마지막 업데이트**: 2026-01-20
 **설계서 상태**: ✅ 설계 완료 (Phase 2 - 100%, 종합 9.1/10)
-**구현 진행**: ✅ Phase 3 Sprint 01 완료 - 인프라 12개 컨테이너 구축, E2E 40% 통과
+**구현 진행**: ✅ Phase 3 Sprint 01 완료 - 인프라 12개 컨테이너 구축, E2E 40% 통과, Slack 표준화
 
 ## 📋 개요
 
@@ -53,7 +53,9 @@
 ├── scripts/                       # 공통 유틸 스크립트
 │   ├── create_worklog.ps1         # 작업 일지 생성 (PowerShell)
 │   ├── create_worklog.sh          # 작업 일지 생성 (Bash)
-│   └── daily_worklog.ps1          # 통합 스크립트 (생성+커밋+푸시)
+│   ├── daily_worklog.ps1          # 통합 스크립트 (생성+커밋+푸시)
+│   ├── send_slack.sh              # Slack 메시지 표준화 스크립트 ⭐ NEW
+│   └── standup_all.sh             # 9개 Agent 일괄 인사 스크립트 ⭐ NEW
 │
 └── work_logs/                     # 📝 작업 일지 관리
     ├── daily_logs/                # 일일 작업 일지 (YYYY/MM-Month/)

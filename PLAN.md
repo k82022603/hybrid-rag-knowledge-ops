@@ -696,6 +696,21 @@ CI/CD Pipeline (GitHub Actions)
 
 ## Session Notes
 
+### 2026-01-20 Night (Slack 메시지 표준화 및 문서 현행화)
+- **Slack 메시지 표준화 스크립트 개발**
+  - `scripts/send_slack.sh` - 표준화된 Slack 메시지 전송
+  - `scripts/standup_all.sh` - 9개 Agent 일괄 인사
+  - 자동 구분자, jq 불필요, 한글/이모지 안전
+  - 줄바꿈 문제 해결 (literal `\n` → actual newline)
+- **9개 Agent 파일 업데이트**
+  - curl 직접 호출 → send_slack.sh 스크립트 사용으로 통일
+- **문서 현행화**
+  - docs/07: MCP 설정 파일 경로 수정 (v1.1)
+  - docs/08: send_slack.sh 반영 (v1.6)
+  - docs/09: Mermaid 오류 수정
+- **테마별 인사말 테스트**: 유머, 슬픈 사랑이야기 💔
+- **Git 커밋**: c93349a (14 files, +318 -442)
+
 ### 2026-01-20 Evening (인프라 E2E 테스트 및 안정화)
 - **Docker Compose 12개 컨테이너 안정화**
   - 포트 매핑 문제 해결 (`internal: true` 비활성화)
