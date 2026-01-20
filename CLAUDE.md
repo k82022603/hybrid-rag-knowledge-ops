@@ -2,7 +2,7 @@
 
 🤖 Hybrid RAG Knowledge Operations 프로젝트 개발 규칙
 
-**Version**: 2.9 | **Updated**: 2026-01-20
+**Version**: 2.10 | **Updated**: 2026-01-20
 
 ---
 
@@ -129,6 +129,37 @@ api_key = "sk-xxx..."  # 하드코딩 절대 금지
 - [ ] 로깅 추가
 - [ ] 유닛 테스트 작성 (80%+ 커버리지)
 - [ ] Black/isort 스타일 정렬
+
+---
+
+## 📊 도식화 규칙 (Mermaid)
+
+문서 내 다이어그램은 **Mermaid** 형식 사용을 권장합니다.
+
+### 다이어그램 유형 선택
+
+| 상황 | Mermaid 유형 | 예시 |
+|------|-------------|------|
+| 순차적 흐름 | `flowchart LR` | A → B → C |
+| 계층적 흐름 | `flowchart TB` | 상위에서 하위로 |
+| 시스템 간 통신 | `sequenceDiagram` | API 호출, 인증 플로우 |
+| 일정/타임라인 | `gantt` | 스프린트 계획, 테스트 일정 |
+| 컴포넌트 그룹핑 | `subgraph` | 레이어별 서비스 분류 |
+
+### 작성 예시
+
+```mermaid
+flowchart LR
+    subgraph Layer["Application Layer"]
+        A["Service A"] --> B["Service B"]
+    end
+```
+
+### 규칙
+- ASCII 아트 대신 Mermaid 사용
+- 복잡한 흐름은 `subgraph`로 그룹핑
+- 노드 레이블은 `["텍스트"]` 형식으로 가독성 확보
+- 줄바꿈은 `<br/>` 사용
 
 ---
 

@@ -221,6 +221,31 @@ ai-service/
 
 ---
 
+## Post-Sprint Validation (Sprint 02 시작 전 필수)
+
+### Infrastructure E2E Test
+
+Sprint 01 인프라 산출물의 품질 검증을 위한 관통 테스트입니다.
+
+| Priority | ID | Jira | 제목 | Points | Assignee | Status |
+|----------|-----|------|------|--------|----------|--------|
+| P0 | STORY-020 | SCRUM-20 | Infrastructure E2E Test | 5 | QA | To Do |
+
+**테스트 범위**:
+- 18개 컨테이너 Health Check
+- 데이터베이스 초기화 검증 (PostgreSQL, ES, Neo4j)
+- Keycloak 인증 플로우 테스트
+- 서비스 간 통합 테스트
+- Observability 스택 검증
+
+**일정**: 2026-01-21 ~ 2026-01-27 (5.5일)
+
+**관련 문서**:
+- [Infrastructure E2E Test Plan](../../knowledge_service/docs/04_testing/infrastructure_e2e_test_plan.md)
+- [STORY-020: Infrastructure E2E Test](../stories/STORY-020-infrastructure-e2e-test.md)
+
+---
+
 ## 참고 자료
 
 - [EPIC-000: Infrastructure Setup](../epics/EPIC-000-infrastructure.md)

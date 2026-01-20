@@ -32,6 +32,14 @@ Sprint 1 완료 항목 (필수):
 - [x] Redis 캐시 설정
 - [x] 프로젝트 골격 생성 완료
 
+**Sprint 01 Validation (Sprint 02 시작 전 필수)**:
+- [ ] STORY-020: Infrastructure E2E Test 완료 (5 SP, QA)
+  - 18개 컨테이너 Health Check
+  - 데이터베이스 초기화 검증
+  - Keycloak 인증 플로우 테스트
+  - 서비스 간 통합 테스트
+  - [Test Plan](../../knowledge_service/docs/04_testing/infrastructure_e2e_test_plan.md)
+
 ---
 
 ## 백로그
