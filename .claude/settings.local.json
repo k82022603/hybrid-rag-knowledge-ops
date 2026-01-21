@@ -104,5 +104,10 @@
         ]
       }
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "jira",
+    "github",
+    "slack"
+  ]
 }

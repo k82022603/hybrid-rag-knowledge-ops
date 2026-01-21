@@ -5,11 +5,11 @@
 
 ### Recent Commits
 ```
+0322c35 [DOCS] 일일 마무리 - 세션로그 SKILL, 작업일지/바이브로그 업데이트
+7373bd9 [FEAT] Kibana 추가, 스탠드업/세션로그 시스템 구축, E2E 테스트 리팩토링
 96ad2df [DOCS] 일일 마무리 - Slack 표준화, 작업일지/바이브로그 업데이트
 c93349a [FEAT] Slack 메시지 표준화 스크립트 및 Agent 설정 업데이트
 0613643 [REVERT] Agent 파일 메시지 형식 구분자 제거
-adcde42 [DOCS] 작업일지에 내일 스탠드업 미팅 준비 추가
-7a6fefe [DOCS] 일일 마무리 - 인프라 E2E 테스트, Agent 설정 업데이트
 ```
 
 ## Work Log Status
