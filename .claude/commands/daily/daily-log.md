@@ -107,6 +107,18 @@ git commit -m "[DOCS] YYYY-MM-DD 작업일지 작성/업데이트"
 
 ---
 
+## ⏰ 시간 기록 규칙
+
+시간을 기록할 때는 반드시 `date` 명령어로 실제 시간을 확인합니다:
+
+```bash
+date +"%Y-%m-%d %H:%M KST"
+```
+
+> **중요**: 시간을 추측하지 말고 항상 시스템 시간을 조회하여 정확한 값을 기록합니다.
+
+---
+
 **사용법**: `/project:daily:daily-log`
 **모드**: 업데이트 (기존 파일 보존 + 추가 내용 반영)
 **결과물**: `work_logs/daily_logs/YYYY/MM-Month/YYYY-MM-DD.md`
