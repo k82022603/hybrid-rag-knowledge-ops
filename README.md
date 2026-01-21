@@ -60,6 +60,8 @@
 └── work_logs/                     # 📝 작업 일지 관리
     ├── daily_logs/                # 일일 작업 일지 (YYYY/MM-Month/)
     ├── vibe_logs/                 # 바이브 코딩 일지 (영감/아이디어)
+    ├── session_logs/              # Claude Code 세션 로그 ⭐ NEW
+    ├── standups/                  # 스탠드업 미팅 기록 ⭐ NEW
     └── README.md
 ```
 
