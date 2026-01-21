@@ -1,6 +1,6 @@
-# 📝 Work Logs & Vibe Logs
+# 📝 Work Logs, Vibe Logs & Standups
 
-프로젝트 작업 기록 및 개발 일지 관리 폴더입니다.
+프로젝트 작업 기록, 개발 일지, 스탠드업 미팅 기록 관리 폴더입니다.
 
 ## 📁 폴더 구조
 
@@ -10,17 +10,21 @@ work_logs/
 │   ├── 2026/
 │   │   └── 01-January/
 │   │       ├── 2026-01-12.md
-│   │       ├── 2026-01-13.md
-│   │       ├── 2026-01-14.md
-│   │       └── 2026-01-15.md
+│   │       └── ...
 │   └── README.md        # 작업 일지 가이드
 │
 ├── vibe_logs/           # 💡 바이브 코딩 일지 (영감/아이디어)
 │   ├── 2026/
 │   │   └── 01-January/
 │   │       ├── 2026-01-14-vibe.md
-│   │       └── 2026-01-15-vibe.md
+│   │       └── ...
 │   └── README.md        # 바이브 로그 가이드
+│
+├── standups/            # 🌅 스탠드업 미팅 기록 (NEW)
+│   ├── 2026/
+│   │   └── 01-January/
+│   │       └── 2026-01-21_16-20.md   # 하루에 여러 번 가능
+│   └── README.md        # 스탠드업 가이드
 │
 └── README.md            # 이 파일
 ```
@@ -49,6 +53,18 @@ work_logs/
 
 📖 가이드: [vibe_logs/README.md](./vibe_logs/README.md)
 
+### 🌅 Standups (스탠드업 미팅 기록)
+**목적**: 팀 상태 공유 및 진행 추적
+**담당**: PM Agent
+
+- 에이전트별 어제/오늘/블로커
+- Sprint 현황 요약
+- 팀 상태 분석
+- 액션 아이템 정리
+- 리스크 모니터링
+
+📖 가이드: [standups/README.md](./standups/README.md)
+
 ## 🚀 빠른 시작
 
 ### 작업 일지 생성
@@ -66,6 +82,16 @@ work_logs/
 매일 저녁 또는 원할 때 언제든지:
 ```
 vibe_logs/2026/01-January/YYYY-MM-DD-vibe.md 파일 생성
+```
+
+### 스탠드업 미팅 실행
+
+```bash
+# Claude Code 명령어
+/daily:standup
+
+# 스탠드업 후 PM이 기록 파일 생성
+# standups/YYYY/MM-Month/YYYY-MM-DD_HH-MM.md
 ```
 
 ## 🔗 관련 문서

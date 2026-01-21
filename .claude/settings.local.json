@@ -55,7 +55,16 @@
       "Bash(docker-compose:*)",
       "Bash(/mnt/d/Users/KTDS/Documents/06.과제/hybrid-rag-knowledge-ops/.venv/bin/pip list:*)",
       "Bash(/mnt/d/Users/KTDS/Documents/06.과제/hybrid-rag-knowledge-ops/.venv/bin/pip install:*)",
-      "Bash(pytest:*)"
+      "Bash(pytest:*)",
+      "Bash(./scripts/send_slack.sh:*)",
+      "Skill(daily:standup)",
+      "Bash(then echo \"Token set, testing API...\")",
+      "Bash(else echo \"JIRA_API_TOKEN not set\")",
+      "Bash(pkill:*)",
+      "Bash(tee:*)",
+      "Bash(export KEYCLOAK_ADMIN_PASSWORD KEYCLOAK_REALM NEO4J_PASSWORD ELASTIC_PASSWORD DB_PASSWORD DB_USERNAME DB_NAME MINIO_ACCESS_KEY MINIO_SECRET_KEY)",
+      "Bash(jq:*)",
+      "Skill(tools:context-save)"
     ]
   },
   "hooks": {

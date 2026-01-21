@@ -20,6 +20,7 @@
 | 버전 | 일자 | 작성자 | 변경 내용 |
 |------|------|--------|----------|
 | 1.0 | 2026-01-17 | Claude Code | 초안 작성 - 기존 설계서 통합 + 분산 트레이싱, SLA, 보안 모니터링 추가 |
+| 1.1 | 2026-01-21 | Claude Code | Kibana 추가 (Elasticsearch 데이터 시각화/탐색 도구) |
 
 ---
 
@@ -33,6 +34,7 @@
    - [5.3 Circuit Breaker 메트릭](#53-circuit-breaker-메트릭) ← **Resilience4j 연동**
 6. [로그 수집 (Loki)](#6-로그-수집-loki)
 7. [시각화 및 대시보드 (Grafana)](#7-시각화-및-대시보드-grafana)
+   - [7.5 Kibana (Elasticsearch 시각화)](#75-kibana-elasticsearch-시각화)
 8. [알림 및 온콜 관리](#8-알림-및-온콜-관리)
 9. [SLA 모니터링](#9-sla-모니터링)
 10. [보안 이벤트 모니터링](#10-보안-이벤트-모니터링)
@@ -256,6 +258,24 @@ services:
     networks:
       - observability
 
+  # ============ Elasticsearch Visualization ============
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_NAME=kibana
+      - SERVER_HOST=0.0.0.0
+      - XPACK_SECURITY_ENABLED=false
+      - NODE_OPTIONS=--max-old-space-size=384
+    depends_on:
+      - elasticsearch
+    networks:
+      - observability
+      - backend
+
   # ============ Alerting ============
   alertmanager:
     image: prom/alertmanager:v0.26.0
@@ -323,6 +343,7 @@ networks:
 | Loki | 3100 | 로그 수집 API |
 | Jaeger UI | 16686 | 트레이스 조회 UI |
 | Jaeger OTLP | 4317/4318 | OpenTelemetry 수집 |
+| **Kibana** | **5601** | **ES 데이터 시각화/쿼리** |
 | AlertManager | 9093 | 알림 관리 |
 | Node Exporter | 9100 | 호스트 메트릭 |
 | cAdvisor | 8080 | 컨테이너 메트릭 |
@@ -1262,6 +1283,68 @@ datasources:
         filterByTraceID: true
         filterBySpanID: false
 ```
+
+### 7.5 Kibana (Elasticsearch 시각화)
+
+Kibana는 Elasticsearch 데이터를 탐색하고 시각화하기 위한 전용 도구입니다. Grafana가 통합 대시보드를 제공한다면, Kibana는 Elasticsearch에 특화된 깊이 있는 분석 기능을 제공합니다.
+
+#### 7.5.1 Kibana vs Grafana
+
+| 기능 | Kibana | Grafana |
+|------|--------|---------|
+| **Elasticsearch 쿼리** | Dev Tools 콘솔 제공, DSL 직접 실행 | 기본적인 쿼리만 지원 |
+| **인덱스 관리** | 인덱스 생성/삭제/매핑 관리 | 불가 |
+| **데이터 탐색** | Discover로 상세 탐색 | 제한적 |
+| **다중 데이터소스** | Elasticsearch 전용 | 다양한 소스 통합 |
+| **대시보드** | 기본 지원 | 풍부한 시각화 옵션 |
+
+#### 7.5.2 주요 사용 시나리오
+
+| 시나리오 | 도구 | 이유 |
+|----------|------|------|
+| **벡터 검색 디버깅** | Kibana | k-NN 쿼리 직접 테스트, 유사도 점수 확인 |
+| **인덱스 매핑 확인** | Kibana | `_mapping` API로 필드 타입 검증 |
+| **문서 임베딩 상태 확인** | Kibana | 벡터 필드 존재 여부, 차원 검증 |
+| **통합 모니터링** | Grafana | Prometheus + Loki + Jaeger 연계 |
+| **SLA 대시보드** | Grafana | 다양한 메트릭 통합 시각화 |
+
+#### 7.5.3 접속 정보
+
+| 항목 | 값 |
+|------|---|
+| URL | http://localhost:5601 |
+| 컨테이너명 | kp-kibana |
+| 인증 | 비활성화 (개발 환경) |
+| 메모리 | 768MB (힙: 384MB) |
+
+#### 7.5.4 Dev Tools 주요 명령어
+
+```json
+# 클러스터 상태 확인
+GET _cluster/health
+
+# 인덱스 목록
+GET _cat/indices?v
+
+# 인덱스 매핑 확인
+GET document-embeddings/_mapping
+
+# 벡터 검색 테스트
+GET document-embeddings/_search
+{
+  "knn": {
+    "field": "embedding",
+    "query_vector": [0.1, 0.2, ...],
+    "k": 10,
+    "num_candidates": 100
+  }
+}
+
+# 문서 수 확인
+GET document-embeddings/_count
+```
+
+> **상세 가이드**: `docs/07_maintenance/kibana_user_guide.md` 참조
 
 ---
 

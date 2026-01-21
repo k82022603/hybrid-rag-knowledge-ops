@@ -6,6 +6,10 @@ SCRUM-20: Sprint 01 Validation
 
 Test Coverage:
 - TC-INFRA-101 ~ TC-INFRA-116: Container health checks
+
+Markers:
+- @pytest.mark.application: Application layer tests (nginx, frontend, gateway, backend, ai-service)
+- @pytest.mark.infrastructure: Infrastructure layer tests (databases, monitoring)
 """
 
 import subprocess
@@ -26,6 +30,7 @@ from .conftest import (
 # TC-INFRA-101: ALL CONTAINERS START
 # =============================================================================
 
+@pytest.mark.infrastructure
 @docker_available
 class TestAllContainersStart:
     """TC-INFRA-101: Verify all containers start successfully."""
@@ -80,6 +85,7 @@ class TestAllContainersStart:
 # TC-INFRA-102 ~ 106: APPLICATION LAYER HEALTH
 # =============================================================================
 
+@pytest.mark.application
 @docker_available
 class TestApplicationLayerHealth:
     """Tests for Application Layer containers (nginx, frontend, gateway, backend, ai-service)."""
@@ -155,6 +161,7 @@ class TestApplicationLayerHealth:
 # TC-INFRA-107 ~ 108: AUTH LAYER HEALTH
 # =============================================================================
 
+@pytest.mark.infrastructure
 @docker_available
 class TestAuthLayerHealth:
     """Tests for Auth Layer containers (keycloak, keycloak-db)."""
@@ -190,6 +197,7 @@ class TestAuthLayerHealth:
 # TC-INFRA-108 ~ 112: DATA LAYER HEALTH
 # =============================================================================
 
+@pytest.mark.infrastructure
 @docker_available
 class TestDataLayerHealth:
     """Tests for Data Layer containers (postgresql, neo4j, elasticsearch, redis, minio)."""
@@ -235,6 +243,24 @@ class TestDataLayerHealth:
             f"ES cluster unhealthy: {data.get('status')}"
         )
 
+    def test_tc_infra_110b_kibana_health(self, http_session: requests.Session):
+        """
+        TC-INFRA-110b: Kibana status endpoint.
+
+        Endpoint: http://localhost:5601/api/status
+        Expected: status available or degraded (healthy Kibana)
+        """
+        response = http_session.get(
+            "http://localhost:5601/api/status", timeout=30
+        )
+        assert response.status_code == 200
+        data = response.json()
+        # Kibana status.overall.level should be "available" when healthy
+        overall = data.get("status", {}).get("overall", {})
+        assert overall.get("level") in ["available", "degraded"], (
+            f"Kibana unhealthy: {overall}"
+        )
+
     def test_tc_infra_111_redis_health(self):
         """
         TC-INFRA-111: Redis PING test.
@@ -266,6 +292,7 @@ class TestDataLayerHealth:
 # TC-INFRA-113 ~ 116: OBSERVABILITY LAYER HEALTH
 # =============================================================================
 
+@pytest.mark.infrastructure
 @docker_available
 class TestObservabilityLayerHealth:
     """Tests for Observability Layer (prometheus, grafana, loki, jaeger)."""
@@ -327,6 +354,7 @@ class TestObservabilityLayerHealth:
 # CONTAINER RESOURCE TESTS
 # =============================================================================
 
+@pytest.mark.infrastructure
 @docker_available
 class TestContainerResources:
     """Additional tests for container resource utilization."""

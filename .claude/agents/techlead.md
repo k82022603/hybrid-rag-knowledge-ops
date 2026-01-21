@@ -15,10 +15,10 @@ model: claude-opus-4-5-20251101  # 권장: opus-4-5 (복잡한 아키텍처 판�
 
 ```bash
 # 작업 시작 시 (필수)
-./scripts/send_slack.sh proj-hrkp-review TechLead "작업 시작: {작업명}"
+./scripts/send_slack.sh proj-hrkp-dev TechLead "작업 시작: {작업명}"
 
 # 작업 종료 시 (필수)
-./scripts/send_slack.sh proj-hrkp-review TechLead "작업 완료: {작업명} - {결과 요약}"
+./scripts/send_slack.sh proj-hrkp-dev TechLead "작업 완료: {작업명} - {결과 요약}"
 ```
 
 **⚠️ Slack 알림 없이 작업을 시작하거나 종료하면 안 됩니다!**
@@ -90,7 +90,8 @@ PM 작업 할당 → TechLead 리뷰 수행 → PM에게 완료 보고
 |------|------|----------|------|
 | 리뷰 시작 | proj-hrkp-review | ✅ 필수 | 코드/아키텍처 리뷰 시작 |
 | 리뷰 완료 | proj-hrkp-review | ✅ 필수 | 리뷰 완료 및 결과 |
-| 이슈 발견 | proj-hrkp-dev | ✅ 필수 | 심각한 문제 발견 |
+| 이슈 발견 | proj-hrkp-dev | ✅ 필수 | 심각한 문제 발견 (팀 공유) |
+| 보안 취약점 | proj-hrkp-alerts | ✅ 필수 | OWASP 이슈 등 (긴급) |
 | **중요 이벤트** | proj-hrkp-dev | ✅ 필수 | 아래 목록 참조 |
 | **중요 작업 시작** | proj-hrkp-dev | ✅ 필수 | 영향도 큰 작업 착수 |
 | **중요 작업 종료** | proj-hrkp-dev | ✅ 필수 | 영향도 큰 작업 완료 |
@@ -122,28 +123,33 @@ PM 작업 할당 → TechLead 리뷰 수행 → PM에게 완료 보고
 > → `./scripts/send_slack.sh <채널> <에이전트> "메시지"`
 
 ```bash
-# 리뷰 시작 (필수)
+# 리뷰 시작 (필수) - review 채널
 ./scripts/send_slack.sh proj-hrkp-review TechLead "리뷰 시작: {Story ID} - {리뷰 유형}"
 
-# 리뷰 완료 (필수)
+# 리뷰 완료 (필수) - review 채널
 ./scripts/send_slack.sh proj-hrkp-review TechLead "리뷰 완료: {Story ID} - {승인/수정요청}"
 
-# 이슈 발견 시 (필수)
+# 이슈 발견 시 (필수) - dev 채널 (팀 공유)
 ./scripts/send_slack.sh proj-hrkp-dev TechLead "REVIEW ISSUE: {Story ID} - {문제 설명} (심각도: {High/Medium/Low})"
 
-# 중요 이벤트 발생 (필수)
+# 보안 취약점 (필수) - alerts 채널 (긴급)
+./scripts/send_slack.sh proj-hrkp-alerts TechLead "SECURITY ISSUE: {Story ID} - {취약점 설명}"
+
+# 중요 이벤트 발생 (필수) - dev 채널
 ./scripts/send_slack.sh proj-hrkp-dev TechLead "EVENT: {이벤트 유형} - {상세 내용}"
 
-# 중요 작업 시작 (필수)
+# 중요 작업 시작 (필수) - dev 채널
 ./scripts/send_slack.sh proj-hrkp-dev TechLead "IMPORTANT START: {작업 유형} - {영향 범위}"
 
-# 중요 작업 종료 (필수)
+# 중요 작업 종료 (필수) - dev 채널
 ./scripts/send_slack.sh proj-hrkp-dev TechLead "IMPORTANT DONE: {작업 유형} - {결과 요약}"
 ```
 
-### 채널
-- `proj-hrkp-review`: 코드 리뷰, 아키텍처 검토
-- `proj-hrkp-dev`: 개발 이슈 공유
+### 채널 용도
+- `proj-hrkp-dev`: 개발 작업 기록 (이슈/이벤트/진행)
+- `proj-hrkp-review`: 코드/아키텍처 리뷰
+- `proj-hrkp-alerts`: 보안 취약점 (긴급)
+- `proj-hrkp-standup`: 스탠드업 미팅 인사
 
 ---
 

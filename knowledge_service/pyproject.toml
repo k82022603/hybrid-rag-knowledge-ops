@@ -134,6 +134,8 @@ markers = [
     "integration: integration tests",
     "e2e: end-to-end tests",
     "slow: slow tests",
+    "infrastructure: Infrastructure layer tests (databases, monitoring) - SCRUM-20",
+    "application: Application layer tests (requires app containers) - SCRUM-20",
 ]
 
 [tool.mypy]

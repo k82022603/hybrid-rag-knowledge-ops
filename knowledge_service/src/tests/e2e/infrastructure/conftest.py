@@ -17,6 +17,20 @@ from urllib3.util.retry import Retry
 
 
 # =============================================================================
+# PYTEST CONFIGURATION - SCRUM-20: Phased Testing
+# =============================================================================
+
+def pytest_configure(config):
+    """Register custom pytest markers for phased testing."""
+    config.addinivalue_line(
+        "markers", "infrastructure: Infrastructure layer tests (databases, monitoring)"
+    )
+    config.addinivalue_line(
+        "markers", "application: Application layer tests (requires app containers)"
+    )
+
+
+# =============================================================================
 # CONFIGURATION
 # =============================================================================
 
@@ -32,6 +46,7 @@ CONTAINERS = [
     "kp-postgresql",
     "kp-neo4j",
     "kp-elasticsearch",
+    "kp-kibana",
     "kp-redis",
     "kp-minio",
     "kp-prometheus",
@@ -53,6 +68,7 @@ SERVICE_ENDPOINTS = {
     "postgresql": {"host": "localhost", "port": 5432},
     "neo4j": {"url": "http://localhost:7474", "health": "/"},
     "elasticsearch": {"url": "http://localhost:9200", "health": "/_cluster/health"},
+    "kibana": {"url": "http://localhost:5601", "health": "/api/status"},
     "redis": {"host": "localhost", "port": 6379},
     "minio": {"url": "http://localhost:9000", "health": "/minio/health/live"},
     "prometheus": {"url": "http://localhost:9090", "health": "/-/healthy"},
@@ -68,12 +84,15 @@ DEFAULT_CONFIG = {
     "POSTGRES_DB": os.getenv("DB_NAME", "knowledge"),
     "NEO4J_USER": os.getenv("NEO4J_USER", "neo4j"),
     "NEO4J_PASSWORD": os.getenv("NEO4J_PASSWORD", ""),
+    "ELASTIC_USER": os.getenv("ELASTIC_USER", "elastic"),
+    "ELASTIC_PASSWORD": os.getenv("ELASTIC_PASSWORD", ""),
     "KEYCLOAK_ADMIN": os.getenv("KEYCLOAK_ADMIN", "admin"),
     "KEYCLOAK_ADMIN_PASSWORD": os.getenv("KEYCLOAK_ADMIN_PASSWORD", ""),
+    "KEYCLOAK_REALM": os.getenv("KEYCLOAK_REALM", "hybrid-rag"),
     "MINIO_ACCESS_KEY": os.getenv("MINIO_ACCESS_KEY", ""),
     "MINIO_SECRET_KEY": os.getenv("MINIO_SECRET_KEY", ""),
     "GRAFANA_ADMIN_USER": os.getenv("GRAFANA_ADMIN_USER", "admin"),
-    "GRAFANA_ADMIN_PASSWORD": os.getenv("GRAFANA_ADMIN_PASSWORD", ""),
+    "GRAFANA_ADMIN_PASSWORD": os.getenv("GRAFANA_ADMIN_PASSWORD", "admin"),
 }
 
 
@@ -144,18 +163,39 @@ def is_docker_available() -> bool:
 def get_container_status(container_name: str) -> Optional[Dict]:
     """Get container status information."""
     try:
+        # First get basic status (works for all containers)
         result = subprocess.run(
             ["docker", "inspect", "--format",
-             '{"status":"{{.State.Status}}","health":"{{.State.Health.Status}}","running":"{{.State.Running}}"}',
+             '{{.State.Status}}|{{.State.Running}}',
              container_name],
             capture_output=True,
             text=True,
             timeout=10
         )
-        if result.returncode == 0:
-            import json
-            return json.loads(result.stdout.strip())
-        return None
+        if result.returncode != 0:
+            return None
+
+        parts = result.stdout.strip().split("|")
+        status_info = {
+            "status": parts[0],
+            "running": parts[1],
+            "health": None
+        }
+
+        # Try to get health status (may fail for containers without health check)
+        health_result = subprocess.run(
+            ["docker", "inspect", "--format",
+             '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}',
+             container_name],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        if health_result.returncode == 0:
+            health = health_result.stdout.strip()
+            status_info["health"] = health if health != "none" else None
+
+        return status_info
     except (subprocess.SubprocessError, FileNotFoundError):
         return None
 

@@ -113,6 +113,7 @@ PM 작업 할당 → Backend 개발 수행 → PM에게 완료 보고 → PM이 
 | 작업 시작 | proj-hrkp-dev | ✅ 필수 | Story/Task 착수 시 |
 | 작업 완료 | proj-hrkp-dev | ✅ 필수 | Story/Task 완료 시 |
 | 블로커 발생 | proj-hrkp-dev | ✅ 필수 | 진행 불가 상황 |
+| 보안 이슈 | proj-hrkp-alerts | ✅ 필수 | 취약점/인증 문제 (긴급) |
 | **중요 이벤트** | proj-hrkp-dev | ✅ 필수 | 아래 목록 참조 |
 | **중요 작업 시작** | proj-hrkp-dev | ✅ 필수 | 영향도 큰 작업 착수 |
 | **중요 작업 종료** | proj-hrkp-dev | ✅ 필수 | 영향도 큰 작업 완료 |
@@ -144,28 +145,32 @@ PM 작업 할당 → Backend 개발 수행 → PM에게 완료 보고 → PM이 
 > → `./scripts/send_slack.sh <채널> <에이전트> "메시지"`
 
 ```bash
-# 작업 시작 (필수)
+# 작업 시작 (필수) - dev 채널
 ./scripts/send_slack.sh proj-hrkp-dev Backend "작업 시작: {SCRUM-XX} - {작업명}"
 
-# 작업 완료 (필수)
+# 작업 완료 (필수) - dev 채널
 ./scripts/send_slack.sh proj-hrkp-dev Backend "작업 완료: {SCRUM-XX} - 테스트 {통과율}%"
 
-# 블로커 발생 (필수)
+# 블로커 발생 (필수) - dev 채널
 ./scripts/send_slack.sh proj-hrkp-dev Backend "BLOCKER: {SCRUM-XX} - {문제 설명}"
 
-# 중요 이벤트 발생 (필수)
+# 보안 이슈 (필수) - alerts 채널 (긴급)
+./scripts/send_slack.sh proj-hrkp-alerts Backend "SECURITY ISSUE: {취약점 유형} - {문제 설명}"
+
+# 중요 이벤트 발생 (필수) - dev 채널
 ./scripts/send_slack.sh proj-hrkp-dev Backend "EVENT: {이벤트 유형} - {상세 내용}"
 
-# 중요 작업 시작 (필수)
+# 중요 작업 시작 (필수) - dev 채널
 ./scripts/send_slack.sh proj-hrkp-dev Backend "IMPORTANT START: {작업 유형} - {영향 범위}"
 
-# 중요 작업 종료 (필수)
+# 중요 작업 종료 (필수) - dev 채널
 ./scripts/send_slack.sh proj-hrkp-dev Backend "IMPORTANT DONE: {작업 유형} - {결과 요약}"
 ```
 
-### 채널
-- `proj-hrkp-dev`: 개발 논의, 작업 현황
-- `proj-hrkp-alerts`: 긴급 장애, 보안 이슈
+### 채널 용도
+- `proj-hrkp-dev`: 개발 작업 기록 (시작/완료/블로커)
+- `proj-hrkp-alerts`: 보안 이슈 (긴급)
+- `proj-hrkp-standup`: 스탠드업 미팅 인사
 
 ---
 

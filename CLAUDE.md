@@ -2,7 +2,7 @@
 
 🤖 Hybrid RAG Knowledge Operations 프로젝트 개발 규칙
 
-**Version**: 2.10 | **Updated**: 2026-01-20
+**Version**: 2.11 | **Updated**: 2026-01-21
 
 ---
 
@@ -225,7 +225,9 @@ flowchart LR
 - [상세 설계서 v2.4](./knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md) - Gleaning 포함
 - [API 통합 설계서](./knowledge_service/docs/02_design/api_integration_design.md)
 - [백엔드 상세 설계서](./knowledge_service/docs/02_design/backend_detailed_design.md)
-- [인프라 설계서](./knowledge_service/docs/02_design/infrastructure_detailed_design.md) - Docker Compose 기반
+- [인프라 설계서](./knowledge_service/docs/02_design/infrastructure_detailed_design.md) - Docker Compose 기반 (18개 컨테이너)
+- [Observability 설계서](./knowledge_service/docs/02_design/observability_detailed_design.md) - Prometheus/Grafana/Kibana/Jaeger
+- [Kibana 사용자 가이드](./knowledge_service/docs/07_maintenance/kibana_user_guide.md) - ES 데이터 시각화/쿼리 ⭐
 - [기술 검토 문서](./knowledge_service/docs/02_design/technical_assessment/) - Gleaning, K8s 백업 등
 - [Claude Commands README](./.claude/commands/README.md) - 설치된 명령어 전체 목록
 - [개발자 에이전트 가이드](./knowledge_service/docs/05_development/developer_agent_guide.md) - AI 에이전트 도구 사용법 ⭐

@@ -102,12 +102,96 @@ send "*[TechLead]* 반갑습니다. 기술적 도전을 즐기는 하루가 되�
 send "*[PM]* === Standup 종료 === 오늘도 화이팅!"
 ```
 
+## 5. 스탠드업 기록 생성 (PM 담당)
+
+스탠드업 종료 후 PM Agent가 기록 파일을 생성합니다.
+
+### 기록 폴더 구조
+
+```
+work_logs/standups/
+├── README.md
+└── YYYY/
+    └── MM-Month/
+        └── YYYY-MM-DD_HH-MM.md
+```
+
+### 파일명 규칙
+
+- **형식**: `YYYY-MM-DD_HH-MM.md`
+- **예시**: `2026-01-21_16-20.md` (하루에 여러 번 가능)
+
+### 기록 내용 (필수)
+
+```markdown
+# Daily Standup Meeting
+
+**날짜**: YYYY-MM-DD
+**시간**: HH:MM
+**채널**: #proj-hrkp-standup
+
+## 참석자
+| Agent | 역할 | 상태 |
+|-------|------|------|
+| PM | Product Manager | ✅ 참석 |
+...
+
+## 에이전트별 상태 보고
+(각 에이전트의 어제/오늘/블로커/한마디)
+
+## Sprint 현황 (PM Summary)
+- Sprint 상태, Velocity, 완료된 Stories
+
+## 팀 상태 분석
+- 블로커 현황, 에이전트별 워크로드
+
+## 다음 액션 아이템
+- P0/P1/P2 우선순위별 정리
+
+## 리스크 모니터링
+- 확률, 영향, 대응 계획
+```
+
+### 기록 생성 스크립트
+
+```bash
+#!/bin/bash
+# 스탠드업 기록 폴더 생성
+YEAR=$(date +%Y)
+MONTH=$(date +%m-%B)
+STANDUP_DIR="work_logs/standups/${YEAR}/${MONTH}"
+mkdir -p "$STANDUP_DIR"
+
+# 파일명 생성 (하루에 여러 번 가능)
+FILENAME="${STANDUP_DIR}/$(date +%Y-%m-%d_%H-%M).md"
+
+# PM Agent가 기록 작성
+echo "스탠드업 기록 파일: $FILENAME"
+```
+
+---
+
 ## 자동화 옵션
 
 1. **수동 실행**: `/daily:standup` 명령어로 직접 실행
 2. **자동 실행**: PM Agent가 Sprint 진행 중 매일 아침 자동 호출
 
+## 실행 후 PM 작업 (필수)
+
+스탠드업 미팅 후 PM Agent는 다음 작업을 수행해야 합니다:
+
+1. ✅ Slack 메시지 전송 완료 확인
+2. ✅ `work_logs/standups/YYYY/MM-Month/YYYY-MM-DD_HH-MM.md` 기록 파일 생성
+3. ✅ Sprint 현황, 팀 상태, 액션 아이템, 리스크 정리
+4. ✅ Slack에 기록 완료 알림 (proj-hrkp-dev)
+
+```bash
+# PM이 기록 완료 후 알림
+./scripts/send_slack.sh proj-hrkp-dev PM "작업 완료: 스탠드업 미팅 기록 - work_logs/standups/..."
+```
+
 ## 참고
 
 - 각 에이전트의 "어제/오늘" 내용은 git log, 작업일지, Jira 상태를 분석하여 자동 생성
 - "한마디"는 에이전트 성격에 맞는 랜덤 메시지 또는 실제 인사이트
+- **스탠드업 기록은 PM Agent의 책임** - 반드시 기록 파일을 생성해야 함

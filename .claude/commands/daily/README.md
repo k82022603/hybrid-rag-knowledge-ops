@@ -6,10 +6,12 @@
 
 | 명령어 | 설명 | 용도 |
 |--------|------|------|
-| `/project:daily:daily-close` | 전체 마무리 | 모든 마무리 작업 일괄 실행 |
-| `/project:daily:daily-log` | 작업일지 | 작업일지만 작성/업데이트 |
-| `/project:daily:vibe-log` | 바이브 일지 | 바이브 코딩 일지만 작성/업데이트 |
-| `/project:daily:sync-docs` | 문서 현행화 | README/CLAUDE/PLAN 업데이트 |
+| `/daily:daily-close` | 전체 마무리 | 모든 마무리 작업 일괄 실행 |
+| `/daily:daily-log` | 작업일지 | 작업일지만 작성/업데이트 |
+| `/daily:vibe-log` | 바이브 일지 | 바이브 코딩 일지만 작성/업데이트 |
+| `/daily:sync-docs` | 문서 현행화 | README/CLAUDE/PLAN 업데이트 |
+| `/daily:standup` | 스탠드업 미팅 | 팀 에이전트 스탠드업 (PM 기록) |
+| `/daily:session-log` | 세션 로그 | Claude Code 세션 기록 |
 
 > **참고**: 서브폴더(`daily/`)에 있는 명령어는 `/project:폴더명:명령어` 형식으로 호출합니다.
 
@@ -31,13 +33,13 @@
 
 ### 시나리오 1: 퇴근 전 일괄 마무리
 ```
-/project:daily:daily-close
+/daily:daily-close
 ```
 → 커밋 확인 → 작업일지 → 바이브 일지 → 문서 현행화 → 푸시
 
 ### 시나리오 2: 작업일지만 작성
 ```
-/project:daily:daily-log
+/daily:daily-log
 ```
 → 작업일지 작성/업데이트만 수행
 
@@ -45,15 +47,27 @@
 ```
 # 이미 오늘 마무리 완료 후 추가 작업 발생
 
-/project:daily:daily-close
+/daily:daily-close
 ```
 → 기존 일지에 추가 내용만 반영
 
 ### 시나리오 4: 문서만 빠르게 동기화
 ```
-/project:daily:sync-docs
+/daily:sync-docs
 ```
 → README.md, CLAUDE.md, PLAN.md만 업데이트
+
+### 시나리오 5: 스탠드업 미팅 시작
+```
+/daily:standup
+```
+→ PM이 시작 선언 → 에이전트 상태 공유 → PM이 기록 작성
+
+### 시나리오 6: 세션 로그 작성
+```
+/daily:session-log
+```
+→ 현재 세션 작업 기록 저장 (컨텍스트 보존)
 
 ## 생성되는 파일
 
@@ -71,6 +85,20 @@ work_logs/vibe_logs/
 └── YYYY/
     └── MM-Month/
         └── YYYY-MM-DD-vibe.md
+```
+
+### 스탠드업 기록
+```
+work_logs/standups/
+└── YYYY/
+    └── MM-Month/
+        └── YYYY-MM-DD_HH-MM.md
+```
+
+### 세션 로그
+```
+work_logs/session_logs/
+└── YYYY-MM-DD_description.md
 ```
 
 ### 프로젝트 문서
@@ -95,9 +123,11 @@ work_logs/vibe_logs/
 ### 1. 언제 어떤 명령어를 쓸까?
 
 ```
-퇴근 전 완전 마무리    → /project:daily:daily-close
-빠르게 일지만         → /project:daily:daily-log 또는 /project:daily:vibe-log
-문서 버전만 올리고 싶을 때 → /project:daily:sync-docs
+퇴근 전 완전 마무리    → /daily:daily-close
+빠르게 일지만         → /daily:daily-log 또는 /daily:vibe-log
+문서 버전만 올리고 싶을 때 → /daily:sync-docs
+스탠드업 미팅 시작    → /daily:standup
+세션 작업 기록       → /daily:session-log
 ```
 
 ### 2. 업데이트 vs 새 작성
@@ -128,6 +158,7 @@ A: 시스템 시간 확인 후 파일명 수동 변경
 
 ---
 
-**버전**: 1.0
+**버전**: 1.1
 **생성일**: 2026-01-16
+**업데이트**: 2026-01-21 (standup, session-log 추가)
 **작성자**: Claude Code (Opus 4.5)

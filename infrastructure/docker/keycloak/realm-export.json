@@ -1,8 +1,8 @@
 {
-  "id": "knowledge-platform",
-  "realm": "knowledge-platform",
-  "displayName": "Knowledge Platform",
-  "displayNameHtml": "<b>Knowledge Platform</b>",
+  "id": "hybrid-rag",
+  "realm": "hybrid-rag",
+  "displayName": "Hybrid RAG Knowledge Platform",
+  "displayNameHtml": "<b>Hybrid RAG Knowledge Platform</b>",
   "enabled": true,
   "sslRequired": "external",
   "registrationAllowed": false,
@@ -33,24 +33,19 @@
     "realm": [
       {
         "name": "admin",
-        "description": "Administrator role with full access",
+        "description": "Administrator role with full access to all resources",
         "composite": true,
         "composites": {
-          "realm": ["user", "developer"]
-        }
-      },
-      {
-        "name": "developer",
-        "description": "Developer role with API and debug access",
-        "composite": true,
-        "composites": {
-          "realm": ["user"]
+          "realm": ["user", "viewer"]
         }
       },
       {
         "name": "user",
-        "description": "Standard user role",
-        "composite": false
+        "description": "Standard user role with read/write access",
+        "composite": true,
+        "composites": {
+          "realm": ["viewer"]
+        }
       },
       {
         "name": "viewer",
@@ -59,7 +54,7 @@
       }
     ],
     "client": {
-      "knowledge-frontend": [
+      "frontend": [
         {
           "name": "document:read",
           "description": "Can read documents"
@@ -79,13 +74,9 @@
         {
           "name": "admin:manage",
           "description": "Can manage system settings"
-        },
-        {
-          "name": "api:debug",
-          "description": "Can access debug endpoints"
         }
       ],
-      "knowledge-backend": [
+      "backend": [
         {
           "name": "api:read",
           "description": "Can read via API"
@@ -99,7 +90,7 @@
           "description": "Admin API access"
         }
       ],
-      "knowledge-ai-service": [
+      "ai-service": [
         {
           "name": "search:vector",
           "description": "Can perform vector search"
@@ -126,11 +117,6 @@
       "realmRoles": ["admin"]
     },
     {
-      "name": "Developers",
-      "path": "/Developers",
-      "realmRoles": ["developer"]
-    },
-    {
       "name": "Users",
       "path": "/Users",
       "realmRoles": ["user"]
@@ -149,9 +135,9 @@
   ],
   "clients": [
     {
-      "clientId": "knowledge-frontend",
-      "name": "Knowledge Platform Frontend",
-      "description": "React SPA Frontend Application",
+      "clientId": "frontend",
+      "name": "Hybrid RAG Frontend",
+      "description": "React SPA Frontend Application (Public Client)",
       "enabled": true,
       "publicClient": true,
       "directAccessGrantsEnabled": true,
@@ -164,12 +150,16 @@
       "redirectUris": [
         "http://localhost/*",
         "http://localhost:3000/*",
-        "http://localhost:80/*"
+        "http://localhost:80/*",
+        "http://127.0.0.1/*",
+        "http://127.0.0.1:3000/*"
       ],
       "webOrigins": [
         "http://localhost",
         "http://localhost:3000",
-        "http://localhost:80"
+        "http://localhost:80",
+        "http://127.0.0.1",
+        "http://127.0.0.1:3000"
       ],
       "defaultClientScopes": [
         "email",
@@ -184,121 +174,132 @@
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "http://localhost/*"
+        "post.logout.redirect.uris": "http://localhost/*##http://127.0.0.1/*"
       }
     },
     {
-      "clientId": "knowledge-backend",
-      "name": "Knowledge Platform Backend",
-      "description": "Spring Boot Backend Service",
-      "enabled": true,
-      "publicClient": false,
-      "bearerOnly": true,
-      "standardFlowEnabled": false,
-      "directAccessGrantsEnabled": false,
-      "serviceAccountsEnabled": false,
-      "protocol": "openid-connect"
-    },
-    {
-      "clientId": "knowledge-api-gateway",
-      "name": "Knowledge Platform API Gateway",
-      "description": "Spring Cloud Gateway",
+      "clientId": "backend",
+      "name": "Hybrid RAG Backend",
+      "description": "Spring Boot Backend Service (Confidential Client)",
       "enabled": true,
       "publicClient": false,
       "bearerOnly": false,
       "standardFlowEnabled": true,
-      "directAccessGrantsEnabled": false,
+      "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": true,
       "protocol": "openid-connect",
-      "secret": "${GATEWAY_CLIENT_SECRET:change-me-in-production}",
+      "secret": "${BACKEND_CLIENT_SECRET:backend-secret-dev}",
       "redirectUris": [
-        "http://localhost:8080/*"
+        "http://localhost:8081/*",
+        "http://backend:8081/*"
       ],
       "webOrigins": [
-        "http://localhost:8080"
-      ]
+        "http://localhost:8081",
+        "http://backend:8081"
+      ],
+      "defaultClientScopes": [
+        "email",
+        "profile",
+        "roles"
+      ],
+      "attributes": {
+        "access.token.lifespan": "3600",
+        "client.secret.creation.time": "1704067200"
+      }
     },
     {
-      "clientId": "knowledge-ai-service",
-      "name": "Knowledge Platform AI Service",
-      "description": "FastAPI AI/ML Service",
+      "clientId": "ai-service",
+      "name": "Hybrid RAG AI Service",
+      "description": "FastAPI AI/ML Service (Confidential Client)",
       "enabled": true,
       "publicClient": false,
       "bearerOnly": false,
       "standardFlowEnabled": false,
-      "directAccessGrantsEnabled": false,
+      "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": true,
       "protocol": "openid-connect",
-      "secret": "${AI_SERVICE_CLIENT_SECRET:change-me-in-production}",
+      "secret": "${AI_SERVICE_CLIENT_SECRET:ai-service-secret-dev}",
+      "redirectUris": [
+        "http://localhost:8000/*",
+        "http://ai-service:8000/*"
+      ],
+      "webOrigins": [
+        "http://localhost:8000",
+        "http://ai-service:8000"
+      ],
+      "defaultClientScopes": [
+        "email",
+        "profile",
+        "roles"
+      ],
       "attributes": {
+        "access.token.lifespan": "3600",
+        "client.secret.creation.time": "1704067200",
         "service.accounts.enabled": "true"
       }
     }
   ],
   "users": [
     {
-      "username": "admin",
-      "email": "admin@knowledge-platform.local",
-      "firstName": "System",
-      "lastName": "Administrator",
+      "username": "test-admin",
+      "email": "test-admin@hybrid-rag.local",
+      "firstName": "Test",
+      "lastName": "Admin",
       "enabled": true,
       "emailVerified": true,
       "credentials": [
         {
           "type": "password",
           "value": "admin123",
-          "temporary": true
+          "temporary": false
         }
       ],
-      "realmRoles": ["admin", "user"],
-      "groups": ["/Administrators"]
+      "realmRoles": ["admin", "user", "viewer"],
+      "groups": ["/Administrators"],
+      "clientRoles": {
+        "frontend": ["document:read", "document:write", "document:delete", "search:execute", "admin:manage"],
+        "backend": ["api:read", "api:write", "api:admin"]
+      }
     },
     {
-      "username": "demo",
-      "email": "demo@knowledge-platform.local",
-      "firstName": "Demo",
+      "username": "test-user",
+      "email": "test-user@hybrid-rag.local",
+      "firstName": "Test",
       "lastName": "User",
       "enabled": true,
       "emailVerified": true,
       "credentials": [
         {
           "type": "password",
-          "value": "demo123",
+          "value": "user123",
           "temporary": false
         }
       ],
-      "realmRoles": ["user"],
-      "groups": ["/Users"]
-    },
-    {
-      "username": "developer",
-      "email": "developer@knowledge-platform.local",
-      "firstName": "Dev",
-      "lastName": "User",
-      "enabled": true,
-      "emailVerified": true,
-      "credentials": [
-        {
-          "type": "password",
-          "value": "dev123",
-          "temporary": false
-        }
-      ],
-      "realmRoles": ["developer"],
-      "groups": ["/Developers"]
+      "realmRoles": ["user", "viewer"],
+      "groups": ["/Users"],
+      "clientRoles": {
+        "frontend": ["document:read", "document:write", "search:execute"],
+        "backend": ["api:read", "api:write"]
+      }
     }
   ],
   "scopeMappings": [
     {
-      "client": "knowledge-frontend",
+      "client": "frontend",
       "roles": ["user", "viewer"]
     }
   ],
   "clientScopeMappings": {
-    "knowledge-frontend": [
+    "frontend": [
       {
-        "client": "knowledge-frontend",
+        "client": "frontend",
         "roles": ["document:read", "search:execute"]
+      }
+    ],
+    "backend": [
+      {
+        "client": "backend",
+        "roles": ["api:read"]
       }
     ]
   },
@@ -310,6 +311,14 @@
         "config": {
           "priority": ["100"],
           "keySize": ["2048"]
+        }
+      },
+      {
+        "name": "hmac-generated",
+        "providerId": "hmac-generated",
+        "config": {
+          "priority": ["100"],
+          "algorithm": ["HS256"]
         }
       }
     ]
@@ -330,11 +339,19 @@
     "LOGIN",
     "LOGIN_ERROR",
     "LOGOUT",
+    "LOGOUT_ERROR",
     "REGISTER",
     "REGISTER_ERROR",
     "CODE_TO_TOKEN",
-    "CODE_TO_TOKEN_ERROR"
+    "CODE_TO_TOKEN_ERROR",
+    "CLIENT_LOGIN",
+    "CLIENT_LOGIN_ERROR",
+    "REFRESH_TOKEN",
+    "REFRESH_TOKEN_ERROR"
   ],
   "adminEventsEnabled": true,
-  "adminEventsDetailsEnabled": true
+  "adminEventsDetailsEnabled": true,
+  "internationalizationEnabled": true,
+  "supportedLocales": ["en", "ko"],
+  "defaultLocale": "en"
 }

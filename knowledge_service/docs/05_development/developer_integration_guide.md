@@ -1,8 +1,8 @@
 # 개발자 통합 가이드
 ## Developer Integration Guide - Jira, Slack, GitHub, Claude Code
 
-**버전**: 1.0
-**작성일**: 2026-01-18
+**버전**: 1.2
+**작성일**: 2026-01-18 | **수정일**: 2026-01-21
 **목적**: 개발 도구(Jira, Slack, GitHub) 연동 및 Claude Code Agent 활용 가이드
 
 ---
@@ -299,6 +299,9 @@ JIRA_PROJECT_KEY=HRKP
 
 **~/.claude/settings.json** 또는 **프로젝트/.mcp.json**:
 
+> ⚠️ **주의**: Claude Code는 `${VAR_NAME}` 환경변수 보간을 지원하지 않습니다.
+> MCP 서버는 셸 환경에서 직접 환경변수를 읽으므로, 민감한 토큰은 `.env`에 설정하고 셸에 export 하면 됩니다.
+
 ```json
 {
   "mcpServers": {
@@ -306,14 +309,15 @@ JIRA_PROJECT_KEY=HRKP
       "command": "npx",
       "args": ["-y", "@anthropic/mcp-server-jira"],
       "env": {
-        "JIRA_HOST": "${JIRA_HOST}",
-        "JIRA_EMAIL": "${JIRA_EMAIL}",
-        "JIRA_API_TOKEN": "${JIRA_API_TOKEN}"
+        "JIRA_HOST": "your-company.atlassian.net",
+        "JIRA_EMAIL": "your-email@company.com"
       }
     }
   }
 }
 ```
+
+MCP 서버가 자동으로 읽는 환경변수: `JIRA_API_TOKEN` (`.env`에 설정 필요)
 
 #### 3.2.2 연결 확인
 
@@ -460,7 +464,9 @@ SLACK_CHANNEL_ALERTS=#alerts
 
 ### 4.3 MCP Server 설정
 
-**~/.claude/settings.json**:
+**~/.claude/settings.json** 또는 **프로젝트/.mcp.json**:
+
+> ⚠️ **주의**: `${VAR_NAME}` 보간 미지원. MCP 서버가 셸 환경에서 직접 `SLACK_BOT_TOKEN`을 읽습니다.
 
 ```json
 {
@@ -469,12 +475,14 @@ SLACK_CHANNEL_ALERTS=#alerts
       "command": "npx",
       "args": ["-y", "@anthropic/mcp-server-slack"],
       "env": {
-        "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN}"
+        "SLACK_TEAM_ID": "T0A9DSMGX8V"
       }
     }
   }
 }
 ```
+
+MCP 서버가 자동으로 읽는 환경변수: `SLACK_BOT_TOKEN` (`.env`에 설정 필요)
 
 ### 4.4 Slack 사용 가이드
 
@@ -648,7 +656,11 @@ Jira에서 이슈 정보를 가져와서 작업 계획을 세우고,
 
 #### 5.3.1 전체 MCP 설정
 
-**~/.claude/settings.json** 또는 **.mcp.json**:
+**프로젝트/.mcp.json** (권장):
+
+> ⚠️ **중요**: Claude Code는 `${VAR_NAME}` 환경변수 보간을 **지원하지 않습니다**.
+> MCP 서버는 부모 프로세스의 환경변수를 상속받아 자동으로 읽습니다.
+> 민감한 토큰(API 키 등)은 `.env`에 설정하고 셸에 export 하세요.
 
 ```json
 {
@@ -657,42 +669,32 @@ Jira에서 이슈 정보를 가져와서 작업 계획을 세우고,
       "command": "npx",
       "args": ["-y", "@anthropic/mcp-server-jira"],
       "env": {
-        "JIRA_HOST": "${JIRA_HOST}",
-        "JIRA_EMAIL": "${JIRA_EMAIL}",
-        "JIRA_API_TOKEN": "${JIRA_API_TOKEN}"
+        "JIRA_HOST": "your-company.atlassian.net",
+        "JIRA_EMAIL": "your-email@company.com"
       }
     },
     "github": {
       "command": "npx",
-      "args": ["-y", "@anthropic/mcp-server-github"],
-      "env": {
-        "GITHUB_TOKEN": "${GITHUB_TOKEN}"
-      }
+      "args": ["-y", "@modelcontextprotocol/server-github"]
     },
     "slack": {
       "command": "npx",
       "args": ["-y", "@anthropic/mcp-server-slack"],
       "env": {
-        "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN}"
-      }
-    },
-    "postgres": {
-      "command": "npx",
-      "args": ["-y", "@anthropic/mcp-server-postgres"],
-      "env": {
-        "DATABASE_URL": "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB}"
-      }
-    },
-    "filesystem": {
-      "command": "npx",
-      "args": ["-y", "@anthropic/mcp-server-filesystem"],
-      "env": {
-        "ALLOWED_PATHS": "${PWD}"
+        "SLACK_TEAM_ID": "T0A9DSMGX8V"
       }
     }
   }
 }
 ```
+
+**MCP 서버별 자동 읽기 환경변수** (`.env`에 설정):
+
+| MCP 서버 | 환경변수 |
+|----------|----------|
+| jira | `JIRA_API_TOKEN` |
+| github | `GITHUB_PERSONAL_ACCESS_TOKEN` |
+| slack | `SLACK_BOT_TOKEN` |
 
 #### 5.3.2 MCP 상태 확인
 
@@ -956,10 +958,51 @@ echo "=== Check Complete ==="
 - [Claude Code 문서](https://code.claude.com/docs)
 - [MCP 문서](https://code.claude.com/docs/en/mcp)
 
+### D. 연동 테스트 이력
+
+#### 2026-01-21: Slack 연동 테스트 (MCP 설정 수정 후)
+
+| 항목 | 내용 |
+|------|------|
+| **테스트 목적** | `.mcp.json` 설정 수정 후 Slack 연동 정상 작동 확인 |
+| **테스트 방법** | Daily Standup 미팅 실행 (`/daily:standup`) |
+| **채널** | `#proj-hrkp-standup` |
+| **결과** | ✅ 100% 성공 (11/11 메시지 전송) |
+
+**테스트 상세:**
+
+| # | Agent | 메시지 유형 | 결과 |
+|---|-------|-----------|------|
+| 1 | PM | 스탠드업 시작 선언 | ✅ |
+| 2 | PM | 인사 + 상태 공유 | ✅ |
+| 3 | TechLead | 인사 + 상태 공유 | ✅ |
+| 4 | Backend | 인사 + 상태 공유 | ✅ |
+| 5 | Frontend | 인사 + 상태 공유 | ✅ |
+| 6 | MLRag | 인사 + 상태 공유 | ✅ |
+| 7 | Data | 인사 + 상태 공유 | ✅ |
+| 8 | QA | 인사 + 상태 공유 | ✅ |
+| 9 | DevOps | 인사 + 상태 공유 | ✅ |
+| 10 | Infra | 인사 + 상태 공유 | ✅ |
+| 11 | PM | 스탠드업 종료 선언 | ✅ |
+
+**확인 사항:**
+- `.mcp.json`에서 `${VAR_NAME}` 보간 제거 후에도 Slack 연동 정상 작동
+- `send_slack.sh` 스크립트가 `.env`에서 `SLACK_BOT_TOKEN` 직접 로드하여 사용
+- 한글, 이모지 포함 메시지 정상 전송
+
+#### 2026-01-20: Slack 메시지 표준화 테스트
+
+| 항목 | 내용 |
+|------|------|
+| **테스트 목적** | `send_slack.sh` 스크립트 개발 후 한글/이모지 인코딩 검증 |
+| **테스트 방법** | 9개 에이전트 테마별 인사말 전송 (유머, 슬픈 사랑이야기) |
+| **채널** | `#proj-hrkp-standup` |
+| **결과** | ✅ 100% 성공 (줄바꿈, 한글, 이모지 정상 표시) |
+
 ---
 
-**문서 버전**: 1.0
-**최종 수정**: 2026-01-18
+**문서 버전**: 1.2
+**최종 수정**: 2026-01-21
 **관련 문서**:
 - [개발 환경 구축 계획서](../01_planning/dev_environment_plan.md)
 - [도구 가이드](../../../docs/03_도구_가이드.md)

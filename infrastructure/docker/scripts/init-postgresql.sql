@@ -8,6 +8,9 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 CREATE EXTENSION IF NOT EXISTS "btree_gin";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";  -- For encryption functions (gen_random_uuid, crypt, etc.)
+-- Note: vector extension requires pgvector/pgvector Docker image
+-- CREATE EXTENSION IF NOT EXISTS "vector";  -- For pgvector embeddings support (disabled for standard postgres image)
 
 -- Create application user (if not using default)
 -- Note: Default user is created via POSTGRES_USER environment variable

@@ -18,7 +18,7 @@ model: claude-opus-4-5-20251101  # 비용 최적화: claude-sonnet-4-1 | 균형:
 ./scripts/send_slack.sh proj-hrkp-dev Infra "작업 시작: {작업명}"
 
 # 작업 종료 시 (필수)
-./scripts/send_slack.sh proj-hrkp-alerts Infra "작업 완료: {작업명} - {결과 요약}"
+./scripts/send_slack.sh proj-hrkp-dev Infra "작업 완료: {작업명} - {결과 요약}"
 ```
 
 **⚠️ Slack 알림 없이 작업을 시작하거나 종료하면 안 됩니다!**
@@ -182,7 +182,7 @@ PM 작업 할당 → Infra 작업 수행 → PM에게 완료 보고 → PM이 Ji
 | 시점 | 보고 내용 |
 |------|----------|
 | 작업 시작 | Slack 알림 (proj-hrkp-dev) |
-| 작업 완료 | Slack 알림 (proj-hrkp-alerts) + PM에게 결과 보고 |
+| 작업 완료 | Slack 알림 (proj-hrkp-dev) + PM에게 결과 보고 |
 | 인프라 장애 | 즉시 PM에게 보고 |
 
 ---
@@ -196,12 +196,12 @@ PM 작업 할당 → Infra 작업 수행 → PM에게 완료 보고 → PM이 Ji
 | 시점 | 채널 | 필수 여부 | 설명 |
 |------|------|----------|------|
 | 작업 시작 | proj-hrkp-dev | ✅ 필수 | Story/Task 착수 시 |
-| 작업 완료 | proj-hrkp-alerts | ✅ 필수 | Story/Task 완료 시 |
-| 컨테이너 장애 | proj-hrkp-alerts | ✅ 필수 | 서비스 중단 |
-| 인프라 이슈 | proj-hrkp-alerts | ✅ 필수 | 시스템 문제 |
-| **중요 이벤트** | proj-hrkp-alerts | ✅ 필수 | 아래 목록 참조 |
+| 작업 완료 | proj-hrkp-dev | ✅ 필수 | Story/Task 완료 시 |
+| 컨테이너 장애 | proj-hrkp-alerts | ✅ 필수 | 서비스 중단 (긴급) |
+| 인프라 이슈 | proj-hrkp-alerts | ✅ 필수 | 시스템 문제 (긴급) |
+| **중요 이벤트** | proj-hrkp-alerts | ✅ 필수 | 아래 목록 참조 (긴급) |
 | **중요 작업 시작** | proj-hrkp-dev | ✅ 필수 | 영향도 큰 작업 착수 |
-| **중요 작업 종료** | proj-hrkp-alerts | ✅ 필수 | 영향도 큰 작업 완료 |
+| **중요 작업 종료** | proj-hrkp-dev | ✅ 필수 | 영향도 큰 작업 완료 |
 
 ### 중요 이벤트 목록 (반드시 알림)
 
@@ -230,31 +230,32 @@ PM 작업 할당 → Infra 작업 수행 → PM에게 완료 보고 → PM이 Ji
 > → `./scripts/send_slack.sh <채널> <에이전트> "메시지"`
 
 ```bash
-# 작업 시작 (필수)
+# 작업 시작 (필수) - dev 채널
 ./scripts/send_slack.sh proj-hrkp-dev Infra "작업 시작: {SCRUM-XX} - {작업명}"
 
-# 작업 완료 (필수)
-./scripts/send_slack.sh proj-hrkp-alerts Infra "작업 완료: {SCRUM-XX} - 컨테이너 {n}개 구성"
+# 작업 완료 (필수) - dev 채널
+./scripts/send_slack.sh proj-hrkp-dev Infra "작업 완료: {SCRUM-XX} - 컨테이너 {n}개 구성"
 
-# 컨테이너 장애 (필수)
+# 컨테이너 장애 (필수) - alerts 채널 (긴급)
 ./scripts/send_slack.sh proj-hrkp-alerts Infra "CONTAINER DOWN: {컨테이너명} - {원인}"
 
-# 인프라 이슈 (필수)
+# 인프라 이슈 (필수) - alerts 채널 (긴급)
 ./scripts/send_slack.sh proj-hrkp-alerts Infra "INFRA ISSUE: {문제 설명}"
 
-# 중요 이벤트 발생 (필수)
+# 중요 이벤트 발생 (필수) - alerts 채널 (긴급)
 ./scripts/send_slack.sh proj-hrkp-alerts Infra "EVENT: {이벤트 유형} - {상세 내용}"
 
-# 중요 작업 시작 (필수)
+# 중요 작업 시작 (필수) - dev 채널
 ./scripts/send_slack.sh proj-hrkp-dev Infra "IMPORTANT START: {작업 유형} - {영향 범위}"
 
-# 중요 작업 종료 (필수)
-./scripts/send_slack.sh proj-hrkp-alerts Infra "IMPORTANT DONE: {작업 유형} - {결과 요약}"
+# 중요 작업 종료 (필수) - dev 채널
+./scripts/send_slack.sh proj-hrkp-dev Infra "IMPORTANT DONE: {작업 유형} - {결과 요약}"
 ```
 
-### 채널
-- `proj-hrkp-dev`: 개발 논의
-- `proj-hrkp-alerts`: 인프라 상태 알림
+### 채널 용도
+- `proj-hrkp-dev`: 개발 작업 기록 (시작/완료/진행)
+- `proj-hrkp-alerts`: 긴급 알림 (장애/이슈/중요 이벤트)
+- `proj-hrkp-standup`: 스탠드업 미팅 인사
 
 ---
 

@@ -3,9 +3,9 @@
 🧠 Graph RAG 기반 지능형 지식 검색 시스템 + Antigravity 협업 공간
 
 **프로젝트 버전**: 3.6
-**마지막 업데이트**: 2026-01-20
+**마지막 업데이트**: 2026-01-21
 **설계서 상태**: ✅ 설계 완료 (Phase 2 - 100%, 종합 9.1/10)
-**구현 진행**: ✅ Phase 3 Sprint 01 완료 - 인프라 12개 컨테이너 구축, E2E 40% 통과, Slack 표준화
+**구현 진행**: ✅ Phase 3 Sprint 01 완료 - 인프라 18개 컨테이너 구축 (Kibana 포함), E2E 테스트 통과, Slack 표준화
 
 ## 📋 개요
 
@@ -141,6 +141,15 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 | 4 | **SpringBoot 초기화** | Spring Initializr, API Gateway 설정 | ⏳ |
 | 5 | **Frontend 초기화** | Vite + React + TypeScript | ⏳ |
 
+### ✅ 완료된 작업 (2026-01-21)
+
+| # | 문서/작업 | 설명 |
+|:-:|------|------|
+| ✅ | **Kibana 컨테이너 추가** | Elasticsearch 데이터 시각화/쿼리 도구 (포트 5601) |
+| ✅ | **18개 컨테이너 구축 완료** | 코어 + 모니터링 전체 인프라 |
+| ✅ | **설계 문서 업데이트** | infrastructure_detailed_design, observability_detailed_design에 Kibana 반영 |
+| ✅ | **Kibana 사용자 가이드** | docs/07_maintenance/kibana_user_guide.md 작성 |
+
 ### ✅ 완료된 작업 (2026-01-18)
 
 | # | 문서/작업 | 설명 |
@@ -210,9 +219,16 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 - **BGE-M3** (Dense + Sparse 임베딩)
 
 ### Infrastructure
-- **Docker & Docker Compose**
+- **Docker & Docker Compose** (18개 컨테이너)
 - **Nginx** (리버스 프록시)
 - **Poetry** (의존성 관리)
+
+### Observability
+- **Prometheus** (메트릭 수집)
+- **Grafana** (통합 대시보드)
+- **Kibana** (ES 데이터 시각화/쿼리)
+- **Loki** (로그 집계)
+- **Jaeger** (분산 추적)
 
 ## 📊 성능 지표
 

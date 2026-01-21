@@ -104,7 +104,8 @@ PM 작업 할당 → QA 테스트 수행 → PM에게 완료 보고 → PM이 Ji
 |------|------|----------|------|
 | 테스트 시작 | proj-hrkp-dev | ✅ 필수 | 테스트 수행 시작 |
 | 테스트 완료 | proj-hrkp-dev | ✅ 필수 | 테스트 수행 완료 |
-| 품질 이슈 발견 | proj-hrkp-dev | ✅ 필수 | 버그/취약점 발견 |
+| 품질 이슈 발견 | proj-hrkp-dev | ✅ 필수 | 버그 발견 (팀 공유) |
+| 보안 취약점 | proj-hrkp-alerts | ✅ 필수 | OWASP 취약점 (긴급) |
 | 테스트 실패 | proj-hrkp-dev | ✅ 필수 | 테스트 케이스 실패 |
 | **중요 이벤트** | proj-hrkp-dev | ✅ 필수 | 아래 목록 참조 |
 | **중요 작업 시작** | proj-hrkp-dev | ✅ 필수 | 영향도 큰 작업 착수 |
@@ -137,30 +138,35 @@ PM 작업 할당 → QA 테스트 수행 → PM에게 완료 보고 → PM이 Ji
 > → `./scripts/send_slack.sh <채널> <에이전트> "메시지"`
 
 ```bash
-# 테스트 시작 (필수)
+# 테스트 시작 (필수) - dev 채널
 ./scripts/send_slack.sh proj-hrkp-dev QA "테스트 시작: {SCRUM-XX} - {테스트 유형}"
 
-# 테스트 완료 (필수)
+# 테스트 완료 (필수) - dev 채널
 ./scripts/send_slack.sh proj-hrkp-dev QA "테스트 완료: {SCRUM-XX} - {통과율}%, 커버리지 {n}%"
 
-# 품질 이슈 발견 (필수)
+# 품질 이슈 발견 (필수) - dev 채널
 ./scripts/send_slack.sh proj-hrkp-dev QA "QUALITY ISSUE: {위치} - {문제 설명} (심각도: {High/Medium/Low})"
 
-# 테스트 실패 (필수)
+# 보안 취약점 (필수) - alerts 채널 (긴급)
+./scripts/send_slack.sh proj-hrkp-alerts QA "SECURITY ISSUE: {위치} - {OWASP 유형} - {취약점 설명}"
+
+# 테스트 실패 (필수) - dev 채널
 ./scripts/send_slack.sh proj-hrkp-dev QA "TEST FAILED: {n}개 케이스 실패 - {담당 에이전트}에게 수정 요청"
 
-# 중요 이벤트 발생 (필수)
+# 중요 이벤트 발생 (필수) - dev 채널
 ./scripts/send_slack.sh proj-hrkp-dev QA "EVENT: {이벤트 유형} - {상세 내용}"
 
-# 중요 작업 시작 (필수)
+# 중요 작업 시작 (필수) - dev 채널
 ./scripts/send_slack.sh proj-hrkp-dev QA "IMPORTANT START: {작업 유형} - {테스트 범위}"
 
-# 중요 작업 종료 (필수)
+# 중요 작업 종료 (필수) - dev 채널
 ./scripts/send_slack.sh proj-hrkp-dev QA "IMPORTANT DONE: {작업 유형} - {결과 요약}"
 ```
 
-### 채널
-- `proj-hrkp-dev`: 개발 논의, 테스트 결과
+### 채널 용도
+- `proj-hrkp-dev`: 개발 작업 기록 (테스트 시작/완료/실패)
+- `proj-hrkp-alerts`: 보안 취약점 (긴급)
+- `proj-hrkp-standup`: 스탠드업 미팅 인사
 
 ---
 

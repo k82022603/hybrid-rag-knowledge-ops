@@ -27,6 +27,7 @@
 |------|------|--------|----------|
 | 1.0 | 2026-01-16 | Claude AI | 초안 작성 (K8s 기반) |
 | 2.0 | 2026-01-16 | Claude AI | **Docker Compose 기반으로 전면 재작성** - K8s 버전은 technical_assessment 폴더에 참조용으로 보관 |
+| 2.1 | 2026-01-21 | Claude AI | Kibana 추가 (Elasticsearch 데이터 시각화/탐색 도구) |
 
 ---
 
@@ -114,6 +115,7 @@ flowchart TB
             Prometheus["📊 Prometheus"]
             Grafana["📈 Grafana"]
             Loki["📝 Loki"]
+            Kibana["🔎 Kibana"]
         end
     end
 
@@ -140,7 +142,7 @@ flowchart TB
     class Nginx proxy
     class FE,GW,BE,AI,KC app
     class PG,ES,Neo,Redis,MinIO data
-    class Prometheus,Grafana,Loki monitor
+    class Prometheus,Grafana,Loki,Kibana monitor
 ```
 
 ### 2.2 물리 구성도 (Docker Host)
@@ -176,6 +178,8 @@ flowchart TB
                 C13["grafana"]
                 C14["loki"]
                 C15["promtail"]
+                C16["jaeger"]
+                C17["kibana"]
             end
         end
 
@@ -200,7 +204,7 @@ flowchart TB
     class OS os
     class C1,C2,C3,C4,C5,C6 app
     class C7,C8,C9,C10,C11 data
-    class C12,C13,C14,C15 monitor
+    class C12,C13,C14,C15,C16,C17 monitor
     class SSD1,SSD2,SSD3,SSD4,SSD5 storage
 ```
 
@@ -885,6 +889,57 @@ services:
     command:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
 
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: kibana
+    restart: unless-stopped
+    networks:
+      - monitoring
+      - database
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_NAME=kibana
+      - SERVER_HOST=0.0.0.0
+      - XPACK_SECURITY_ENABLED=false
+      - NODE_OPTIONS=--max-old-space-size=384
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+        reservations:
+          memory: 384M
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5601/api/status"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.52
+    container_name: jaeger
+    restart: unless-stopped
+    networks:
+      - monitoring
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - SPAN_STORAGE_TYPE=memory
+      - MEMORY_MAX_TRACES=5000
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "-O", "/dev/null", "http://localhost:14269/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
 networks:
   monitoring:
     external: true
@@ -1062,7 +1117,9 @@ CMD ["uvicorn", "src.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--wo
 | prometheus | 0.5 | 512 MB | 메트릭 수집 |
 | grafana | 0.5 | 512 MB | 대시보드 |
 | loki | 0.5 | 512 MB | 로그 수집 |
-| **합계** | **17.5** | **28.5 GB** | |
+| jaeger | 0.5 | 256 MB | 분산 추적 |
+| kibana | 0.5 | 768 MB | ES 데이터 시각화 |
+| **합계** | **18.5** | **30 GB** | |
 
 ---
 
@@ -1108,6 +1165,8 @@ flowchart TB
             grafana2["grafana"]
             loki["loki<br/>3100"]
             promtail["promtail"]
+            jaeger["jaeger<br/>16686"]
+            kibana["kibana<br/>5601"]
         end
     end
 
@@ -1131,7 +1190,7 @@ flowchart TB
     class nginx,frontend,apigw,keycloak,grafana frontend
     class apigw2,backend,ai,prometheus backend
     class backend2,ai2,keycloak2,pg,es,neo,redis,minio database
-    class prometheus2,grafana2,loki,promtail monitor
+    class prometheus2,grafana2,loki,promtail,jaeger,kibana monitor
 ```
 
 ### 5.2 네트워크 정책
@@ -1155,6 +1214,8 @@ flowchart TB
 | redis | 6379 | - | TCP |
 | minio | 9000, 9001 | - | HTTP |
 | grafana | 3000 | 3000 (옵션) | HTTP |
+| kibana | 5601 | 5601 (옵션) | HTTP |
+| jaeger | 16686 | 16686 (옵션) | HTTP |
 
 ---
 
@@ -1601,6 +1662,70 @@ scrape_configs:
     ]
   }
 }
+```
+
+### 8.6 Kibana 설정 (Elasticsearch 시각화)
+
+Kibana는 Elasticsearch 데이터를 시각화하고 탐색하기 위한 도구입니다.
+
+**접속 URL**: http://localhost:5601
+
+**주요 용도**:
+- Elasticsearch 인덱스 탐색 및 쿼리 테스트 (Dev Tools)
+- 문서 검색 및 분석
+- 인덱스 매핑 확인
+- 클러스터 상태 모니터링
+
+```yaml
+# 환경 변수 설정
+environment:
+  - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+  - SERVER_NAME=kibana
+  - SERVER_HOST=0.0.0.0
+  - XPACK_SECURITY_ENABLED=false
+  - NODE_OPTIONS=--max-old-space-size=384  # 메모리 최적화
+```
+
+**Dev Tools 주요 명령어**:
+```json
+# 클러스터 상태 확인
+GET _cluster/health
+
+# 인덱스 목록
+GET _cat/indices?v
+
+# 인덱스 매핑 확인
+GET {index}/_mapping
+
+# 전체 문서 검색
+GET {index}/_search
+{ "query": { "match_all": {} } }
+
+# 벡터 검색 테스트 (문서 임베딩)
+GET document-embeddings/_search
+{
+  "knn": {
+    "field": "embedding",
+    "query_vector": [...],
+    "k": 10
+  }
+}
+```
+
+> **참고**: 상세 사용 가이드는 `docs/07_maintenance/kibana_user_guide.md`를 참조하세요.
+
+### 8.7 Jaeger 설정 (분산 추적)
+
+Jaeger는 마이크로서비스 간의 요청 흐름을 추적합니다.
+
+**접속 URL**: http://localhost:16686
+
+```yaml
+# 환경 변수 설정
+environment:
+  - COLLECTOR_OTLP_ENABLED=true
+  - SPAN_STORAGE_TYPE=memory
+  - MEMORY_MAX_TRACES=5000  # 개발 환경용
 ```
 
 ---

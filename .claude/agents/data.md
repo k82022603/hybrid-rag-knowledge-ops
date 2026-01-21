@@ -155,8 +155,9 @@ PM 작업 할당 → Data 개발 수행 → PM에게 완료 보고 → PM이 Jir
 ./scripts/send_slack.sh proj-hrkp-dev Data "IMPORTANT DONE: {작업 유형} - {결과 요약}"
 ```
 
-### 채널
-- `proj-hrkp-dev`: 개발 논의, 작업 현황
+### 채널 용도
+- `proj-hrkp-dev`: 개발 작업 기록 (시작/완료/품질 이슈)
+- `proj-hrkp-standup`: 스탠드업 미팅 인사
 
 ---
 
