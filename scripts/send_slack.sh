@@ -6,6 +6,14 @@
 #   ./scripts/send_slack.sh <channel> <agent> <message>
 #   ./scripts/send_slack.sh proj-hrkp-standup PM "인사말 내용"
 #   ./scripts/send_slack.sh proj-hrkp-dev Backend "작업 시작: SCRUM-10"
+#   ./scripts/send_slack.sh dev Backend "작업 완료"  # 단축어 사용 가능
+#
+# 채널 단축어:
+#   dev     -> proj-hrkp-dev (기본)
+#   standup -> proj-hrkp-standup
+#   review  -> proj-hrkp-dev (리뷰도 dev 채널 사용)
+#   alerts  -> proj-hrkp-alerts
+#   general -> proj-hrkp-general
 #
 # 환경 변수 필요:
 #   SLACK_BOT_TOKEN - Slack Bot 토큰 (.env에서 로드)
@@ -22,16 +30,58 @@ if [ -f "$PROJECT_ROOT/.env" ]; then
     source "$PROJECT_ROOT/.env"
 fi
 
+# 채널 설정 로드
+if [ -f "$SCRIPT_DIR/slack_channels.conf" ]; then
+    source "$SCRIPT_DIR/slack_channels.conf"
+fi
+
+# 기본 채널 설정
+DEFAULT_CHANNEL="${DEFAULT_CHANNEL:-proj-hrkp-dev}"
+
 # 인자 확인
 if [ $# -lt 3 ]; then
     echo "사용법: $0 <channel> <agent> <message>"
     echo "예시: $0 proj-hrkp-standup PM '좋은 아침입니다!'"
+    echo "      $0 dev Backend '작업 완료' (단축어 사용)"
     exit 1
 fi
 
-CHANNEL="$1"
+CHANNEL_INPUT="$1"
 AGENT="$2"
 MESSAGE="$3"
+
+# 채널 단축어 변환 함수
+resolve_channel() {
+    local input="$1"
+    case "$input" in
+        dev|DEV)
+            echo "proj-hrkp-dev"
+            ;;
+        standup|STANDUP)
+            echo "proj-hrkp-standup"
+            ;;
+        review|REVIEW)
+            # 리뷰도 dev 채널로 통일
+            echo "proj-hrkp-dev"
+            ;;
+        alerts|ALERTS|alert)
+            echo "proj-hrkp-alerts"
+            ;;
+        general|GENERAL)
+            echo "proj-hrkp-general"
+            ;;
+        proj-hrkp-*)
+            # 이미 전체 채널명인 경우 그대로 사용
+            echo "$input"
+            ;;
+        *)
+            # 알 수 없는 경우 기본 채널 사용
+            echo "$DEFAULT_CHANNEL"
+            ;;
+    esac
+}
+
+CHANNEL=$(resolve_channel "$CHANNEL_INPUT")
 
 # 토큰 확인
 if [ -z "$SLACK_BOT_TOKEN" ]; then

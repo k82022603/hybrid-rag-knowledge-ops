@@ -1,9 +1,9 @@
 # 에러 코드 및 공통 코드 표준
 
 **프로젝트**: Hybrid RAG Knowledge Operations Platform
-**버전**: 1.1
+**버전**: 1.2
 **작성일**: 2026-01-16
-**수정일**: 2026-01-17
+**수정일**: 2026-01-22
 **작성자**: Claude AI Architect
 
 ---
@@ -300,7 +300,7 @@
     "message": "문서를 찾을 수 없습니다",
     "detail": "요청한 문서 ID(doc_12345)가 존재하지 않습니다.",
     "timestamp": "2026-01-16T10:30:00Z",
-    "trace_id": "550e8400-e29b-41d4-a716-446655440000",
+    "traceId": "550e8400-e29b-41d4-a716-446655440000",
     "path": "/api/v1/documents/doc_12345"
   }
 }
@@ -315,7 +315,7 @@
 | `error.message` | string | O | 사용자 표시용 메시지 |
 | `error.detail` | string | X | 상세 설명 (개발자용) |
 | `error.timestamp` | string | O | 에러 발생 시간 (ISO 8601) |
-| `error.trace_id` | string | O | 추적 ID (로그 조회용) |
+| `error.traceId` | string | O | 추적 ID (로그 조회용) |
 | `error.path` | string | O | 요청 경로 |
 | `error.field` | string | X | 오류 발생 필드 (유효성 검증) |
 | `error.errors` | array | X | 다중 에러 목록 |
@@ -329,7 +329,7 @@
     "code": "SYS003",
     "message": "파라미터 형식이 올바르지 않습니다",
     "timestamp": "2026-01-16T10:30:00Z",
-    "trace_id": "550e8400-e29b-41d4-a716-446655440000",
+    "traceId": "550e8400-e29b-41d4-a716-446655440000",
     "path": "/api/v1/documents",
     "errors": [
       {
@@ -361,7 +361,7 @@
   },
   "meta": {
     "timestamp": "2026-01-16T10:30:00Z",
-    "trace_id": "550e8400-e29b-41d4-a716-446655440000"
+    "traceId": "550e8400-e29b-41d4-a716-446655440000"
   }
 }
 ```
@@ -817,12 +817,12 @@ import structlog
 
 logger = structlog.get_logger()
 
-def log_error(error_code: str, message: str, trace_id: str, **context):
+def log_error(error_code: str, message: str, traceId: str, **context):
     """에러 로그 기록"""
     logger.error(
         message,
         error_code=error_code,
-        trace_id=trace_id,
+        traceId=traceId,
         **context
     )
 
@@ -830,7 +830,7 @@ def log_error(error_code: str, message: str, trace_id: str, **context):
 log_error(
     error_code="DOC100",
     message="문서를 찾을 수 없습니다",
-    trace_id="550e8400-e29b-41d4-a716-446655440000",
+    traceId="550e8400-e29b-41d4-a716-446655440000",
     document_id="123e4567-e89b-12d3-a456-426614174000",
     user_id="7c9e6679-7425-40de-944b-e07fc1f90ae7"
 )
@@ -887,7 +887,7 @@ import uuid
 from datetime import datetime
 
 async def app_exception_handler(request: Request, exc: AppException):
-    trace_id = request.headers.get("X-Trace-ID", str(uuid.uuid4()))
+    traceId = request.headers.get("X-Trace-ID", str(uuid.uuid4()))
 
     # 메트릭 기록
     error_counter.labels(
@@ -905,7 +905,7 @@ async def app_exception_handler(request: Request, exc: AppException):
                 "message": exc.error_code.message,
                 "detail": exc.detail,
                 "timestamp": datetime.utcnow().isoformat() + "Z",
-                "trace_id": trace_id,
+                "traceId": traceId,
                 "path": request.url.path
             }
         }
@@ -966,7 +966,7 @@ interface ErrorResponse {
     message: string;
     detail?: string;
     timestamp: string;
-    trace_id: string;
+    traceId: string;
     path: string;
   };
 }
@@ -999,7 +999,7 @@ export function handleApiError(error: ErrorResponse): void {
   logError({
     code,
     message,
-    traceId: error.error.trace_id,
+    traceId: error.error.traceId,
   });
 }
 ```

@@ -7,9 +7,9 @@
 | 항목 | 내용 |
 |------|------|
 | **문서명** | SpringBoot Backend 상세 설계서 |
-| **버전** | 1.2 |
+| **버전** | 1.3 |
 | **작성일** | 2026-01-16 |
-| **수정일** | 2026-01-17 |
+| **수정일** | 2026-01-22 |
 | **작성자** | Claude Code (Opus 4.5) |
 | **상태** | Approved |
 | **관련 문서** | [API 통합 설계서](./api_integration_design.md), [인증/권한 설계서](./authentication_authorization_detailed_design.md), [암호화 설계서](./data_encryption_design.md), [백엔드 구현 계획서](../01_planning/backend_implementation_plan.md) |
@@ -23,6 +23,7 @@
 | 1.0 | 2026-01-16 | Claude Code | 초안 작성 |
 | 1.1 | 2026-01-17 | Claude Code | chunkId, conversationId 타입을 UUID로 통일 |
 | 1.2 | 2026-01-17 | Claude Code | SSE 스트리밍, Prometheus 메트릭, Saga 패턴, Rate Limiting, Liquibase, Grafana 섹션 추가 (95%+ 완성도) |
+| 1.3 | 2026-01-22 | Claude Code (Backend) | API 경로 통일 (/api/v1/search/chat), UserRole Enum 통일 (USER, KNOWLEDGE_MANAGER, ADMIN), passwordHash 필드 OAuth 명시 |
 
 ---
 
@@ -879,10 +880,17 @@ public enum Visibility {
     }
 }
 
+/**
+ * 사용자 역할 Enum
+ *
+ * 역할 계층 구조: ADMIN > KNOWLEDGE_MANAGER > USER
+ * - auth_detailed_design.md 기준 통일
+ * - Keycloak composite roles와 연동
+ */
 public enum UserRole {
-    ADMIN("관리자"),
     USER("일반 사용자"),
-    VIEWER("조회 전용");
+    KNOWLEDGE_MANAGER("지식 관리자"),
+    ADMIN("시스템 관리자");
 
     private final String displayName;
 
@@ -1069,8 +1077,14 @@ public class User extends BaseEntity {
     @Column(name = "name", nullable = false, length = 100)
     private String name;
 
+    /**
+     * OAuth 전용 시스템에서는 사용하지 않음 (null)
+     * 로컬 계정 지원 시에만 사용
+     * @deprecated Keycloak OAuth 인증 사용으로 불필요 - 향후 제거 검토
+     */
+    @Deprecated
     @Column(name = "password_hash", length = 255)
-    private String passwordHash;
+    private String passwordHash;  // OAuth 사용 시 null
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "department_id")
@@ -1108,6 +1122,20 @@ public class User extends BaseEntity {
 
     public boolean isAdmin() {
         return this.role == UserRole.ADMIN;
+    }
+
+    /**
+     * 지식 관리 권한 보유 여부 (KNOWLEDGE_MANAGER 이상)
+     */
+    public boolean isKnowledgeManager() {
+        return this.role == UserRole.KNOWLEDGE_MANAGER || this.role == UserRole.ADMIN;
+    }
+
+    /**
+     * 관리자급 권한 보유 여부 (KNOWLEDGE_MANAGER 또는 ADMIN)
+     */
+    public boolean hasManagerPrivilege() {
+        return isKnowledgeManager();
     }
 
     public String getDepartmentName() {
@@ -2934,7 +2962,7 @@ sequenceDiagram
     participant AI as AI Service (FastAPI)
     participant LG as LangGraph
 
-    Client->>GW: GET /api/v1/chat/stream (Accept: text/event-stream)
+    Client->>GW: POST /api/v1/search/chat (Accept: text/event-stream)
     GW->>BE: Forward with JWT
     BE->>AI: POST /internal/v1/search/chat/stream
     AI->>LG: stream_chat()
@@ -4909,7 +4937,7 @@ flowchart TB
 │     Request Distribution          │      Top Endpoints by Traffic          │
 │   ┌───────────────────────────┐   │   ┌─────────────────────────────────┐   │
 │   │  Search: 45%              │   │   │  /api/v1/search        3,421   │   │
-│   │  Chat: 30%                │   │   │  /api/v1/chat/stream   2,103   │   │
+│   │  Chat: 30%                │   │   │  /api/v1/search/chat   2,103   │   │
 │   │  Knowledge: 20%           │   │   │  /api/v1/knowledge     1,892   │   │
 │   │  Other: 5%                │   │   │  /api/v1/bookmarks       342   │   │
 │   └───────────────────────────┘   │   └─────────────────────────────────┘   │

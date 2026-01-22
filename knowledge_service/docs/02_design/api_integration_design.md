@@ -1,9 +1,9 @@
 # 통합 API 설계서
 ## External API (Frontend ↔ Backend) + Internal API (Backend ↔ AI Service)
 
-**버전**: 1.2
+**버전**: 1.4
 **작성일**: 2026-01-16
-**수정일**: 2026-01-17
+**수정일**: 2026-01-22
 **상태**: Draft
 **OpenAPI 버전**: 3.0.3
 
@@ -14,7 +14,7 @@
 | 항목 | 내용 |
 |------|------|
 | **문서명** | 통합 API 설계서 |
-| **버전** | 1.2 |
+| **버전** | 1.4 |
 | **작성일** | 2026-01-16 |
 | **작성자** | Claude Code (Opus 4.5) |
 | **상태** | Draft |
@@ -29,6 +29,8 @@
 | 1.0 | 2026-01-16 | Claude Code | 초안 작성 - External/Internal API 통합 |
 | 1.1 | 2026-01-17 | Claude Code | 데이터 타입 규약(UUID, Timestamp) 섹션 추가 |
 | 1.2 | 2026-01-17 | Claude Code | 장애 대응 및 Circuit Breaker 섹션 추가 (7.5) |
+| 1.3 | 2026-01-22 | Claude Code | 에러 응답 필드명 통일 (requestId → traceId), 에러 코드 통일 |
+| 1.4 | 2026-01-22 | Claude Code | API 예시의 chunkId/documentId UUID 형식으로 수정 |
 
 ---
 
@@ -184,7 +186,7 @@ X-User-Id: user-uuid-from-jwt
   },
   "message": "요청이 성공적으로 처리되었습니다.",
   "timestamp": "2026-01-16T10:30:00Z",
-  "requestId": "550e8400-e29b-41d4-a716-446655440000"
+  "traceId": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
@@ -194,14 +196,14 @@ X-User-Id: user-uuid-from-jwt
 {
   "success": false,
   "error": {
-    "code": "KNOWLEDGE_NOT_FOUND",
+    "code": "DOC100",
     "message": "요청한 지식을 찾을 수 없습니다.",
     "details": {
       "knowledgeId": "123e4567-e89b-12d3-a456-426614174000"
     }
   },
   "timestamp": "2026-01-16T10:30:00Z",
-  "requestId": "550e8400-e29b-41d4-a716-446655440000"
+  "traceId": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
@@ -574,7 +576,7 @@ Response (404 Not Found):
   {
     "success": false,
     "error": {
-      "code": "KNOWLEDGE_NOT_FOUND",
+      "code": "DOC100",
       "message": "요청한 지식을 찾을 수 없습니다."
     }
   }
@@ -892,8 +894,8 @@ Response (200 OK):
       "answer": "프로젝트 A의 React 아키텍처는 Atomic Design 패턴을 기반으로 ...",
       "results": [
         {
-          "id": "chunk-001",
-          "knowledgeId": "knowledge-001",
+          "id": "550e8400-e29b-41d4-a716-446655440001",
+          "knowledgeId": "550e8400-e29b-41d4-a716-446655440010",
           "title": "프로젝트 A 기술 문서",
           "text": "React 아키텍처는 컴포넌트 기반 설계로...",
           "score": 0.92,
@@ -1912,8 +1914,8 @@ Response (200 OK):
       "answer": "프로젝트 A의 React 아키텍처는 Atomic Design 패턴을 기반으로...",
       "results": [
         {
-          "chunkId": "chunk-001",
-          "documentId": "doc-001",
+          "chunkId": "550e8400-e29b-41d4-a716-446655440001",
+          "documentId": "550e8400-e29b-41d4-a716-446655440010",
           "text": "React 아키텍처는 컴포넌트 기반 설계로...",
           "score": 0.92,
           "vectorScore": 0.88,
@@ -2068,8 +2070,8 @@ Response (200 OK):
     "data": {
       "results": [
         {
-          "chunkId": "chunk-001",
-          "documentId": "doc-001",
+          "chunkId": "550e8400-e29b-41d4-a716-446655440001",
+          "documentId": "550e8400-e29b-41d4-a716-446655440010",
           "text": "...",
           "score": 0.92,
           "metadata": {...}
@@ -2136,8 +2138,8 @@ Content-Type: application/json
 Request:
   {
     "text": "홍길동이 React와 TypeScript로 프로젝트 A를 개발했습니다.",
-    "documentId": "doc-001",
-    "chunkId": "chunk-001",
+    "documentId": "550e8400-e29b-41d4-a716-446655440010",
+    "chunkId": "550e8400-e29b-41d4-a716-446655440001",
     "options": {
       "extractRelationships": true,
       "entityTypes": ["Person", "Project", "Technology", "Organization"],
@@ -2264,10 +2266,10 @@ Content-Type: application/json
 Request:
   {
     "chunks": [
-      {"chunkId": "chunk-001", "text": "홍길동이 React로..."},
-      {"chunkId": "chunk-002", "text": "김철수가 Vue를 사용하여..."}
+      {"chunkId": "550e8400-e29b-41d4-a716-446655440001", "text": "홍길동이 React로..."},
+      {"chunkId": "550e8400-e29b-41d4-a716-446655440002", "text": "김철수가 Vue를 사용하여..."}
     ],
-    "documentId": "doc-001",
+    "documentId": "550e8400-e29b-41d4-a716-446655440010",
     "options": {
       "extractRelationships": true
     }
@@ -2279,12 +2281,12 @@ Response (200 OK):
     "data": {
       "results": [
         {
-          "chunkId": "chunk-001",
+          "chunkId": "550e8400-e29b-41d4-a716-446655440001",
           "entities": [...],
           "relationships": [...]
         },
         {
-          "chunkId": "chunk-002",
+          "chunkId": "550e8400-e29b-41d4-a716-446655440002",
           "entities": [...],
           "relationships": [...]
         }
@@ -2344,8 +2346,8 @@ Content-Type: application/json
 Request:
   {
     "texts": [
-      {"id": "chunk-001", "text": "React 컴포넌트..."},
-      {"id": "chunk-002", "text": "Vue 컴포지션 API..."}
+      {"id": "550e8400-e29b-41d4-a716-446655440001", "text": "React 컴포넌트..."},
+      {"id": "550e8400-e29b-41d4-a716-446655440002", "text": "Vue 컴포지션 API..."}
     ],
     "returnSparse": true
   }
@@ -2356,13 +2358,13 @@ Response (200 OK):
     "data": {
       "embeddings": [
         {
-          "id": "chunk-001",
+          "id": "550e8400-e29b-41d4-a716-446655440001",
           "denseVector": [...],
           "sparseVector": {...},
           "tokenCount": 15
         },
         {
-          "id": "chunk-002",
+          "id": "550e8400-e29b-41d4-a716-446655440002",
           "denseVector": [...],
           "sparseVector": {...},
           "tokenCount": 12
@@ -2507,7 +2509,7 @@ Request:
       {"source": "React", "type": "MENTIONED_IN", "target": "doc-001"}
     ],
     "textUnits": [
-      {"chunkId": "chunk-001", "documentId": "doc-001", "chunkIndex": 0}
+      {"chunkId": "550e8400-e29b-41d4-a716-446655440001", "documentId": "550e8400-e29b-41d4-a716-446655440010", "chunkIndex": 0}
     ]
   }
 

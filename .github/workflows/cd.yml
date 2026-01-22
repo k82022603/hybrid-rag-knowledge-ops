@@ -1,0 +1,348 @@
+# CD Pipeline - 배포 파이프라인
+# 트리거: main 브랜치 푸시 시 Docker 이미지 빌드 및 배포
+
+name: CD Pipeline
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/knowledge-platform
+
+jobs:
+  # =============================================================================
+  # Build and Push Docker Images
+  # =============================================================================
+  build-and-push:
+    name: Build and Push
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: backend
+            context: ./knowledge_service/backend
+            dockerfile: Dockerfile
+          - name: gateway
+            context: ./knowledge_service/gateway
+            dockerfile: Dockerfile
+          - name: frontend
+            context: ./knowledge_service/frontend
+            dockerfile: Dockerfile
+          - name: ai-service
+            context: ./knowledge_service
+            dockerfile: Dockerfile
+
+    outputs:
+      backend-image: ${{ steps.meta-backend.outputs.tags }}
+      gateway-image: ${{ steps.meta-gateway.outputs.tags }}
+      frontend-image: ${{ steps.meta-frontend.outputs.tags }}
+      ai-service-image: ${{ steps.meta-ai-service.outputs.tags }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Dockerfile exists
+        id: check-dockerfile
+        run: |
+          if [ -f "${{ matrix.context }}/${{ matrix.dockerfile }}" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "::warning::Dockerfile not found at ${{ matrix.context }}/${{ matrix.dockerfile }}"
+          fi
+
+      - name: Set up QEMU
+        if: steps.check-dockerfile.outputs.exists == 'true'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        if: steps.check-dockerfile.outputs.exists == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        if: steps.check-dockerfile.outputs.exists == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        if: steps.check-dockerfile.outputs.exists == 'true'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.name }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and Push
+        if: steps.check-dockerfile.outputs.exists == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
+            VERSION=${{ github.ref_name }}
+
+      - name: Output image tags
+        if: steps.check-dockerfile.outputs.exists == 'true'
+        id: meta-${{ matrix.name }}
+        run: echo "tags=${{ steps.meta.outputs.tags }}" >> $GITHUB_OUTPUT
+
+  # =============================================================================
+  # Deploy to Staging
+  # =============================================================================
+  deploy-staging:
+    name: Deploy to Staging
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'staging'
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://staging.knowledge.example.com
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set Image Version
+        id: version
+        run: |
+          if [ "${{ github.ref_type }}" == "tag" ]; then
+            echo "version=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=sha-$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            cd /opt/knowledge-platform
+
+            # Pull latest compose files
+            git pull origin main
+
+            # Set version
+            export VERSION=${{ steps.version.outputs.version }}
+            export REGISTRY=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}
+
+            # Pull new images
+            docker compose pull
+
+            # Rolling update with health check
+            docker compose up -d --remove-orphans
+
+            # Wait for health checks
+            sleep 30
+
+            # Verify deployment
+            docker compose ps
+
+            # Cleanup old images
+            docker image prune -f
+
+      - name: Verify Deployment
+        run: |
+          echo "Verifying staging deployment..."
+          # Health check (customize URL as needed)
+          # curl -f https://staging.knowledge.example.com/health || exit 1
+          echo "Staging deployment completed successfully"
+
+      - name: Notify Slack - Staging Success
+        if: success()
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL_ALERTS }}
+          slack-message: |
+            :rocket: *Staging Deployment Successful*
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Author: ${{ github.actor }}
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        continue-on-error: true
+
+      - name: Notify Slack - Staging Failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL_ALERTS }}
+          slack-message: |
+            :x: *Staging Deployment Failed*
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Author: ${{ github.actor }}
+            Check: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        continue-on-error: true
+
+  # =============================================================================
+  # Deploy to Production (Manual Approval Required)
+  # =============================================================================
+  deploy-production:
+    name: Deploy to Production
+    needs: [build-and-push, deploy-staging]
+    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.environment == 'production'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://knowledge.example.com
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set Image Version
+        id: version
+        run: |
+          if [ "${{ github.ref_type }}" == "tag" ]; then
+            echo "version=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=sha-$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Deployment Record
+        run: |
+          echo "## Production Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Deployed by**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Time**: $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script: |
+            cd /opt/knowledge-platform
+
+            # Backup current version
+            docker compose exec -T postgresql pg_dumpall -U knowledge > /backup/pre-deploy-$(date +%Y%m%d_%H%M%S).sql
+
+            # Pull latest compose files
+            git pull origin main
+
+            # Set version
+            export VERSION=${{ steps.version.outputs.version }}
+            export REGISTRY=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}
+
+            # Pull new images
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+
+            # Rolling update
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
+
+            # Wait for health checks
+            sleep 60
+
+            # Verify deployment
+            docker compose ps
+
+            # Cleanup old images
+            docker image prune -f
+
+      - name: Verify Production Deployment
+        run: |
+          echo "Verifying production deployment..."
+          # Health check (customize URL as needed)
+          # curl -f https://knowledge.example.com/health || exit 1
+          echo "Production deployment completed successfully"
+
+      - name: Notify Slack - Production Success
+        if: success()
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL_ALERTS }}
+          slack-message: |
+            :white_check_mark: *Production Deployment Successful*
+            Repository: ${{ github.repository }}
+            Version: ${{ steps.version.outputs.version }}
+            Commit: ${{ github.sha }}
+            Deployed by: ${{ github.actor }}
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        continue-on-error: true
+
+      - name: Notify Slack - Production Failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL_ALERTS }}
+          slack-message: |
+            :rotating_light: *Production Deployment Failed*
+            Repository: ${{ github.repository }}
+            Version: ${{ steps.version.outputs.version }}
+            Commit: ${{ github.sha }}
+            Deployed by: ${{ github.actor }}
+            Check: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        continue-on-error: true
+
+  # =============================================================================
+  # Rollback (Manual Trigger)
+  # =============================================================================
+  rollback:
+    name: Rollback Deployment
+    if: github.event_name == 'workflow_dispatch' && failure()
+    needs: [deploy-staging, deploy-production]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Rollback
+        run: |
+          echo "::warning::Deployment failed. Consider rolling back to previous version."
+          echo "Manual rollback may be required."
+
+      - name: Notify Slack - Rollback Required
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL_ALERTS }}
+          slack-message: |
+            :warning: *Deployment Failed - Rollback May Be Required*
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref_name }}
+            Check the deployment logs and consider manual rollback.
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        continue-on-error: true

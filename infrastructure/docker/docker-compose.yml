@@ -1,9 +1,11 @@
 # =============================================================================
 # Hybrid RAG Knowledge Platform - Docker Compose (18 Containers)
 # =============================================================================
-# Version: 1.0.2
+# Version: 1.1.0
 # Created: 2026-01-20
+# Updated: 2026-01-22 - Security hardening applied
 # Description: Complete development environment with 18 containers
+# Security: read_only, no-new-privileges, cap_drop, non-root user
 # =============================================================================
 
 name: knowledge-platform
@@ -20,7 +22,7 @@ networks:
     name: kp-backend
   database:
     driver: bridge
-    # internal: true  # 개발 환경에서 localhost 포트 접근을 위해 비활성화
+    # internal: true  # Enable in production for additional isolation
     name: kp-database
   monitoring:
     driver: bridge
@@ -48,6 +50,15 @@ volumes:
     name: kp-grafana-data
   loki_data:
     name: kp-loki-data
+  # Temporary volumes for read_only containers
+  nginx_tmp:
+    name: kp-nginx-tmp
+  nginx_cache:
+    name: kp-nginx-cache
+  redis_tmp:
+    name: kp-redis-tmp
+  prometheus_tmp:
+    name: kp-prometheus-tmp
 
 # =============================================================================
 # SERVICES (18 Containers)
@@ -65,6 +76,18 @@ services:
     image: nginx:1.25-alpine
     container_name: kp-nginx
     restart: unless-stopped
+    # Security settings
+    user: "101:101"  # nginx user in alpine
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE  # Required to bind to ports < 1024
+      - CHOWN
+      - SETUID
+      - SETGID
     ports:
       - "${NGINX_HTTP_PORT:-80}:80"
       - "${NGINX_HTTPS_PORT:-443}:443"
@@ -72,6 +95,10 @@ services:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./nginx/conf.d:/etc/nginx/conf.d:ro
       - ./nginx/certs:/etc/nginx/certs:ro
+      - nginx_tmp:/tmp
+      - nginx_cache:/var/cache/nginx
+    tmpfs:
+      - /var/run:mode=755,uid=101,gid=101
     networks:
       - frontend
     depends_on:
@@ -87,6 +114,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '0.5'
           memory: 256M
         reservations:
           memory: 128M
@@ -101,6 +129,19 @@ services:
       dockerfile: Dockerfile
     container_name: kp-frontend
     restart: unless-stopped
+    # Security settings
+    user: "101:101"  # nginx user serving static files
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    tmpfs:
+      - /tmp:mode=755
+      - /var/run:mode=755
+      - /var/cache/nginx:mode=755
     networks:
       - frontend
     environment:
@@ -116,6 +157,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '0.5'
           memory: 256M
         reservations:
           memory: 128M
@@ -130,6 +172,15 @@ services:
       dockerfile: Dockerfile
     container_name: kp-api-gateway
     restart: unless-stopped
+    # Security settings
+    user: "1000:1000"  # Non-root user for Java apps
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:mode=755,size=100M
     ports:
       - "${GATEWAY_PORT:-8080}:8080"
     networks:
@@ -157,6 +208,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '1'
           memory: 1G
         reservations:
           memory: 512M
@@ -171,6 +223,15 @@ services:
       dockerfile: Dockerfile
     container_name: kp-backend
     restart: unless-stopped
+    # Security settings
+    user: "1000:1000"  # Non-root user for Java apps
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:mode=755,size=200M
     ports:
       - "8081:8081"
     networks:
@@ -207,6 +268,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '2'
           memory: 2G
         reservations:
           memory: 1G
@@ -221,6 +283,15 @@ services:
       dockerfile: Dockerfile
     container_name: kp-ai-service
     restart: unless-stopped
+    # Security settings
+    user: "1000:1000"  # Non-root user for Python apps
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:mode=755,size=500M
     ports:
       - "8000:8000"
     networks:
@@ -256,6 +327,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '4'
           memory: 8G
         reservations:
           memory: 4G
@@ -272,6 +344,15 @@ services:
     container_name: kp-keycloak
     restart: unless-stopped
     command: start-dev --import-realm
+    # Security settings (Keycloak needs specific permissions)
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    tmpfs:
+      - /tmp:mode=755,size=100M
     ports:
       - "${KEYCLOAK_PORT:-8180}:8080"
     networks:
@@ -306,6 +387,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '1'
           memory: 1G
         reservations:
           memory: 512M
@@ -317,6 +399,18 @@ services:
     image: postgres:16-alpine
     container_name: kp-keycloak-db
     restart: unless-stopped
+    # Security settings (DB needs write access, no read_only)
+    user: "70:70"  # postgres user in alpine
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+      - FOWNER
+      - DAC_OVERRIDE
     networks:
       - database
     environment:
@@ -334,6 +428,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '0.5'
           memory: 512M
         reservations:
           memory: 256M
@@ -349,6 +444,18 @@ services:
     image: postgres:16-alpine
     container_name: kp-postgresql
     restart: unless-stopped
+    # Security settings (DB needs write access, no read_only)
+    user: "70:70"  # postgres user in alpine
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+      - FOWNER
+      - DAC_OVERRIDE
     networks:
       - database
     environment:
@@ -380,6 +487,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '2'
           memory: 4G
         reservations:
           memory: 2G
@@ -391,6 +499,12 @@ services:
     image: neo4j:5.15-community
     container_name: kp-neo4j
     restart: unless-stopped
+    # Security settings (DB needs write access, no read_only)
+    user: "7474:7474"  # neo4j user
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     networks:
       - database
     environment:
@@ -418,6 +532,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '2'
           memory: 4G
         reservations:
           memory: 2G
@@ -429,6 +544,14 @@ services:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
     container_name: kp-elasticsearch
     restart: unless-stopped
+    # Security settings (ES needs write access, no read_only)
+    user: "1000:1000"  # elasticsearch user
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - IPC_LOCK  # Required for memory locking
     networks:
       - database
     environment:
@@ -461,6 +584,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '2'
           memory: 4G
         reservations:
           memory: 2G
@@ -472,6 +596,16 @@ services:
     image: docker.elastic.co/kibana/kibana:8.11.0
     container_name: kp-kibana
     restart: unless-stopped
+    # Security settings
+    user: "1000:1000"  # kibana user
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:mode=755,size=100M
+      - /usr/share/kibana/data:mode=755
     networks:
       - database
       - monitoring
@@ -494,6 +628,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '1'
           memory: 1G
         reservations:
           memory: 512M
@@ -505,6 +640,12 @@ services:
     image: redis:7.2-alpine
     container_name: kp-redis
     restart: unless-stopped
+    # Security settings (Redis needs write for persistence)
+    user: "999:999"  # redis user in alpine
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     command: >
       redis-server
       --appendonly yes
@@ -525,6 +666,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '0.5'
           memory: 1G
         reservations:
           memory: 512M
@@ -537,6 +679,12 @@ services:
     container_name: kp-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
+    # Security settings (MinIO needs write access)
+    user: "1000:1000"  # minio user
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     networks:
       - database
     ports:
@@ -555,6 +703,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '1'
           memory: 1G
         reservations:
           memory: 512M
@@ -570,6 +719,13 @@ services:
     image: prom/prometheus:v2.48.0
     container_name: kp-prometheus
     restart: unless-stopped
+    # Security settings
+    user: "65534:65534"  # nobody user
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -585,6 +741,8 @@ services:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/rules:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
+    tmpfs:
+      - /tmp:mode=755
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "-O", "/dev/null", "http://localhost:9090/-/healthy"]
       interval: 30s
@@ -593,6 +751,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '0.5'
           memory: 512M
         reservations:
           memory: 256M
@@ -604,6 +763,12 @@ services:
     image: grafana/grafana:10.2.0
     container_name: kp-grafana
     restart: unless-stopped
+    # Security settings (Grafana needs write for plugins/dashboards)
+    user: "472:472"  # grafana user
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     networks:
       - monitoring
       - frontend
@@ -630,6 +795,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '0.5'
           memory: 512M
         reservations:
           memory: 256M
@@ -642,6 +808,12 @@ services:
     container_name: kp-loki
     restart: unless-stopped
     command: -config.file=/etc/loki/loki-config.yml
+    # Security settings (Loki needs write for logs)
+    user: "10001:10001"  # loki user
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     networks:
       - monitoring
     ports:
@@ -657,6 +829,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '0.5'
           memory: 512M
         reservations:
           memory: 256M
@@ -669,6 +842,17 @@ services:
     container_name: kp-promtail
     restart: unless-stopped
     command: -config.file=/etc/promtail/promtail-config.yml
+    # Security settings
+    user: "0:0"  # Needs root to read /var/log
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - DAC_READ_SEARCH  # Required to read log files
+    tmpfs:
+      - /tmp:mode=755
     networks:
       - monitoring
     volumes:
@@ -680,6 +864,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '0.25'
           memory: 256M
         reservations:
           memory: 128M
@@ -691,6 +876,14 @@ services:
     image: jaegertracing/all-in-one:1.52
     container_name: kp-jaeger
     restart: unless-stopped
+    # Security settings
+    user: "10001:10001"  # jaeger user
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:mode=755,size=100M
     networks:
       - monitoring
       - backend
@@ -712,6 +905,7 @@ services:
     deploy:
       resources:
         limits:
+          cpus: '0.5'
           memory: 512M
         reservations:
           memory: 256M
@@ -726,6 +920,12 @@ services:
   init-db:
     image: python:3.11-slim
     container_name: kp-init-db
+    # Security settings
+    user: "1000:1000"  # Non-root user
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
     networks:
       - database
     environment:

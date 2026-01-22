@@ -1,9 +1,9 @@
 # Frontend 상세 설계서
 ## React 기반 Knowledge Discovery Platform
 
-**버전**: 1.2
+**버전**: 1.3
 **작성일**: 2026-01-15
-**수정일**: 2026-01-17
+**수정일**: 2026-01-22
 **상태**: Approved
 **관련 문서**:
 - [프론트엔드 구현 계획서](../01_planning/frontend_implementation_plan.md)
@@ -29,7 +29,7 @@
 12. [성능 최적화](#12-성능-최적화)
 13. [테스트 전략](#13-테스트-전략)
 14. [접근성 및 국제화](#14-접근성-및-국제화)
-15. [실시간 통신 (WebSocket)](#15-실시간-통신-websocket) ⭐ NEW
+15. [실시간 통신 (SSE)](#15-실시간-통신-sse)
 16. [API 모킹 (MSW)](#16-api-모킹-msw) ⭐ NEW
 17. [번들 분석 및 최적화](#17-번들-분석-및-최적화) ⭐ NEW
 18. [Storybook 통합](#18-storybook-통합) ⭐ NEW
@@ -252,8 +252,8 @@ frontend/
 │   │   │   ├── bookmarkApi.ts
 │   │   │   ├── dashboardApi.ts
 │   │   │   └── exportApi.ts
-│   │   └── websocket/
-│   │       └── chatService.ts      # WebSocket 채팅
+│   │   └── sse/
+│   │       └── chatService.ts      # SSE 채팅 스트리밍
 │   │
 │   ├── store/                      # Redux 스토어
 │   │   ├── slices/
@@ -562,9 +562,10 @@ interface ApiResponse<T> {
 interface ApiErrorResponse {
   success: false;
   error: {
-    code: string;
+    code: string;           // 예: "DOC100" (error_code_standards.md 참조)
     message: string;
     details?: Record<string, unknown>;
+    traceId: string;        // 추적 ID (로그 조회용) - UUID v4
   };
   timestamp: string;
   path: string;
@@ -684,6 +685,12 @@ interface User {
   lastLoginAt?: string;
 }
 
+/**
+ * 사용자 역할 - 계층 구조: ADMIN > KNOWLEDGE_MANAGER > USER
+ * - USER: 기본 사용자 (검색, 조회)
+ * - KNOWLEDGE_MANAGER: 지식 관리자 (생성, 수정, 삭제)
+ * - ADMIN: 시스템 관리자 (전체 권한)
+ */
 type UserRole = 'USER' | 'KNOWLEDGE_MANAGER' | 'ADMIN';
 type UserStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
 
@@ -1878,6 +1885,35 @@ export const KnowledgeForm: React.FC<KnowledgeFormProps> = ({
 
 ## 10. API 통신 레이어
 
+### 10.0 토큰 저장 방식
+
+> **보안 권장사항**: XSS 공격 방지를 위해 HttpOnly 쿠키 방식을 사용합니다.
+
+| 토큰 유형 | 저장 위치 | 특징 |
+|----------|----------|------|
+| **accessToken** | 메모리 (Redux Store) | 짧은 수명 (15분), JavaScript에서 접근 가능 |
+| **refreshToken** | HttpOnly 쿠키 | 긴 수명 (7일), JavaScript에서 접근 불가 |
+
+```typescript
+// 토큰 관리 흐름
+// 1. 로그인 성공 시: accessToken → Redux Store, refreshToken → HttpOnly 쿠키 (서버 설정)
+// 2. API 요청 시: Authorization 헤더에 accessToken 포함
+// 3. accessToken 만료 시: /api/v1/auth/refresh 호출 (쿠키의 refreshToken 자동 전송)
+// 4. 갱신 성공: 새 accessToken → Redux Store
+// 5. 갱신 실패: 로그아웃 처리
+
+// apiClient 설정에서 쿠키 전송 활성화
+const apiClient = axios.create({
+  baseURL: import.meta.env.VITE_API_BASE_URL,
+  withCredentials: true,  // HttpOnly 쿠키 자동 전송
+});
+```
+
+**주의사항**:
+- `localStorage`/`sessionStorage`에 토큰 저장 금지 (XSS 취약)
+- accessToken은 새로고침 시 사라지므로 refreshToken으로 재발급
+- 로그아웃 시 서버에서 HttpOnly 쿠키 삭제 처리
+
 ### 10.1 API Client
 
 ```typescript
@@ -2000,7 +2036,7 @@ export const knowledgeApi = {
   // 목록 조회
   getList: async (params: KnowledgeListParams) => {
     const response = await apiClient.get<ApiResponse<PaginatedResponse<Knowledge>>>(
-      '/api/v1/knowledge',
+      '/api/v1/knowledges',
       { params }
     );
     return response.data.data;
@@ -2009,7 +2045,7 @@ export const knowledgeApi = {
   // 상세 조회
   getById: async (id: string) => {
     const response = await apiClient.get<ApiResponse<Knowledge>>(
-      `/api/v1/knowledge/${id}`
+      `/api/v1/knowledges/${id}`
     );
     return response.data.data;
   },
@@ -2030,7 +2066,7 @@ export const knowledgeApi = {
     if (data.validTo) formData.append('validTo', data.validTo);
 
     const response = await apiClient.post<ApiResponse<Knowledge>>(
-      '/api/v1/knowledge',
+      '/api/v1/knowledges',
       formData,
       { headers: { 'Content-Type': 'multipart/form-data' } }
     );
@@ -2040,7 +2076,7 @@ export const knowledgeApi = {
   // 수정
   update: async (id: string, data: KnowledgeUpdateInput) => {
     const response = await apiClient.put<ApiResponse<Knowledge>>(
-      `/api/v1/knowledge/${id}`,
+      `/api/v1/knowledges/${id}`,
       data
     );
     return response.data.data;
@@ -2048,7 +2084,7 @@ export const knowledgeApi = {
 
   // 삭제
   delete: async (id: string) => {
-    await apiClient.delete(`/api/v1/knowledge/${id}`);
+    await apiClient.delete(`/api/v1/knowledges/${id}`);
   },
 
   // 버전 목록
@@ -2077,7 +2113,7 @@ export const searchApi = {
   // 키워드 검색
   search: async (params: SearchParams) => {
     const response = await apiClient.post<ApiResponse<SearchResponse>>(
-      '/api/v1/search',
+      '/api/v1/search/keyword',
       params
     );
     return response.data.data;
@@ -2600,9 +2636,10 @@ const MyComponent = () => {
 
 ---
 
-## 15. 실시간 통신 (WebSocket)
+## 15. 실시간 통신 (SSE)
 
-> 채팅 모드 및 실시간 알림을 위한 WebSocket/Socket.IO 연동 설계
+> 채팅 모드 스트리밍 응답을 위한 Server-Sent Events (SSE) 연동 설계
+> **변경 이유**: Backend/AI 서비스와의 일관성을 위해 WebSocket/Socket.IO에서 SSE로 전환
 
 ### 15.1 아키텍처 개요
 
@@ -2610,166 +2647,192 @@ const MyComponent = () => {
 sequenceDiagram
     participant User
     participant Frontend as React App
-    participant WS as WebSocket Client
-    participant Backend as SpringBoot
+    participant Backend as SpringBoot Gateway
     participant AI as AI Service
     participant LG as LangGraph
 
     User->>Frontend: 채팅 메시지 입력
-    Frontend->>WS: send(message)
-    WS->>Backend: WebSocket message
+    Frontend->>Backend: POST /api/v1/search/chat (SSE)
+    Note over Frontend,Backend: Accept: text/event-stream
     Backend->>AI: POST /ai/chat/stream
     AI->>LG: invoke_stream()
 
     loop Streaming Response
         LG-->>AI: token chunk
         AI-->>Backend: SSE event
-        Backend-->>WS: WebSocket message
-        WS-->>Frontend: onMessage(chunk)
+        Backend-->>Frontend: SSE event (data: chunk)
         Frontend-->>User: 실시간 텍스트 표시
     end
 
-    LG-->>AI: final_answer
+    LG-->>AI: final_answer + sources
     AI-->>Backend: [DONE]
-    Backend-->>WS: message_complete
-    WS-->>Frontend: onComplete()
+    Backend-->>Frontend: SSE event (event: done)
+    Frontend-->>User: 완료 표시 + 출처
 ```
 
-### 15.2 Socket.IO 클라이언트 설정
+### 15.2 SSE 클라이언트 서비스
 
 ```typescript
-// src/lib/socket.ts
-import { io, Socket } from 'socket.io-client';
+// src/services/sse/chatService.ts
 import { store } from '@/app/store';
 
-interface ChatMessage {
-  id: string;
-  sessionId: string;
+/** SSE 이벤트 타입 */
+interface SSEChunkEvent {
+  type: 'chunk';
   content: string;
-  role: 'user' | 'assistant';
-  timestamp: string;
-  metadata?: {
-    sources?: string[];
-    confidence?: number;
-  };
+  conversationId: string;
 }
 
-interface SocketEvents {
-  // Client → Server
-  'chat:message': (data: { sessionId: string; content: string }) => void;
-  'chat:stop': (data: { sessionId: string }) => void;
-  'chat:typing': (data: { sessionId: string; isTyping: boolean }) => void;
-
-  // Server → Client
-  'chat:chunk': (data: { sessionId: string; chunk: string; done: boolean }) => void;
-  'chat:response': (data: ChatMessage) => void;
-  'chat:error': (data: { sessionId: string; error: string; code: string }) => void;
-  'notification': (data: { type: string; message: string; data?: any }) => void;
+interface SSEDoneEvent {
+  type: 'done';
+  conversationId: string;
+  messageId: string;
+  sources?: Array<{
+    id: string;
+    title: string;
+    score: number;
+  }>;
 }
 
-class SocketService {
-  private socket: Socket | null = null;
-  private reconnectAttempts = 0;
-  private maxReconnectAttempts = 5;
+interface SSEErrorEvent {
+  type: 'error';
+  code: string;      // 예: "LLM400"
+  message: string;
+  traceId: string;
+}
 
-  connect(): Socket {
-    if (this.socket?.connected) {
-      return this.socket;
+type SSEEvent = SSEChunkEvent | SSEDoneEvent | SSEErrorEvent;
+
+/** SSE 연결 옵션 */
+interface SSEOptions {
+  onChunk: (content: string) => void;
+  onDone: (data: SSEDoneEvent) => void;
+  onError: (error: SSEErrorEvent) => void;
+  signal?: AbortSignal;
+}
+
+/**
+ * SSE 기반 채팅 스트리밍 서비스
+ * - Backend API: POST /api/v1/search/chat
+ * - Content-Type: text/event-stream
+ */
+class ChatSSEService {
+  private baseUrl = import.meta.env.VITE_API_URL || '';
+
+  /**
+   * 채팅 스트리밍 요청
+   * @param query 사용자 질문
+   * @param conversationId 대화 ID (신규면 undefined)
+   * @param options SSE 이벤트 핸들러
+   */
+  async streamChat(
+    query: string,
+    conversationId: string | undefined,
+    options: SSEOptions
+  ): Promise<void> {
+    const { onChunk, onDone, onError, signal } = options;
+    const accessToken = store.getState().auth.accessToken;
+
+    const response = await fetch(`${this.baseUrl}/api/v1/search/chat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({
+        query,
+        conversationId,
+        stream: true,
+      }),
+      signal,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      onError({
+        type: 'error',
+        code: errorData.error?.code || 'SYS500',
+        message: errorData.error?.message || '알 수 없는 오류',
+        traceId: errorData.error?.traceId || '',
+      });
+      return;
     }
 
-    const token = store.getState().auth.accessToken;
+    const reader = response.body?.getReader();
+    if (!reader) {
+      onError({
+        type: 'error',
+        code: 'SYS500',
+        message: 'SSE 스트림을 읽을 수 없습니다',
+        traceId: '',
+      });
+      return;
+    }
 
-    this.socket = io(import.meta.env.VITE_WS_URL || 'ws://localhost:8080', {
-      auth: { token },
-      transports: ['websocket', 'polling'],
-      reconnection: true,
-      reconnectionAttempts: this.maxReconnectAttempts,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      timeout: 20000,
-    });
+    const decoder = new TextDecoder();
+    let buffer = '';
 
-    this.setupEventHandlers();
-    return this.socket;
-  }
-
-  private setupEventHandlers(): void {
-    if (!this.socket) return;
-
-    this.socket.on('connect', () => {
-      console.log('WebSocket connected:', this.socket?.id);
-      this.reconnectAttempts = 0;
-    });
-
-    this.socket.on('disconnect', (reason) => {
-      console.log('WebSocket disconnected:', reason);
-      if (reason === 'io server disconnect') {
-        // 서버에서 연결 끊음 - 재연결 시도
-        this.socket?.connect();
-      }
-    });
-
-    this.socket.on('connect_error', (error) => {
-      console.error('WebSocket connection error:', error);
-      this.reconnectAttempts++;
-
-      if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-        console.error('Max reconnection attempts reached');
-        // 토큰 갱신 시도 후 재연결
-        this.handleAuthError();
-      }
-    });
-  }
-
-  private async handleAuthError(): Promise<void> {
-    // 토큰 갱신 로직
     try {
-      await store.dispatch(refreshToken()).unwrap();
-      this.reconnectAttempts = 0;
-      this.connect();
-    } catch {
-      // 로그아웃 처리
-      store.dispatch(logout());
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+
+            if (data === '[DONE]') {
+              continue;
+            }
+
+            try {
+              const event: SSEEvent = JSON.parse(data);
+
+              switch (event.type) {
+                case 'chunk':
+                  onChunk(event.content);
+                  break;
+                case 'done':
+                  onDone(event);
+                  break;
+                case 'error':
+                  onError(event);
+                  break;
+              }
+            } catch (e) {
+              // 순수 텍스트 청크인 경우
+              onChunk(data);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      if ((error as Error).name === 'AbortError') {
+        console.log('SSE stream aborted');
+        return;
+      }
+      throw error;
+    } finally {
+      reader.releaseLock();
     }
-  }
-
-  disconnect(): void {
-    this.socket?.disconnect();
-    this.socket = null;
-  }
-
-  on<K extends keyof SocketEvents>(
-    event: K,
-    callback: SocketEvents[K]
-  ): void {
-    this.socket?.on(event, callback as any);
-  }
-
-  off<K extends keyof SocketEvents>(event: K): void {
-    this.socket?.off(event);
-  }
-
-  emit<K extends keyof SocketEvents>(
-    event: K,
-    data: Parameters<SocketEvents[K]>[0]
-  ): void {
-    this.socket?.emit(event, data);
-  }
-
-  get isConnected(): boolean {
-    return this.socket?.connected ?? false;
   }
 }
 
-export const socketService = new SocketService();
+export const chatSSEService = new ChatSSEService();
 ```
 
 ### 15.3 채팅 훅
 
 ```typescript
 // src/features/chat/hooks/useChat.ts
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { socketService } from '@/lib/socket';
+import { useState, useCallback, useRef } from 'react';
+import { chatSSEService } from '@/services/sse/chatService';
 import { v4 as uuidv4 } from 'uuid';
 
 interface Message {
@@ -2777,73 +2840,24 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   isStreaming?: boolean;
-  sources?: string[];
+  sources?: Array<{ id: string; title: string; score: number }>;
   timestamp: Date;
 }
 
 interface UseChatOptions {
-  sessionId?: string;
-  onError?: (error: Error) => void;
+  conversationId?: string;
+  onError?: (error: { code: string; message: string; traceId: string }) => void;
 }
 
 export const useChat = (options: UseChatOptions = {}) => {
-  const { sessionId: initialSessionId, onError } = options;
-  const [sessionId] = useState(() => initialSessionId || uuidv4());
+  const { conversationId: initialConversationId, onError } = options;
+  const [conversationId, setConversationId] = useState<string | undefined>(initialConversationId);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
-  const streamingContentRef = useRef('');
-
-  // WebSocket 연결 및 이벤트 핸들링
-  useEffect(() => {
-    const socket = socketService.connect();
-    setIsConnected(socket.connected);
-
-    socketService.on('chat:chunk', ({ sessionId: sid, chunk, done }) => {
-      if (sid !== sessionId) return;
-
-      streamingContentRef.current += chunk;
-
-      setMessages((prev) => {
-        const lastMsg = prev[prev.length - 1];
-        if (lastMsg?.role === 'assistant' && lastMsg.isStreaming) {
-          return [
-            ...prev.slice(0, -1),
-            { ...lastMsg, content: streamingContentRef.current }
-          ];
-        }
-        return prev;
-      });
-
-      if (done) {
-        setIsLoading(false);
-        setMessages((prev) => {
-          const lastMsg = prev[prev.length - 1];
-          if (lastMsg?.role === 'assistant') {
-            return [
-              ...prev.slice(0, -1),
-              { ...lastMsg, isStreaming: false }
-            ];
-          }
-          return prev;
-        });
-        streamingContentRef.current = '';
-      }
-    });
-
-    socketService.on('chat:error', ({ error, code }) => {
-      setIsLoading(false);
-      onError?.(new Error(`${code}: ${error}`));
-    });
-
-    return () => {
-      socketService.off('chat:chunk');
-      socketService.off('chat:error');
-    };
-  }, [sessionId, onError]);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // 메시지 전송
-  const sendMessage = useCallback((content: string) => {
+  const sendMessage = useCallback(async (content: string) => {
     if (!content.trim() || isLoading) return;
 
     // 사용자 메시지 추가
@@ -2851,55 +2865,118 @@ export const useChat = (options: UseChatOptions = {}) => {
       id: uuidv4(),
       role: 'user',
       content: content.trim(),
-      timestamp: new Date()
+      timestamp: new Date(),
     };
     setMessages((prev) => [...prev, userMessage]);
 
     // AI 응답 플레이스홀더 추가
+    const assistantMessageId = uuidv4();
     const assistantMessage: Message = {
-      id: uuidv4(),
+      id: assistantMessageId,
       role: 'assistant',
       content: '',
       isStreaming: true,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
     setMessages((prev) => [...prev, assistantMessage]);
 
-    // WebSocket으로 전송
+    // AbortController 생성
+    abortControllerRef.current = new AbortController();
     setIsLoading(true);
-    streamingContentRef.current = '';
-    socketService.emit('chat:message', { sessionId, content: content.trim() });
-  }, [sessionId, isLoading]);
+
+    try {
+      await chatSSEService.streamChat(
+        content.trim(),
+        conversationId,
+        {
+          onChunk: (chunk) => {
+            setMessages((prev) => {
+              const lastMsg = prev[prev.length - 1];
+              if (lastMsg?.role === 'assistant' && lastMsg.isStreaming) {
+                return [
+                  ...prev.slice(0, -1),
+                  { ...lastMsg, content: lastMsg.content + chunk },
+                ];
+              }
+              return prev;
+            });
+          },
+          onDone: (data) => {
+            setConversationId(data.conversationId);
+            setMessages((prev) => {
+              const lastMsg = prev[prev.length - 1];
+              if (lastMsg?.role === 'assistant') {
+                return [
+                  ...prev.slice(0, -1),
+                  {
+                    ...lastMsg,
+                    id: data.messageId,
+                    isStreaming: false,
+                    sources: data.sources,
+                  },
+                ];
+              }
+              return prev;
+            });
+            setIsLoading(false);
+          },
+          onError: (error) => {
+            setIsLoading(false);
+            onError?.(error);
+            // 에러 시 마지막 메시지 업데이트
+            setMessages((prev) => {
+              const lastMsg = prev[prev.length - 1];
+              if (lastMsg?.role === 'assistant' && lastMsg.isStreaming) {
+                return [
+                  ...prev.slice(0, -1),
+                  {
+                    ...lastMsg,
+                    isStreaming: false,
+                    content: `[오류] ${error.message} (${error.code})`,
+                  },
+                ];
+              }
+              return prev;
+            });
+          },
+          signal: abortControllerRef.current.signal,
+        }
+      );
+    } catch (error) {
+      setIsLoading(false);
+      console.error('Chat error:', error);
+    }
+  }, [conversationId, isLoading, onError]);
 
   // 응답 중단
   const stopGeneration = useCallback(() => {
-    socketService.emit('chat:stop', { sessionId });
+    abortControllerRef.current?.abort();
     setIsLoading(false);
     setMessages((prev) => {
       const lastMsg = prev[prev.length - 1];
       if (lastMsg?.isStreaming) {
         return [
           ...prev.slice(0, -1),
-          { ...lastMsg, isStreaming: false, content: lastMsg.content + ' [중단됨]' }
+          { ...lastMsg, isStreaming: false, content: lastMsg.content + ' [중단됨]' },
         ];
       }
       return prev;
     });
-  }, [sessionId]);
+  }, []);
 
   // 대화 초기화
   const clearMessages = useCallback(() => {
     setMessages([]);
+    setConversationId(undefined);
   }, []);
 
   return {
     messages,
     isLoading,
-    isConnected,
+    conversationId,
     sendMessage,
     stopGeneration,
     clearMessages,
-    sessionId
   };
 };
 ```
@@ -2909,17 +2986,21 @@ export const useChat = (options: UseChatOptions = {}) => {
 ```typescript
 // src/features/chat/components/ChatInterface.tsx
 import { useState, useRef, useEffect } from 'react';
-import { Box, TextField, IconButton, Paper, Typography, CircularProgress } from '@mui/material';
+import { Box, TextField, IconButton, Paper, Typography, CircularProgress, Alert } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import StopIcon from '@mui/icons-material/Stop';
 import { useChat } from '../hooks/useChat';
 import { MessageBubble } from './MessageBubble';
 import { TypingIndicator } from './TypingIndicator';
-import { ConnectionStatus } from './ConnectionStatus';
+import { SourcesList } from './SourcesList';
 
 export const ChatInterface: React.FC = () => {
-  const { messages, isLoading, isConnected, sendMessage, stopGeneration } = useChat({
-    onError: (error) => console.error('Chat error:', error)
+  const [error, setError] = useState<{ code: string; message: string } | null>(null);
+  const { messages, isLoading, conversationId, sendMessage, stopGeneration, clearMessages } = useChat({
+    onError: (err) => {
+      console.error('Chat error:', err);
+      setError({ code: err.code, message: err.message });
+    }
   });
   const [input, setInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -2929,9 +3010,18 @@ export const ChatInterface: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // 에러 자동 해제
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => setError(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (input.trim()) {
+      setError(null);
       sendMessage(input);
       setInput('');
     }
@@ -2946,8 +3036,12 @@ export const ChatInterface: React.FC = () => {
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* 연결 상태 */}
-      <ConnectionStatus isConnected={isConnected} />
+      {/* 에러 알림 */}
+      {error && (
+        <Alert severity="error" onClose={() => setError(null)} sx={{ m: 2 }}>
+          {error.message} ({error.code})
+        </Alert>
+      )}
 
       {/* 메시지 영역 */}
       <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
@@ -2960,11 +3054,16 @@ export const ChatInterface: React.FC = () => {
         )}
 
         {messages.map((message) => (
-          <MessageBubble
-            key={message.id}
-            message={message}
-            isStreaming={message.isStreaming}
-          />
+          <Box key={message.id}>
+            <MessageBubble
+              message={message}
+              isStreaming={message.isStreaming}
+            />
+            {/* AI 응답에 출처 표시 */}
+            {message.role === 'assistant' && !message.isStreaming && message.sources && (
+              <SourcesList sources={message.sources} />
+            )}
+          </Box>
         ))}
 
         {isLoading && messages[messages.length - 1]?.content === '' && (
@@ -2994,7 +3093,7 @@ export const ChatInterface: React.FC = () => {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="메시지를 입력하세요..."
-          disabled={!isConnected || isLoading}
+          disabled={isLoading}
           size="small"
         />
         {isLoading ? (
@@ -3060,7 +3159,7 @@ import { knowledgeData } from '../data/knowledge';
 
 export const knowledgeHandlers = [
   // 지식 목록 조회
-  http.get('/api/v1/knowledge', async ({ request }) => {
+  http.get('/api/v1/knowledges', async ({ request }) => {
     await delay(300);
 
     const url = new URL(request.url);
@@ -3091,7 +3190,7 @@ export const knowledgeHandlers = [
   }),
 
   // 지식 상세 조회
-  http.get('/api/v1/knowledge/:id', async ({ params }) => {
+  http.get('/api/v1/knowledges/:id', async ({ params }) => {
     await delay(200);
 
     const knowledge = knowledgeData.find(k => k.id === params.id);
@@ -3107,7 +3206,7 @@ export const knowledgeHandlers = [
   }),
 
   // 지식 생성
-  http.post('/api/v1/knowledge', async ({ request }) => {
+  http.post('/api/v1/knowledges', async ({ request }) => {
     await delay(500);
 
     const body = await request.json() as any;
@@ -3126,7 +3225,7 @@ export const knowledgeHandlers = [
   }),
 
   // 지식 수정
-  http.put('/api/v1/knowledge/:id', async ({ params, request }) => {
+  http.put('/api/v1/knowledges/:id', async ({ params, request }) => {
     await delay(300);
 
     const index = knowledgeData.findIndex(k => k.id === params.id);
@@ -3149,7 +3248,7 @@ export const knowledgeHandlers = [
   }),
 
   // 지식 삭제
-  http.delete('/api/v1/knowledge/:id', async ({ params }) => {
+  http.delete('/api/v1/knowledges/:id', async ({ params }) => {
     await delay(200);
 
     const index = knowledgeData.findIndex(k => k.id === params.id);
@@ -3242,7 +3341,7 @@ describe('KnowledgeList', () => {
 
   it('에러 시 에러 메시지를 표시한다', async () => {
     server.use(
-      http.get('/api/v1/knowledge', () => {
+      http.get('/api/v1/knowledges', () => {
         return HttpResponse.json(
           { success: false, error: { code: 'SYS-500', message: '서버 오류' } },
           { status: 500 }
@@ -4045,14 +4144,20 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
-    # WebSocket 프록시
-    location /ws {
+    # SSE 프록시 (채팅 스트리밍)
+    location /api/v1/search/chat {
         proxy_pass http://backend:8080;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
         proxy_set_header Host $host;
-        proxy_read_timeout 86400;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # SSE 연결 유지 설정
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 300s;
+        chunked_transfer_encoding on;
     }
 
     # Health check
@@ -4117,7 +4222,7 @@ server {
 - [ ] 필터 사이드바
 - [ ] 검색 결과 카드
 - [ ] 검색어 하이라이팅
-- [ ] WebSocket 채팅 서비스
+- [ ] SSE 채팅 스트리밍 서비스
 
 ### Phase 6: 개인화 (Week 9)
 
@@ -4168,6 +4273,7 @@ server {
 | 1.0 | 2026-01-15 | Claude Code | 초안 작성 |
 | 1.1 | 2026-01-17 | Claude Code | UUID 통일, 에러 코드 표준 연계 |
 | 1.2 | 2026-01-17 | Claude Code | WebSocket 실시간 채팅, MSW API 모킹, 번들 최적화, Storybook, PWA, CI/CD 섹션 추가 |
+| 1.3 | 2026-01-22 | Claude Code | Backend 설계서 동기화: SSE로 전환 (Socket.IO 제거), API 경로 통일 (/knowledges, /search/keyword, /search/chat), UserRole Enum 계층 주석, traceId 필드 반영, 토큰 저장 방식 (HttpOnly 쿠키) 명시 |
 
 ---
 

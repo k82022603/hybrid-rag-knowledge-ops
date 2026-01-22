@@ -1,6 +1,7 @@
 -- PostgreSQL Schema for Hybrid RAG Knowledge Operations
--- Version: 2.6
+-- Version: 2.7
 -- Created: 2026-01-12
+-- Updated: 2026-01-22
 -- Purpose: Master records, temporal metadata, and project information
 
 -- ============================================================================
@@ -101,7 +102,7 @@ CREATE UNIQUE INDEX idx_knowledge_file_hash ON knowledge_master(file_hash);
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS knowledge_chunks (
-    chunk_id VARCHAR(100) PRIMARY KEY,
+    chunk_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),  -- UUID 타입으로 통일 (v2.7)
     knowledge_id INT REFERENCES knowledge_master(knowledge_id) ON DELETE CASCADE,
     chunk_index INT NOT NULL,
     total_chunks INT NOT NULL,
@@ -139,7 +140,7 @@ CREATE INDEX idx_chunks_ingestion ON knowledge_chunks(ingestion_timestamp DESC);
 
 CREATE TABLE IF NOT EXISTS embedding_metadata (
     metadata_id SERIAL PRIMARY KEY,
-    chunk_id VARCHAR(100) REFERENCES knowledge_chunks(chunk_id) ON DELETE CASCADE UNIQUE,
+    chunk_id UUID REFERENCES knowledge_chunks(chunk_id) ON DELETE CASCADE UNIQUE,  -- UUID 타입 (v2.7)
     es_doc_id VARCHAR(100),  -- Elasticsearch document ID
     es_index_name VARCHAR(100) DEFAULT 'pdf-documents',
 

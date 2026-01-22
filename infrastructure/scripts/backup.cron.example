@@ -1,0 +1,36 @@
+# =============================================================================
+# Hybrid RAG Knowledge Platform - Backup Crontab Configuration
+# =============================================================================
+# Install: crontab -e and paste these entries
+# Or: sudo cp backup.cron.example /etc/cron.d/knowledge-platform-backup
+# =============================================================================
+
+# Environment variables (adjust paths as needed)
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Load environment variables for backup
+BACKUP_DIR=/opt/knowledge-platform/backups
+BACKUP_RETENTION_DAYS=7
+
+# =============================================================================
+# BACKUP SCHEDULES
+# =============================================================================
+
+# Daily full backup at 2:00 AM
+0 2 * * * root /opt/knowledge-platform/infrastructure/scripts/backup.sh >> /var/log/knowledge-backup.log 2>&1
+
+# Weekly PostgreSQL-only backup at 3:00 AM on Sunday (for extra redundancy)
+0 3 * * 0 root /opt/knowledge-platform/infrastructure/scripts/backup.sh --postgresql >> /var/log/knowledge-backup.log 2>&1
+
+# Monthly cleanup of old logs
+0 4 1 * * root find /var/log -name "knowledge-backup*.log" -mtime +30 -delete
+
+# =============================================================================
+# NOTES
+# =============================================================================
+# - Ensure .env file has all required passwords configured
+# - Test backup script manually before enabling cron
+# - Monitor /var/log/knowledge-backup.log for errors
+# - Consider adding backup verification/integrity checks
+# =============================================================================

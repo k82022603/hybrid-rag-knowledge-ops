@@ -1,7 +1,7 @@
 # 인프라 상세 설계서 (Docker Compose 기반)
 
 **프로젝트**: Hybrid RAG Knowledge Operations Platform
-**버전**: 2.0
+**버전**: 2.2
 **작성일**: 2026-01-16
 **작성자**: Claude AI Architect
 **상태**: Draft
@@ -13,7 +13,7 @@
 | 항목 | 내용 |
 |------|------|
 | **문서명** | 인프라 상세 설계서 (Docker Compose 기반) |
-| **버전** | 2.0 |
+| **버전** | 2.2 |
 | **작성일** | 2026-01-16 |
 | **작성자** | Claude AI Architect |
 | **상태** | Draft |
@@ -28,6 +28,7 @@
 | 1.0 | 2026-01-16 | Claude AI | 초안 작성 (K8s 기반) |
 | 2.0 | 2026-01-16 | Claude AI | **Docker Compose 기반으로 전면 재작성** - K8s 버전은 technical_assessment 폴더에 참조용으로 보관 |
 | 2.1 | 2026-01-21 | Claude AI | Kibana 추가 (Elasticsearch 데이터 시각화/탐색 도구) |
+| 2.2 | 2026-01-22 | Claude AI | **18개 컨테이너 공식 목록 확정** - docker-compose.yml 기준 정리 |
 
 ---
 
@@ -36,16 +37,17 @@
 1. [개요](#1-개요)
 2. [시스템 아키텍처](#2-시스템-아키텍처)
 3. [Docker Compose 구성](#3-docker-compose-구성)
-4. [컨테이너 설계](#4-컨테이너-설계)
-5. [네트워크 설계](#5-네트워크-설계)
-6. [볼륨 및 스토리지](#6-볼륨-및-스토리지)
-7. [데이터베이스 인프라](#7-데이터베이스-인프라)
-8. [모니터링 및 로깅](#8-모니터링-및-로깅)
-9. [CI/CD 파이프라인](#9-cicd-파이프라인)
-10. [보안 설정](#10-보안-설정)
-11. [백업 및 복구](#11-백업-및-복구)
-12. [운영 가이드](#12-운영-가이드)
-13. [비용 추정](#13-비용-추정)
+4. [컨테이너 공식 목록 (18개)](#4-컨테이너-공식-목록-18개)
+5. [컨테이너 설계](#5-컨테이너-설계)
+6. [네트워크 설계](#6-네트워크-설계)
+7. [볼륨 및 스토리지](#7-볼륨-및-스토리지)
+8. [데이터베이스 인프라](#8-데이터베이스-인프라)
+9. [모니터링 및 로깅](#9-모니터링-및-로깅)
+10. [CI/CD 파이프라인](#10-cicd-파이프라인)
+11. [보안 설정](#11-보안-설정)
+12. [백업 및 복구](#12-백업-및-복구)
+13. [운영 가이드](#13-운영-가이드)
+14. [비용 추정](#14-비용-추정)
 
 ---
 
@@ -86,36 +88,36 @@
 ```mermaid
 flowchart TB
     subgraph External["외부 영역"]
-        Users["👤 사용자<br/>(Web Browser)"]
-        DeepSeek["🤖 DeepSeek API<br/>(LLM Service)"]
+        Users["사용자<br/>(Web Browser)"]
+        DeepSeek["DeepSeek API<br/>(LLM Service)"]
     end
 
     subgraph Host["Docker Host (Single Server)"]
         subgraph Proxy["리버스 프록시"]
-            Nginx["🚪 Nginx<br/>(SSL Termination)"]
+            Nginx["Nginx<br/>(SSL Termination)"]
         end
 
         subgraph App["애플리케이션 컨테이너"]
-            FE["🖥️ Frontend<br/>(React)"]
-            GW["🔀 API Gateway<br/>(Spring Cloud)"]
-            BE["⚙️ Backend<br/>(Spring Boot)"]
-            AI["🧠 AI Service<br/>(FastAPI)"]
-            KC["🔐 Keycloak<br/>(OAuth 2.0)"]
+            FE["Frontend<br/>(React)"]
+            GW["API Gateway<br/>(Spring Cloud)"]
+            BE["Backend<br/>(Spring Boot)"]
+            AI["AI Service<br/>(FastAPI)"]
+            KC["Keycloak<br/>(OAuth 2.0)"]
         end
 
         subgraph Data["데이터 컨테이너"]
-            PG[("🐘 PostgreSQL<br/>(SSOT)")]
-            ES[("🔍 Elasticsearch<br/>(Vector)")]
-            Neo[("🕸️ Neo4j<br/>(Graph)")]
-            Redis[("💾 Redis<br/>(Cache)")]
-            MinIO[("📦 MinIO<br/>(Storage)")]
+            PG[("PostgreSQL<br/>(SSOT)")]
+            ES[("Elasticsearch<br/>(Vector)")]
+            Neo[("Neo4j<br/>(Graph)")]
+            Redis[("Redis<br/>(Cache)")]
+            MinIO[("MinIO<br/>(Storage)")]
         end
 
         subgraph Monitor["모니터링 컨테이너"]
-            Prometheus["📊 Prometheus"]
-            Grafana["📈 Grafana"]
-            Loki["📝 Loki"]
-            Kibana["🔎 Kibana"]
+            Prometheus["Prometheus"]
+            Grafana["Grafana"]
+            Loki["Loki"]
+            Kibana["Kibana"]
         end
     end
 
@@ -151,44 +153,52 @@ flowchart TB
 flowchart TB
     subgraph Server["물리 서버 (Production)"]
         subgraph OS["Ubuntu 22.04 LTS"]
-            Docker["🐳 Docker Engine 24.x"]
-            Compose["📦 Docker Compose v2"]
+            Docker["Docker Engine 24.x"]
+            Compose["Docker Compose v2"]
         end
 
         subgraph Containers["컨테이너 (18개)"]
-            subgraph AppLayer["Application Layer"]
+            subgraph AppLayer["Application Layer (5)"]
                 C1["nginx"]
                 C2["frontend"]
                 C3["api-gateway"]
                 C4["backend"]
                 C5["ai-service"]
+            end
+
+            subgraph AuthLayer["Auth Layer (2)"]
                 C6["keycloak"]
+                C7["keycloak-db"]
             end
 
-            subgraph DataLayer["Data Layer"]
-                C7["postgresql"]
-                C8["elasticsearch"]
+            subgraph DataLayer["Data Layer (6)"]
+                C8["postgresql"]
                 C9["neo4j"]
-                C10["redis"]
-                C11["minio"]
+                C10["elasticsearch"]
+                C11["kibana"]
+                C12["redis"]
+                C13["minio"]
             end
 
-            subgraph MonitorLayer["Monitoring Layer"]
-                C12["prometheus"]
-                C13["grafana"]
-                C14["loki"]
-                C15["promtail"]
-                C16["jaeger"]
-                C17["kibana"]
+            subgraph MonitorLayer["Monitoring Layer (5)"]
+                C14["prometheus"]
+                C15["grafana"]
+                C16["loki"]
+                C17["promtail"]
+                C18["jaeger"]
+            end
+
+            subgraph UtilLayer["Utility Layer (1)"]
+                C19["init-db"]
             end
         end
 
         subgraph Storage["스토리지"]
-            SSD1["📁 /data/postgresql<br/>100GB SSD"]
-            SSD2["📁 /data/elasticsearch<br/>500GB SSD"]
-            SSD3["📁 /data/neo4j<br/>50GB SSD"]
-            SSD4["📁 /data/minio<br/>1TB HDD"]
-            SSD5["📁 /data/logs<br/>100GB SSD"]
+            SSD1["postgresql 100GB SSD"]
+            SSD2["elasticsearch 500GB SSD"]
+            SSD3["neo4j 50GB SSD"]
+            SSD4["minio 1TB HDD"]
+            SSD5["logs 100GB SSD"]
         end
     end
 
@@ -197,14 +207,18 @@ flowchart TB
 
     classDef os fill:#74b9ff,stroke:#0984e3
     classDef app fill:#55efc4,stroke:#00b894
+    classDef auth fill:#fdcb6e,stroke:#f39c12
     classDef data fill:#ffeaa7,stroke:#fdcb6e
     classDef monitor fill:#fd79a8,stroke:#e84393
+    classDef util fill:#dfe6e9,stroke:#b2bec3
     classDef storage fill:#dfe6e9,stroke:#b2bec3
 
     class OS os
-    class C1,C2,C3,C4,C5,C6 app
-    class C7,C8,C9,C10,C11 data
-    class C12,C13,C14,C15,C16,C17 monitor
+    class C1,C2,C3,C4,C5 app
+    class C6,C7 auth
+    class C8,C9,C10,C11,C12,C13 data
+    class C14,C15,C16,C17,C18 monitor
+    class C19 util
     class SSD1,SSD2,SSD3,SSD4,SSD5 storage
 ```
 
@@ -244,25 +258,25 @@ flowchart TB
 ```mermaid
 flowchart LR
     subgraph Input["입력"]
-        User["👤 사용자"]
-        Doc["📄 문서"]
+        User["사용자"]
+        Doc["문서"]
     end
 
     subgraph Process["처리"]
-        FE["🖥️ Frontend"]
-        BE["⚙️ Backend"]
-        AI["🧠 AI Service"]
+        FE["Frontend"]
+        BE["Backend"]
+        AI["AI Service"]
     end
 
     subgraph Storage["저장소"]
-        PG[("🐘 PostgreSQL")]
-        ES[("🔍 Elasticsearch")]
-        Neo[("🕸️ Neo4j")]
-        MinIO[("📦 MinIO")]
+        PG[("PostgreSQL")]
+        ES[("Elasticsearch")]
+        Neo[("Neo4j")]
+        MinIO[("MinIO")]
     end
 
     subgraph External["외부"]
-        DS["🤖 DeepSeek"]
+        DS["DeepSeek"]
     end
 
     User --> FE --> BE
@@ -315,7 +329,7 @@ sequenceDiagram
     end
 
     AI-->>BE: 처리 완료
-    BE->>PG: 상태 → completed
+    BE->>PG: 상태 -> completed
     BE-->>FE: 성공 응답
     FE-->>U: 완료 알림
 ```
@@ -371,39 +385,47 @@ sequenceDiagram
 
 ```
 infrastructure/
-├── docker-compose.yml           # 메인 Compose 파일
-├── docker-compose.override.yml  # 개발 환경 오버라이드
-├── docker-compose.prod.yml      # 운영 환경 오버라이드
-├── docker-compose.monitoring.yml # 모니터링 스택
-├── .env                         # 환경 변수 (gitignore)
-├── .env.example                 # 환경 변수 템플릿
-├── nginx/
-│   ├── nginx.conf
-│   ├── conf.d/
-│   │   ├── default.conf
-│   │   └── ssl.conf
-│   └── certs/                   # SSL 인증서
-├── prometheus/
-│   ├── prometheus.yml
-│   └── rules/
-│       └── alerts.yml
-├── grafana/
-│   ├── provisioning/
-│   │   ├── dashboards/
-│   │   └── datasources/
-│   └── dashboards/
-├── loki/
-│   └── loki-config.yml
-├── promtail/
-│   └── promtail-config.yml
-├── keycloak/
-│   └── realm-export.json
-├── scripts/
-│   ├── init-db.sh
-│   ├── backup.sh
-│   ├── restore.sh
-│   └── health-check.sh
-└── volumes/                     # 데이터 볼륨 (gitignore)
+├── docker/
+│   ├── docker-compose.yml           # 메인 Compose 파일 (18개 컨테이너)
+│   ├── docker-compose.override.yml  # 개발 환경 오버라이드
+│   ├── docker-compose.prod.yml      # 운영 환경 오버라이드
+│   ├── .env                         # 환경 변수 (gitignore)
+│   ├── .env.example                 # 환경 변수 템플릿
+│   ├── nginx/
+│   │   ├── nginx.conf
+│   │   ├── conf.d/
+│   │   │   ├── default.conf
+│   │   │   └── ssl.conf
+│   │   └── certs/                   # SSL 인증서
+│   ├── prometheus/
+│   │   ├── prometheus.yml
+│   │   └── rules/
+│   │       └── alerts.yml
+│   ├── grafana/
+│   │   ├── provisioning/
+│   │   │   ├── dashboards/
+│   │   │   └── datasources/
+│   │   └── dashboards/
+│   ├── loki/
+│   │   └── loki-config.yml
+│   ├── promtail/
+│   │   └── promtail-config.yml
+│   ├── keycloak/
+│   │   └── realm-export.json
+│   └── scripts/
+│       ├── init-db.py
+│       ├── init-postgresql.sql
+│       ├── backup.sh
+│       ├── restore.sh
+│       └── health-check.sh
+├── database/
+│   ├── postgres/
+│   │   └── schema.sql
+│   ├── neo4j/
+│   │   └── schema.cypher
+│   └── elasticsearch/
+│       └── mappings.json
+└── volumes/                         # 데이터 볼륨 (gitignore)
     ├── postgresql/
     ├── elasticsearch/
     ├── neo4j/
@@ -411,612 +433,180 @@ infrastructure/
     └── redis/
 ```
 
-### 3.2 메인 Docker Compose 파일
+---
 
-```yaml
-# docker-compose.yml
-version: '3.8'
+## 4. 컨테이너 공식 목록 (18개)
 
-name: knowledge-platform
+> **기준 문서**: `infrastructure/docker/docker-compose.yml` (v1.0.2, 2026-01-20)
 
-# ===== 네트워크 정의 =====
-networks:
-  frontend:
-    driver: bridge
-  backend:
-    driver: bridge
-  database:
-    driver: bridge
-    internal: true
-  monitoring:
-    driver: bridge
+### 4.1 전체 컨테이너 요약
 
-# ===== 볼륨 정의 =====
-volumes:
-  postgresql_data:
-  elasticsearch_data:
-  neo4j_data:
-  redis_data:
-  minio_data:
-  keycloak_data:
-  prometheus_data:
-  grafana_data:
-  loki_data:
+| # | 컨테이너명 | 이미지 | 포트 | 용도 | 레이어 |
+|---|-----------|--------|------|------|--------|
+| 1 | nginx | nginx:1.25-alpine | 80, 443 | 리버스 프록시 / SSL 종단점 | Application |
+| 2 | frontend | knowledge-platform/frontend | - | React 웹 애플리케이션 | Application |
+| 3 | api-gateway | knowledge-platform/api-gateway | 8080 | API 라우팅 / 인증 프록시 | Application |
+| 4 | backend | knowledge-platform/backend | 8081 | 비즈니스 로직 (Spring Boot) | Application |
+| 5 | ai-service | knowledge-platform/ai-service | 8000 | AI/ML 처리 (FastAPI) | Application |
+| 6 | keycloak | quay.io/keycloak/keycloak:23.0 | 8180 | OAuth 2.0 / OIDC 인증 | Auth |
+| 7 | keycloak-db | postgres:16-alpine | - | Keycloak 전용 DB | Auth |
+| 8 | postgresql | postgres:16-alpine | - | 메인 DB (SSOT) | Data |
+| 9 | neo4j | neo4j:5.15-community | 7474, 7687 | Knowledge Graph DB | Data |
+| 10 | elasticsearch | elasticsearch:8.11.0 | 9200 | 벡터/텍스트 검색 | Data |
+| 11 | kibana | kibana:8.11.0 | 5601 | ES 데이터 시각화/탐색 | Data |
+| 12 | redis | redis:7.2-alpine | 6379 | 캐시 / 세션 스토어 | Data |
+| 13 | minio | minio/minio:latest | 9000, 9001 | 오브젝트 스토리지 (S3 호환) | Data |
+| 14 | prometheus | prom/prometheus:v2.48.0 | 9090 | 메트릭 수집 | Observability |
+| 15 | grafana | grafana/grafana:10.2.0 | 3001 | 대시보드 / 시각화 | Observability |
+| 16 | loki | grafana/loki:2.9.0 | 3100 | 로그 집계 | Observability |
+| 17 | promtail | grafana/promtail:2.9.0 | - | 로그 수집 에이전트 | Observability |
+| 18 | jaeger | jaegertracing/all-in-one:1.52 | 16686, 14268 | 분산 추적 | Observability |
 
-# ===== 서비스 정의 =====
-services:
+### 4.2 프로파일별 컨테이너 분류
 
-  # ----- Reverse Proxy -----
-  nginx:
-    image: nginx:1.25-alpine
-    container_name: nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./nginx/certs:/etc/nginx/certs:ro
-    networks:
-      - frontend
-    depends_on:
-      - frontend
-      - api-gateway
-    healthcheck:
-      test: ["CMD", "nginx", "-t"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+#### 4.2.1 Core Profile (필수 - 17개)
 
-  # ----- Frontend -----
-  frontend:
-    image: ${REGISTRY:-}knowledge-platform/frontend:${VERSION:-latest}
-    build:
-      context: ../frontend
-      dockerfile: Dockerfile
-    container_name: frontend
-    restart: unless-stopped
-    networks:
-      - frontend
-    environment:
-      - VITE_API_URL=${API_URL:-https://api.localhost}
-      - VITE_AUTH_URL=${AUTH_URL:-https://auth.localhost}
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+기본 실행 시 항상 시작되는 컨테이너입니다.
 
-  # ----- API Gateway -----
-  api-gateway:
-    image: ${REGISTRY:-}knowledge-platform/api-gateway:${VERSION:-latest}
-    build:
-      context: ../backend/api-gateway
-      dockerfile: Dockerfile
-    container_name: api-gateway
-    restart: unless-stopped
-    networks:
-      - frontend
-      - backend
-    environment:
-      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILE:-prod}
-      - SERVER_PORT=8080
-      - BACKEND_URL=http://backend:8081
-      - KEYCLOAK_URL=http://keycloak:8080
-    depends_on:
-      keycloak:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+| 레이어 | 컨테이너 수 | 컨테이너명 |
+|--------|------------|-----------|
+| **Application** | 5 | nginx, frontend, api-gateway, backend, ai-service |
+| **Auth** | 2 | keycloak, keycloak-db |
+| **Data** | 6 | postgresql, neo4j, elasticsearch, kibana, redis, minio |
+| **Observability** | 5 | prometheus, grafana, loki, promtail, jaeger |
 
-  # ----- Backend Service -----
-  backend:
-    image: ${REGISTRY:-}knowledge-platform/backend:${VERSION:-latest}
-    build:
-      context: ../backend/knowledge-service
-      dockerfile: Dockerfile
-    container_name: backend
-    restart: unless-stopped
-    networks:
-      - backend
-      - database
-    environment:
-      - SPRING_PROFILES_ACTIVE=${SPRING_PROFILE:-prod}
-      - SERVER_PORT=8081
-      - DATABASE_URL=jdbc:postgresql://postgresql:5432/knowledge
-      - DATABASE_USERNAME=${DB_USERNAME:-knowledge}
-      - DATABASE_PASSWORD=${DB_PASSWORD}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - AI_SERVICE_URL=http://ai-service:8000
-      - MINIO_URL=http://minio:9000
-      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
-      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
-    depends_on:
-      postgresql:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8081/actuator/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+#### 4.2.2 Init Profile (초기화 - 1개)
 
-  # ----- AI Service -----
-  ai-service:
-    image: ${REGISTRY:-}knowledge-platform/ai-service:${VERSION:-latest}
-    build:
-      context: ../knowledge_service
-      dockerfile: Dockerfile
-    container_name: ai-service
-    restart: unless-stopped
-    networks:
-      - backend
-      - database
-    environment:
-      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
-      - ELASTICSEARCH_URL=http://elasticsearch:9200
-      - NEO4J_URI=bolt://neo4j:7687
-      - NEO4J_USER=${NEO4J_USER:-neo4j}
-      - NEO4J_PASSWORD=${NEO4J_PASSWORD}
-      - REDIS_URL=redis://redis:6379
-      - PYTHONUNBUFFERED=1
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
-      neo4j:
-        condition: service_healthy
-    deploy:
-      resources:
-        limits:
-          memory: 8G
-        reservations:
-          memory: 4G
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      start_period: 120s
-      retries: 3
+`docker compose --profile init up` 으로 실행하는 초기화 전용 컨테이너입니다.
 
-  # ----- Keycloak (OAuth 2.0 / OIDC) -----
-  keycloak:
-    image: quay.io/keycloak/keycloak:23.0
-    container_name: keycloak
-    restart: unless-stopped
-    command: start --optimized --import-realm
-    networks:
-      - frontend
-      - database
-    environment:
-      - KC_DB=postgres
-      - KC_DB_URL=jdbc:postgresql://postgresql:5432/keycloak
-      - KC_DB_USERNAME=${DB_USERNAME:-knowledge}
-      - KC_DB_PASSWORD=${DB_PASSWORD}
-      - KC_HOSTNAME=${KEYCLOAK_HOSTNAME:-auth.localhost}
-      - KC_PROXY=edge
-      - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN:-admin}
-      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
-    volumes:
-      - ./keycloak/realm-export.json:/opt/keycloak/data/import/realm.json:ro
-      - keycloak_data:/opt/keycloak/data
-    depends_on:
-      postgresql:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health/ready"]
-      interval: 30s
-      timeout: 10s
-      start_period: 60s
-      retries: 3
+| # | 컨테이너명 | 이미지 | 용도 |
+|---|-----------|--------|------|
+| 1 | init-db | python:3.11-slim | DB 스키마 초기화 (PostgreSQL, ES, Neo4j, MinIO 버킷) |
 
-  # ----- PostgreSQL -----
-  postgresql:
-    image: postgres:16-alpine
-    container_name: postgresql
-    restart: unless-stopped
-    networks:
-      - database
-    environment:
-      - POSTGRES_USER=${DB_USERNAME:-knowledge}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - POSTGRES_DB=knowledge
-      - PGDATA=/var/lib/postgresql/data/pgdata
-    volumes:
-      - postgresql_data:/var/lib/postgresql/data
-      - ./scripts/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
-    deploy:
-      resources:
-        limits:
-          memory: 4G
-        reservations:
-          memory: 2G
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-knowledge}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+### 4.3 레이어별 상세 설명
 
-  # ----- Elasticsearch -----
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
-    container_name: elasticsearch
-    restart: unless-stopped
-    networks:
-      - database
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - xpack.security.enrollment.enabled=false
-      - "ES_JAVA_OPTS=-Xms2g -Xmx2g"
-      - cluster.name=knowledge-cluster
-      - bootstrap.memory_lock=true
-    volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
-    ulimits:
-      memlock:
-        soft: -1
-        hard: -1
-      nofile:
-        soft: 65536
-        hard: 65536
-    deploy:
-      resources:
-        limits:
-          memory: 4G
-        reservations:
-          memory: 2G
-    healthcheck:
-      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
-      interval: 30s
-      timeout: 10s
-      start_period: 60s
-      retries: 5
+#### 4.3.1 Application Layer (5개)
 
-  # ----- Neo4j -----
-  neo4j:
-    image: neo4j:5.15-community
-    container_name: neo4j
-    restart: unless-stopped
-    networks:
-      - database
-    environment:
-      - NEO4J_AUTH=${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD}
-      - NEO4J_PLUGINS=["apoc"]
-      - NEO4J_dbms_memory_heap_initial__size=1G
-      - NEO4J_dbms_memory_heap_max__size=2G
-      - NEO4J_dbms_memory_pagecache_size=1G
-    volumes:
-      - neo4j_data:/data
-    deploy:
-      resources:
-        limits:
-          memory: 4G
-        reservations:
-          memory: 2G
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "-O", "/dev/null", "http://localhost:7474"]
-      interval: 30s
-      timeout: 10s
-      start_period: 60s
-      retries: 5
+사용자 요청을 처리하는 애플리케이션 컨테이너입니다.
 
-  # ----- Redis -----
-  redis:
-    image: redis:7.2-alpine
-    container_name: redis
-    restart: unless-stopped
-    command: redis-server --appendonly yes --maxmemory 1gb --maxmemory-policy allkeys-lru
-    networks:
-      - database
-    volumes:
-      - redis_data:/data
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-        reservations:
-          memory: 512M
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+| 컨테이너 | 역할 | 의존성 | 리소스 |
+|----------|------|--------|--------|
+| **nginx** | 리버스 프록시, SSL 종단점, 로드밸런싱 | frontend, api-gateway | 256MB |
+| **frontend** | React SPA, 사용자 인터페이스 | - | 256MB |
+| **api-gateway** | API 라우팅, 인증 검증, Rate Limiting | keycloak, backend | 1GB |
+| **backend** | 비즈니스 로직, 문서 관리, 트랜잭션 처리 | postgresql, redis, minio | 2GB |
+| **ai-service** | RAG 처리, 임베딩, LLM 호출 | elasticsearch, neo4j, redis | 8GB |
 
-  # ----- MinIO (Object Storage) -----
-  minio:
-    image: minio/minio:RELEASE.2024-01-01T00-00-00Z
-    container_name: minio
-    restart: unless-stopped
-    command: server /data --console-address ":9001"
-    networks:
-      - database
-    environment:
-      - MINIO_ROOT_USER=${MINIO_ACCESS_KEY}
-      - MINIO_ROOT_PASSWORD=${MINIO_SECRET_KEY}
-    volumes:
-      - minio_data:/data
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+#### 4.3.2 Auth Layer (2개)
+
+인증/인가를 담당하는 컨테이너입니다.
+
+| 컨테이너 | 역할 | 의존성 | 리소스 |
+|----------|------|--------|--------|
+| **keycloak** | OAuth 2.0/OIDC 인증, SSO, 사용자 관리 | keycloak-db | 1GB |
+| **keycloak-db** | Keycloak 메타데이터 저장 (별도 PostgreSQL) | - | 512MB |
+
+#### 4.3.3 Data Layer (6개)
+
+데이터 저장 및 검색을 담당하는 컨테이너입니다.
+
+| 컨테이너 | 역할 | 특징 | 리소스 |
+|----------|------|------|--------|
+| **postgresql** | SSOT (Single Source of Truth), 트랜잭션 데이터 | max_connections=200, shared_buffers=1GB | 4GB |
+| **neo4j** | Knowledge Graph, 엔티티 관계 | APOC 플러그인, 2GB heap | 4GB |
+| **elasticsearch** | 벡터 검색, 전문 검색 | Single-node, 보안 비활성화 | 4GB |
+| **kibana** | ES 데이터 탐색, 쿼리 테스트, 시각화 | ES 헬스체크 후 시작 | 1GB |
+| **redis** | 캐시, 세션, 임시 데이터 | AOF 활성화, 1GB maxmemory | 1GB |
+| **minio** | 문서 파일 저장, S3 호환 API | 콘솔 포트 9001 | 1GB |
+
+#### 4.3.4 Observability Layer (5개)
+
+모니터링, 로깅, 추적을 담당하는 컨테이너입니다.
+
+| 컨테이너 | 역할 | 특징 | 리소스 |
+|----------|------|------|--------|
+| **prometheus** | 메트릭 수집, 알림 규칙 | 15일 보존, lifecycle API | 512MB |
+| **grafana** | 대시보드, 시각화 | Prometheus/Loki 연동 | 512MB |
+| **loki** | 로그 집계, 쿼리 | Promtail과 연동 | 512MB |
+| **promtail** | 로그 수집 에이전트 | Docker 컨테이너 로그 수집 | 256MB |
+| **jaeger** | 분산 추적, 서비스 호출 분석 | OTLP 지원, 메모리 저장 | 512MB |
+
+#### 4.3.5 Utility Layer (1개)
+
+초기화 및 유틸리티 컨테이너입니다.
+
+| 컨테이너 | 역할 | 특징 | 실행 조건 |
+|----------|------|------|----------|
+| **init-db** | DB 스키마 초기화, ES 인덱스 생성, Neo4j 제약조건, MinIO 버킷 | 1회 실행 후 종료 | `--profile init` |
+
+### 4.4 컨테이너 시작 순서
+
+의존성 기반 시작 순서입니다.
+
+```
+Phase 1: 데이터베이스
+  postgresql, keycloak-db, redis, minio
+      |
+Phase 2: 검색 엔진
+  elasticsearch, neo4j
+      |
+Phase 3: 인증 및 시각화
+  keycloak, kibana
+      |
+Phase 4: 애플리케이션
+  backend, ai-service
+      |
+Phase 5: API 게이트웨이
+  api-gateway
+      |
+Phase 6: 프론트엔드
+  frontend
+      |
+Phase 7: 리버스 프록시
+  nginx
+      |
+(병렬) 모니터링
+  prometheus, grafana, loki, promtail, jaeger
 ```
 
-### 3.3 운영 환경 오버라이드
+### 4.5 네트워크별 컨테이너 배치
 
-```yaml
-# docker-compose.prod.yml
-version: '3.8'
+| 네트워크 | 용도 | 컨테이너 |
+|----------|------|----------|
+| **kp-frontend** | 외부 트래픽 처리 | nginx, frontend, api-gateway, keycloak, grafana |
+| **kp-backend** | 내부 API 통신 | api-gateway, backend, ai-service, prometheus, jaeger |
+| **kp-database** | 데이터 저장소 접근 | backend, ai-service, keycloak, postgresql, keycloak-db, neo4j, elasticsearch, kibana, redis, minio, init-db |
+| **kp-monitoring** | 모니터링 시스템 | prometheus, grafana, loki, promtail, jaeger, kibana |
 
-services:
-  nginx:
-    volumes:
-      - /etc/letsencrypt:/etc/letsencrypt:ro
+### 4.6 포트 매핑 요약
 
-  backend:
-    deploy:
-      replicas: 2
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 4G
-
-  ai-service:
-    deploy:
-      replicas: 2
-      resources:
-        limits:
-          cpus: '4.0'
-          memory: 16G
-
-  elasticsearch:
-    environment:
-      - "ES_JAVA_OPTS=-Xms4g -Xmx4g"
-    deploy:
-      resources:
-        limits:
-          memory: 8G
-
-  postgresql:
-    deploy:
-      resources:
-        limits:
-          memory: 8G
-```
-
-### 3.4 모니터링 스택
-
-```yaml
-# docker-compose.monitoring.yml
-version: '3.8'
-
-services:
-  prometheus:
-    image: prom/prometheus:v2.48.0
-    container_name: prometheus
-    restart: unless-stopped
-    networks:
-      - monitoring
-      - backend
-    volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - ./prometheus/rules:/etc/prometheus/rules:ro
-      - prometheus_data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=30d'
-      - '--web.enable-lifecycle'
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "-O", "/dev/null", "http://localhost:9090/-/healthy"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  grafana:
-    image: grafana/grafana:10.2.0
-    container_name: grafana
-    restart: unless-stopped
-    networks:
-      - monitoring
-      - frontend
-    environment:
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
-      - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_SERVER_ROOT_URL=${GRAFANA_URL:-http://localhost:3000}
-    volumes:
-      - ./grafana/provisioning:/etc/grafana/provisioning:ro
-      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
-      - grafana_data:/var/lib/grafana
-    depends_on:
-      - prometheus
-      - loki
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "-O", "/dev/null", "http://localhost:3000/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  loki:
-    image: grafana/loki:2.9.0
-    container_name: loki
-    restart: unless-stopped
-    networks:
-      - monitoring
-    volumes:
-      - ./loki/loki-config.yml:/etc/loki/loki-config.yml:ro
-      - loki_data:/loki
-    command: -config.file=/etc/loki/loki-config.yml
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "-O", "/dev/null", "http://localhost:3100/ready"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-  promtail:
-    image: grafana/promtail:2.9.0
-    container_name: promtail
-    restart: unless-stopped
-    networks:
-      - monitoring
-    volumes:
-      - ./promtail/promtail-config.yml:/etc/promtail/promtail-config.yml:ro
-      - /var/log:/var/log:ro
-      - /var/lib/docker/containers:/var/lib/docker/containers:ro
-    command: -config.file=/etc/promtail/promtail-config.yml
-    depends_on:
-      - loki
-
-  alertmanager:
-    image: prom/alertmanager:v0.26.0
-    container_name: alertmanager
-    restart: unless-stopped
-    networks:
-      - monitoring
-    volumes:
-      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
-    command:
-      - '--config.file=/etc/alertmanager/alertmanager.yml'
-
-  kibana:
-    image: docker.elastic.co/kibana/kibana:8.11.0
-    container_name: kibana
-    restart: unless-stopped
-    networks:
-      - monitoring
-      - database
-    environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
-      - SERVER_NAME=kibana
-      - SERVER_HOST=0.0.0.0
-      - XPACK_SECURITY_ENABLED=false
-      - NODE_OPTIONS=--max-old-space-size=384
-    deploy:
-      resources:
-        limits:
-          memory: 768M
-        reservations:
-          memory: 384M
-    depends_on:
-      elasticsearch:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5601/api/status"]
-      interval: 30s
-      timeout: 10s
-      start_period: 60s
-      retries: 3
-
-  jaeger:
-    image: jaegertracing/all-in-one:1.52
-    container_name: jaeger
-    restart: unless-stopped
-    networks:
-      - monitoring
-    environment:
-      - COLLECTOR_OTLP_ENABLED=true
-      - SPAN_STORAGE_TYPE=memory
-      - MEMORY_MAX_TRACES=5000
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-        reservations:
-          memory: 128M
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "-O", "/dev/null", "http://localhost:14269/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
-networks:
-  monitoring:
-    external: true
-    name: knowledge-platform_monitoring
-  backend:
-    external: true
-    name: knowledge-platform_backend
-  frontend:
-    external: true
-    name: knowledge-platform_frontend
-
-volumes:
-  prometheus_data:
-    external: true
-    name: knowledge-platform_prometheus_data
-  grafana_data:
-    external: true
-    name: knowledge-platform_grafana_data
-  loki_data:
-    external: true
-    name: knowledge-platform_loki_data
-```
-
-### 3.5 환경 변수 템플릿
-
-```bash
-# .env.example
-
-# ===== 일반 설정 =====
-COMPOSE_PROJECT_NAME=knowledge-platform
-VERSION=latest
-REGISTRY=harbor.company.local/
-
-# ===== 도메인 설정 =====
-DOMAIN=knowledge.company.com
-API_URL=https://api.knowledge.company.com
-AUTH_URL=https://auth.knowledge.company.com
-
-# ===== Spring 설정 =====
-SPRING_PROFILE=prod
-
-# ===== 데이터베이스 =====
-DB_USERNAME=knowledge
-DB_PASSWORD=CHANGE_ME_STRONG_PASSWORD
-
-# ===== Neo4j =====
-NEO4J_USER=neo4j
-NEO4J_PASSWORD=CHANGE_ME_STRONG_PASSWORD
-
-# ===== Redis =====
-REDIS_PASSWORD=CHANGE_ME_STRONG_PASSWORD
-
-# ===== MinIO =====
-MINIO_ACCESS_KEY=admin
-MINIO_SECRET_KEY=CHANGE_ME_STRONG_PASSWORD
-
-# ===== Keycloak =====
-KEYCLOAK_HOSTNAME=auth.knowledge.company.com
-KEYCLOAK_ADMIN=admin
-KEYCLOAK_ADMIN_PASSWORD=CHANGE_ME_STRONG_PASSWORD
-
-# ===== DeepSeek API =====
-DEEPSEEK_API_KEY=sk-xxxxx
-
-# ===== Grafana =====
-GRAFANA_ADMIN_USER=admin
-GRAFANA_ADMIN_PASSWORD=CHANGE_ME_STRONG_PASSWORD
-GRAFANA_URL=https://grafana.knowledge.company.com
-```
+| 포트 | 컨테이너 | 용도 | 외부 노출 |
+|------|----------|------|----------|
+| 80 | nginx | HTTP 리다이렉트 | O |
+| 443 | nginx | HTTPS 트래픽 | O |
+| 3001 | grafana | 대시보드 | O (옵션) |
+| 5601 | kibana | ES 시각화 | O (옵션) |
+| 6379 | redis | 캐시 | X |
+| 7474 | neo4j | 브라우저 | O (개발) |
+| 7687 | neo4j | Bolt 프로토콜 | X |
+| 8000 | ai-service | AI API | X |
+| 8080 | api-gateway | API 엔드포인트 | X |
+| 8081 | backend | 백엔드 API | X |
+| 8180 | keycloak | 인증 서버 | O (개발) |
+| 9000 | minio | S3 API | X |
+| 9001 | minio | 콘솔 | O (개발) |
+| 9090 | prometheus | 메트릭 쿼리 | O (옵션) |
+| 9200 | elasticsearch | 검색 API | X |
+| 14268 | jaeger | 트레이스 수집 | X |
+| 16686 | jaeger | UI | O (옵션) |
 
 ---
 
-## 4. 컨테이너 설계
+## 5. 컨테이너 설계
 
-### 4.1 Docker 이미지
+### 5.1 Docker 이미지
 
-#### 4.1.1 Frontend (React)
+#### 5.1.1 Frontend (React)
 
 ```dockerfile
 # Dockerfile.frontend
@@ -1037,7 +627,7 @@ EXPOSE 80
 CMD ["nginx", "-g", "daemon off;"]
 ```
 
-#### 4.1.2 Backend (Spring Boot)
+#### 5.1.2 Backend (Spring Boot)
 
 ```dockerfile
 # Dockerfile.backend
@@ -1063,7 +653,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
 ```
 
-#### 4.1.3 AI Service (FastAPI)
+#### 5.1.3 AI Service (FastAPI)
 
 ```dockerfile
 # Dockerfile.ai-service
@@ -1099,7 +689,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
 CMD ["uvicorn", "src.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
 ```
 
-### 4.2 컨테이너 리소스 할당
+### 5.2 컨테이너 리소스 할당
 
 | 컨테이너 | CPU (cores) | Memory | 비고 |
 |----------|-------------|--------|------|
@@ -1109,23 +699,25 @@ CMD ["uvicorn", "src.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--wo
 | backend | 2.0 | 2 GB | 비즈니스 로직 |
 | ai-service | 4.0 | 8 GB | 임베딩/LLM |
 | keycloak | 1.0 | 1 GB | OAuth 서버 |
+| keycloak-db | 0.5 | 512 MB | Keycloak DB |
 | postgresql | 2.0 | 4 GB | 메인 DB |
 | elasticsearch | 2.0 | 4 GB | 벡터 검색 |
+| kibana | 0.5 | 1 GB | ES 시각화 |
 | neo4j | 2.0 | 4 GB | 그래프 DB |
 | redis | 0.5 | 1 GB | 캐시 |
 | minio | 0.5 | 1 GB | 파일 스토리지 |
 | prometheus | 0.5 | 512 MB | 메트릭 수집 |
 | grafana | 0.5 | 512 MB | 대시보드 |
 | loki | 0.5 | 512 MB | 로그 수집 |
-| jaeger | 0.5 | 256 MB | 분산 추적 |
-| kibana | 0.5 | 768 MB | ES 데이터 시각화 |
-| **합계** | **18.5** | **30 GB** | |
+| promtail | 0.25 | 256 MB | 로그 에이전트 |
+| jaeger | 0.5 | 512 MB | 분산 추적 |
+| **합계** | **~19** | **~31 GB** | |
 
 ---
 
-## 5. 네트워크 설계
+## 6. 네트워크 설계
 
-### 5.1 Docker 네트워크 구성
+### 6.1 Docker 네트워크 구성
 
 ```mermaid
 flowchart TB
@@ -1193,7 +785,7 @@ flowchart TB
     class prometheus2,grafana2,loki,promtail,jaeger,kibana monitor
 ```
 
-### 5.2 네트워크 정책
+### 6.2 네트워크 정책
 
 | 네트워크 | 용도 | 외부 접근 | 연결 서비스 |
 |----------|------|-----------|-------------|
@@ -1202,7 +794,7 @@ flowchart TB
 | **database** | 데이터 저장 | 불허 (internal) | 모든 DB |
 | **monitoring** | 모니터링 | 불허 | prometheus, grafana, loki |
 
-### 5.3 포트 매핑
+### 6.3 포트 매핑
 
 | 서비스 | 컨테이너 포트 | 호스트 포트 | 프로토콜 |
 |--------|---------------|-------------|----------|
@@ -1219,9 +811,9 @@ flowchart TB
 
 ---
 
-## 6. 볼륨 및 스토리지
+## 7. 볼륨 및 스토리지
 
-### 6.1 볼륨 구성
+### 7.1 볼륨 구성
 
 ```yaml
 volumes:
@@ -1261,7 +853,7 @@ volumes:
       device: /data/redis
 ```
 
-### 6.2 스토리지 용량 계획
+### 7.2 스토리지 용량 계획
 
 | 볼륨 | 초기 용량 | 1년 후 예상 | 스토리지 타입 |
 |------|-----------|-------------|---------------|
@@ -1272,7 +864,7 @@ volumes:
 | redis_data | 5 GB | 10 GB | SSD |
 | 로그 (/var/log) | 50 GB | 100 GB | SSD |
 
-### 6.3 디렉토리 초기화
+### 7.3 디렉토리 초기화
 
 ```bash
 #!/bin/bash
@@ -1298,9 +890,9 @@ echo "볼륨 디렉토리 초기화 완료"
 
 ---
 
-## 7. 데이터베이스 인프라
+## 8. 데이터베이스 인프라
 
-### 7.1 PostgreSQL 설정
+### 8.1 PostgreSQL 설정
 
 ```sql
 -- scripts/init-db.sh에서 실행
@@ -1325,7 +917,7 @@ ALTER SYSTEM SET work_mem = '256MB';
 ALTER SYSTEM SET maintenance_work_mem = '512MB';
 ```
 
-### 7.2 Elasticsearch 인덱스 설정
+### 8.2 Elasticsearch 인덱스 설정
 
 ```json
 // 인덱스 템플릿
@@ -1363,7 +955,7 @@ PUT _index_template/knowledge-chunks
 }
 ```
 
-### 7.3 Neo4j 초기 설정
+### 8.3 Neo4j 초기 설정
 
 ```cypher
 // 제약조건 생성
@@ -1383,9 +975,9 @@ FOR (d:Document) ON (d.document_type);
 
 ---
 
-## 8. 모니터링 및 로깅
+## 9. 모니터링 및 로깅
 
-### 8.1 Prometheus 설정
+### 9.1 Prometheus 설정
 
 ```yaml
 # prometheus/prometheus.yml
@@ -1445,7 +1037,7 @@ scrape_configs:
       - targets: ['cadvisor:8080']
 ```
 
-### 8.2 알림 규칙
+### 9.2 알림 규칙
 
 ```yaml
 # prometheus/rules/alerts.yml
@@ -1507,7 +1099,7 @@ groups:
           summary: "Error rate > 5%"
 ```
 
-### 8.3 Loki 설정
+### 9.3 Loki 설정
 
 ```yaml
 # loki/loki-config.yml
@@ -1556,7 +1148,7 @@ table_manager:
   retention_period: 720h
 ```
 
-### 8.4 Promtail 설정
+### 9.4 Promtail 설정
 
 ```yaml
 # promtail/promtail-config.yml
@@ -1598,7 +1190,7 @@ scrape_configs:
           source: output
 ```
 
-### 8.5 Grafana 대시보드
+### 9.5 Grafana 대시보드
 
 ```json
 {
@@ -1664,7 +1256,7 @@ scrape_configs:
 }
 ```
 
-### 8.6 Kibana 설정 (Elasticsearch 시각화)
+### 9.6 Kibana 설정 (Elasticsearch 시각화)
 
 Kibana는 Elasticsearch 데이터를 시각화하고 탐색하기 위한 도구입니다.
 
@@ -1714,7 +1306,7 @@ GET document-embeddings/_search
 
 > **참고**: 상세 사용 가이드는 `docs/07_maintenance/kibana_user_guide.md`를 참조하세요.
 
-### 8.7 Jaeger 설정 (분산 추적)
+### 9.7 Jaeger 설정 (분산 추적)
 
 Jaeger는 마이크로서비스 간의 요청 흐름을 추적합니다.
 
@@ -1730,9 +1322,9 @@ environment:
 
 ---
 
-## 9. CI/CD 파이프라인
+## 10. CI/CD 파이프라인
 
-### 9.1 GitLab CI/CD
+### 10.1 GitLab CI/CD
 
 ```yaml
 # .gitlab-ci.yml
@@ -1823,7 +1415,7 @@ deploy-production:
   when: manual
 ```
 
-### 9.2 배포 스크립트
+### 10.2 배포 스크립트
 
 ```bash
 #!/bin/bash
@@ -1867,9 +1459,9 @@ echo "=== Deployment complete ==="
 
 ---
 
-## 10. 보안 설정
+## 11. 보안 설정
 
-### 10.1 Nginx SSL 설정
+### 11.1 Nginx SSL 설정
 
 ```nginx
 # nginx/conf.d/ssl.conf
@@ -1922,7 +1514,7 @@ server {
     }
 }
 
-# HTTP → HTTPS 리다이렉트
+# HTTP -> HTTPS 리다이렉트
 server {
     listen 80;
     server_name knowledge.company.com;
@@ -1933,7 +1525,7 @@ server {
 limit_req_zone $binary_remote_addr zone=api:10m rate=10r/s;
 ```
 
-### 10.2 Docker 보안 설정
+### 11.2 Docker 보안 설정
 
 ```yaml
 # docker-compose.yml 보안 설정 예시
@@ -1950,7 +1542,7 @@ services:
       - NET_BIND_SERVICE
 ```
 
-### 10.3 환경 변수 관리
+### 11.3 환경 변수 관리
 
 ```bash
 # 시크릿 관리 (Docker Secrets 대안)
@@ -1966,9 +1558,9 @@ ExecStart=/usr/bin/docker compose up -d
 
 ---
 
-## 11. 백업 및 복구
+## 12. 백업 및 복구
 
-### 11.1 백업 스크립트
+### 12.1 백업 스크립트
 
 ```bash
 #!/bin/bash
@@ -2008,7 +1600,7 @@ find ${BACKUP_DIR} -type f -mtime +${RETENTION_DAYS} -delete
 echo "=== Backup complete ==="
 ```
 
-### 11.2 복구 스크립트
+### 12.2 복구 스크립트
 
 ```bash
 #!/bin/bash
@@ -2047,7 +1639,7 @@ docker compose start
 echo "=== Restore complete ==="
 ```
 
-### 11.3 백업 스케줄 (Cron)
+### 12.3 백업 스케줄 (Cron)
 
 ```bash
 # /etc/cron.d/knowledge-platform-backup
@@ -2061,9 +1653,9 @@ echo "=== Restore complete ==="
 
 ---
 
-## 12. 운영 가이드
+## 13. 운영 가이드
 
-### 12.1 시작/중지 명령어
+### 13.1 시작/중지 명령어
 
 ```bash
 # 전체 서비스 시작
@@ -2088,7 +1680,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up -d
 ```
 
-### 12.2 헬스체크
+### 13.2 헬스체크
 
 ```bash
 #!/bin/bash
@@ -2115,7 +1707,7 @@ curl -s http://localhost:9200/_cluster/health | jq .status
 docker exec redis redis-cli ping && echo "Redis: OK"
 ```
 
-### 12.3 로그 관리
+### 13.3 로그 관리
 
 ```bash
 # 특정 서비스 로그
@@ -2134,7 +1726,7 @@ docker compose logs backend 2>&1 | grep -i error
 }
 ```
 
-### 12.4 스케일링 (수동)
+### 13.4 스케일링 (수동)
 
 ```bash
 # Backend 인스턴스 증가 (로드 밸런싱 필요)
@@ -2143,7 +1735,7 @@ docker compose up -d --scale backend=3
 # 주의: Nginx upstream 설정 필요
 ```
 
-### 12.5 문제 해결
+### 13.5 문제 해결
 
 | 문제 | 진단 명령어 | 해결 방법 |
 |------|-------------|-----------|
@@ -2155,9 +1747,9 @@ docker compose up -d --scale backend=3
 
 ---
 
-## 13. 비용 추정
+## 14. 비용 추정
 
-### 13.1 하드웨어 비용 (온프레미스)
+### 14.1 하드웨어 비용 (온프레미스)
 
 | 구성 | 사양 | 예상 비용 |
 |------|------|-----------|
@@ -2166,7 +1758,7 @@ docker compose up -d --scale backend=3
 | 네트워크 장비 | 스위치, 방화벽 | ~$2,000 |
 | **초기 비용** | | **~$14,000** |
 
-### 13.2 소프트웨어 라이선스
+### 14.2 소프트웨어 라이선스
 
 | 소프트웨어 | 라이선스 | 연간 비용 |
 |------------|----------|-----------|
@@ -2177,7 +1769,7 @@ docker compose up -d --scale backend=3
 | Redis | 오픈소스 | $0 |
 | **합계** | | **$0** |
 
-### 13.3 외부 서비스 비용 (월간)
+### 14.3 외부 서비스 비용 (월간)
 
 | 서비스 | 예상 사용량 | 월 비용 |
 |--------|-------------|---------|
@@ -2186,7 +1778,7 @@ docker compose up -d --scale backend=3
 | 도메인 | - | ~$10 |
 | **합계** | | **~$150/월** |
 
-### 13.4 K8s vs Docker Compose 비용 비교
+### 14.4 K8s vs Docker Compose 비용 비교
 
 | 항목 | Kubernetes | Docker Compose |
 |------|------------|----------------|
@@ -2204,11 +1796,11 @@ docker compose up -d --scale backend=3
 
 | 변수명 | 서비스 | 필수 | 설명 |
 |--------|--------|:----:|------|
-| `DB_PASSWORD` | All | ✅ | PostgreSQL 비밀번호 |
-| `NEO4J_PASSWORD` | AI Service | ✅ | Neo4j 비밀번호 |
-| `MINIO_SECRET_KEY` | Backend | ✅ | MinIO 시크릿 키 |
-| `DEEPSEEK_API_KEY` | AI Service | ✅ | DeepSeek API 키 |
-| `KEYCLOAK_ADMIN_PASSWORD` | Keycloak | ✅ | Keycloak 관리자 비밀번호 |
+| `DB_PASSWORD` | All | O | PostgreSQL 비밀번호 |
+| `NEO4J_PASSWORD` | AI Service | O | Neo4j 비밀번호 |
+| `MINIO_SECRET_KEY` | Backend | O | MinIO 시크릿 키 |
+| `DEEPSEEK_API_KEY` | AI Service | O | DeepSeek API 키 |
+| `KEYCLOAK_ADMIN_PASSWORD` | Keycloak | O | Keycloak 관리자 비밀번호 |
 
 ### B. 포트 맵
 
@@ -2239,5 +1831,6 @@ docker compose up -d --scale backend=3
 **문서 끝**
 
 **작성 완료**: 2026-01-16
+**최종 업데이트**: 2026-01-22 (18개 컨테이너 공식 목록 추가)
 **검토 필요**: 인프라팀, 보안팀
 **다음 단계**: Docker Compose 환경 구축 및 테스트

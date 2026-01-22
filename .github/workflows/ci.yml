@@ -1,0 +1,396 @@
+# CI Pipeline - Pull Request 검증
+# 트리거: PR 생성/업데이트 시 린트, 테스트, 빌드 검증 수행
+
+name: CI Pipeline
+
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.11'
+  JAVA_VERSION: '21'
+  NODE_VERSION: '20'
+
+jobs:
+  # =============================================================================
+  # 변경 파일 감지 - 필요한 Job만 실행하기 위한 사전 분석
+  # =============================================================================
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      gateway: ${{ steps.filter.outputs.gateway }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      ai-service: ${{ steps.filter.outputs.ai-service }}
+      infrastructure: ${{ steps.filter.outputs.infrastructure }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Path Filter
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            backend:
+              - 'knowledge_service/backend/**'
+            gateway:
+              - 'knowledge_service/gateway/**'
+            frontend:
+              - 'knowledge_service/frontend/**'
+            ai-service:
+              - 'knowledge_service/src/**'
+              - 'knowledge_service/pyproject.toml'
+              - 'knowledge_service/poetry.lock'
+            infrastructure:
+              - 'infrastructure/**'
+              - 'docker-compose*.yml'
+
+  # =============================================================================
+  # Backend (Spring Boot) - Lint, Test, Build
+  # =============================================================================
+  backend-test:
+    name: Backend Tests
+    needs: changes
+    if: needs.changes.outputs.backend == 'true' || needs.changes.outputs.gateway == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: knowledge_service/backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Lint (Checkstyle)
+        run: ./gradlew checkstyleMain checkstyleTest --continue || true
+
+      - name: Unit Tests
+        run: ./gradlew test --no-daemon
+        env:
+          SPRING_PROFILES_ACTIVE: test
+
+      - name: Build
+        run: ./gradlew build -x test --no-daemon
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-test-results
+          path: |
+            knowledge_service/backend/build/reports/tests/
+            knowledge_service/backend/build/test-results/
+          retention-days: 7
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: backend-coverage
+          path: knowledge_service/backend/build/reports/jacoco/
+          retention-days: 7
+
+  # =============================================================================
+  # Gateway (Spring Cloud Gateway) - Lint, Test, Build
+  # =============================================================================
+  gateway-test:
+    name: Gateway Tests
+    needs: changes
+    if: needs.changes.outputs.gateway == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: knowledge_service/gateway
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Unit Tests
+        run: ./gradlew test --no-daemon
+        env:
+          SPRING_PROFILES_ACTIVE: test
+
+      - name: Build
+        run: ./gradlew build -x test --no-daemon
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gateway-test-results
+          path: knowledge_service/gateway/build/reports/tests/
+          retention-days: 7
+
+  # =============================================================================
+  # Frontend (React 18) - Lint, Test, Build
+  # =============================================================================
+  frontend-test:
+    name: Frontend Tests
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: knowledge_service/frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: knowledge_service/frontend/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Lint (ESLint)
+        run: npm run lint --if-present
+
+      - name: Type Check (TypeScript)
+        run: npm run type-check --if-present
+
+      - name: Unit Tests
+        run: npm test -- --coverage --watchAll=false
+        env:
+          CI: true
+
+      - name: Build
+        run: npm run build
+        env:
+          CI: true
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: frontend-coverage
+          path: knowledge_service/frontend/coverage/
+          retention-days: 7
+
+  # =============================================================================
+  # AI Service (Python/FastAPI) - Lint, Test
+  # =============================================================================
+  ai-service-test:
+    name: AI Service Tests
+    needs: changes
+    if: needs.changes.outputs.ai-service == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: knowledge_service
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 1.7.1
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: knowledge_service/.venv
+          key: venv-${{ runner.os }}-${{ hashFiles('knowledge_service/poetry.lock') }}
+
+      - name: Install Dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: poetry install --no-interaction --no-root
+
+      - name: Install Project
+        run: poetry install --no-interaction
+
+      - name: Lint (Ruff)
+        run: |
+          poetry run ruff check src/ --output-format=github || true
+          poetry run ruff format --check src/ || true
+
+      - name: Type Check (mypy)
+        run: poetry run mypy src/ --ignore-missing-imports || true
+
+      - name: Unit Tests
+        run: |
+          poetry run pytest src/tests/ \
+            --cov=src/app \
+            --cov-report=xml \
+            --cov-report=html \
+            --junitxml=test-results.xml \
+            -v
+        env:
+          PYTHONPATH: src
+          DEEPSEEK_API_KEY: test-key
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-service-test-results
+          path: |
+            knowledge_service/test-results.xml
+            knowledge_service/htmlcov/
+          retention-days: 7
+
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: ai-service-coverage
+          path: knowledge_service/coverage.xml
+          retention-days: 7
+
+  # =============================================================================
+  # Security Scan - 의존성 취약점 검사
+  # =============================================================================
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          severity: 'CRITICAL,HIGH'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+        continue-on-error: true
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # =============================================================================
+  # Docker Build Test - 이미지 빌드 검증 (Push 없음)
+  # =============================================================================
+  docker-build-test:
+    name: Docker Build Test
+    needs: [changes]
+    if: |
+      needs.changes.outputs.backend == 'true' ||
+      needs.changes.outputs.gateway == 'true' ||
+      needs.changes.outputs.frontend == 'true' ||
+      needs.changes.outputs.ai-service == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: backend
+            context: ./knowledge_service/backend
+            dockerfile: Dockerfile
+          - name: gateway
+            context: ./knowledge_service/gateway
+            dockerfile: Dockerfile
+          - name: frontend
+            context: ./knowledge_service/frontend
+            dockerfile: Dockerfile
+          - name: ai-service
+            context: ./knowledge_service
+            dockerfile: Dockerfile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Check Dockerfile exists
+        id: check-dockerfile
+        run: |
+          if [ -f "${{ matrix.context }}/${{ matrix.dockerfile }}" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "Dockerfile not found at ${{ matrix.context }}/${{ matrix.dockerfile }}, skipping..."
+          fi
+
+      - name: Build Docker Image (Test)
+        if: steps.check-dockerfile.outputs.exists == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/${{ matrix.dockerfile }}
+          push: false
+          tags: knowledge-platform/${{ matrix.name }}:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # =============================================================================
+  # CI Summary - 모든 Job 결과 요약
+  # =============================================================================
+  ci-summary:
+    name: CI Summary
+    needs: [backend-test, gateway-test, frontend-test, ai-service-test, security-scan, docker-build-test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Results
+        run: |
+          echo "## CI Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend Tests | ${{ needs.backend-test.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Gateway Tests | ${{ needs.gateway-test.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend Tests | ${{ needs.frontend-test.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| AI Service Tests | ${{ needs.ai-service-test.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Security Scan | ${{ needs.security-scan.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker Build Test | ${{ needs.docker-build-test.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Fail if any job failed
+        if: |
+          needs.backend-test.result == 'failure' ||
+          needs.gateway-test.result == 'failure' ||
+          needs.frontend-test.result == 'failure' ||
+          needs.ai-service-test.result == 'failure'
+        run: exit 1
