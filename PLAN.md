@@ -777,10 +777,9 @@ CI/CD Pipeline (GitHub Actions)
 - **9개 에이전트에 Slack 알림 섹션 추가**
   - 모든 에이전트: 필수 알림 시점, 채널, 메시지 형식 정의
   - 에이전트별 담당 채널 구분 (dev, alerts, review)
-- **Jira/Slack 통합 문서 4개 작성**
+- **Jira/Slack 통합 문서 3개 작성**
   - `06_Slack_프로젝트_커뮤니케이션_가이드.md`
-  - `07_Jira_Slack_초기설정_퀵스타트_가이드.md`
-  - `08_Jira_Slack_Claude_Code_실전_매뉴얼.md` (v1.5)
+  - `07_Jira_Slack_Claude_통합가이드.md` (v2.0, 기존 07+08 통합)
   - `09_PM_중심_워크플로우_가이드.md` (v1.2)
 - **백로그 구조 재설계**
   - EPIC-000 Infrastructure 추가
