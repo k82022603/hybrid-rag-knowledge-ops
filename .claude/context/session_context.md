@@ -5,11 +5,11 @@
 
 ### Recent Commits
 ```
+f7ad4dc [DOCS] Sprint 01 설계서 Review 완료 및 Cross-cutting Issues 해소
 2bb3d24 [DOCS] 세션/작업로그 추가, docs 문서 현행화
 c5e6ba4 [FIX] Jira MCP 연결 수정 (JIRA_HOST → JIRA_BASE_URL)
 2e366ae [FEAT] Daily COMMAND 파일에 시간 기록 규칙 추가
 342f24f [DOCS] 일일 마무리 - docs/ 문서 현행화, 작업일지/바이브로그 업데이트
-0322c35 [DOCS] 일일 마무리 - 세션로그 SKILL, 작업일지/바이브로그 업데이트
 ```
 
 ## Work Log Status

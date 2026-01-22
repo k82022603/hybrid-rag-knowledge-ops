@@ -2,7 +2,7 @@
 
 🤖 Hybrid RAG Knowledge Operations 프로젝트 개발 규칙
 
-**Version**: 2.11 | **Updated**: 2026-01-21
+**Version**: 2.12 | **Updated**: 2026-01-22
 
 ---
 
@@ -11,6 +11,7 @@
 | 항목 | 내용 |
 |------|------|
 | **프로젝트** | Graph RAG 기반 지능형 지식 검색 시스템 |
+| **클로드** | Claude Code의 한글 이름 (팀원 에이전트와 구분) |
 | **기술스택** | Python 3.11+, SpringBoot 3.x, React 18, LangGraph |
 | **데이터베이스** | PostgreSQL (SSOT), Neo4j (Graph), Elasticsearch (Vector) |
 | **런타임 LLM** | DeepSeek V3.2 (95% 비용 절감) |
@@ -206,6 +207,39 @@ flowchart LR
 | `/workflows:tdd-cycle` | TDD 자동화 |
 
 **전체 목록**: [.claude/commands/README.md](.claude/commands/README.md)
+
+---
+
+## 📢 Slack 채널 가이드라인
+
+모든 에이전트는 동일한 기준으로 Slack 채널을 선택해야 합니다.
+
+### 채널 목록
+| 채널 | 용도 |
+|------|------|
+| `proj-hrkp-dev` | 개발 작업 (기본 채널) - 작업 시작/진행/완료, 리뷰, 테스트 결과 |
+| `proj-hrkp-standup` | 스탠드업 미팅, 인사 |
+| `proj-hrkp-alerts` | 장애/에러 알림 |
+| `proj-hrkp-general` | 일반 공지 |
+
+### 메시지 유형별 채널
+| 메시지 유형 | 채널 |
+|------------|------|
+| 스탠드업 미팅/인사 | `proj-hrkp-standup` |
+| 작업 시작/진행/완료 | `proj-hrkp-dev` |
+| 설계서/코드 리뷰 결과 | `proj-hrkp-dev` |
+| E2E 테스트 결과 | `proj-hrkp-dev` |
+| Jira 상태 업데이트 | `proj-hrkp-dev` |
+| 장애/에러 알림 | `proj-hrkp-alerts` |
+
+### 사용법
+```bash
+./scripts/send_slack.sh <channel> <agent> <message>
+./scripts/send_slack.sh proj-hrkp-dev PM "작업 완료"
+./scripts/send_slack.sh dev Backend "작업 시작"  # 단축어 사용 가능
+```
+
+**중요**: `proj-hrkp-review` 채널 대신 `proj-hrkp-dev` 채널을 사용합니다.
 
 ---
 

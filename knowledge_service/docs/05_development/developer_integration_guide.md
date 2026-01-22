@@ -297,37 +297,38 @@ JIRA_PROJECT_KEY=HRKP
 
 #### 3.2.1 Claude Code MCP 설정
 
-**프로젝트/.mcp.json** (권장):
+**프로젝트/.claude/settings.json** (권장):
 
-> ✅ **참고**: `.mcp.json`은 `.gitignore`에 포함되어 있어 토큰을 직접 설정해도 안전합니다.
-> 토큰을 `.env`에서 관리하고 자동 동기화 스크립트로 `.mcp.json`에 반영하는 것을 권장합니다.
+> ✅ **참고**: 토큰은 환경변수 참조 형식(`${VAR}`)으로 작성하여 보안을 유지합니다.
 
 ```json
 {
   "mcpServers": {
     "jira": {
       "command": "npx",
-      "args": ["-y", "mcp-server-jira-cloud"],
+      "args": ["-y", "@anthropic/mcp-server-jira"],
       "env": {
-        "JIRA_BASE_URL": "https://your-company.atlassian.net",
+        "JIRA_HOST": "your-company.atlassian.net",
         "JIRA_EMAIL": "your-email@company.com",
-        "JIRA_API_TOKEN": "your-api-token-here"
+        "JIRA_API_TOKEN": "${JIRA_API_TOKEN}"
       }
     }
   }
 }
 ```
 
+> **주의**: `JIRA_HOST`는 도메인만 입력합니다 (`https://` 제외)
+
 #### 3.2.2 토큰 자동 동기화
 
 `.env` 파일에서 토큰이 변경되면 동기화 스크립트 실행:
 
 ```bash
-# .env → .mcp.json 토큰 동기화
+# .env → .claude/settings.json 토큰 동기화
 .claude/hooks/sync-mcp-env.sh
 ```
 
-스크립트가 자동으로 `.env`의 `JIRA_API_TOKEN`을 `.mcp.json`에 반영합니다.
+스크립트가 자동으로 `.env`의 토큰들을 `.claude/settings.json`에 반영합니다.
 
 #### 3.2.3 연결 확인
 
@@ -668,43 +669,47 @@ Jira에서 이슈 정보를 가져와서 작업 계획을 세우고,
 
 #### 5.3.1 전체 MCP 설정
 
-**프로젝트/.mcp.json** (권장):
+**프로젝트/.claude/settings.json** (권장):
 
-> ✅ **참고**: `.mcp.json`은 `.gitignore`에 포함되어 있어 토큰을 직접 설정해도 안전합니다.
-> 토큰 관리는 `.env` 파일에서 하고, 동기화 스크립트로 `.mcp.json`에 반영하는 것을 권장합니다.
+> ✅ **참고**: 토큰은 환경변수 참조 형식(`${VAR}`)으로 작성하여 보안을 유지합니다.
 
 ```json
 {
   "mcpServers": {
     "jira": {
       "command": "npx",
-      "args": ["-y", "mcp-server-jira-cloud"],
+      "args": ["-y", "@anthropic/mcp-server-jira"],
       "env": {
-        "JIRA_BASE_URL": "https://your-company.atlassian.net",
+        "JIRA_HOST": "your-company.atlassian.net",
         "JIRA_EMAIL": "your-email@company.com",
-        "JIRA_API_TOKEN": "your-jira-token"
+        "JIRA_API_TOKEN": "${JIRA_API_TOKEN}"
       }
     },
     "github": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-github"]
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      }
     },
     "slack": {
       "command": "npx",
-      "args": ["-y", "mcp-server-slack"],
+      "args": ["-y", "@anthropic/mcp-server-slack"],
       "env": {
-        "SLACK_TEAM_ID": "T0A9DSMGX8V",
-        "SLACK_BOT_TOKEN": "xoxb-your-slack-token"
+        "SLACK_TEAM_ID": "${SLACK_TEAM_ID}",
+        "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN}"
       }
     }
   }
 }
 ```
 
-**토큰 자동 동기화** (`.env` → `.mcp.json`):
+> **주의**: `JIRA_HOST`는 도메인만 입력합니다 (`https://` 제외)
+
+**토큰 자동 동기화** (`.env` → `.claude/settings.json`):
 
 ```bash
-# .env 파일의 토큰을 .mcp.json에 동기화
+# .env 파일의 토큰을 .claude/settings.json에 동기화
 .claude/hooks/sync-mcp-env.sh
 ```
 

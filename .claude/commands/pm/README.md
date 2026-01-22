@@ -38,8 +38,8 @@ JIRA_EMAIL=your-email@example.com
 JIRA_API_TOKEN=your-api-token
 JIRA_PROJECT_KEY=SCRUM
 
-# Note: MCP uses JIRA_BASE_URL (with https://) instead of JIRA_HOST
-# See .mcp.json for MCP-specific configuration
+# Note: MCP도 동일한 JIRA_HOST 사용 (도메인만, https:// 제외)
+# See .claude/settings.json for MCP configuration
 
 # Slack (선택)
 SLACK_BOT_TOKEN=xoxb-your-token

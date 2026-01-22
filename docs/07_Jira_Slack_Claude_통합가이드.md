@@ -2,7 +2,7 @@
 
 Jira/Slack 계정 생성부터 Claude Code 연동, Sprint 자동화까지 종합 가이드
 
-**Version**: 2.0 | **Updated**: 2026-01-22
+**Version**: 2.2 | **Updated**: 2026-01-22
 **통합**: 초기설정 퀵스타트 가이드 + 실전 매뉴얼
 
 ---
@@ -547,40 +547,49 @@ GITHUB_REPO=owner/hybrid-rag-knowledge-ops
 
 ### 6.2 MCP 설정
 
-> ⚠️ **주의**: MCP 설정은 프로젝트 루트의 **`.mcp.json`** 파일에 작성합니다.
+> ⚠️ **주의**: MCP 설정은 **`.claude/settings.json`** 파일에 작성합니다.
 
-**.mcp.json 파일**:
+**.claude/settings.json 파일**:
 
 ```json
 {
   "mcpServers": {
     "jira": {
       "command": "npx",
-      "args": ["-y", "mcp-server-jira-cloud"],
+      "args": ["-y", "@anthropic/mcp-server-jira"],
       "env": {
-        "JIRA_BASE_URL": "https://your-project.atlassian.net",
+        "JIRA_HOST": "your-project.atlassian.net",
         "JIRA_EMAIL": "your-email@example.com",
-        "JIRA_API_TOKEN": "your-jira-api-token"
+        "JIRA_API_TOKEN": "${JIRA_API_TOKEN}"
       }
     },
     "github": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-github"]
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
+      }
     },
     "slack": {
       "command": "npx",
-      "args": ["-y", "mcp-server-slack"],
+      "args": ["-y", "@anthropic/mcp-server-slack"],
       "env": {
         "SLACK_TEAM_ID": "T0XXXXXXXXX",
-        "SLACK_BOT_TOKEN": "xoxb-your-slack-bot-token"
+        "SLACK_BOT_TOKEN": "${SLACK_BOT_TOKEN}"
       }
     }
   }
 }
 ```
 
-> ⚠️ **중요**: `JIRA_BASE_URL`은 `https://` 프로토콜을 포함해야 합니다.
-> `.mcp.json`은 `.gitignore`에 포함되어 있어 토큰을 직접 입력해도 안전합니다.
+> ⚠️ **중요**: `JIRA_HOST`는 도메인만 입력합니다 (`https://` 제외).
+> 토큰은 환경변수 참조(`${VAR}`) 형식으로 작성하여 보안을 유지합니다.
+
+**주요 변경사항 (v2.1)**:
+- 설정 파일: `.mcp.json` → `.claude/settings.json`
+- Jira 패키지: `mcp-server-jira-cloud` → `@anthropic/mcp-server-jira` (Anthropic 공식)
+- Jira 호스트: `JIRA_BASE_URL` → `JIRA_HOST` (도메인만)
+- GitHub 토큰: 환경변수명 `GITHUB_PERSONAL_ACCESS_TOKEN`
 
 ### 6.3 환경 변수 로드
 
@@ -987,7 +996,77 @@ curl -s -X POST "https://slack.com/api/chat.postMessage" \
   }'
 ```
 
-### 10.4 가상 팀원 메시지 포맷 규칙
+### 10.4 MCP Slack 도구 (권장)
+
+Claude Code에서 MCP를 통해 Slack 메시지를 직접 전송할 수 있습니다. curl 스크립트 대신 MCP 사용을 권장합니다.
+
+#### MCP Slack 도구 목록
+
+| 도구 | 용도 |
+|------|------|
+| `mcp__slack__slack_post_message` | 채널에 메시지 전송 |
+| `mcp__slack__slack_reply_to_thread` | 스레드 답글 |
+| `mcp__slack__slack_add_reaction` | 이모지 반응 추가 |
+| `mcp__slack__slack_get_channel_history` | 채널 히스토리 조회 |
+| `mcp__slack__slack_get_thread_replies` | 스레드 답글 조회 |
+| `mcp__slack__slack_list_channels` | 채널 목록 조회 |
+| `mcp__slack__slack_get_users` | 사용자 목록 조회 |
+| `mcp__slack__slack_get_user_profile` | 사용자 프로필 조회 |
+
+#### 채널 ID 목록
+
+MCP Slack은 채널 이름이 아닌 **채널 ID**를 사용합니다:
+
+| 채널 | 채널 ID |
+|------|---------|
+| #proj-hrkp-dev | C0A9WGCD733 |
+| #proj-hrkp-standup | C0A9B7HDEUB |
+| #proj-hrkp-alerts | C0A9WGEVB97 |
+| #proj-hrkp-general | C0AABTM716U |
+| #proj-hrkp-review | C0AABTQBS3A |
+
+> **Tip**: `mcp__slack__slack_list_channels` 도구로 채널 ID를 조회할 수 있습니다.
+
+#### 사용 예시 (Claude Code 내부)
+
+```python
+# 메시지 전송
+mcp__slack__slack_post_message(
+    channel_id="C0A9WGCD733",  # #proj-hrkp-dev
+    text="*[클로드]* 작업 완료: CLAUDE.md 업데이트"
+)
+
+# 스레드 답글
+mcp__slack__slack_reply_to_thread(
+    channel_id="C0A9WGCD733",
+    thread_ts="1234567890.123456",
+    text="추가 정보입니다."
+)
+```
+
+#### MCP Slack 제한 사항
+
+| 기능 | 지원 여부 | 설명 |
+|------|----------|------|
+| 메시지 전송 | ✅ | `slack_post_message` |
+| 채널 조회 | ✅ | `slack_get_channel_history` |
+| 스레드 답글 | ✅ | `slack_reply_to_thread` |
+| **실시간 알림 수신** | ❌ | Events API 미지원 |
+| **@멘션 자동 응답** | ❌ | Push 방식 미지원 |
+
+> ⚠️ **중요**: MCP Slack은 **Pull 방식**(조회)만 지원합니다. Slack에서 @멘션해도 Claude Code가 자동으로 응답하지 않습니다. 실시간 응답이 필요하면 별도의 Slack Bot 서버 구축이 필요합니다.
+
+#### "클로드" 에이전트
+
+Claude Code의 한글 이름은 **"클로드"**입니다. 팀원 에이전트(PM, Backend 등)와 구분하여 사용합니다:
+
+```
+*[클로드]* 문서 업데이트 완료
+*[PM]* Sprint 01 시작합니다
+*[Backend]* API 구현 착수
+```
+
+### 10.5 가상 팀원 메시지 포맷 규칙
 
 | 역할 | Slack 메시지 형식 | 작업 영역 |
 |------|------------------|----------|
@@ -1000,7 +1079,7 @@ curl -s -X POST "https://slack.com/api/chat.postMessage" \
 | QA | `*[QA]*` | tests/ |
 | DevOps | `*[DevOps]*` | infrastructure/ |
 
-### 10.5 협업 워크플로우
+### 10.6 협업 워크플로우
 
 ```mermaid
 flowchart TB
@@ -1462,7 +1541,7 @@ echo $JIRA_EMAIL
 
 **Phase 5: Claude Code 연동**
 - [ ] .env 파일 생성
-- [ ] .mcp.json 설정
+- [ ] .claude/settings.json MCP 설정
 - [ ] MCP 연결 테스트
 
 **Phase 6: 팀 온보딩**
@@ -1482,7 +1561,7 @@ echo $JIRA_EMAIL
 **GitHub MCP**
 - [ ] GitHub Personal Access Token 발급
 - [ ] .env에 GITHUB_TOKEN 추가
-- [ ] .mcp.json에 GitHub MCP 설정 추가
+- [ ] .claude/settings.json에 GitHub MCP 설정 추가
 - [ ] Claude Code 재시작 후 /mcp 확인
 
 ### 17.2 환경 변수 체크 스크립트

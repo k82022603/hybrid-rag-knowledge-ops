@@ -16,41 +16,5 @@
         "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_TOKEN}"
       }
     }
-  },
-  "project": {
-    "name": "Hybrid RAG Knowledge Operations",
-    "version": "2.6",
-    "workspace_root": "./",
-    "services": [
-      "knowledge_service",
-      "frontend",
-      "backend"
-    ]
-  },
-  "claude_code": {
-    "model": "haiku",
-    "max_tokens": 4000,
-    "temperature": 0.7,
-    "default_language": "english"
-  },
-  "development": {
-    "default_branch": "main",
-    "python_version": "3.11",
-    "poetry_enabled": true,
-    "docker_compose_path": "infrastructure/docker/docker-compose.yml"
-  },
-  "commands_directory": "./.claude/commands",
-  "agents_directory": "./.claude/agents",
-  "workflows_directory": "./.agent/workflows",
-  "documentation": {
-    "main_guide": "CLAUDE.md",
-    "service_guide": "{service}/CLAUDE.md",
-    "architecture": "knowledge_service/docs/architecture_overview.md",
-    "api_reference": "knowledge_service/docs/api_reference.md"
-  },
-  "git": {
-    "auto_commit": false,
-    "commit_prefix": "[CLAUDE]",
-    "protected_branches": ["main", "develop"]
   }
 }

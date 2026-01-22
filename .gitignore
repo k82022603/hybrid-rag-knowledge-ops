@@ -74,8 +74,22 @@ hybrid-rag-knowledge-ops/results/cost_reports/*.csv
 node_modules/
 npm-debug.log
 
+# Java/Gradle
+.gradle/
+bin/
+*.class
+*.jar
+!gradle-wrapper.jar
+
 # Docker
 .dockerignore
 docker-compose.override.yml
 tmpclaude-*
 .mcp.json
+
+# Java/Gradle
+.gradle/
+bin/
+*.class
+*.jar
+!gradle-wrapper.jar
