@@ -1,8 +1,8 @@
 # 개발자 통합 가이드
 ## Developer Integration Guide - Jira, Slack, GitHub, Claude Code
 
-**버전**: 1.2
-**작성일**: 2026-01-18 | **수정일**: 2026-01-21
+**버전**: 1.3
+**작성일**: 2026-01-18 | **수정일**: 2026-01-22
 **목적**: 개발 도구(Jira, Slack, GitHub) 연동 및 Claude Code Agent 활용 가이드
 
 ---
@@ -297,29 +297,39 @@ JIRA_PROJECT_KEY=HRKP
 
 #### 3.2.1 Claude Code MCP 설정
 
-**~/.claude/settings.json** 또는 **프로젝트/.mcp.json**:
+**프로젝트/.mcp.json** (권장):
 
-> ⚠️ **주의**: Claude Code는 `${VAR_NAME}` 환경변수 보간을 지원하지 않습니다.
-> MCP 서버는 셸 환경에서 직접 환경변수를 읽으므로, 민감한 토큰은 `.env`에 설정하고 셸에 export 하면 됩니다.
+> ✅ **참고**: `.mcp.json`은 `.gitignore`에 포함되어 있어 토큰을 직접 설정해도 안전합니다.
+> 토큰을 `.env`에서 관리하고 자동 동기화 스크립트로 `.mcp.json`에 반영하는 것을 권장합니다.
 
 ```json
 {
   "mcpServers": {
     "jira": {
       "command": "npx",
-      "args": ["-y", "@anthropic/mcp-server-jira"],
+      "args": ["-y", "mcp-server-jira-cloud"],
       "env": {
-        "JIRA_HOST": "your-company.atlassian.net",
-        "JIRA_EMAIL": "your-email@company.com"
+        "JIRA_BASE_URL": "https://your-company.atlassian.net",
+        "JIRA_EMAIL": "your-email@company.com",
+        "JIRA_API_TOKEN": "your-api-token-here"
       }
     }
   }
 }
 ```
 
-MCP 서버가 자동으로 읽는 환경변수: `JIRA_API_TOKEN` (`.env`에 설정 필요)
+#### 3.2.2 토큰 자동 동기화
 
-#### 3.2.2 연결 확인
+`.env` 파일에서 토큰이 변경되면 동기화 스크립트 실행:
+
+```bash
+# .env → .mcp.json 토큰 동기화
+.claude/hooks/sync-mcp-env.sh
+```
+
+스크립트가 자동으로 `.env`의 `JIRA_API_TOKEN`을 `.mcp.json`에 반영합니다.
+
+#### 3.2.3 연결 확인
 
 ```bash
 # Claude Code에서 Jira 연결 테스트
@@ -464,9 +474,10 @@ SLACK_CHANNEL_ALERTS=#alerts
 
 ### 4.3 MCP Server 설정
 
-**~/.claude/settings.json** 또는 **프로젝트/.mcp.json**:
+**프로젝트/.mcp.json**:
 
-> ⚠️ **주의**: `${VAR_NAME}` 보간 미지원. MCP 서버가 셸 환경에서 직접 `SLACK_BOT_TOKEN`을 읽습니다.
+> ✅ **참고**: `.mcp.json`은 gitignore에 포함되어 토큰 직접 설정 가능.
+> Slack은 현재 `send_slack.sh` 스크립트를 통해 메시지를 전송하므로 MCP에 토큰 설정이 필수는 아닙니다.
 
 ```json
 {
@@ -475,14 +486,15 @@ SLACK_CHANNEL_ALERTS=#alerts
       "command": "npx",
       "args": ["-y", "@anthropic/mcp-server-slack"],
       "env": {
-        "SLACK_TEAM_ID": "T0A9DSMGX8V"
+        "SLACK_TEAM_ID": "T0A9DSMGX8V",
+        "SLACK_BOT_TOKEN": "xoxb-your-token-here"
       }
     }
   }
 }
 ```
 
-MCP 서버가 자동으로 읽는 환경변수: `SLACK_BOT_TOKEN` (`.env`에 설정 필요)
+토큰 동기화: `.claude/hooks/sync-mcp-env.sh` 실행 시 `SLACK_BOT_TOKEN`도 함께 동기화됩니다.
 
 ### 4.4 Slack 사용 가이드
 
@@ -658,19 +670,19 @@ Jira에서 이슈 정보를 가져와서 작업 계획을 세우고,
 
 **프로젝트/.mcp.json** (권장):
 
-> ⚠️ **중요**: Claude Code는 `${VAR_NAME}` 환경변수 보간을 **지원하지 않습니다**.
-> MCP 서버는 부모 프로세스의 환경변수를 상속받아 자동으로 읽습니다.
-> 민감한 토큰(API 키 등)은 `.env`에 설정하고 셸에 export 하세요.
+> ✅ **참고**: `.mcp.json`은 `.gitignore`에 포함되어 있어 토큰을 직접 설정해도 안전합니다.
+> 토큰 관리는 `.env` 파일에서 하고, 동기화 스크립트로 `.mcp.json`에 반영하는 것을 권장합니다.
 
 ```json
 {
   "mcpServers": {
     "jira": {
       "command": "npx",
-      "args": ["-y", "@anthropic/mcp-server-jira"],
+      "args": ["-y", "mcp-server-jira-cloud"],
       "env": {
-        "JIRA_HOST": "your-company.atlassian.net",
-        "JIRA_EMAIL": "your-email@company.com"
+        "JIRA_BASE_URL": "https://your-company.atlassian.net",
+        "JIRA_EMAIL": "your-email@company.com",
+        "JIRA_API_TOKEN": "your-jira-token"
       }
     },
     "github": {
@@ -679,22 +691,28 @@ Jira에서 이슈 정보를 가져와서 작업 계획을 세우고,
     },
     "slack": {
       "command": "npx",
-      "args": ["-y", "@anthropic/mcp-server-slack"],
+      "args": ["-y", "mcp-server-slack"],
       "env": {
-        "SLACK_TEAM_ID": "T0A9DSMGX8V"
+        "SLACK_TEAM_ID": "T0A9DSMGX8V",
+        "SLACK_BOT_TOKEN": "xoxb-your-slack-token"
       }
     }
   }
 }
 ```
 
-**MCP 서버별 자동 읽기 환경변수** (`.env`에 설정):
+**토큰 자동 동기화** (`.env` → `.mcp.json`):
 
-| MCP 서버 | 환경변수 |
-|----------|----------|
-| jira | `JIRA_API_TOKEN` |
-| github | `GITHUB_PERSONAL_ACCESS_TOKEN` |
-| slack | `SLACK_BOT_TOKEN` |
+```bash
+# .env 파일의 토큰을 .mcp.json에 동기화
+.claude/hooks/sync-mcp-env.sh
+```
+
+| MCP 서버 | 환경변수 | 동기화 지원 |
+|----------|----------|-------------|
+| jira | `JIRA_API_TOKEN` | ✅ |
+| github | `GITHUB_PERSONAL_ACCESS_TOKEN` | - (git credential 사용) |
+| slack | `SLACK_BOT_TOKEN` | ✅ |
 
 #### 5.3.2 MCP 상태 확인
 
@@ -960,6 +978,22 @@ echo "=== Check Complete ==="
 
 ### D. 연동 테스트 이력
 
+#### 2026-01-22: Jira MCP 토큰 설정 개선
+
+| 항목 | 내용 |
+|------|------|
+| **이슈** | Jira MCP 서버 연결 실패 (토큰 미설정) |
+| **원인** | `.mcp.json`에 `JIRA_API_TOKEN`이 누락됨 |
+| **해결** | `.mcp.json`에 토큰 직접 추가 (gitignore 적용으로 안전) |
+| **추가 조치** | `.claude/hooks/sync-mcp-env.sh` 스크립트 생성 |
+
+**동기화 스크립트 기능:**
+- `.env` 파일에서 `JIRA_API_TOKEN`, `SLACK_BOT_TOKEN` 읽기
+- `.mcp.json`에 자동 반영
+- jq 또는 sed 사용 (jq 우선)
+
+---
+
 #### 2026-01-21: Slack 연동 테스트 (MCP 설정 수정 후)
 
 | 항목 | 내용 |
@@ -1001,8 +1035,8 @@ echo "=== Check Complete ==="
 
 ---
 
-**문서 버전**: 1.2
-**최종 수정**: 2026-01-21
+**문서 버전**: 1.3
+**최종 수정**: 2026-01-22
 **관련 문서**:
 - [개발 환경 구축 계획서](../01_planning/dev_environment_plan.md)
 - [도구 가이드](../../../docs/03_도구_가이드.md)

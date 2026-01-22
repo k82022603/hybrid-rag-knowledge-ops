@@ -32,11 +32,14 @@ PM(Product Manager) 에이전트를 위한 백로그 및 Jira 관리 명령어�
 `.env` 파일에 다음 설정 필요:
 
 ```bash
-# Jira
+# Jira (for REST API calls)
 JIRA_HOST=your-domain.atlassian.net
 JIRA_EMAIL=your-email@example.com
 JIRA_API_TOKEN=your-api-token
 JIRA_PROJECT_KEY=SCRUM
+
+# Note: MCP uses JIRA_BASE_URL (with https://) instead of JIRA_HOST
+# See .mcp.json for MCP-specific configuration
 
 # Slack (선택)
 SLACK_BOT_TOKEN=xoxb-your-token
@@ -56,4 +59,4 @@ SLACK_CHANNEL=proj-hrkp-dev
 
 - [PM Agent 설정](.claude/agents/pm.md)
 - [백로그 관리 가이드](backlog/README.md)
-- [Jira 설정 가이드](docs/07_Jira_Slack_초기설정_퀵스타트_가이드.md)
+- [Jira Slack Claude 통합가이드](docs/07_Jira_Slack_Claude_통합가이드.md)
