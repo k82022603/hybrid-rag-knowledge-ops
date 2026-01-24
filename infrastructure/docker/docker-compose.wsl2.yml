@@ -1,0 +1,236 @@
+# docker-compose.wsl2.yml
+# WSL2 개발 환경 전용 설정
+#
+# 사용법:
+#   docker compose -f docker-compose.yml -f docker-compose.wsl2.yml up -d
+#
+# 또는 시작 스크립트 사용:
+#   ./scripts/docker-start.sh
+#
+# 관련 문서:
+#   - 인프라 설계서 13.6절: WSL2 개발 환경 설정
+#   - 장애 보고서: INC-2026-01-25-001
+#
+# Created: 2026-01-25
+# Purpose: WSL2 파일시스템 권한 문제 해결
+
+services:
+  # ===========================================================================
+  # APPLICATION LAYER - 권한 완화
+  # ===========================================================================
+
+  nginx:
+    user: ""
+    read_only: false
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+    tmpfs: []
+
+  frontend:
+    user: ""
+    read_only: false
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+    tmpfs: []
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:80/"]
+
+  api-gateway:
+    user: ""
+    read_only: false
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+    tmpfs: []
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+
+  backend:
+    user: ""
+    read_only: false
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+    tmpfs: []
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8081/actuator/health"]
+
+  ai-service:
+    user: ""
+    read_only: false
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+    tmpfs: []
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8000/health"]
+
+  # ===========================================================================
+  # AUTH LAYER - 권한 완화
+  # ===========================================================================
+
+  keycloak:
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+    tmpfs: []
+
+  keycloak-db:
+    user: ""
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+
+  # ===========================================================================
+  # DATA LAYER - 권한 완화 + 메모리 경량화
+  # ===========================================================================
+
+  postgresql:
+    user: ""
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+    command: >
+      postgres
+      -c shared_buffers=128MB
+      -c effective_cache_size=256MB
+      -c work_mem=4MB
+      -c maintenance_work_mem=64MB
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  neo4j:
+    user: ""
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+    environment:
+      - NEO4J_AUTH=${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD}
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_dbms_memory_heap_initial__size=256m
+      - NEO4J_dbms_memory_heap_max__size=512m
+      - NEO4J_dbms_memory_pagecache_size=256m
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  elasticsearch:
+    user: ""
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+    environment:
+      - node.name=kp-es01
+      - cluster.name=knowledge-platform-cluster
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+        reservations:
+          memory: 768M
+
+  kibana:
+    user: ""
+    read_only: false
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+    tmpfs: []
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+        reservations:
+          memory: 384M
+
+  redis:
+    user: ""
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+
+  minio:
+    user: ""
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+
+  # ===========================================================================
+  # OBSERVABILITY LAYER - 메모리 경량화
+  # ===========================================================================
+
+  prometheus:
+    user: ""
+    read_only: false
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+    tmpfs: []
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  grafana:
+    user: ""
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  loki:
+    user: ""
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  jaeger:
+    user: ""
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+    tmpfs: []
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  promtail:
+    read_only: false
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+    tmpfs: []
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
