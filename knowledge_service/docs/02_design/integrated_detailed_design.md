@@ -7,9 +7,9 @@
 | 항목 | 내용 |
 |------|------|
 | **문서명** | Hybrid RAG Knowledge Platform 통합 상세 설계서 |
-| **버전** | 1.1 |
+| **버전** | 1.2 |
 | **작성일** | 2026-01-16 |
-| **최종 수정** | 2026-01-17 |
+| **최종 수정** | 2026-01-25 |
 | **작성자** | Claude Code (Opus 4.5) |
 | **상태** | Final Draft |
 | **목적** | 프로젝트 발표 및 설계 통합 참조용 |
@@ -22,6 +22,7 @@
 |------|------|--------|----------|
 | 1.0 | 2026-01-16 | Claude Code | 초안 작성 - 9개 설계서 통합 |
 | 1.1 | 2026-01-17 | Claude Code | Observability 설계서 통합, UUID 표준 반영, 버전 현행화 |
+| 1.2 | 2026-01-25 | Claude Code | MUI → Tailwind CSS 전환 반영, Headless UI/Heroicons 추가 |
 
 ---
 
@@ -138,7 +139,7 @@ block-beta
     block:Frontend["Frontend"]
         F1["React 18"]
         F2["TypeScript"]
-        F3["MUI v5"]
+        F3["Tailwind CSS"]
         F4["Redux + React Query"]
     end
 
@@ -1289,7 +1290,9 @@ flowchart LR
 | React | 18.3+ | UI 라이브러리 |
 | TypeScript | 5.4+ | 타입 안정성 |
 | Vite | 5.x | 빌드 도구 |
-| MUI | 5.x | 컴포넌트 라이브러리 |
+| Tailwind CSS | 3.4+ | 유틸리티 CSS 프레임워크 |
+| Headless UI | 2.x | 접근성 지원 컴포넌트 |
+| Heroicons | 2.x | 아이콘 라이브러리 |
 | Redux Toolkit | 2.x | 상태 관리 |
 | React Query | 5.x | 서버 상태 |
 | React Hook Form | 7.x | 폼 관리 |

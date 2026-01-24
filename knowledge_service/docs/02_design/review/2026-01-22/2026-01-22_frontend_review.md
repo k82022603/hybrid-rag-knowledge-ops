@@ -1,11 +1,17 @@
 # Frontend 설계서 검토 보고서
 
+> ⚠️ **Update Notice (2026-01-25)**: MUI → Tailwind CSS 마이그레이션 결정
+> - 이 리뷰는 MUI v5 기준으로 작성됨
+> - 신규 기술 스택: Tailwind CSS 3.4+ + Headless UI + Heroicons
+> - 참조: [04.Tailwind_Antigravity_Stitch_도입_영향도_분석.md](../../../../../docs/technical_assessment/Guides/04.Tailwind_Antigravity_Stitch_도입_영향도_분석.md)
+
 ## 문서 정보
 
 | 항목 | 내용 |
 |------|------|
-| **검토 대상** | frontend_detailed_design.md (v1.2), ui_design_system_guide.md (v1.1) |
+| **검토 대상** | frontend_detailed_design.md (v1.2 → v2.0), ui_design_system_guide.md (v1.1 → v2.0) |
 | **검토일** | 2026-01-22 |
+| **업데이트** | 2026-01-25 (Tailwind 마이그레이션 반영) |
 | **검토자** | Frontend Agent (Claude Opus 4.5) |
 | **상태** | Approved with Minor Recommendations |
 
@@ -47,7 +53,9 @@
 | React | 18.3+ | O | 최신 안정 버전 |
 | TypeScript | 5.4+ | O | 최신 기능 지원 |
 | Vite | 5.x | O | 빌드 성능 우수 |
-| MUI | v5 | O | React 18 완벽 호환 |
+| **Tailwind CSS** | **3.4+** | **O** | **MUI 대체 (2026-01-25 결정)** |
+| **Headless UI** | **2.x** | **O** | **접근성 지원 컴포넌트** |
+| **Heroicons** | **2.x** | **O** | **아이콘 라이브러리** |
 | Redux Toolkit | 2.x | O | 표준 상태 관리 |
 | React Query | 5.x | O | 서버 상태 관리 |
 | React Router | 6.x | O | 최신 라우팅 API |

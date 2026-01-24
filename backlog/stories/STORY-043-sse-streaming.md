@@ -46,6 +46,147 @@
 
 ## 기술 노트
 
+> **마이그레이션 공지** (2026-01-25)
+>
+> 아래에 MUI 코드(레거시)와 Tailwind 코드(권장) 두 버전이 제공됩니다.
+> **신규 구현 시 Tailwind 버전을 사용하세요.**
+>
+> **참고**: SSE 유틸리티, 훅 로직은 UI 독립적이므로 변경 없음.
+>
+> 전환 가이드: [MUI to Tailwind 마이그레이션 가이드](../../knowledge_service/docs/05_development/mui_to_tailwind_migration.md)
+
+### SSE 유틸리티 (공통 - 변경 없음)
+
+```typescript
+// frontend/src/shared/api/sse.ts
+// UI 독립적 로직이므로 MUI/Tailwind 관계없이 동일하게 사용
+export interface SSEOptions {
+  onMessage: (data: any) => void;
+  onError?: (error: Event) => void;
+  onComplete?: () => void;
+  retries?: number;
+  retryDelay?: number;
+}
+
+export class SSEClient {
+  private eventSource: EventSource | null = null;
+  private retryCount = 0;
+  private aborted = false;
+
+  constructor(
+    private url: string,
+    private options: SSEOptions
+  ) {}
+
+  connect(): void {
+    if (this.aborted) return;
+
+    this.eventSource = new EventSource(this.url);
+
+    this.eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        if (data.type === 'done') {
+          this.options.onComplete?.();
+          this.close();
+          return;
+        }
+
+        this.options.onMessage(data);
+        this.retryCount = 0; // 성공 시 재시도 카운트 리셋
+      } catch (e) {
+        console.error('SSE parse error:', e);
+      }
+    };
+
+    this.eventSource.onerror = (error) => {
+      this.options.onError?.(error);
+      this.handleError();
+    };
+  }
+
+  private handleError(): void {
+    this.close();
+
+    const maxRetries = this.options.retries ?? 3;
+    const retryDelay = this.options.retryDelay ?? 1000;
+
+    if (this.retryCount < maxRetries && !this.aborted) {
+      this.retryCount++;
+      console.log(`SSE reconnecting... (${this.retryCount}/${maxRetries})`);
+      setTimeout(() => this.connect(), retryDelay * this.retryCount);
+    }
+  }
+
+  abort(): void {
+    this.aborted = true;
+    this.close();
+  }
+
+  close(): void {
+    if (this.eventSource) {
+      this.eventSource.close();
+      this.eventSource = null;
+    }
+  }
+}
+```
+
+### 스트리밍 인디케이터 (Tailwind - 권장)
+
+```typescript
+// frontend/src/features/search/components/StreamingIndicator.tsx
+export const StreamingIndicator: React.FC = () => {
+  return (
+    <div className="flex items-center p-2">
+      <div className="w-2 h-2 bg-primary-600 rounded-full mr-2 animate-pulse" />
+      <span className="text-sm text-gray-500">응답 생성 중...</span>
+    </div>
+  );
+};
+```
+
+### ChatSearch 업데이트 (Tailwind - 권장)
+
+```typescript
+// ChatSearch.tsx 수정
+import { StreamingIndicator } from './components/StreamingIndicator';
+
+export const ChatSearch: React.FC = () => {
+  const {
+    messages,
+    isStreaming,
+    error,
+    sendMessage,
+    cancelStream
+  } = useStreamingSearch();
+
+  return (
+    <div className="flex flex-col h-screen">
+      <div className="flex-1 overflow-auto p-4">
+        <MessageList messages={messages} />
+        {isStreaming && <StreamingIndicator />}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="border-t border-gray-200 p-4">
+        <ChatInput
+          onSend={sendMessage}
+          disabled={isStreaming}
+          onCancel={isStreaming ? cancelStream : undefined}
+        />
+      </div>
+    </div>
+  );
+};
+```
+
+---
+
+<details>
+<summary>레거시 코드 (MUI) - 참고용</summary>
+
 ### SSE 유틸리티
 
 ```typescript
@@ -314,6 +455,8 @@ export const ChatSearch: React.FC = () => {
   );
 };
 ```
+
+</details>
 
 ### 영향 범위
 - `frontend/src/shared/api/sse.ts` (신규)

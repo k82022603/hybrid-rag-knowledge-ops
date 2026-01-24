@@ -57,6 +57,6 @@ SLACK_CHANNEL=proj-hrkp-dev
 
 ## 참고
 
-- [PM Agent 설정](.claude/agents/pm.md)
+- [PM Agent 설정](.claude/agents/project-manager.md)
 - [백로그 관리 가이드](backlog/README.md)
 - [Jira Slack Claude 통합가이드](docs/07_Jira_Slack_Claude_통합가이드.md)

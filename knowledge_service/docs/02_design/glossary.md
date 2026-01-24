@@ -3,9 +3,9 @@
 | 항목 | 내용 |
 |------|------|
 | **프로젝트** | Hybrid RAG Knowledge Operations Platform |
-| **버전** | 3.0 |
+| **버전** | 3.1 |
 | **작성일** | 2026-01-16 |
-| **최종 수정** | 2026-01-18 |
+| **최종 수정** | 2026-01-25 |
 | **작성자** | Claude AI Architect |
 
 ---
@@ -505,12 +505,13 @@
 
 | 용어 (한글) | 용어 (영문) | 정의 | 관련 기술 |
 |-------------|-------------|------|-----------|
-| CSS-in-JS | CSS-in-JS | JavaScript로 CSS 작성 | Emotion |
-| 테마 | Theme | 앱 전체 스타일 설정 | MUI Theme |
-| 반응형 디자인 | Responsive Design | 화면 크기에 따른 적응형 UI | 미디어 쿼리 |
-| 디자인 시스템 | Design System | UI 컴포넌트/스타일 표준 | MUI |
-| 다크 모드 | Dark Mode | 어두운 색상 테마 | prefers-color-scheme |
-| 접근성 | Accessibility (a11y) | 장애인도 사용 가능한 UI | WCAG |
+| 유틸리티 클래스 | Utility Classes | 단일 목적의 CSS 클래스 조합 방식 | Tailwind CSS |
+| 테마 | Theme | 앱 전체 스타일 설정 | Tailwind Config |
+| 반응형 디자인 | Responsive Design | 화면 크기에 따른 적응형 UI | Tailwind Breakpoints |
+| 디자인 시스템 | Design System | UI 컴포넌트/스타일 표준 | Tailwind + Headless UI |
+| 다크 모드 | Dark Mode | 어두운 색상 테마 | Tailwind dark: |
+| 접근성 | Accessibility (a11y) | 장애인도 사용 가능한 UI | WCAG, Headless UI |
+| Headless UI | Headless UI | 스타일 없이 접근성 지원하는 컴포넌트 | @headlessui/react |
 
 ### 9.4 빌드/번들링
 

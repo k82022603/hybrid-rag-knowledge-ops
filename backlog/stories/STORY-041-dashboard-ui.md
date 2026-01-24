@@ -47,6 +47,220 @@
 
 ## 기술 노트
 
+> **마이그레이션 공지** (2026-01-25)
+>
+> 아래에 MUI 코드(레거시)와 Tailwind 코드(권장) 두 버전이 제공됩니다.
+> **신규 구현 시 Tailwind 버전을 사용하세요.**
+>
+> 전환 가이드: [MUI to Tailwind 마이그레이션 가이드](../../knowledge_service/docs/05_development/mui_to_tailwind_migration.md)
+
+### Dashboard Layout (Tailwind - 권장)
+
+```typescript
+// frontend/src/features/dashboard/Dashboard.tsx
+import { useAuth } from '../auth/useAuth';
+import { useDashboardStats } from './hooks/useDashboardStats';
+import { useRecentSearches } from './hooks/useRecentSearches';
+import { StatCard } from './components/StatCard';
+import { RecentSearches } from './components/RecentSearches';
+import { QuickSearch } from './components/QuickSearch';
+import { Sidebar } from '../../shared/components/Sidebar';
+import { Header } from '../../shared/components/Header';
+
+export const Dashboard: React.FC = () => {
+  const { user } = useAuth();
+  const { stats, isLoading: statsLoading } = useDashboardStats();
+  const { searches, isLoading: searchesLoading } = useRecentSearches();
+
+  return (
+    <div className="flex min-h-screen bg-gray-50">
+      <Sidebar />
+      <div className="flex-1">
+        <Header />
+        <main className="p-6">
+          {/* 환영 메시지 */}
+          <h1 className="text-2xl font-bold text-gray-900 mb-6">
+            안녕하세요, {user?.username}님
+          </h1>
+
+          {/* 빠른 검색 */}
+          <div className="bg-white rounded-lg shadow-md p-4 mb-6">
+            <QuickSearch />
+          </div>
+
+          {/* 통계 위젯 */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+            <StatCard
+              title="전체 문서"
+              value={stats?.totalDocuments || 0}
+              icon="document"
+              loading={statsLoading}
+            />
+            <StatCard
+              title="오늘 검색"
+              value={stats?.todaySearches || 0}
+              icon="search"
+              loading={statsLoading}
+            />
+            <StatCard
+              title="활성 사용자"
+              value={stats?.activeUsers || 0}
+              icon="users"
+              loading={statsLoading}
+            />
+            <StatCard
+              title="평균 응답시간"
+              value={`${stats?.avgResponseTime || 0}ms`}
+              icon="clock"
+              loading={statsLoading}
+            />
+          </div>
+
+          {/* 최근 검색 */}
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              최근 검색
+            </h2>
+            <RecentSearches
+              searches={searches}
+              loading={searchesLoading}
+            />
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+};
+```
+
+### StatCard 컴포넌트 (Tailwind - 권장)
+
+```typescript
+// frontend/src/features/dashboard/components/StatCard.tsx
+import {
+  DocumentTextIcon,
+  MagnifyingGlassIcon,
+  UsersIcon,
+  ClockIcon
+} from '@heroicons/react/24/outline';
+
+interface StatCardProps {
+  title: string;
+  value: string | number;
+  icon: 'document' | 'search' | 'users' | 'clock';
+  loading?: boolean;
+  trend?: {
+    value: number;
+    direction: 'up' | 'down';
+  };
+}
+
+const iconMap = {
+  document: DocumentTextIcon,
+  search: MagnifyingGlassIcon,
+  users: UsersIcon,
+  clock: ClockIcon,
+};
+
+export const StatCard: React.FC<StatCardProps> = ({
+  title,
+  value,
+  icon,
+  loading,
+  trend
+}) => {
+  const Icon = iconMap[icon];
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-lg shadow-md p-4">
+        <div className="animate-pulse">
+          <div className="h-4 bg-gray-200 rounded w-3/5 mb-2"></div>
+          <div className="h-8 bg-gray-200 rounded w-2/5"></div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-lg shadow-md p-4 hover:shadow-lg transition-shadow">
+      <div className="flex justify-between items-start">
+        <div>
+          <p className="text-sm text-gray-500 mb-1">{title}</p>
+          <p className="text-2xl font-bold text-gray-900">{value}</p>
+          {trend && (
+            <p className={`text-sm mt-1 ${
+              trend.direction === 'up' ? 'text-green-600' : 'text-red-600'
+            }`}>
+              {trend.direction === 'up' ? '+' : ''}{trend.value}%
+            </p>
+          )}
+        </div>
+        <div className="p-2 bg-primary-50 rounded-lg">
+          <Icon className="h-6 w-6 text-primary-600" />
+        </div>
+      </div>
+    </div>
+  );
+};
+```
+
+### QuickSearch 컴포넌트 (Tailwind - 권장)
+
+```typescript
+// frontend/src/features/dashboard/components/QuickSearch.tsx
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { MagnifyingGlassIcon, PaperAirplaneIcon } from '@heroicons/react/24/outline';
+
+export const QuickSearch: React.FC = () => {
+  const [query, setQuery] = useState('');
+  const navigate = useNavigate();
+
+  const handleSearch = () => {
+    if (query.trim()) {
+      navigate(`/search/chat?q=${encodeURIComponent(query)}`);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSearch();
+    }
+  };
+
+  return (
+    <div className="relative">
+      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+        <MagnifyingGlassIcon className="h-5 w-5 text-gray-400" />
+      </div>
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyPress={handleKeyPress}
+        placeholder="무엇이든 물어보세요..."
+        className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-gray-900 placeholder-gray-500"
+      />
+      <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+        <button
+          onClick={handleSearch}
+          disabled={!query.trim()}
+          className="p-1 text-primary-600 hover:text-primary-700 disabled:text-gray-300 disabled:cursor-not-allowed"
+        >
+          <PaperAirplaneIcon className="h-5 w-5" />
+        </button>
+      </div>
+    </div>
+  );
+};
+```
+
+---
+
+<details>
+<summary>레거시 코드 (MUI) - 참고용</summary>
+
 ### Dashboard Layout
 
 ```typescript
@@ -273,6 +487,8 @@ export const useDashboardStats = () => {
   });
 };
 ```
+
+</details>
 
 ### 영향 범위
 - `frontend/src/features/dashboard/Dashboard.tsx`

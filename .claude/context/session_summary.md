@@ -1,4 +1,4 @@
-# Session Summary - 2026-01-22 15:11
+# Session Summary - 2026-01-24 22:26
 
 ## Commits This Session
 ```
@@ -7,16 +7,16 @@
 
 ## Files Modified
 ```
-.claude/commands/daily/daily-close.md
-.claude/commands/daily/daily-log.md
-.claude/commands/daily/session-log.md
-.claude/commands/daily/vibe-log.md
 .claude/commands/pm/README.md
 .claude/context/session_context.md
 .claude/context/session_summary.md
 .claude/hooks/sync-mcp-env.sh
+.claude/settings.json
 .claude/settings.local.json
-CLAUDE.md
+.github/PULL_REQUEST_TEMPLATE.md
+.github/dependabot.yml
+.github/workflows/cd.yml
+.github/workflows/ci.yml
 ```
 
 ---

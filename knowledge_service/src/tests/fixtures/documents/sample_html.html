@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sample HTML Document</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        .hidden { display: none; }
+    </style>
+    <script>
+        // This script content should be ignored
+        console.log('This should not appear in parsed text');
+    </script>
+</head>
+<body>
+    <header>
+        <h1>Sample HTML Document</h1>
+        <nav>
+            <ul>
+                <li><a href="#intro">Introduction</a></li>
+                <li><a href="#content">Content</a></li>
+                <li><a href="#footer">Footer</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section id="intro">
+            <h2>Introduction</h2>
+            <p>This is a sample HTML document for testing the document parser.</p>
+            <p>The parser should extract text content while ignoring scripts and styles.</p>
+        </section>
+
+        <section id="content">
+            <h2>Main Content</h2>
+            <p>Here is some important content that should be extracted:</p>
+            <ul>
+                <li>First item in the list</li>
+                <li>Second item in the list</li>
+                <li>Third item in the list</li>
+            </ul>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Item A</td>
+                        <td>100</td>
+                    </tr>
+                    <tr>
+                        <td>Item B</td>
+                        <td>200</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section id="korean">
+            <h2>한글 콘텐츠</h2>
+            <p>이 섹션은 한글 텍스트를 포함합니다.</p>
+            <p>문서 파서가 다국어를 올바르게 처리하는지 확인합니다.</p>
+        </section>
+    </main>
+
+    <footer id="footer">
+        <p>Copyright 2026 - Sample Company</p>
+    </footer>
+</body>
+</html>

@@ -1,83 +1,121 @@
-import { createTheme } from '@mui/material/styles';
+/**
+ * Theme utilities for Tailwind CSS
+ *
+ * 다크 모드 및 테마 관련 유틸리티
+ */
 
-export const theme = createTheme({
-  palette: {
-    mode: 'light',
-    primary: {
-      main: '#1976d2',
-      light: '#42a5f5',
-      dark: '#1565c0',
-      contrastText: '#fff',
-    },
-    secondary: {
-      main: '#9c27b0',
-      light: '#ba68c8',
-      dark: '#7b1fa2',
-      contrastText: '#fff',
-    },
-    background: {
-      default: '#f5f5f5',
-      paper: '#ffffff',
-    },
-    text: {
-      primary: '#212121',
-      secondary: '#757575',
-    },
+// 다크 모드 설정
+export type ThemeMode = 'light' | 'dark' | 'system';
+
+/**
+ * 현재 테마 모드 가져오기
+ */
+export const getThemeMode = (): ThemeMode => {
+  const stored = localStorage.getItem('theme') as ThemeMode | null;
+  if (stored && ['light', 'dark', 'system'].includes(stored)) {
+    return stored;
+  }
+  return 'system';
+};
+
+/**
+ * 테마 모드 설정
+ */
+export const setThemeMode = (mode: ThemeMode): void => {
+  localStorage.setItem('theme', mode);
+  applyTheme(mode);
+};
+
+/**
+ * 테마 적용
+ */
+export const applyTheme = (mode: ThemeMode): void => {
+  const root = document.documentElement;
+
+  if (mode === 'system') {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    if (prefersDark) {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  } else if (mode === 'dark') {
+    root.classList.add('dark');
+  } else {
+    root.classList.remove('dark');
+  }
+};
+
+/**
+ * 시스템 테마 변경 감지 리스너 등록
+ */
+export const initThemeListener = (): (() => void) => {
+  const mode = getThemeMode();
+  applyTheme(mode);
+
+  const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+  const handleChange = () => {
+    if (getThemeMode() === 'system') {
+      applyTheme('system');
+    }
+  };
+
+  mediaQuery.addEventListener('change', handleChange);
+  return () => mediaQuery.removeEventListener('change', handleChange);
+};
+
+/**
+ * 테마 토글
+ */
+export const toggleTheme = (): void => {
+  const current = getThemeMode();
+  const next: ThemeMode = current === 'light' ? 'dark' : current === 'dark' ? 'system' : 'light';
+  setThemeMode(next);
+};
+
+/**
+ * 현재 다크 모드 여부
+ */
+export const isDarkMode = (): boolean => {
+  return document.documentElement.classList.contains('dark');
+};
+
+// 색상 팔레트 (Tailwind config와 동기화)
+export const colors = {
+  primary: {
+    50: '#eff6ff',
+    100: '#dbeafe',
+    200: '#bfdbfe',
+    300: '#93c5fd',
+    400: '#60a5fa',
+    500: '#3b82f6',
+    600: '#2563eb',
+    700: '#1d4ed8',
+    800: '#1e40af',
+    900: '#1e3a8a',
   },
-  typography: {
-    fontFamily: [
-      'Pretendard',
-      '-apple-system',
-      'BlinkMacSystemFont',
-      '"Segoe UI"',
-      'Roboto',
-      '"Helvetica Neue"',
-      'Arial',
-      'sans-serif',
-    ].join(','),
-    h1: {
-      fontSize: '2.5rem',
-      fontWeight: 600,
-    },
-    h2: {
-      fontSize: '2rem',
-      fontWeight: 600,
-    },
-    h3: {
-      fontSize: '1.75rem',
-      fontWeight: 600,
-    },
-    h4: {
-      fontSize: '1.5rem',
-      fontWeight: 600,
-    },
-    h5: {
-      fontSize: '1.25rem',
-      fontWeight: 600,
-    },
-    h6: {
-      fontSize: '1rem',
-      fontWeight: 600,
-    },
+  secondary: {
+    50: '#f8fafc',
+    100: '#f1f5f9',
+    200: '#e2e8f0',
+    300: '#cbd5e1',
+    400: '#94a3b8',
+    500: '#64748b',
+    600: '#475569',
+    700: '#334155',
+    800: '#1e293b',
+    900: '#0f172a',
   },
-  shape: {
-    borderRadius: 8,
+  success: {
+    500: '#22c55e',
+    600: '#16a34a',
   },
-  components: {
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          textTransform: 'none',
-          fontWeight: 500,
-        },
-      },
-    },
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
-        },
-      },
-    },
+  warning: {
+    500: '#f59e0b',
+    600: '#d97706',
   },
-});
+  error: {
+    500: '#ef4444',
+    600: '#dc2626',
+  },
+} as const;

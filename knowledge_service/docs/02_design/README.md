@@ -11,6 +11,7 @@ Hybrid RAG Knowledge Operations Platform의 상세 설계 문서 모음입니다
 ├── README.md                                    # 본 문서
 ├── hybrid_rag_platform_detailed_design.md       # 핵심 플랫폼 설계 (137KB)
 ├── api_integration_design.md                    # API 통합 설계
+├── rag_search_api_specification.md              # RAG Search API 상세 스펙
 ├── backend_detailed_design.md                   # SpringBoot 백엔드 설계
 ├── frontend_detailed_design.md                  # React 프론트엔드 설계
 ├── infrastructure_detailed_design.md            # Docker Compose 인프라 설계
@@ -46,6 +47,7 @@ Hybrid RAG Knowledge Operations Platform의 상세 설계 문서 모음입니다
 | 문서 | 설명 |
 |------|------|
 | [api_integration_design.md](./api_integration_design.md) | External API (Frontend↔Backend) + Internal API (Backend↔AI) |
+| [rag_search_api_specification.md](./rag_search_api_specification.md) | **RAG Search API 상세 스펙** - Search/Embed/Extract/Health API |
 | [backend_detailed_design.md](./backend_detailed_design.md) | SpringBoot 3.x 기반 백엔드 아키텍처 |
 | [frontend_detailed_design.md](./frontend_detailed_design.md) | React 18 기반 프론트엔드 설계 |
 | [infrastructure_detailed_design.md](./infrastructure_detailed_design.md) | Docker Compose 기반 인프라 구성 |
@@ -111,7 +113,8 @@ UI 스토리보드 및 프레젠테이션
 |------|------|----------|
 | hybrid_rag_platform_detailed_design | 2.4 | 2026-01-17 |
 | infrastructure_detailed_design | 2.0 | 2026-01-16 |
-| api_integration_design | 1.2 | 2026-01-17 |
+| api_integration_design | 1.4 | 2026-01-22 |
+| rag_search_api_specification | 1.0 | 2026-01-24 |
 | authentication_authorization_detailed_design | 1.1 | 2026-01-17 |
 | observability_detailed_design | 1.0 | 2026-01-17 |
 | integrated_detailed_design | 1.1 | 2026-01-17 |

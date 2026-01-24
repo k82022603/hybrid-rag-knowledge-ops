@@ -7,3 +7,6 @@ export {
   useUpdateDocument,
   useDeleteDocument,
 } from './useDocuments';
+
+// Re-export auth hook for convenience
+export { useAuth } from '@/auth';

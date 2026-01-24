@@ -1,7 +1,12 @@
 # 프론트엔드 상세 설계서 검토 결과서
 
+> ⚠️ **Update Notice (2026-01-25)**: MUI → Tailwind CSS 마이그레이션 결정
+> - 이 리뷰는 MUI v5 기준으로 작성됨
+> - 신규 기술 스택: Tailwind CSS 3.4+ + Headless UI + Heroicons
+> - 참조: [04.Tailwind_Antigravity_Stitch_도입_영향도_분석.md](../../../../docs/technical_assessment/Guides/04.Tailwind_Antigravity_Stitch_도입_영향도_분석.md)
+
 **문서명**: 프론트엔드 상세 설계서 (frontend_detailed_design.md)
-**버전**: 1.0
+**버전**: 1.0 (Updated: 2.0)
 **검토일**: 2026-01-16
 **검토자**: Claude AI Architect
 **적합성 판정**: ✅ **적합** (조건부 승인)
@@ -39,7 +44,8 @@
 React 18          - Concurrent Mode, Suspense
 TypeScript 5.x    - 타입 안정성
 Vite              - 빠른 HMR, 최적화 빌드
-MUI v5            - 일관된 디자인 시스템
+Tailwind CSS 3.4+ - 유틸리티 CSS 프레임워크 (MUI 대체)
+Headless UI       - 접근성 지원 컴포넌트
 TanStack Query    - 서버 상태 관리
 ```
 - 최신 안정 버전 채택

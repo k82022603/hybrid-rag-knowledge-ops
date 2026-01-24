@@ -1,5 +1,8 @@
 # Test Profile Configuration
 spring:
+  main:
+    allow-bean-definition-overriding: true
+
   cloud:
     gateway:
       routes: []
@@ -8,15 +11,33 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://localhost:8180/realms/test
-          jwk-set-uri: http://localhost:8180/realms/test/protocol/openid-connect/certs
+          # Mock JWT configuration for testing
+          public-key-location: classpath:test-public-key.pem
 
   data:
     redis:
       host: localhost
       port: 6379
 
+# Disable Redis for tests
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
+
+# Resilience4j test configuration
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        register-health-indicator: false
+        sliding-window-size: 2
+        permitted-number-of-calls-in-half-open-state: 1
+        wait-duration-in-open-state: 1s
+        failure-rate-threshold: 50
+
 logging:
   level:
     root: INFO
     com.knowledge.gateway: DEBUG
+    org.springframework.security: DEBUG

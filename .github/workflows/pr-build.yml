@@ -1,0 +1,275 @@
+# =============================================================================
+# PR Build Workflow - Pull Request Build and Test Verification
+# =============================================================================
+# Trigger: PR creation/update on main, develop branches
+# Purpose: Verify build and tests pass before merge
+# =============================================================================
+
+name: PR Build
+
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened]
+
+concurrency:
+  group: pr-build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.11'
+  JAVA_VERSION: '21'
+  NODE_VERSION: '20'
+
+jobs:
+  # =============================================================================
+  # Change Detection - Only run jobs for changed components
+  # =============================================================================
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.filter.outputs.python }}
+      java: ${{ steps.filter.outputs.java }}
+      typescript: ${{ steps.filter.outputs.typescript }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Path Filter
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            python:
+              - 'knowledge_service/src/**'
+              - 'knowledge_service/pyproject.toml'
+              - 'knowledge_service/poetry.lock'
+            java:
+              - 'knowledge_service/gateway/**'
+              - 'knowledge_service/backend/**'
+            typescript:
+              - 'knowledge_service/frontend/**'
+
+  # =============================================================================
+  # Python Build and Test (knowledge_service)
+  # =============================================================================
+  python-build:
+    name: Python Build & Test
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: knowledge_service
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 1.7.1
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Cache Poetry dependencies
+        id: cached-poetry
+        uses: actions/cache@v4
+        with:
+          path: knowledge_service/.venv
+          key: venv-${{ runner.os }}-${{ hashFiles('knowledge_service/poetry.lock') }}
+          restore-keys: |
+            venv-${{ runner.os }}-
+
+      - name: Install Dependencies
+        if: steps.cached-poetry.outputs.cache-hit != 'true'
+        run: poetry install --no-interaction --no-root
+
+      - name: Install Project
+        run: poetry install --no-interaction
+
+      - name: Run Tests
+        run: |
+          poetry run pytest src/tests/ \
+            --cov=src/app \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --junitxml=test-results.xml \
+            -v
+        env:
+          PYTHONPATH: src
+          DEEPSEEK_API_KEY: test-key
+
+      - name: Build Verification
+        run: poetry build
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: python-test-results
+          path: |
+            knowledge_service/test-results.xml
+            knowledge_service/coverage.xml
+          retention-days: 7
+
+  # =============================================================================
+  # Java Build and Test (gateway)
+  # =============================================================================
+  java-build:
+    name: Java Build & Test
+    needs: changes
+    if: needs.changes.outputs.java == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'gradle'
+
+      # Gateway Build and Test
+      - name: Gateway - Grant execute permission
+        run: chmod +x knowledge_service/gateway/gradlew
+
+      - name: Gateway - Build and Test
+        working-directory: knowledge_service/gateway
+        run: ./gradlew build --no-daemon
+        env:
+          SPRING_PROFILES_ACTIVE: test
+
+      - name: Gateway - Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gateway-test-results
+          path: knowledge_service/gateway/build/reports/tests/
+          retention-days: 7
+
+      # Backend Build and Test (if exists)
+      - name: Backend - Check if exists
+        id: backend-check
+        run: |
+          if [ -f "knowledge_service/backend/gradlew" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Backend - Grant execute permission
+        if: steps.backend-check.outputs.exists == 'true'
+        run: chmod +x knowledge_service/backend/gradlew
+
+      - name: Backend - Build and Test
+        if: steps.backend-check.outputs.exists == 'true'
+        working-directory: knowledge_service/backend
+        run: ./gradlew build --no-daemon
+        env:
+          SPRING_PROFILES_ACTIVE: test
+
+      - name: Backend - Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always() && steps.backend-check.outputs.exists == 'true'
+        with:
+          name: backend-test-results
+          path: knowledge_service/backend/build/reports/tests/
+          retention-days: 7
+
+  # =============================================================================
+  # TypeScript Build and Test (frontend)
+  # =============================================================================
+  typescript-build:
+    name: TypeScript Build & Test
+    needs: changes
+    if: needs.changes.outputs.typescript == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: knowledge_service/frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: knowledge_service/frontend/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Lint Check
+        run: npm run lint --if-present
+
+      - name: Type Check
+        run: npm run type-check --if-present || npx tsc --noEmit
+
+      - name: Run Tests
+        run: npm test -- --coverage --watchAll=false
+        env:
+          CI: true
+
+      - name: Build
+        run: npm run build
+        env:
+          CI: true
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: knowledge_service/frontend/dist/
+          retention-days: 7
+
+      - name: Upload Test Coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-coverage
+          path: knowledge_service/frontend/coverage/
+          retention-days: 7
+
+  # =============================================================================
+  # PR Build Summary
+  # =============================================================================
+  pr-summary:
+    name: PR Build Summary
+    needs: [changes, python-build, java-build, typescript-build]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Summary
+        run: |
+          echo "## PR Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Changes Detected | Build Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|-----------------|--------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Python (knowledge_service) | ${{ needs.changes.outputs.python }} | ${{ needs.python-build.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Java (gateway/backend) | ${{ needs.changes.outputs.java }} | ${{ needs.java-build.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| TypeScript (frontend) | ${{ needs.changes.outputs.typescript }} | ${{ needs.typescript-build.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Check for failures
+          if [[ "${{ needs.python-build.result }}" == "failure" ]] || \
+             [[ "${{ needs.java-build.result }}" == "failure" ]] || \
+             [[ "${{ needs.typescript-build.result }}" == "failure" ]]; then
+            echo ":x: **Some builds failed. Please check the logs.**" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo ":white_check_mark: **All builds passed successfully.**" >> $GITHUB_STEP_SUMMARY
+          fi

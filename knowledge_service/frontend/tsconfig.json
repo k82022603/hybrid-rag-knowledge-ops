@@ -30,7 +30,9 @@
       "@/services/*": ["src/services/*"],
       "@/store/*": ["src/store/*"],
       "@/utils/*": ["src/utils/*"],
-      "@/types/*": ["src/types/*"]
+      "@/types/*": ["src/types/*"],
+      "@/auth/*": ["src/auth/*"],
+      "@/auth": ["src/auth/index.ts"]
     }
   },
   "include": ["src"],

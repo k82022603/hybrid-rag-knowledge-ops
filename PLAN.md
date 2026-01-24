@@ -2,8 +2,9 @@
 
 > Claude Code 세션 간 컨텍스트 유지를 위한 계획 문서
 >
-> **Last Updated**: 2026-01-22
+> **Last Updated**: 2026-01-25
 > **Current Phase**: Phase 3 구현 진행 중 - Sprint 01 설계서 Review 완료 (91점 A등급 승인), Sprint 02 개발 대기 ✅
+> **Frontend 전략 변경**: Tailwind + Antigravity + Stitch MCP 도입 결정 (2026-01-25)
 
 ---
 
@@ -481,12 +482,14 @@ docs/
 │   └── sprints/sprint-01.md, sprint-02.md    ✅ 34 pts 계획
 │
 ├── .claude/                             # 🤖 Claude Code 설정 (2026-01-18 신규)
-│   └── agents/                          # 9개 Agent 정의
-│       ├── pm.md, techlead.md           # 관리 역할
-│       ├── backend.md, frontend.md      # 개발 역할
-│       ├── mlrag.md, data.md            # 데이터/AI 역할
-│       ├── qa.md                        # 품질 역할
-│       └── devops.md, infra.md          # 인프라 역할
+│   └── agents/                          # 12개 Agent 정의
+│       ├── project-manager.md (pm), tech-lead.md (tl)      # 관리 역할
+│       ├── backend-developer.md, frontend-developer.md     # 개발 역할
+│       ├── rag-engineer.md (rag), etl-engineer.md (etl)    # 데이터/AI 역할
+│       ├── database-designer.md (db)                       # DB 설계 역할
+│       ├── qa-engineer.md (qa), code-documenter.md (doc)   # 품질/문서 역할
+│       ├── web-designer.md (web)                           # 디자인 역할
+│       └── devops-engineer.md, infra-engineer.md           # 인프라 역할
 │
 └── presentations/                       # 프레젠테이션 자료
     └── docs/ (GitHub 외부 저장)
@@ -503,6 +506,8 @@ docs/
 | **AI** | Agent | LangGraph ReAct | 검증된 라이브러리 |
 | **AI** | Gleaning | 1회 적용 | +33% Entity Recall, +60% 비용 (최적) |
 | **Frontend** | Framework | React 18 + TypeScript | 최신 기술, 타입 안정성 |
+| **Frontend** | 스타일링 | **Tailwind CSS** ⭐ | MUI→Tailwind 전환 (2026-01-25 결정) |
+| **Frontend** | AI 협업 | **Antigravity + Stitch MCP** ⭐ | UI 생성 자동화, 개발 속도 50-70% 향상 |
 | **Backend** | Framework | SpringBoot 3.x | 기업 표준, MSA |
 | **AI Service** | Framework | Python + FastAPI | LangChain 생태계 |
 | **Infra** | 플랫폼 | Docker Compose | K8s 대비 86% 비용 절감 (YAGNI) |
@@ -524,7 +529,8 @@ docs/
                                 │
 ┌───────────────────────────────▼─────────────────────────────────────────┐
 │                        Frontend (React)                                  │
-│                    React 18 + TypeScript + MUI                          │
+│              React 18 + TypeScript + Tailwind CSS ⭐                     │
+│              (MUI → Tailwind 전환 중, Antigravity + Stitch MCP 협업)     │
 └───────────────────────────────┬─────────────────────────────────────────┘
                                 │
 ┌───────────────────────────────▼─────────────────────────────────────────┐
@@ -688,6 +694,89 @@ CI/CD Pipeline (GitHub Actions)
 
 ---
 
+## Frontend Migration Plan (MUI → Tailwind)
+
+### 결정 사항 (2026-01-25)
+
+```
+옵션 B 선택: Tailwind 도입 + Antigravity 협업 + Stitch MCP 연동
+```
+
+### 도입 배경
+
+| 항목 | 현재 | 변경 후 | 기대 효과 |
+|------|------|---------|----------|
+| **UI 라이브러리** | MUI v6.1.6 | Tailwind CSS | 번들 크기 감소 |
+| **스타일링** | Emotion (CSS-in-JS) | 유틸리티 클래스 | 빠른 개발 |
+| **AI 협업** | 수동 코딩 | Stitch MCP 자동 생성 | 50-70% 시간 단축 |
+| **디자인 시스템** | Material Design | 커스텀 | 브랜드 자유도 |
+
+### 협업 워크플로우
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                Claude Code × Antigravity 협업 워크플로우                 │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  [Phase 1: Web Design]     ──→  Antigravity + Stitch MCP                │
+│        ↓                        (UI 디자인, 프로토타입 생성)             │
+│  [Phase 2: Web Coding]     ──→  Antigravity → Claude Code 검증          │
+│        ↓                        (HTML/CSS, 접근성 검토)                  │
+│  [Phase 3: React Coding]   ──→  Claude Code (주도)                      │
+│        ↓                        (컴포넌트, 비즈니스 로직)                │
+│  [Phase 4: UI Test]        ──→  Claude Code                             │
+│                                 (단위 테스트, 스냅샷 테스트)             │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 마이그레이션 일정
+
+| Phase | 기간 | 작업 | 상태 |
+|-------|------|------|------|
+| Phase 1 | 1주 | 환경 설정, AI 도구 연동 | 🔜 예정 |
+| Phase 2 | 2-3주 | 신규 컴포넌트 Tailwind 개발 | 🔜 예정 |
+| Phase 3 | 4-6주 | 기존 10개 컴포넌트 전환 | 🔜 예정 |
+| Phase 4 | 1주 | MUI 제거, 검증 | 🔜 예정 |
+
+### 영향받는 파일 (10개)
+
+| 파일 | 영향도 | 전환 순서 |
+|------|--------|----------|
+| `MainLayout.tsx` | 🟡 중간 | 1 |
+| `Header.tsx` | 🔴 높음 | 2 |
+| `Sidebar.tsx` | 🔴 높음 | 3 |
+| `SearchPage.tsx` | 🟢 낮음 | 4 |
+| `DashboardPage.tsx` | 🟡 중간 | 5 |
+| `ChatSearch.tsx` | 🔴 높음 | 6 |
+| `KeywordSearch.tsx` | 🔴 높음 | 7 |
+| `SearchFilters.tsx` | 🔴 높음 | 8 |
+| `KnowledgePage.tsx` | 🟡 중간 | 9 |
+| `NotFoundPage.tsx` | 🟢 낮음 | 10 |
+
+### 추가 패키지
+
+```diff
+# 제거 예정
+- @mui/material, @mui/icons-material
+- @emotion/react, @emotion/styled
+
+# 추가 예정
++ tailwindcss, postcss, autoprefixer
++ @headlessui/react
++ @heroicons/react
++ clsx, tailwind-merge
+```
+
+### 관련 문서
+
+- [04.Tailwind_Antigravity_Stitch_도입_영향도_분석.md](./docs/technical_assessment/Guides/04.Tailwind_Antigravity_Stitch_도입_영향도_분석.md)
+- [검토결과_MUI_vs_Tailwind_비교분석.md](./docs/technical_assessment/Guides/검토결과_MUI_vs_Tailwind_비교분석.md)
+- [03.Stitch_MCP_Antigravity_도입_영향도_분석.md](./docs/technical_assessment/Guides/03.Stitch_MCP_Antigravity_도입_영향도_분석.md)
+
+---
+
+
 ## Blockers / Issues
 
 현재 블로커 없음.
@@ -695,6 +784,25 @@ CI/CD Pipeline (GitHub Actions)
 ---
 
 ## Session Notes
+
+### 2026-01-25 (Frontend 전략 변경 - Tailwind + Antigravity + Stitch MCP)
+- **Frontend 스타일링 전략 변경 결정**
+  - MUI → Tailwind CSS 전환 결정
+  - Antigravity + Stitch MCP 협업 도입
+  - Claude Code와 역할 분담 워크플로우 정립
+- **영향도 분석 문서 작성**
+  - MUI vs Tailwind 비교 분석
+  - Stitch MCP & Antigravity 도입 영향도 분석
+  - 10개 컴포넌트 전환 계획 (8-11주 예상)
+- **PLAN.md 업데이트**
+  - Key Decisions에 Frontend 스타일링/AI 협업 추가
+  - Architecture Overview에 Tailwind 반영
+  - Frontend Migration Plan 섹션 신규 추가
+- **산출물**
+  - `03.Stitch_MCP_Antigravity_도입_영향도_분석.md`
+  - `04.Tailwind_Antigravity_Stitch_도입_영향도_분석.md`
+  - `검토결과_MUI_vs_Tailwind_비교분석.md`
+
 
 ### 2026-01-20 Night (Slack 메시지 표준화 및 문서 현행화)
 - **Slack 메시지 표준화 스크립트 개발**
@@ -801,8 +909,13 @@ CI/CD Pipeline (GitHub Actions)
   - EPIC-001 Document Processing (34 Story Points)
   - 6개 User Story (STORY-001~006)
   - Sprint 1 (19 pts) + Sprint 2 (15 pts) 계획
-- **9개 Agent 정의 파일 생성** (`.claude/agents/`)
-  - PM, TechLead, Backend, Frontend, MLRag, Data, QA, DevOps, Infra
+- **12개 Agent 정의 파일 생성** (`.claude/agents/`)
+  - 관리: project-manager (pm), tech-lead (tl)
+  - 개발: backend-developer, frontend-developer, rag-engineer (rag)
+  - 데이터: etl-engineer (etl), database-designer (db)
+  - 품질: qa-engineer (qa), code-documenter (doc)
+  - 디자인: web-designer (web)
+  - 인프라: devops-engineer, infra-engineer
   - 모든 Agent: claude-opus-4-5-20251101 모델
   - 역할별 권한 분리 (읽기 전용/쓰기 권한)
 - **Claude Code 가상팀 ALM 완전가이드** (4개 문서)

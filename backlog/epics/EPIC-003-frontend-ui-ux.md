@@ -15,7 +15,10 @@
 
 ## 요약
 
-React 18 + Material UI 기반의 지식 검색 플랫폼 프론트엔드 구현. Keycloak 연동 인증, 대시보드, 채팅 모드 검색, SSE 스트리밍 응답 등 핵심 UI 컴포넌트 개발.
+React 18 + **Tailwind CSS** 기반의 지식 검색 플랫폼 프론트엔드 구현. Keycloak 연동 인증, 대시보드, 채팅 모드 검색, SSE 스트리밍 응답 등 핵심 UI 컴포넌트 개발.
+
+> **전환 공지** (2026-01-25): MUI에서 Tailwind CSS + Headless UI로 전환 결정.
+> 마이그레이션 가이드: [MUI to Tailwind 마이그레이션 가이드](../../knowledge_service/docs/05_development/mui_to_tailwind_migration.md)
 
 ---
 
@@ -89,14 +92,16 @@ React 18 + Material UI 기반의 지식 검색 플랫폼 프론트엔드 구현.
 ## 기술 요구사항
 
 ### 기술 스택
-| 구성요소 | 기술 | 버전 |
-|----------|------|------|
-| Framework | React | 18.x |
-| Build Tool | Vite | 5.x |
-| UI Library | Material UI | 5.x |
-| State | Zustand | 4.x |
-| Auth | Keycloak JS | 26.x |
-| Testing | Vitest + Playwright | Latest |
+| 구성요소 | 기술 | 버전 | 비고 |
+|----------|------|------|------|
+| Framework | React | 18.x | |
+| Build Tool | Vite | 5.x | |
+| **Styling** | **Tailwind CSS** | **3.4+** | **MUI에서 전환 (2026-01-25)** |
+| **UI Components** | **Headless UI** | **2.x** | **접근성 지원** |
+| **Icons** | **Heroicons** | **2.x** | **MUI Icons에서 전환** |
+| State | Zustand | 4.x | |
+| Auth | Keycloak JS | 26.x | |
+| Testing | Vitest + Playwright | Latest | |
 
 ### 페이지 구성
 | 페이지 | 경로 | 설명 |

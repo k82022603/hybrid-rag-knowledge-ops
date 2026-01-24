@@ -97,7 +97,12 @@
       "Bash(tail:*)",
       "Bash(head:*)",
       "Bash(cat:*)",
-      "Bash(git reset:*)"
+      "Bash(git reset:*)",
+      "WebFetch(domain:skills.sh)",
+      "Bash(tree:*)",
+      "Bash(gh api:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "mcp__ide__getDiagnostics"
     ]
   },
   "enabledMcpjsonServers": [

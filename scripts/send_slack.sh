@@ -48,7 +48,8 @@ fi
 
 CHANNEL_INPUT="$1"
 AGENT="$2"
-MESSAGE="$3"
+# 리터럴 \n을 실제 줄바꿈으로 변환
+MESSAGE=$(echo -e "$3")
 
 # 채널 단축어 변환 함수
 resolve_channel() {

@@ -50,6 +50,15 @@
 | `/workflows:full-review` | 종합 코드 리뷰 | 코드 품질 점검 |
 | `/workflows:incident-response` | 장애 대응 | 프로덕션 장애 |
 
+### Antigravity Commands (2개) - `/antigravity:명령어` (개인 실험용)
+
+> **주의**: ToS 위반 가능성 - 개인 실험/학습 용도로만 사용
+
+| 명령어 | 설명 | 활용 시나리오 |
+|--------|------|---------------|
+| `/antigravity:setup` | 초기 설정 가이드 | Antigravity Proxy 설정 |
+| `/antigravity:workflow` | UI 개발 워크플로우 | Stitch MCP 연동 UI 생성 |
+
 ## 사용 예시
 
 ### PM 백로그 관리
@@ -151,6 +160,59 @@
 
 ---
 
+---
+
+## Agent Skills (6개)
+
+Agent Skills는 Claude.ai, Claude Desktop, Claude Code **모든 플랫폼**에서 사용 가능합니다.
+
+### 설치된 Skills
+
+| 스킬명 | 설명 | 용도 |
+|--------|------|------|
+| **layered-architecture-enforcer** | 계층형 아키텍처 원칙 강제 | Controller→Service→Repository 패턴 준수 |
+| **rag-pipeline-patterns** | RAG 파이프라인 패턴 | Hybrid Search, RRF, RAGAS 품질 기준 |
+| **korean-api-documentation** | 한글 API 문서화 표준 | OpenAPI, Docstring, 에러 코드 문서화 |
+| **mermaid-diagrams** | Mermaid 다이어그램 표준 | flowchart, sequenceDiagram, stateDiagram |
+| **presentation-maker** | 프레젠테이션 생성 | Marp 기반 슬라이드 생성 |
+| **web-design-system** | UI/UX 디자인 시스템 | 색상, 타이포그래피, 컴포넌트 표준 |
+
+### Skills vs Commands 차이점
+
+| 항목 | Skills | Slash Commands |
+|------|--------|----------------|
+| **플랫폼** | 모든 Claude 플랫폼 | Claude Code만 |
+| **Hot-Reload** | 지원 (v2.1.0+) | 지원 |
+| **위치** | `.claude/skills/` | `.claude/commands/` |
+| **Context Fork** | 지원 | 미지원 |
+
+### Skills 파일 구조
+
+```
+.claude/skills/
+├── layered-architecture-enforcer/
+│   ├── SKILL.md
+│   └── README.md
+├── rag-pipeline-patterns/
+│   ├── SKILL.md
+│   └── README.md
+├── korean-api-documentation/
+│   ├── SKILL.md
+│   └── README.md
+├── mermaid-diagrams/
+│   ├── SKILL.md
+│   └── README.md
+├── presentation-maker/
+│   ├── SKILL.md
+│   └── README.md
+└── web-design-system/
+    ├── SKILL.md
+    └── README.md
+```
+
+---
+
 **설치일**: 2026-01-16
-**최종 업데이트**: 2026-01-20
-**총 명령어**: 26개 (Daily 5개 + Tools 13개 + PM 2개 + Workflows 6개)
+**최종 업데이트**: 2026-01-25
+**총 명령어**: 28개 (Daily 5개 + Tools 13개 + PM 2개 + Workflows 6개 + Antigravity 2개)
+**총 Skills**: 6개

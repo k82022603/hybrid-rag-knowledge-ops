@@ -132,10 +132,11 @@ addopts = "-v --tb=short --strict-markers"
 markers = [
     "unit: unit tests",
     "integration: integration tests",
-    "e2e: end-to-end tests",
+    "e2e: end-to-end tests - STORY-020",
     "slow: slow tests",
-    "infrastructure: Infrastructure layer tests (databases, monitoring) - SCRUM-20",
-    "application: Application layer tests (requires app containers) - SCRUM-20",
+    "infrastructure: Infrastructure layer tests (databases, monitoring) - STORY-020",
+    "application: Application layer tests (requires app containers) - STORY-020",
+    "keycloak: Keycloak authentication tests - STORY-020",
 ]
 
 [tool.mypy]

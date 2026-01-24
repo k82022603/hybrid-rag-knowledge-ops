@@ -15,6 +15,7 @@ export default defineConfig({
       '@/store': path.resolve(__dirname, './src/store'),
       '@/utils': path.resolve(__dirname, './src/utils'),
       '@/types': path.resolve(__dirname, './src/types'),
+      '@/auth': path.resolve(__dirname, './src/auth'),
     },
   },
   server: {
@@ -33,7 +34,8 @@ export default defineConfig({
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom', 'react-router-dom'],
-          mui: ['@mui/material', '@mui/icons-material'],
+          keycloak: ['keycloak-js'],
+          ui: ['@headlessui/react', '@heroicons/react'],
           redux: ['@reduxjs/toolkit', 'react-redux'],
         },
       },

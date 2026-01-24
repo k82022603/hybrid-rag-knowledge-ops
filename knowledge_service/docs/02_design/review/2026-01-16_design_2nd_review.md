@@ -1,5 +1,9 @@
 # 설계서 2차 종합 리뷰 보고서
 
+> ⚠️ **Update Notice (2026-01-25)**: 프론트엔드 기술 스택 변경
+> - MUI v5 → Tailwind CSS 3.4+ + Headless UI + Heroicons
+> - 참조: [04.Tailwind_Antigravity_Stitch_도입_영향도_분석.md](../../../../docs/technical_assessment/Guides/04.Tailwind_Antigravity_Stitch_도입_영향도_분석.md)
+
 ---
 
 ## 문서 정보

@@ -57,3 +57,35 @@ def sample_text() -> str:
 def sample_query() -> str:
     """테스트용 샘플 질의"""
     return "Hybrid RAG 플랫폼의 주요 기술은 무엇인가요?"
+
+
+@pytest.fixture
+def fixtures_dir():
+    """테스트 fixture 디렉토리 경로"""
+    from pathlib import Path
+
+    return Path(__file__).parent / "fixtures"
+
+
+@pytest.fixture
+def documents_dir(fixtures_dir):
+    """테스트 문서 fixture 디렉토리 경로"""
+    return fixtures_dir / "documents"
+
+
+@pytest.fixture
+def sample_markdown_path(documents_dir):
+    """샘플 Markdown 파일 경로"""
+    return documents_dir / "sample_markdown.md"
+
+
+@pytest.fixture
+def sample_text_path(documents_dir):
+    """샘플 텍스트 파일 경로"""
+    return documents_dir / "sample_text.txt"
+
+
+@pytest.fixture
+def sample_html_path(documents_dir):
+    """샘플 HTML 파일 경로"""
+    return documents_dir / "sample_html.html"

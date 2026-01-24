@@ -81,8 +81,11 @@ Sprint 2 완료 항목 (필수):
 
 ### Frontend
 - [ ] Keycloak JS Adapter 설치
-- [ ] Material UI 컴포넌트 라이브러리
+- [ ] **Tailwind CSS 설치 및 설정** (MUI 대체, 2026-01-25 결정)
+- [ ] **Headless UI 설치** (접근성 지원 컴포넌트)
+- [ ] **Heroicons 설치** (MUI Icons 대체)
 - [ ] Zustand 상태관리 설정
+- [ ] 마이그레이션 가이드 참조: [MUI to Tailwind](../../knowledge_service/docs/05_development/mui_to_tailwind_migration.md)
 
 ### 데이터
 - [ ] 초기 문서 수집 (~65개)

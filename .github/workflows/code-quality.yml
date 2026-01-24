@@ -1,0 +1,437 @@
+# =============================================================================
+# Code Quality Workflow - Linting, Formatting, and Static Analysis
+# =============================================================================
+# Trigger: PR on main/develop, push to develop
+# Purpose: Enforce code quality standards across all components
+# =============================================================================
+
+name: Code Quality
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [develop]
+
+concurrency:
+  group: code-quality-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.11'
+  JAVA_VERSION: '21'
+  NODE_VERSION: '20'
+
+jobs:
+  # =============================================================================
+  # Change Detection
+  # =============================================================================
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      python: ${{ steps.filter.outputs.python }}
+      java: ${{ steps.filter.outputs.java }}
+      typescript: ${{ steps.filter.outputs.typescript }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Path Filter
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            python:
+              - 'knowledge_service/src/**'
+              - 'knowledge_service/pyproject.toml'
+            java:
+              - 'knowledge_service/gateway/**'
+              - 'knowledge_service/backend/**'
+            typescript:
+              - 'knowledge_service/frontend/**'
+
+  # =============================================================================
+  # Python Code Quality - Black, isort, flake8, mypy, ruff
+  # =============================================================================
+  python-quality:
+    name: Python Quality
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: knowledge_service
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: 1.7.1
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+
+      - name: Cache Poetry dependencies
+        id: cached-poetry
+        uses: actions/cache@v4
+        with:
+          path: knowledge_service/.venv
+          key: venv-quality-${{ runner.os }}-${{ hashFiles('knowledge_service/poetry.lock') }}
+          restore-keys: |
+            venv-quality-${{ runner.os }}-
+
+      - name: Install Dependencies
+        if: steps.cached-poetry.outputs.cache-hit != 'true'
+        run: poetry install --no-interaction --no-root
+
+      - name: Install Project
+        run: poetry install --no-interaction
+
+      # Black - Code Formatting
+      - name: Black Check
+        id: black
+        run: |
+          echo "## Black (Code Formatting)" >> $GITHUB_STEP_SUMMARY
+          if poetry run black --check --diff src/; then
+            echo ":white_check_mark: All files properly formatted" >> $GITHUB_STEP_SUMMARY
+          else
+            echo ":x: Some files need formatting" >> $GITHUB_STEP_SUMMARY
+            echo "Run \`poetry run black src/\` to fix" >> $GITHUB_STEP_SUMMARY
+          fi
+        continue-on-error: true
+
+      # isort - Import Sorting
+      - name: isort Check
+        id: isort
+        run: |
+          echo "## isort (Import Sorting)" >> $GITHUB_STEP_SUMMARY
+          if poetry run isort --check-only --diff src/; then
+            echo ":white_check_mark: All imports properly sorted" >> $GITHUB_STEP_SUMMARY
+          else
+            echo ":x: Some imports need sorting" >> $GITHUB_STEP_SUMMARY
+            echo "Run \`poetry run isort src/\` to fix" >> $GITHUB_STEP_SUMMARY
+          fi
+        continue-on-error: true
+
+      # Ruff - Fast Linter (replaces flake8)
+      - name: Ruff Check
+        id: ruff
+        run: |
+          echo "## Ruff (Linting)" >> $GITHUB_STEP_SUMMARY
+          poetry run ruff check src/ --output-format=github || true
+          poetry run ruff check src/ --statistics >> $GITHUB_STEP_SUMMARY 2>&1 || true
+        continue-on-error: true
+
+      # Ruff Format Check
+      - name: Ruff Format Check
+        id: ruff-format
+        run: |
+          echo "## Ruff Format" >> $GITHUB_STEP_SUMMARY
+          if poetry run ruff format --check src/; then
+            echo ":white_check_mark: All files properly formatted (ruff)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo ":warning: Some files could be formatted better" >> $GITHUB_STEP_SUMMARY
+          fi
+        continue-on-error: true
+
+      # flake8 - Linting (fallback)
+      - name: flake8 Check
+        id: flake8
+        run: |
+          echo "## flake8 (Linting)" >> $GITHUB_STEP_SUMMARY
+          poetry run flake8 src/ --count --statistics --show-source || true
+        continue-on-error: true
+
+      # mypy - Type Checking
+      - name: mypy Check
+        id: mypy
+        run: |
+          echo "## mypy (Type Checking)" >> $GITHUB_STEP_SUMMARY
+          poetry run mypy src/ --ignore-missing-imports --no-error-summary 2>&1 | head -50 >> $GITHUB_STEP_SUMMARY || true
+        continue-on-error: true
+
+      # Summary
+      - name: Quality Summary
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "### Quick Fix Commands" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "cd knowledge_service" >> $GITHUB_STEP_SUMMARY
+          echo "poetry run black src/" >> $GITHUB_STEP_SUMMARY
+          echo "poetry run isort src/" >> $GITHUB_STEP_SUMMARY
+          echo "poetry run ruff check src/ --fix" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  # =============================================================================
+  # Java Code Quality - Checkstyle, SpotBugs, PMD
+  # =============================================================================
+  java-quality:
+    name: Java Quality
+    needs: changes
+    if: needs.changes.outputs.java == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: 'gradle'
+
+      # Gateway Quality Checks
+      - name: Gateway - Grant execute permission
+        run: chmod +x knowledge_service/gateway/gradlew
+
+      - name: Gateway - Create Checkstyle Config (if not exists)
+        run: |
+          mkdir -p knowledge_service/gateway/config/checkstyle
+          if [ ! -f "knowledge_service/gateway/config/checkstyle/checkstyle.xml" ]; then
+            cat > knowledge_service/gateway/config/checkstyle/checkstyle.xml << 'EOF'
+          <?xml version="1.0"?>
+          <!DOCTYPE module PUBLIC
+              "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+              "https://checkstyle.org/dtds/configuration_1_3.dtd">
+          <module name="Checker">
+              <property name="severity" value="warning"/>
+              <property name="fileExtensions" value="java"/>
+
+              <module name="TreeWalker">
+                  <!-- Naming Conventions -->
+                  <module name="ConstantName"/>
+                  <module name="LocalFinalVariableName"/>
+                  <module name="LocalVariableName"/>
+                  <module name="MemberName"/>
+                  <module name="MethodName"/>
+                  <module name="PackageName"/>
+                  <module name="ParameterName"/>
+                  <module name="StaticVariableName"/>
+                  <module name="TypeName"/>
+
+                  <!-- Imports -->
+                  <module name="AvoidStarImport"/>
+                  <module name="IllegalImport"/>
+                  <module name="RedundantImport"/>
+                  <module name="UnusedImports"/>
+
+                  <!-- Size Violations -->
+                  <module name="LineLength">
+                      <property name="max" value="150"/>
+                  </module>
+                  <module name="MethodLength"/>
+                  <module name="ParameterNumber"/>
+
+                  <!-- Whitespace -->
+                  <module name="EmptyForIteratorPad"/>
+                  <module name="GenericWhitespace"/>
+                  <module name="MethodParamPad"/>
+                  <module name="NoWhitespaceAfter"/>
+                  <module name="NoWhitespaceBefore"/>
+                  <module name="ParenPad"/>
+                  <module name="TypecastParenPad"/>
+                  <module name="WhitespaceAfter"/>
+                  <module name="WhitespaceAround"/>
+
+                  <!-- Coding -->
+                  <module name="EmptyStatement"/>
+                  <module name="EqualsHashCode"/>
+                  <module name="IllegalInstantiation"/>
+                  <module name="SimplifyBooleanExpression"/>
+                  <module name="SimplifyBooleanReturn"/>
+              </module>
+
+              <!-- File Length -->
+              <module name="FileLength"/>
+
+              <!-- Line endings -->
+              <module name="NewlineAtEndOfFile">
+                  <property name="lineSeparator" value="lf"/>
+              </module>
+          </module>
+          EOF
+          fi
+
+      - name: Gateway - Checkstyle
+        id: gateway-checkstyle
+        working-directory: knowledge_service/gateway
+        run: |
+          echo "## Gateway - Checkstyle" >> $GITHUB_STEP_SUMMARY
+          # Add checkstyle plugin if not present in build.gradle
+          if ! grep -q "checkstyle" build.gradle; then
+            echo "::warning::Checkstyle plugin not configured in gateway/build.gradle"
+            echo ":warning: Checkstyle plugin not configured" >> $GITHUB_STEP_SUMMARY
+          else
+            ./gradlew checkstyleMain checkstyleTest --no-daemon --continue || true
+          fi
+        continue-on-error: true
+
+      - name: Gateway - SpotBugs
+        id: gateway-spotbugs
+        working-directory: knowledge_service/gateway
+        run: |
+          echo "## Gateway - SpotBugs" >> $GITHUB_STEP_SUMMARY
+          if grep -q "spotbugs" build.gradle; then
+            ./gradlew spotbugsMain --no-daemon --continue || true
+          else
+            echo ":information_source: SpotBugs plugin not configured" >> $GITHUB_STEP_SUMMARY
+          fi
+        continue-on-error: true
+
+      - name: Gateway - Compile Check
+        working-directory: knowledge_service/gateway
+        run: |
+          echo "## Gateway - Compile Check" >> $GITHUB_STEP_SUMMARY
+          if ./gradlew compileJava --no-daemon; then
+            echo ":white_check_mark: Compilation successful" >> $GITHUB_STEP_SUMMARY
+          else
+            echo ":x: Compilation failed" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      # Backend Quality Checks (if exists)
+      - name: Backend - Check if exists
+        id: backend-check
+        run: |
+          if [ -f "knowledge_service/backend/gradlew" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Backend - Grant execute permission
+        if: steps.backend-check.outputs.exists == 'true'
+        run: chmod +x knowledge_service/backend/gradlew
+
+      - name: Backend - Compile Check
+        if: steps.backend-check.outputs.exists == 'true'
+        working-directory: knowledge_service/backend
+        run: |
+          echo "## Backend - Compile Check" >> $GITHUB_STEP_SUMMARY
+          if ./gradlew compileJava --no-daemon; then
+            echo ":white_check_mark: Compilation successful" >> $GITHUB_STEP_SUMMARY
+          else
+            echo ":x: Compilation failed" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      - name: Upload Checkstyle Reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: java-quality-reports
+          path: |
+            knowledge_service/gateway/build/reports/checkstyle/
+            knowledge_service/gateway/build/reports/spotbugs/
+            knowledge_service/backend/build/reports/checkstyle/
+            knowledge_service/backend/build/reports/spotbugs/
+          retention-days: 7
+        continue-on-error: true
+
+  # =============================================================================
+  # TypeScript Code Quality - ESLint, Prettier
+  # =============================================================================
+  typescript-quality:
+    name: TypeScript Quality
+    needs: changes
+    if: needs.changes.outputs.typescript == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: knowledge_service/frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: knowledge_service/frontend/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      # ESLint
+      - name: ESLint Check
+        id: eslint
+        run: |
+          echo "## ESLint (Linting)" >> $GITHUB_STEP_SUMMARY
+          npm run lint 2>&1 | head -100 >> $GITHUB_STEP_SUMMARY || true
+          npm run lint --if-present
+        continue-on-error: true
+
+      # Prettier
+      - name: Prettier Check
+        id: prettier
+        run: |
+          echo "## Prettier (Formatting)" >> $GITHUB_STEP_SUMMARY
+          if npm run format:check; then
+            echo ":white_check_mark: All files properly formatted" >> $GITHUB_STEP_SUMMARY
+          else
+            echo ":x: Some files need formatting" >> $GITHUB_STEP_SUMMARY
+            echo "Run \`npm run format\` to fix" >> $GITHUB_STEP_SUMMARY
+          fi
+        continue-on-error: true
+
+      # TypeScript Type Check
+      - name: TypeScript Check
+        id: typescript
+        run: |
+          echo "## TypeScript (Type Checking)" >> $GITHUB_STEP_SUMMARY
+          if npx tsc --noEmit 2>&1 | head -50 >> $GITHUB_STEP_SUMMARY; then
+            echo ":white_check_mark: No type errors" >> $GITHUB_STEP_SUMMARY
+          else
+            echo ":warning: Type errors found (see above)" >> $GITHUB_STEP_SUMMARY
+          fi
+        continue-on-error: true
+
+      # Summary
+      - name: Quality Summary
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "### Quick Fix Commands" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "cd knowledge_service/frontend" >> $GITHUB_STEP_SUMMARY
+          echo "npm run lint:fix" >> $GITHUB_STEP_SUMMARY
+          echo "npm run format" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  # =============================================================================
+  # Code Quality Summary
+  # =============================================================================
+  quality-summary:
+    name: Quality Summary
+    needs: [changes, python-quality, java-quality, typescript-quality]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Summary
+        run: |
+          echo "## Code Quality Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Language | Changes Detected | Quality Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-----------------|----------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Python | ${{ needs.changes.outputs.python }} | ${{ needs.python-quality.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Java | ${{ needs.changes.outputs.java }} | ${{ needs.java-quality.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| TypeScript | ${{ needs.changes.outputs.typescript }} | ${{ needs.typescript-quality.result || 'skipped' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Note: We don't fail the build for quality issues (continue-on-error: true)
+          # This allows gradual adoption of quality standards
+          echo ":information_source: **Note**: Quality checks are advisory and do not block PR merge." >> $GITHUB_STEP_SUMMARY
+          echo "Consider fixing reported issues to maintain code quality." >> $GITHUB_STEP_SUMMARY

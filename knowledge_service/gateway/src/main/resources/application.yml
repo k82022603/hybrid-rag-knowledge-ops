@@ -30,7 +30,111 @@ spring:
             maxAge: 3600
 
       routes:
-        # Backend Service Routes
+        # ==============================================
+        # Knowledge Service Routes (/api/v1/knowledge/**)
+        # ==============================================
+        - id: knowledge-service
+          uri: ${BACKEND_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/v1/knowledge/**
+          filters:
+            - TokenRelay=
+            - name: CircuitBreaker
+              args:
+                name: knowledge-circuit-breaker
+                fallbackUri: forward:/fallback/knowledge
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 50
+                redis-rate-limiter.burstCapacity: 100
+                redis-rate-limiter.requestedTokens: 1
+
+        # ==============================================
+        # Search Service Routes (/api/v1/search/**)
+        # Streaming search to AI Service
+        # ==============================================
+        - id: search-service-stream
+          uri: ${AI_SERVICE_URL:http://localhost:8000}
+          predicates:
+            - Path=/api/v1/search/stream/**
+          filters:
+            - TokenRelay=
+            - name: CircuitBreaker
+              args:
+                name: ai-service-circuit-breaker
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                redis-rate-limiter.requestedTokens: 2
+
+        # Regular search to AI Service
+        - id: search-service
+          uri: ${AI_SERVICE_URL:http://localhost:8000}
+          predicates:
+            - Path=/api/v1/search/**
+          filters:
+            - TokenRelay=
+            - name: CircuitBreaker
+              args:
+                name: ai-service-circuit-breaker
+                fallbackUri: forward:/fallback/ai-service
+            - name: Retry
+              args:
+                retries: 2
+                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT
+                methods: GET,POST
+                backoff:
+                  firstBackoff: 200ms
+                  maxBackoff: 1000ms
+                  factor: 2
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 60
+                redis-rate-limiter.requestedTokens: 1
+
+        # ==============================================
+        # User Service Routes (/api/v1/users/**)
+        # ==============================================
+        - id: user-service
+          uri: ${BACKEND_URL:http://localhost:8081}
+          predicates:
+            - Path=/api/v1/users/**
+          filters:
+            - TokenRelay=
+            - name: CircuitBreaker
+              args:
+                name: user-circuit-breaker
+                fallbackUri: forward:/fallback/user
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT
+                methods: GET
+                backoff:
+                  firstBackoff: 100ms
+                  maxBackoff: 500ms
+                  factor: 2
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 100
+                redis-rate-limiter.burstCapacity: 200
+                redis-rate-limiter.requestedTokens: 1
+
+        # ==============================================
+        # Backend API Routes (/api/v1/**)
+        # Catch-all for other backend endpoints
+        # ==============================================
         - id: backend-api
           uri: ${BACKEND_URL:http://localhost:8081}
           predicates:
@@ -56,18 +160,35 @@ spring:
                 redis-rate-limiter.burstCapacity: 100
                 redis-rate-limiter.requestedTokens: 1
 
-        # AI Service Routes (Streaming)
-        - id: ai-service-stream
+        # ==============================================
+        # Internal API Routes (/internal/v1/**)
+        # AI Service internal endpoints
+        # ==============================================
+        - id: internal-ai-service
           uri: ${AI_SERVICE_URL:http://localhost:8000}
           predicates:
-            - Path=/api/v1/search/stream/**
+            - Path=/internal/v1/**
           filters:
             - TokenRelay=
             - name: CircuitBreaker
               args:
                 name: ai-service-circuit-breaker
+                fallbackUri: forward:/fallback/ai-service
+            - name: Retry
+              args:
+                retries: 2
+                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT
+                methods: GET,POST
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                redis-rate-limiter.requestedTokens: 1
 
-        # AI Service Routes (Regular)
+        # ==============================================
+        # AI Service Direct Routes (/ai/**)
+        # Legacy AI service endpoints
+        # ==============================================
         - id: ai-service
           uri: ${AI_SERVICE_URL:http://localhost:8000}
           predicates:
@@ -85,7 +206,9 @@ spring:
                 statuses: BAD_GATEWAY,GATEWAY_TIMEOUT
                 methods: GET,POST
 
-        # Keycloak Auth Routes
+        # ==============================================
+        # Keycloak Auth Routes (/auth/**)
+        # ==============================================
         - id: keycloak
           uri: ${KEYCLOAK_URL:http://localhost:8180}
           predicates:
@@ -139,20 +262,38 @@ resilience4j:
         permitted-number-of-calls-in-half-open-state: 3
         wait-duration-in-open-state: 5s
         failure-rate-threshold: 50
+        slow-call-duration-threshold: 2s
+        slow-call-rate-threshold: 50
+      ai-config:
+        register-health-indicator: true
+        sliding-window-size: 5
+        permitted-number-of-calls-in-half-open-state: 2
+        wait-duration-in-open-state: 10s
+        failure-rate-threshold: 50
+        slow-call-duration-threshold: 5s
+        slow-call-rate-threshold: 80
     instances:
       backend-circuit-breaker:
         base-config: default
-      ai-service-circuit-breaker:
+      knowledge-circuit-breaker:
         base-config: default
-        sliding-window-size: 5
-        wait-duration-in-open-state: 10s
+      user-circuit-breaker:
+        base-config: default
+      ai-service-circuit-breaker:
+        base-config: ai-config
   timelimiter:
     configs:
       default:
         timeout-duration: 30s
+      ai-timeout:
+        timeout-duration: 60s
     instances:
       backend-circuit-breaker:
         timeout-duration: 30s
+      knowledge-circuit-breaker:
+        timeout-duration: 30s
+      user-circuit-breaker:
+        timeout-duration: 15s
       ai-service-circuit-breaker:
         timeout-duration: 60s
 
@@ -191,6 +332,89 @@ spring:
             allowCredentials: true
 
       routes:
+        # Knowledge Service (Docker)
+        - id: knowledge-service
+          uri: http://backend:8081
+          predicates:
+            - Path=/api/v1/knowledge/**
+          filters:
+            - TokenRelay=
+            - name: CircuitBreaker
+              args:
+                name: knowledge-circuit-breaker
+                fallbackUri: forward:/fallback/knowledge
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT
+                methods: GET
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 50
+                redis-rate-limiter.burstCapacity: 100
+                redis-rate-limiter.requestedTokens: 1
+
+        # Search Service Stream (Docker)
+        - id: search-service-stream
+          uri: http://ai-service:8000
+          predicates:
+            - Path=/api/v1/search/stream/**
+          filters:
+            - TokenRelay=
+            - name: CircuitBreaker
+              args:
+                name: ai-service-circuit-breaker
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 20
+                redis-rate-limiter.burstCapacity: 40
+                redis-rate-limiter.requestedTokens: 2
+
+        # Search Service (Docker)
+        - id: search-service
+          uri: http://ai-service:8000
+          predicates:
+            - Path=/api/v1/search/**
+          filters:
+            - TokenRelay=
+            - name: CircuitBreaker
+              args:
+                name: ai-service-circuit-breaker
+                fallbackUri: forward:/fallback/ai-service
+            - name: Retry
+              args:
+                retries: 2
+                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT
+                methods: GET,POST
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 60
+                redis-rate-limiter.requestedTokens: 1
+
+        # User Service (Docker)
+        - id: user-service
+          uri: http://backend:8081
+          predicates:
+            - Path=/api/v1/users/**
+          filters:
+            - TokenRelay=
+            - name: CircuitBreaker
+              args:
+                name: user-circuit-breaker
+                fallbackUri: forward:/fallback/user
+            - name: Retry
+              args:
+                retries: 3
+                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT
+                methods: GET
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 100
+                redis-rate-limiter.burstCapacity: 200
+                redis-rate-limiter.requestedTokens: 1
+
+        # Backend API (Docker)
         - id: backend-api
           uri: http://backend:8081
           predicates:
@@ -212,16 +436,29 @@ spring:
                 redis-rate-limiter.burstCapacity: 100
                 redis-rate-limiter.requestedTokens: 1
 
-        - id: ai-service-stream
+        # Internal AI Service (Docker)
+        - id: internal-ai-service
           uri: http://ai-service:8000
           predicates:
-            - Path=/api/v1/search/stream/**
+            - Path=/internal/v1/**
           filters:
             - TokenRelay=
             - name: CircuitBreaker
               args:
                 name: ai-service-circuit-breaker
+                fallbackUri: forward:/fallback/ai-service
+            - name: Retry
+              args:
+                retries: 2
+                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT
+                methods: GET,POST
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                redis-rate-limiter.requestedTokens: 1
 
+        # AI Service (Docker)
         - id: ai-service
           uri: http://ai-service:8000
           predicates:
@@ -234,6 +471,7 @@ spring:
                 name: ai-service-circuit-breaker
                 fallbackUri: forward:/fallback/ai-service
 
+        # Keycloak (Docker)
         - id: keycloak
           uri: http://keycloak:8080
           predicates:

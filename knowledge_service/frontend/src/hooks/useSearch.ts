@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { searchService, SearchQuery, SearchResponse } from '@/services/searchService';
+import { searchService, type SearchQuery } from '@/services/searchService';
 
 /**
  * useSearch - 검색 기능 커스텀 훅

@@ -2,7 +2,7 @@
 
 🤖 Hybrid RAG Knowledge Operations 프로젝트 개발 규칙
 
-**Version**: 2.12 | **Updated**: 2026-01-22
+**Version**: 2.16 | **Updated**: 2026-01-25
 
 ---
 
@@ -243,6 +243,39 @@ flowchart LR
 
 ---
 
+## 🤖 클로드 Slack 알림 규칙
+
+**클로드**는 메인 에이전트로서 작업 시작/완료 시 Slack 알림을 보냅니다.
+
+### 알림 시점
+| 시점 | 채널 | 필수 여부 |
+|------|------|----------|
+| 작업 시작 | `proj-hrkp-dev` | ✅ 필수 |
+| 작업 완료 | `proj-hrkp-dev` | ✅ 필수 |
+| 중요 이벤트 | `proj-hrkp-dev` | ✅ 필수 |
+
+### 메시지 형식
+```bash
+# 작업 시작 시
+./scripts/send_slack.sh proj-hrkp-dev 클로드 "작업 시작: {작업명}"
+
+# 작업 완료 시
+./scripts/send_slack.sh proj-hrkp-dev 클로드 "작업 완료: {작업명} - {결과 요약}"
+
+# 중요 이벤트 발생 시
+./scripts/send_slack.sh proj-hrkp-dev 클로드 "EVENT: {이벤트 내용}"
+```
+
+### 중요 이벤트 목록
+| 이벤트 유형 | 예시 |
+|------------|------|
+| 에이전트 생성/수정 | 새 에이전트 추가, 에이전트 설정 변경 |
+| 문서 현행화 | CLAUDE.md, README.md, PLAN.md 업데이트 |
+| 설정 변경 | 프로젝트 설정, 환경 설정 변경 |
+| 일일 마무리 | `/daily:daily-close` 실행 |
+
+---
+
 ## 🌿 브랜치 전략
 
 | 브랜치 | 용도 |
@@ -251,6 +284,85 @@ flowchart LR
 | `develop` | 개발 통합 |
 | `feature/*` | 기능 개발 |
 | `fix/*` | 버그 수정 |
+
+---
+
+## 🤖 AI 에이전트 목록 (12개)
+
+프로젝트 특화 에이전트들이 `.claude/agents/`에 정의되어 있습니다.
+
+| 파일명 | 약어 | 역할 |
+|--------|------|------|
+| `project-manager.md` | **(pm)** | Sprint/Jira/Slack 관리 |
+| `tech-lead.md` | **(tl)** | 아키텍처 검토, 코드 리뷰 |
+| `backend-developer.md` | **(backend)** | SpringBoot API Gateway |
+| `frontend-developer.md` | **(frontend)** | React 18 UI |
+| `rag-engineer.md` | **(rag)** | RAG 파이프라인, AI Service |
+| `etl-engineer.md` | **(etl)** | ETL 파이프라인, 데이터 품질 |
+| `database-designer.md` | **(db)** | DB 스키마 설계, 쿼리 최적화 |
+| `infra-engineer.md` | **(infra)** | Docker Compose 인프라 |
+| `devops-engineer.md` | **(devops)** | CI/CD, Observability |
+| `qa-engineer.md` | **(qa)** | 테스트, RAGAS 평가 |
+| `code-documenter.md` | **(doc)** | API/코드 문서화 |
+| `web-designer.md` | **(web)** | UI/UX 설계 |
+
+### 역할 구분 매트릭스 (혼동 방지)
+
+#### 🔹 관리 역할
+| 구분 | project-manager (pm) | tech-lead (tl) |
+|------|---------------------|----------------|
+| **관점** | 프로젝트 관리 | 기술 관리 |
+| **핵심** | Sprint 관리, 작업 할당 | 아키텍처 검토, 코드 리뷰 |
+| **도구** | Jira, Slack, 백로그 | 설계서, PR 리뷰 |
+| **산출물** | 스프린트 계획, 상태 보고 | ADR, 리뷰 피드백 |
+
+#### 🔹 백엔드/AI 역할
+| 구분 | backend-developer | rag-engineer (rag) |
+|------|-------------------|-------------------|
+| **언어** | Java/Kotlin (SpringBoot) | Python (FastAPI) |
+| **핵심** | API Gateway, 비즈니스 로직 | RAG 파이프라인, AI 서비스 |
+| **통합** | Keycloak, Resilience4j | LangGraph, DeepSeek |
+| **작업 공간** | `backend/`, `gateway/` | `ai_service/`, `knowledge_service/` |
+
+#### 🔹 데이터 역할
+| 구분 | etl-engineer (etl) | database-designer (db) |
+|------|-------------------|----------------------|
+| **관점** | 데이터 **흐름** | 데이터 **구조** |
+| **핵심** | ETL 파이프라인, KG 운영 | 스키마 설계, 쿼리 최적화 |
+| **작업** | 문서 파싱, 임베딩, 동기화 | 테이블/인덱스 설계, EXPLAIN |
+| **산출물** | 파이프라인 코드, 품질 리포트 | ERD, DDL, 쿼리 튜닝 보고서 |
+
+#### 🔹 인프라 역할
+| 구분 | infra-engineer (infra) | devops-engineer (devops) |
+|------|----------------------|------------------------|
+| **관점** | 환경 **구축** | **운영** 자동화 |
+| **핵심** | Docker Compose 설정 | CI/CD, Observability |
+| **작업** | 컨테이너 구성, 네트워크 | GitHub Actions, 모니터링 |
+| **산출물** | docker-compose.yml | workflow.yml, 대시보드 |
+
+#### 🔹 UI/UX 역할 (Antigravity 협업)
+
+> **2026-01-25 업데이트**: Tailwind CSS + Antigravity + Stitch MCP 도입으로 역할 변경
+
+| 구분 | frontend-developer | web-designer (web) |
+|------|-------------------|--------------------|
+| **관점** | **구현 + 검증** | **AI 디자인 디렉션** |
+| **핵심** | Antigravity 코드 통합, 품질 검증 | 프롬프트 설계, 결과 검토 |
+| **도구** | React, Tailwind, Headless UI | Antigravity, Stitch MCP |
+| **산출물** | 검증된 컴포넌트, 테스트 | 프롬프트, 디자인 가이드 |
+
+**협업 워크플로우**:
+```
+WebDesigner(프롬프트) → Antigravity(생성) → Frontend(통합/검증) → TechLead(리뷰)
+```
+
+#### 🔹 문서화 역할
+| 구분 | code-documenter (doc) | tech-lead (tl) |
+|------|----------------------|----------------|
+| **관점** | 기술 **문서** 작성 | 기술 **검토** |
+| **핵심** | API/코드 문서화 | 설계서 검토, 피드백 |
+| **작업** | OpenAPI, JSDoc, 다이어그램 | 일관성 검증, ADR |
+| **산출물** | API 문서, README | 리뷰 코멘트, 승인 |
 
 ---
 

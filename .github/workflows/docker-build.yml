@@ -1,0 +1,384 @@
+# =============================================================================
+# Docker Build Workflow - Docker Image Build and Push
+# =============================================================================
+# Trigger: Push to main/develop, tags, or manual dispatch
+# Purpose: Build multi-architecture Docker images and push to registry
+# =============================================================================
+
+name: Docker Build
+
+on:
+  push:
+    branches: [main, develop]
+    tags:
+      - 'v*'
+    paths:
+      - 'knowledge_service/**'
+      - 'infrastructure/docker/**'
+      - 'Dockerfile*'
+      - '.github/workflows/docker-build.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'knowledge_service/**'
+      - 'infrastructure/docker/**'
+      - 'Dockerfile*'
+  workflow_dispatch:
+    inputs:
+      push_images:
+        description: 'Push images to registry'
+        required: true
+        default: false
+        type: boolean
+      platform:
+        description: 'Build platform'
+        required: true
+        default: 'linux/amd64'
+        type: choice
+        options:
+          - linux/amd64
+          - linux/arm64
+          - linux/amd64,linux/arm64
+
+concurrency:
+  group: docker-build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/knowledge-platform
+
+jobs:
+  # =============================================================================
+  # Build knowledge_service (AI Service - Python)
+  # =============================================================================
+  build-ai-service:
+    name: Build AI Service
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Dockerfile exists
+        id: check
+        run: |
+          # Check for Dockerfile in order of preference
+          if [ -f "knowledge_service/Dockerfile" ]; then
+            echo "dockerfile=knowledge_service/Dockerfile" >> $GITHUB_OUTPUT
+            echo "context=knowledge_service" >> $GITHUB_OUTPUT
+            echo "exists=true" >> $GITHUB_OUTPUT
+          elif [ -f "infrastructure/docker/ai-service/Dockerfile" ]; then
+            echo "dockerfile=infrastructure/docker/ai-service/Dockerfile" >> $GITHUB_OUTPUT
+            echo "context=." >> $GITHUB_OUTPUT
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "::warning::No Dockerfile found for ai-service"
+          fi
+
+      - name: Set up QEMU
+        if: steps.check.outputs.exists == 'true'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        if: steps.check.outputs.exists == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        if: steps.check.outputs.exists == 'true' && github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        if: steps.check.outputs.exists == 'true'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/ai-service
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and Push
+        if: steps.check.outputs.exists == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ steps.check.outputs.context }}
+          file: ${{ steps.check.outputs.dockerfile }}
+          push: ${{ github.event_name != 'pull_request' && (github.event.inputs.push_images == 'true' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: ${{ github.event.inputs.platform || 'linux/amd64,linux/arm64' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
+            VERSION=${{ github.ref_name }}
+
+  # =============================================================================
+  # Build Gateway (Java/Spring Cloud Gateway)
+  # =============================================================================
+  build-gateway:
+    name: Build Gateway
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Dockerfile exists
+        id: check
+        run: |
+          if [ -f "knowledge_service/gateway/Dockerfile" ]; then
+            echo "dockerfile=knowledge_service/gateway/Dockerfile" >> $GITHUB_OUTPUT
+            echo "context=knowledge_service/gateway" >> $GITHUB_OUTPUT
+            echo "exists=true" >> $GITHUB_OUTPUT
+          elif [ -f "infrastructure/docker/gateway/Dockerfile" ]; then
+            echo "dockerfile=infrastructure/docker/gateway/Dockerfile" >> $GITHUB_OUTPUT
+            echo "context=knowledge_service/gateway" >> $GITHUB_OUTPUT
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "::warning::No Dockerfile found for gateway"
+          fi
+
+      - name: Set up QEMU
+        if: steps.check.outputs.exists == 'true'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        if: steps.check.outputs.exists == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        if: steps.check.outputs.exists == 'true' && github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        if: steps.check.outputs.exists == 'true'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/gateway
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and Push
+        if: steps.check.outputs.exists == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ steps.check.outputs.context }}
+          file: ${{ steps.check.outputs.dockerfile }}
+          push: ${{ github.event_name != 'pull_request' && (github.event.inputs.push_images == 'true' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: ${{ github.event.inputs.platform || 'linux/amd64,linux/arm64' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
+            VERSION=${{ github.ref_name }}
+
+  # =============================================================================
+  # Build Frontend (React/TypeScript)
+  # =============================================================================
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Dockerfile exists
+        id: check
+        run: |
+          if [ -f "knowledge_service/frontend/Dockerfile" ]; then
+            echo "dockerfile=knowledge_service/frontend/Dockerfile" >> $GITHUB_OUTPUT
+            echo "context=knowledge_service/frontend" >> $GITHUB_OUTPUT
+            echo "exists=true" >> $GITHUB_OUTPUT
+          elif [ -f "infrastructure/docker/frontend/Dockerfile" ]; then
+            echo "dockerfile=infrastructure/docker/frontend/Dockerfile" >> $GITHUB_OUTPUT
+            echo "context=knowledge_service/frontend" >> $GITHUB_OUTPUT
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "::warning::No Dockerfile found for frontend"
+          fi
+
+      - name: Set up QEMU
+        if: steps.check.outputs.exists == 'true'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        if: steps.check.outputs.exists == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        if: steps.check.outputs.exists == 'true' && github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        if: steps.check.outputs.exists == 'true'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/frontend
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and Push
+        if: steps.check.outputs.exists == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ steps.check.outputs.context }}
+          file: ${{ steps.check.outputs.dockerfile }}
+          push: ${{ github.event_name != 'pull_request' && (github.event.inputs.push_images == 'true' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: ${{ github.event.inputs.platform || 'linux/amd64,linux/arm64' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
+            VERSION=${{ github.ref_name }}
+            VITE_API_URL=/api
+
+  # =============================================================================
+  # Build Backend (if exists)
+  # =============================================================================
+  build-backend:
+    name: Build Backend
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Dockerfile exists
+        id: check
+        run: |
+          if [ -f "knowledge_service/backend/Dockerfile" ]; then
+            echo "dockerfile=knowledge_service/backend/Dockerfile" >> $GITHUB_OUTPUT
+            echo "context=knowledge_service/backend" >> $GITHUB_OUTPUT
+            echo "exists=true" >> $GITHUB_OUTPUT
+          elif [ -f "infrastructure/docker/backend/Dockerfile" ]; then
+            echo "dockerfile=infrastructure/docker/backend/Dockerfile" >> $GITHUB_OUTPUT
+            echo "context=knowledge_service/backend" >> $GITHUB_OUTPUT
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "::notice::No Dockerfile found for backend - skipping"
+          fi
+
+      - name: Set up QEMU
+        if: steps.check.outputs.exists == 'true'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        if: steps.check.outputs.exists == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        if: steps.check.outputs.exists == 'true' && github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        if: steps.check.outputs.exists == 'true'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/backend
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+
+      - name: Build and Push
+        if: steps.check.outputs.exists == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ steps.check.outputs.context }}
+          file: ${{ steps.check.outputs.dockerfile }}
+          push: ${{ github.event_name != 'pull_request' && (github.event.inputs.push_images == 'true' || github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: ${{ github.event.inputs.platform || 'linux/amd64,linux/arm64' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
+            VERSION=${{ github.ref_name }}
+
+  # =============================================================================
+  # Docker Build Summary
+  # =============================================================================
+  docker-summary:
+    name: Docker Build Summary
+    needs: [build-ai-service, build-gateway, build-frontend, build-backend]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Summary
+        run: |
+          echo "## Docker Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Image | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| AI Service | ${{ needs.build-ai-service.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Gateway | ${{ needs.build-gateway.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend | ${{ needs.build-frontend.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend | ${{ needs.build-backend.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Registry**: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Platforms**: ${{ github.event.inputs.platform || 'linux/amd64,linux/arm64' }}" >> $GITHUB_STEP_SUMMARY

@@ -1,0 +1,22 @@
+Sample Text Document
+====================
+
+This is a simple plain text document for testing purposes.
+
+The document parser should be able to:
+- Read the file content
+- Count words and characters
+- Handle different encodings
+
+Technical Details
+-----------------
+- File Type: Plain Text
+- Encoding: UTF-8
+- Purpose: Unit Testing
+
+Korean Text Sample (한글 샘플)
+-----------------------------
+이것은 한글 텍스트 샘플입니다.
+문서 파서가 한글을 올바르게 처리하는지 테스트합니다.
+
+End of Document

@@ -1,10 +1,11 @@
 # Frontend 상세 설계서
 ## React 기반 Knowledge Discovery Platform
 
-**버전**: 1.3
+**버전**: 2.0
 **작성일**: 2026-01-15
-**수정일**: 2026-01-22
+**수정일**: 2026-01-25
 **상태**: Approved
+**주요 변경**: MUI → Tailwind CSS 전환 (Antigravity + Stitch MCP 협업)
 **관련 문서**:
 - [프론트엔드 구현 계획서](../01_planning/frontend_implementation_plan.md)
 - [인증/권한 설계서](./authentication_authorization_detailed_design.md)
@@ -49,9 +50,10 @@
 
 - React 18 기반 SPA 애플리케이션
 - TypeScript 전면 적용
-- Material-UI v5 기반 디자인 시스템
+- **Tailwind CSS 기반 디자인 시스템** ⭐ (MUI에서 전환)
 - Redux Toolkit + React Query 상태 관리
 - 반응형 웹 디자인 (Desktop, Tablet, Mobile)
+- **Antigravity + Stitch MCP 협업** ⭐ (AI 기반 UI 생성)
 
 ### 1.3 핵심 기능
 
@@ -86,12 +88,20 @@
 
 ### 2.3 UI/UX
 
-| 기술 | 버전 | 용도 |
-|------|------|------|
-| **MUI (Material-UI)** | 5.x | 컴포넌트 라이브러리 |
-| **Emotion** | 11.x | CSS-in-JS |
-| **React Router** | 6.x | 라우팅 |
-| **Framer Motion** | 11.x | 애니메이션 |
+| 기술 | 버전 | 용도 | 비고 |
+|------|------|------|------|
+| **Tailwind CSS** | 3.4+ | 유틸리티 CSS 프레임워크 | ⭐ MUI 대체 |
+| **Headless UI** | 2.x | 접근성 지원 컴포넌트 | Select, Menu, Dialog |
+| **Heroicons** | 2.x | 아이콘 라이브러리 | @mui/icons 대체 |
+| **React Router** | 6.x | 라우팅 | |
+| **Framer Motion** | 11.x | 애니메이션 | |
+| **clsx** | 2.x | 조건부 클래스 결합 | |
+| **tailwind-merge** | 2.x | Tailwind 클래스 병합 | |
+
+> **변경 이력 (2026-01-25)**:
+> - MUI (Material-UI) 5.x → Tailwind CSS 3.4+ 전환
+> - Emotion (CSS-in-JS) → 유틸리티 클래스 방식 전환
+> - Antigravity + Stitch MCP 협업으로 UI 생성 자동화
 
 ### 2.4 폼 및 검증
 
@@ -1324,10 +1334,105 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
 ## 8. 디자인 시스템
 
-### 8.1 테마 설정
+> **⭐ 변경 사항 (2026-01-25)**: MUI 테마 시스템에서 Tailwind CSS 설정으로 전환
+> - AI 협업: Antigravity + Stitch MCP로 UI 생성 자동화
+> - 기존 MUI 코드는 참고용으로 유지 (전환 가이드)
+
+### 8.1 Tailwind CSS 설정 ⭐ NEW
+
+```javascript
+// tailwind.config.js
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    './index.html',
+    './src/**/*.{js,ts,jsx,tsx}',
+  ],
+  darkMode: 'class', // 다크모드 지원
+  theme: {
+    extend: {
+      colors: {
+        primary: {
+          DEFAULT: '#1976D2',
+          50: '#E3F2FD',
+          100: '#BBDEFB',
+          200: '#90CAF9',
+          300: '#64B5F6',
+          400: '#42A5F5',
+          500: '#2196F3',
+          600: '#1E88E5',
+          700: '#1976D2',
+          800: '#1565C0',
+          900: '#0D47A1',
+        },
+        secondary: {
+          DEFAULT: '#9C27B0',
+          // ... 팔레트
+        },
+      },
+      fontFamily: {
+        sans: ['Pretendard', 'system-ui', 'sans-serif'],
+      },
+      borderRadius: {
+        DEFAULT: '8px',
+      },
+      boxShadow: {
+        'card': '0 2px 8px rgba(0, 0, 0, 0.08)',
+        'card-hover': '0 4px 12px rgba(0, 0, 0, 0.12)',
+      },
+    },
+  },
+  plugins: [
+    require('@tailwindcss/forms'),
+  ],
+};
+```
+
+### 8.1.1 전역 CSS 설정
+
+```css
+/* src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: 'Pretendard', system-ui, sans-serif;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-4 py-2 bg-primary text-white rounded font-medium
+           hover:bg-primary-800 transition-colors focus:ring-2 focus:ring-primary-500;
+  }
+
+  .btn-secondary {
+    @apply px-4 py-2 bg-gray-200 text-gray-800 rounded font-medium
+           hover:bg-gray-300 transition-colors;
+  }
+
+  .card {
+    @apply bg-white dark:bg-gray-800 rounded-lg shadow-card p-4
+           hover:shadow-card-hover transition-shadow;
+  }
+
+  .input {
+    @apply w-full px-3 py-2 border border-gray-300 rounded
+           focus:ring-2 focus:ring-primary focus:border-transparent
+           dark:bg-gray-700 dark:border-gray-600 dark:text-white;
+  }
+}
+```
+
+### 8.1.2 (참고) 기존 MUI 테마 설정
+
+<details>
+<summary>MUI 테마 코드 (전환 참고용)</summary>
 
 ```typescript
-// styles/theme/index.ts
+// styles/theme/index.ts - 기존 MUI 방식 (참고용)
 import { createTheme, ThemeOptions } from '@mui/material/styles';
 import { palette } from './palette';
 import { typography } from './typography';
@@ -1354,10 +1459,27 @@ export const darkTheme = createTheme({
 });
 ```
 
-### 8.2 색상 팔레트
+</details>
+
+### 8.2 색상 팔레트 (Tailwind 클래스 매핑)
+
+| 용도 | Tailwind 클래스 | HEX 값 | 사용 예시 |
+|------|----------------|--------|----------|
+| **Primary** | `bg-primary`, `text-primary` | #1976D2 | 버튼, 링크 |
+| **Secondary** | `bg-secondary` | #9C27B0 | 보조 액션 |
+| **Error** | `bg-red-600`, `text-red-600` | #D32F2F | 에러 메시지 |
+| **Warning** | `bg-orange-500` | #ED6C02 | 경고 메시지 |
+| **Success** | `bg-green-600` | #2E7D32 | 성공 메시지 |
+| **Info** | `bg-blue-500` | #0288D1 | 정보 메시지 |
+| **Background** | `bg-gray-100`, `bg-white` | #F5F5F5 | 배경 |
+| **Text Primary** | `text-gray-900` | #212121 | 주 텍스트 |
+| **Text Secondary** | `text-gray-600` | #757575 | 보조 텍스트 |
+
+<details>
+<summary>(참고) 기존 MUI 팔레트 코드</summary>
 
 ```typescript
-// styles/theme/palette.ts
+// styles/theme/palette.ts - 기존 MUI 방식 (참고용)
 export const palette = {
   light: {
     mode: 'light' as const,
@@ -1452,7 +1574,24 @@ export const palette = {
 };
 ```
 
-### 8.3 타이포그래피
+</details>
+
+### 8.3 타이포그래피 (Tailwind 클래스 매핑)
+
+| 용도 | Tailwind 클래스 | 크기 | 굵기 |
+|------|----------------|------|------|
+| **H1** | `text-4xl font-bold` | 2.5rem (40px) | 700 |
+| **H2** | `text-3xl font-bold` | 2rem (32px) | 700 |
+| **H3** | `text-2xl font-semibold` | 1.5rem (24px) | 600 |
+| **H4** | `text-xl font-semibold` | 1.25rem (20px) | 600 |
+| **H5** | `text-lg font-medium` | 1.125rem (18px) | 500 |
+| **H6** | `text-base font-medium` | 1rem (16px) | 500 |
+| **Body** | `text-base` | 1rem (16px) | 400 |
+| **Small** | `text-sm` | 0.875rem (14px) | 400 |
+| **Caption** | `text-xs text-gray-500` | 0.75rem (12px) | 400 |
+
+<details>
+<summary>(참고) 기존 MUI 타이포그래피
 
 ```typescript
 // styles/theme/typography.ts

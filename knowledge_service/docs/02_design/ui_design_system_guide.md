@@ -7,10 +7,12 @@
 | 항목 | 내용 |
 |------|------|
 | **문서명** | UI 디자인 시스템 가이드 |
-| **버전** | 1.1 |
+| **버전** | 2.0 |
 | **작성일** | 2026-01-17 |
+| **수정일** | 2026-01-25 |
 | **작성자** | Claude Code (Opus 4.5) |
 | **상태** | Approved |
+| **주요 변경** | MUI → Tailwind CSS 전환 (Antigravity + Stitch MCP 협업) |
 | **관련 문서** | [프론트엔드 설계서](./frontend_detailed_design.md), [UI 스토리보드](./ui_storyboard/), [용어집](./glossary.md) |
 
 ---
@@ -21,6 +23,7 @@
 |------|------|--------|----------|
 | 1.0 | 2026-01-16 | Claude Code | 초안 작성 |
 | 1.1 | 2026-01-17 | Claude Code | 복합 컴포넌트 추가 (Dropdown, Tabs, Pagination), ARIA 접근성 상세화, 레이아웃 패턴 확장, 페이지 전환 애니메이션, 마크다운 렌더러 스타일, 차트 색상 팔레트 추가 |
+| 2.0 | 2026-01-25 | Claude Code | **MUI → Tailwind CSS 전환**, Antigravity + Stitch MCP 협업 도입, 유틸리티 클래스 기반 스타일링, Headless UI 컴포넌트 통합 |
 
 ---
 
@@ -176,7 +179,7 @@ Tone (어조):
 
 ### 3.1 Primary 색상
 
-> **참고**: MUI 테마 구현은 [프론트엔드 설계서 8.2절](./frontend_detailed_design.md#82-색상-팔레트) 참조
+> **참고**: Tailwind CSS 테마 구현은 [프론트엔드 설계서 8.2절](./frontend_detailed_design.md#82-색상-팔레트) 참조
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -474,10 +477,10 @@ p, li, td {
 │                      아이콘 라이브러리                        │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│   Primary: Material Icons (Outlined)                        │
-│   ├── 일관된 스타일                                         │
-│   ├── 다양한 카테고리                                       │
-│   └── React 컴포넌트 지원 (@mui/icons-material)             │
+│   Primary: Heroicons (Outline)                              │
+│   ├── 일관된 스타일 (Tailwind 팀 제작)                      │
+│   ├── 다양한 카테고리 (300+ 아이콘)                         │
+│   └── React 컴포넌트 지원 (@heroicons/react)                │
 │                                                             │
 │   Secondary: Custom Icons (SVG)                             │
 │   └── 브랜드 특화 아이콘 (로고, 특수 기능)                  │
@@ -549,23 +552,23 @@ p, li, td {
 
 ### 6.4 핵심 아이콘 매핑
 
-| 기능 | 아이콘 | MUI 이름 | 대안 |
-|------|--------|----------|------|
-| 검색 | 🔍 | `SearchOutlined` | - |
-| 홈 | 🏠 | `HomeOutlined` | - |
-| 설정 | ⚙️ | `SettingsOutlined` | `TuneOutlined` |
-| 사용자 | 👤 | `PersonOutlined` | `AccountCircleOutlined` |
-| 문서 | 📄 | `DescriptionOutlined` | `ArticleOutlined` |
-| 폴더 | 📁 | `FolderOutlined` | - |
-| 저장 | 💾 | `SaveOutlined` | `BookmarkOutlined` |
-| 공유 | 📤 | `ShareOutlined` | `SendOutlined` |
-| 삭제 | 🗑️ | `DeleteOutlined` | - |
-| 편집 | ✏️ | `EditOutlined` | - |
-| 추가 | ➕ | `AddOutlined` | - |
-| 닫기 | ✕ | `CloseOutlined` | - |
-| 메뉴 | ☰ | `MenuOutlined` | - |
-| 알림 | 🔔 | `NotificationsOutlined` | - |
-| 도움말 | ❓ | `HelpOutlineOutlined` | - |
+| 기능 | 아이콘 | Heroicons 이름 | 클래스 |
+|------|--------|----------------|--------|
+| 검색 | 🔍 | `MagnifyingGlassIcon` | `w-5 h-5` |
+| 홈 | 🏠 | `HomeIcon` | `w-5 h-5` |
+| 설정 | ⚙️ | `Cog6ToothIcon` | `w-5 h-5` |
+| 사용자 | 👤 | `UserIcon` | `w-5 h-5` |
+| 문서 | 📄 | `DocumentTextIcon` | `w-5 h-5` |
+| 폴더 | 📁 | `FolderIcon` | `w-5 h-5` |
+| 저장 | 💾 | `BookmarkIcon` | `w-5 h-5` |
+| 공유 | 📤 | `ShareIcon` | `w-5 h-5` |
+| 삭제 | 🗑️ | `TrashIcon` | `w-5 h-5` |
+| 편집 | ✏️ | `PencilIcon` | `w-5 h-5` |
+| 추가 | ➕ | `PlusIcon` | `w-5 h-5` |
+| 닫기 | ✕ | `XMarkIcon` | `w-5 h-5` |
+| 메뉴 | ☰ | `Bars3Icon` | `w-5 h-5` |
+| 알림 | 🔔 | `BellIcon` | `w-5 h-5` |
+| 도움말 | ❓ | `QuestionMarkCircleIcon` | `w-5 h-5` |
 
 ---
 
@@ -3058,7 +3061,7 @@ const darkChartConfig = {
 
 | 문서 | 경로 | 설명 |
 |------|------|------|
-| 프론트엔드 설계서 | [frontend_detailed_design.md](./frontend_detailed_design.md) | MUI 테마 구현 코드 |
+| 프론트엔드 설계서 | [frontend_detailed_design.md](./frontend_detailed_design.md) | Tailwind CSS 테마 구현 코드 |
 | UI 스토리보드 | [ui_storyboard/](./ui_storyboard/) | 화면별 와이어프레임 |
 | 용어집 | [glossary.md](./glossary.md) | UI 용어 정의 |
 | 에러코드 표준 | [error_code_standards.md](./error_code_standards.md) | 오류 메시지 코드 |

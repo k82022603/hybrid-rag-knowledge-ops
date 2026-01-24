@@ -697,7 +697,7 @@ style: |
 
 ### Frontend
 - React 18 + TypeScript
-- Material-UI v5
+- Tailwind CSS 3.4+ + Headless UI
 - Redux Toolkit
 - React Query
 - Vite
