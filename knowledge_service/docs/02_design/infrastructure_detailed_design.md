@@ -1,8 +1,8 @@
 # 인프라 상세 설계서 (Docker Compose 기반)
 
 **프로젝트**: Hybrid RAG Knowledge Operations Platform
-**버전**: 2.2
-**작성일**: 2026-01-16
+**버전**: 2.3
+**작성일**: 2026-01-25
 **작성자**: Claude AI Architect
 **상태**: Draft
 
@@ -13,8 +13,8 @@
 | 항목 | 내용 |
 |------|------|
 | **문서명** | 인프라 상세 설계서 (Docker Compose 기반) |
-| **버전** | 2.2 |
-| **작성일** | 2026-01-16 |
+| **버전** | 2.3 |
+| **작성일** | 2026-01-25 |
 | **작성자** | Claude AI Architect |
 | **상태** | Draft |
 | **관련 문서** | [상세 설계서](./hybrid_rag_platform_detailed_design.md), [API 통합 설계서](./api_integration_design.md), [에러 코드 표준](./error_code_standards.md), [용어사전](./glossary.md) |
@@ -29,6 +29,7 @@
 | 2.0 | 2026-01-16 | Claude AI | **Docker Compose 기반으로 전면 재작성** - K8s 버전은 technical_assessment 폴더에 참조용으로 보관 |
 | 2.1 | 2026-01-21 | Claude AI | Kibana 추가 (Elasticsearch 데이터 시각화/탐색 도구) |
 | 2.2 | 2026-01-22 | Claude AI | **18개 컨테이너 공식 목록 확정** - docker-compose.yml 기준 정리 |
+| 2.3 | 2026-01-25 | Claude AI | **WSL2 개발 환경 가이드 추가** - 권한 문제 해결, healthcheck 설정 |
 
 ---
 
@@ -1744,6 +1745,135 @@ docker compose up -d --scale backend=3
 | 디스크 부족 | `df -h`, `docker system df` | 미사용 이미지/볼륨 정리 |
 | 네트워크 오류 | `docker network inspect` | 네트워크 재생성 |
 | DB 연결 실패 | `docker exec -it postgresql psql` | 연결 설정 확인 |
+| **WSL2 권한 오류** | `docker logs <service>` | 아래 13.6 참조 |
+
+### 13.6 WSL2 개발 환경 설정
+
+> **참고**: 이 섹션은 Windows WSL2 환경에서 Docker Desktop을 사용할 때 발생하는 권한 문제 해결 방법을 다룹니다.
+> 관련 장애 보고서: [INC-2026-01-25-001](../07_maintenance/incidents/2026-01-25_docker_wsl2_permission.md)
+
+#### 13.6.1 WSL2 권한 문제 개요
+
+WSL2에서 Windows 파일시스템(`/mnt/c/`, `/mnt/d/` 등)을 마운트할 때, Unix 권한 작업에 제한이 있습니다:
+
+| 작업 | Linux | WSL2 |
+|------|-------|------|
+| `chown` (소유자 변경) | ✅ 가능 | ❌ Operation not permitted |
+| User switching | ✅ 가능 | ❌ Permission denied |
+| File creation in tmpfs | ✅ 가능 | ⚠️ 권한 설정에 따라 다름 |
+
+#### 13.6.2 영향받는 보안 설정
+
+`docker-compose.yml`의 다음 설정들이 WSL2에서 문제를 일으킬 수 있습니다:
+
+```yaml
+# 문제가 되는 설정들
+services:
+  example:
+    user: "1000:1000"      # 특정 UID로 실행 시 chown 실패
+    read_only: true        # 임시 파일 쓰기 불가
+    cap_drop:
+      - ALL                # 필요 권한 없음
+    tmpfs:
+      - /tmp:mode=755      # 권한 설정 충돌
+```
+
+#### 13.6.3 WSL2 호환 설정 (개발 환경)
+
+**방법 1: docker-compose.override.yml 사용 (권장)**
+
+```yaml
+# infrastructure/docker/docker-compose.override.yml
+# 이 파일은 자동으로 docker-compose.yml과 병합됩니다
+
+services:
+  neo4j:
+    user: ""  # 기본 사용자 (root) 사용
+    # cap_drop, tmpfs 등 제거
+
+  redis:
+    user: ""
+
+  kibana:
+    user: ""
+    read_only: false
+
+  minio:
+    user: ""
+```
+
+**방법 2: 환경 변수로 조건부 설정**
+
+```yaml
+services:
+  backend:
+    user: "${DOCKER_USER:-1000:1000}"  # WSL2에서는 빈 값으로 설정
+```
+
+#### 13.6.4 Healthcheck 설정 주의사항
+
+BusyBox Alpine 컨테이너에서 `localhost`가 올바르게 해석되지 않을 수 있습니다:
+
+```yaml
+# ❌ 문제가 될 수 있는 설정
+healthcheck:
+  test: ["CMD", "wget", "--spider", "http://localhost:80/"]
+
+# ✅ 권장 설정
+healthcheck:
+  test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:80/"]
+```
+
+| 변경 사항 | 이유 |
+|-----------|------|
+| `localhost` → `127.0.0.1` | DNS 해석 문제 방지 |
+| `--spider` → `-q -O /dev/null` | BusyBox wget 호환성 |
+| `curl -f` → `wget -q -O /dev/null` | curl 미설치 컨테이너 대응 |
+
+#### 13.6.5 WSL2 환경 시작 체크리스트
+
+```bash
+# 1. Docker Desktop WSL2 백엔드 확인
+wsl -l -v
+# NAME                   STATE           VERSION
+# docker-desktop         Running         2
+
+# 2. 프로젝트 디렉토리 확인 (WSL 내부 경로 권장)
+cd /home/user/project  # ✅ 권장
+# cd /mnt/c/Users/...   # ⚠️ 권한 문제 발생 가능
+
+# 3. docker-compose.override.yml 확인
+ls infrastructure/docker/docker-compose.override.yml
+
+# 4. 컨테이너 시작
+cd infrastructure/docker
+docker compose up -d
+
+# 5. 전체 상태 확인
+docker compose ps --format "table {{.Name}}\t{{.Status}}"
+```
+
+#### 13.6.6 자주 발생하는 오류 및 해결
+
+| 오류 메시지 | 원인 | 해결 방법 |
+|-------------|------|-----------|
+| `chown: Operation not permitted` | user 지시어로 인한 권한 변경 실패 | `user: ""` 또는 주석 처리 |
+| `failed switching to "redis"` | Redis 컨테이너 사용자 전환 실패 | `user: ""` 설정 |
+| `EACCES: Unable to write UUID` | read_only + 쓰기 시도 | `read_only: false` |
+| `Unable to write to the backend` | MinIO 볼륨 권한 문제 | `user: ""` 설정 |
+| Healthcheck `Connection refused` | localhost DNS 해석 실패 | `127.0.0.1` 사용 |
+
+#### 13.6.7 프로덕션 vs 개발 환경 설정 비교
+
+| 설정 | 프로덕션 | 개발 (WSL2) |
+|------|----------|-------------|
+| `user:` | 지정 (보안) | 비활성화 |
+| `read_only:` | true | false |
+| `cap_drop: [ALL]` | 활성화 | 비활성화 |
+| `security_opt:` | 활성화 | 유지 가능 |
+| healthcheck 호스트 | localhost | 127.0.0.1 |
+
+> ⚠️ **주의**: 개발 환경에서 보안 설정을 비활성화하는 것은 편의를 위한 것입니다. 프로덕션 환경에서는 반드시 보안 설정을 활성화하세요.
 
 ---
 
