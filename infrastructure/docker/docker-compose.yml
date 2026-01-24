@@ -77,17 +77,17 @@ services:
     container_name: kp-nginx
     restart: unless-stopped
     # Security settings
-    user: "101:101"  # nginx user in alpine
-    read_only: true
+    # user: "101:101"  # nginx user in alpine - WSL2
+    # read_only: true  # WSL2
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_BIND_SERVICE  # Required to bind to ports < 1024
-      - CHOWN
-      - SETUID
-      - SETGID
+    # cap_drop:  # WSL2
+      # - ALL  # WSL2
+    # cap_add:  # WSL2
+      # - NET_BIND_SERVICE  # WSL2
+      # - CHOWN  # WSL2
+      # - SETUID  # WSL2
+      # - SETGID  # WSL2
     ports:
       - "${NGINX_HTTP_PORT:-80}:80"
       - "${NGINX_HTTPS_PORT:-443}:443"
@@ -97,8 +97,8 @@ services:
       - ./nginx/certs:/etc/nginx/certs:ro
       - nginx_tmp:/tmp
       - nginx_cache:/var/cache/nginx
-    tmpfs:
-      - /var/run:mode=755,uid=101,gid=101
+    # tmpfs:  # WSL2
+      # - /var/run:mode=755  # WSL2
     networks:
       - frontend
     depends_on:
@@ -130,26 +130,26 @@ services:
     container_name: kp-frontend
     restart: unless-stopped
     # Security settings
-    user: "101:101"  # nginx user serving static files
-    read_only: true
+    # user: "101:101"  # nginx user serving static files - WSL2
+    # read_only: true  # WSL2
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_BIND_SERVICE
-    tmpfs:
-      - /tmp:mode=755
-      - /var/run:mode=755
-      - /var/cache/nginx:mode=755
+    # cap_drop:  # WSL2
+      # - ALL  # WSL2
+    # cap_add:  # WSL2
+      # - NET_BIND_SERVICE  # WSL2
+    # tmpfs:  # WSL2
+      # - /tmp:mode=755  # WSL2
+      # - /var/run:mode=755  # WSL2
+      # - /var/cache/nginx:mode=755  # WSL2
     networks:
       - frontend
     environment:
-      - VITE_API_URL=${API_URL:-http://localhost:8080/api}
+      - VITE_API_URL=${API_URL:-http://127.0.0.1:8080/api}
       - VITE_AUTH_URL=${AUTH_URL:-http://localhost:8180}
       - VITE_WS_URL=${WS_URL:-ws://localhost:8080/ws}
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80/"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:80/"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -173,14 +173,14 @@ services:
     container_name: kp-api-gateway
     restart: unless-stopped
     # Security settings
-    user: "1000:1000"  # Non-root user for Java apps
-    read_only: true
+    # user: "1000:1000"  # Non-root user - WSL2
+    # read_only: true  # WSL2
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
-    tmpfs:
-      - /tmp:mode=755,size=100M
+    # cap_drop:  # WSL2
+      # - ALL  # WSL2
+    # tmpfs:  # WSL2
+      # - /tmp:mode=755  # WSL2
     ports:
       - "${GATEWAY_PORT:-8080}:8080"
     networks:
@@ -200,7 +200,7 @@ services:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -224,14 +224,14 @@ services:
     container_name: kp-backend
     restart: unless-stopped
     # Security settings
-    user: "1000:1000"  # Non-root user for Java apps
-    read_only: true
+    # user: "1000:1000"  # Non-root user - WSL2
+    # read_only: true  # WSL2
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
-    tmpfs:
-      - /tmp:mode=755,size=200M
+    # cap_drop:  # WSL2
+      # - ALL  # WSL2
+    # tmpfs:  # WSL2
+      # - /tmp:mode=755  # WSL2
     ports:
       - "8081:8081"
     networks:
@@ -260,7 +260,7 @@ services:
       minio:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8081/actuator/health"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8081/actuator/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -284,14 +284,14 @@ services:
     container_name: kp-ai-service
     restart: unless-stopped
     # Security settings
-    user: "1000:1000"  # Non-root user for Python apps
-    read_only: true
+    # user: "1000:1000"  # Non-root user - WSL2
+    # read_only: true  # WSL2
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
-    tmpfs:
-      - /tmp:mode=755,size=500M
+    # cap_drop:  # WSL2
+      # - ALL  # WSL2
+    # tmpfs:  # WSL2
+      # - /tmp:mode=755  # WSL2
     ports:
       - "8000:8000"
     networks:
@@ -319,7 +319,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -347,12 +347,12 @@ services:
     # Security settings (Keycloak needs specific permissions)
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - NET_BIND_SERVICE
-    tmpfs:
-      - /tmp:mode=755,size=100M
+    # cap_drop:  # WSL2
+      # - ALL  # WSL2
+    # cap_add:  # WSL2
+      # - NET_BIND_SERVICE  # WSL2
+    # tmpfs:  # WSL2
+      # - /tmp:mode=755  # WSL2
     ports:
       - "${KEYCLOAK_PORT:-8180}:8080"
     networks:
@@ -403,14 +403,14 @@ services:
     user: "70:70"  # postgres user in alpine
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - CHOWN
-      - SETUID
-      - SETGID
-      - FOWNER
-      - DAC_OVERRIDE
+    # cap_drop:  # WSL2
+      # - ALL  # WSL2
+    # cap_add:  # WSL2
+      # - CHOWN  # WSL2
+      # - SETUID  # WSL2
+      # - SETGID  # WSL2
+      # - FOWNER  # WSL2
+      # - DAC_OVERRIDE  # WSL2
     networks:
       - database
     environment:
@@ -448,14 +448,14 @@ services:
     user: "70:70"  # postgres user in alpine
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - CHOWN
-      - SETUID
-      - SETGID
-      - FOWNER
-      - DAC_OVERRIDE
+    # cap_drop:  # WSL2
+      # - ALL  # WSL2
+    # cap_add:  # WSL2
+      # - CHOWN  # WSL2
+      # - SETUID  # WSL2
+      # - SETGID  # WSL2
+      # - FOWNER  # WSL2
+      # - DAC_OVERRIDE  # WSL2
     networks:
       - database
     environment:
@@ -500,11 +500,11 @@ services:
     container_name: kp-neo4j
     restart: unless-stopped
     # Security settings (DB needs write access, no read_only)
-    user: "7474:7474"  # neo4j user
+    # user: "7474:7474"  # neo4j user - WSL2
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
+    # cap_drop:  # WSL2
+      # - ALL  # WSL2
     networks:
       - database
     environment:
@@ -548,10 +548,10 @@ services:
     user: "1000:1000"  # elasticsearch user
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - IPC_LOCK  # Required for memory locking
+    # cap_drop:  # WSL2
+      # - ALL  # WSL2
+    # cap_add:  # WSL2
+      # - IPC_LOCK  # Required for memory locking - WSL2
     networks:
       - database
     environment:
@@ -597,15 +597,15 @@ services:
     container_name: kp-kibana
     restart: unless-stopped
     # Security settings
-    user: "1000:1000"  # kibana user
-    read_only: true
+    # user: "1000:1000"  # kibana user - WSL2
+    # read_only: true  # WSL2
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
-    tmpfs:
-      - /tmp:mode=755,size=100M
-      - /usr/share/kibana/data:mode=755
+    # cap_drop:  # WSL2
+      # - ALL  # WSL2
+    # tmpfs:  # WSL2
+      # - /tmp:mode=755  # WSL2
+      # - /usr/share/kibana/data:mode=755  # WSL2
     networks:
       - database
       - monitoring
@@ -641,11 +641,11 @@ services:
     container_name: kp-redis
     restart: unless-stopped
     # Security settings (Redis needs write for persistence)
-    user: "999:999"  # redis user in alpine
+    # user: "999:999"  # redis user - WSL2
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
+    # cap_drop:  # WSL2
+      # - ALL  # WSL2
     command: >
       redis-server
       --appendonly yes
@@ -680,11 +680,11 @@ services:
     restart: unless-stopped
     command: server /data --console-address ":9001"
     # Security settings (MinIO needs write access)
-    user: "1000:1000"  # minio user
+    # user: "1000:1000"  # minio user - WSL2
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
+    # cap_drop:  # WSL2
+      # - ALL  # WSL2
     networks:
       - database
     ports:
@@ -721,11 +721,11 @@ services:
     restart: unless-stopped
     # Security settings
     user: "65534:65534"  # nobody user
-    read_only: true
+    # read_only: true  # WSL2
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
+    # cap_drop:  # WSL2
+      # - ALL  # WSL2
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
@@ -741,8 +741,8 @@ services:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/rules:/etc/prometheus/rules:ro
       - prometheus_data:/prometheus
-    tmpfs:
-      - /tmp:mode=755
+    # tmpfs:  # WSL2
+      # - /tmp:mode=755  # WSL2
     healthcheck:
       test: ["CMD", "wget", "--quiet", "--tries=1", "-O", "/dev/null", "http://localhost:9090/-/healthy"]
       interval: 30s
@@ -767,8 +767,8 @@ services:
     user: "472:472"  # grafana user
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
+    # cap_drop:  # WSL2
+      # - ALL  # WSL2
     networks:
       - monitoring
       - frontend
@@ -812,8 +812,8 @@ services:
     user: "10001:10001"  # loki user
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
+    # cap_drop:  # WSL2
+      # - ALL  # WSL2
     networks:
       - monitoring
     ports:
@@ -844,15 +844,15 @@ services:
     command: -config.file=/etc/promtail/promtail-config.yml
     # Security settings
     user: "0:0"  # Needs root to read /var/log
-    read_only: true
+    # read_only: true  # WSL2
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
-    cap_add:
-      - DAC_READ_SEARCH  # Required to read log files
-    tmpfs:
-      - /tmp:mode=755
+    # cap_drop:  # WSL2
+      # - ALL  # WSL2
+    # cap_add:  # WSL2
+      # - DAC_READ_SEARCH  # Required to read log files - WSL2
+    # tmpfs:  # WSL2
+      # - /tmp:mode=755  # WSL2
     networks:
       - monitoring
     volumes:
@@ -880,10 +880,10 @@ services:
     user: "10001:10001"  # jaeger user
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
-    tmpfs:
-      - /tmp:mode=755,size=100M
+    # cap_drop:  # WSL2
+      # - ALL  # WSL2
+    # tmpfs:  # WSL2
+      # - /tmp:mode=755  # WSL2
     networks:
       - monitoring
       - backend
@@ -924,8 +924,8 @@ services:
     user: "1000:1000"  # Non-root user
     security_opt:
       - no-new-privileges:true
-    cap_drop:
-      - ALL
+    # cap_drop:  # WSL2
+      # - ALL  # WSL2
     networks:
       - database
     environment:
