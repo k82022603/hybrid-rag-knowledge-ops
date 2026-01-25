@@ -6,7 +6,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import App from './App';
 import { store } from './store';
 import { KeycloakProvider } from './auth';
+import { installMockAuthInterceptor } from './services/mockAuthInterceptor';
 import './index.css';
+
+// Install mock auth interceptor for development
+installMockAuthInterceptor();
 
 // React Query 클라이언트 설정
 const queryClient = new QueryClient({

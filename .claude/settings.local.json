@@ -102,7 +102,20 @@
       "Bash(tree:*)",
       "Bash(gh api:*)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "mcp__ide__getDiagnostics"
+      "mcp__ide__getDiagnostics",
+      "Bash(npm run dev:*)",
+      "Bash(cmd.exe /c start http://localhost:3000/login)",
+      "Bash(lsof:*)",
+      "Bash(pip3 install:*)",
+      "Bash(PYTHONPATH=src python:*)",
+      "Bash(npx playwright install chromium)",
+      "Bash(npx playwright test:*)",
+      "Bash(npx playwright:*)",
+      "Bash(sudo npx playwright install-deps:*)",
+      "Bash(sudo -S npx playwright install-deps:*)",
+      "Bash(sudo -S apt-get update:*)",
+      "Bash(sudo -S apt-get install:*)",
+      "Skill(daily:session-log)"
     ]
   },
   "enabledMcpjsonServers": [

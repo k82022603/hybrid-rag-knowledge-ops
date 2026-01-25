@@ -2,6 +2,7 @@
  * ProtectedRoute
  *
  * 인증된 사용자만 접근 가능한 라우트를 보호하는 컴포넌트
+ * Keycloak SSO 및 Direct Login 모두 지원
  */
 import React, { type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
@@ -31,7 +32,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   redirectTo = '/login',
   fallback,
 }) => {
-  const { isAuthenticated, isInitialized, isLoading, hasRole, hasResourceRole, login } = useAuth();
+  const { isAuthenticated, isInitialized, isLoading, hasRole, hasResourceRole } = useAuth();
   const location = useLocation();
 
   // 초기화 중이거나 로딩 중일 때
@@ -48,21 +49,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // 인증되지 않은 경우
   if (!isAuthenticated) {
-    // 자동 로그인 리다이렉트
-    if (redirectTo === '/login') {
-      // Keycloak 로그인 페이지로 리다이렉트
-      login(window.location.href);
-      return (
-        <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-          <div className="text-center">
-            <div className="spinner-lg text-primary-600 mx-auto mb-4" />
-            <p className="text-gray-600 dark:text-gray-400">Redirecting to login...</p>
-          </div>
-        </div>
-      );
-    }
-
-    // 지정된 경로로 리다이렉트
+    // Direct login page로 리다이렉트 (Keycloak 대신)
+    // SSO 로그인은 LoginPage에서 사용자가 직접 선택하도록 변경
     return <Navigate to={redirectTo} state={{ from: location }} replace />;
   }
 

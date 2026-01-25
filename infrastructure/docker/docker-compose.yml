@@ -186,6 +186,7 @@ services:
     networks:
       - frontend
       - backend
+      - database  # Added for Redis access (Rate Limiter)
     environment:
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILE:-docker}
       - SERVER_PORT=8080
@@ -193,11 +194,15 @@ services:
       - AI_SERVICE_URL=http://ai-service:8000
       - KEYCLOAK_URL=http://keycloak:8080
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-knowledge-platform}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - JAVA_OPTS=-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
     depends_on:
       keycloak:
         condition: service_healthy
       backend:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]

@@ -1,6 +1,6 @@
 ---
 description: Antigravity UI 개발 워크플로우 (Stitch MCP 연동)
-model: claude-sonnet-4-1
+model: claude-opus-4-5-20251101
 ---
 
 Antigravity + Stitch MCP를 활용한 UI 개발 워크플로우를 안내합니다.

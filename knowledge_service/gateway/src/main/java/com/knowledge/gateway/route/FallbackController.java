@@ -30,6 +30,20 @@ public class FallbackController {
     private static final String STATUS_KEY = "status";
 
     /**
+     * Fallback for Auth service
+     */
+    @GetMapping("/auth")
+    @PostMapping("/auth")
+    public Mono<ResponseEntity<Map<String, Object>>> authFallback() {
+        log.warn("Auth service fallback triggered - circuit breaker open");
+        return Mono.just(createServiceUnavailableResponse(
+            "Authentication service is temporarily unavailable",
+            "Login/logout is currently unavailable. Please try again later.",
+            "auth"
+        ));
+    }
+
+    /**
      * Fallback for Backend service
      */
     @GetMapping("/backend")

@@ -47,6 +47,18 @@ keycloak:
   realm: ${KEYCLOAK_REALM:knowledge-platform}
   auth-server-url: ${KEYCLOAK_URL:http://localhost:8180}
 
+# JWT Configuration (Direct Login)
+jwt:
+  secret: ${JWT_SECRET:YourSecretKeyForJWTTokenGenerationMustBeAtLeast256Bits}
+  access-token-expiration: 3600000  # 1 hour in milliseconds
+  refresh-token-expiration: 604800000  # 7 days in milliseconds
+  issuer: knowledge-platform
+
+# Auth Configuration
+auth:
+  max-login-attempts: 5
+  lockout-duration-minutes: 15
+
 # AI Service Configuration
 ai-service:
   url: ${AI_SERVICE_URL:http://localhost:8000}

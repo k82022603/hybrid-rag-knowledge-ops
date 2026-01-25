@@ -4,7 +4,8 @@
  * Tailwind CSS + Headless UI 기반
  * 메뉴 토글 버튼, 로고, 사용자 메뉴 포함
  */
-import React, { Fragment } from 'react';
+import React, { Fragment, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Menu, MenuButton, MenuItem, MenuItems, Transition } from '@headlessui/react';
 import {
   Bars3Icon,
@@ -13,17 +14,38 @@ import {
   UserIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/auth';
+import { logout as reduxLogout } from '@/store/slices/authSlice';
+import { useAppDispatch } from '@/store';
+import { authService } from '@/services';
 
 interface HeaderProps {
   onMenuClick: () => void;
 }
 
 const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, logout: keycloakLogout, isAuthenticated, authMethod } = useAuth();
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
 
-  const handleLogout = () => {
-    logout(window.location.origin + '/login');
-  };
+  const handleLogout = useCallback(async () => {
+    try {
+      // Call logout API
+      await authService.logout();
+    } catch {
+      // Ignore logout API errors
+    }
+
+    // Clear Redux state
+    dispatch(reduxLogout());
+
+    // If using Keycloak, also logout from Keycloak
+    if (authMethod === 'keycloak') {
+      keycloakLogout(window.location.origin + '/login');
+    } else {
+      // Direct login - just navigate to login page
+      navigate('/login', { replace: true });
+    }
+  }, [dispatch, keycloakLogout, authMethod, navigate]);
 
   // 사용자 이니셜 생성
   const getUserInitials = () => {

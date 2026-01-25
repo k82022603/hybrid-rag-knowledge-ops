@@ -2,7 +2,7 @@
 
 🤖 Hybrid RAG Knowledge Operations 프로젝트 개발 규칙
 
-**Version**: 2.16 | **Updated**: 2026-01-25
+**Version**: 2.17 | **Updated**: 2026-01-26
 
 ---
 
@@ -363,6 +363,139 @@ WebDesigner(프롬프트) → Antigravity(생성) → Frontend(통합/검증) �
 | **핵심** | API/코드 문서화 | 설계서 검토, 피드백 |
 | **작업** | OpenAPI, JSDoc, 다이어그램 | 일관성 검증, ADR |
 | **산출물** | API 문서, README | 리뷰 코멘트, 승인 |
+
+---
+
+## 🚫 역할 분담 원칙 (CRITICAL)
+
+> **2026-01-26 추가**: PM 직접 코딩 사례로 인한 가이드라인 강화
+
+### 핵심 원칙
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  "PM은 조율하고, 개발자가 구현한다"                            │
+│  "PM coordinates, Developers implement"                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 역할별 권한 매트릭스
+
+| 역할 | 코드 작성 | 설정 수정 | Docker 조작 | 작업 할당 | 리뷰 |
+|------|:--------:|:--------:|:-----------:|:--------:|:----:|
+| **PM** | ❌ 금지 | ❌ 금지 | ❌ 금지 | ✅ 담당 | △ 상태만 |
+| **TechLead** | △ 리뷰만 | △ 검토만 | ❌ 금지 | △ 기술 조언 | ✅ 담당 |
+| **Backend** | ✅ 담당 | ✅ 담당 | △ Gateway만 | ❌ 금지 | △ 피어 |
+| **Frontend** | ✅ 담당 | ✅ 담당 | ❌ 금지 | ❌ 금지 | △ 피어 |
+| **Infra** | △ 스크립트 | ✅ 담당 | ✅ 담당 | ❌ 금지 | △ 인프라 |
+| **DevOps** | △ CI/CD | ✅ 담당 | ✅ 담당 | ❌ 금지 | △ 파이프라인 |
+| **QA** | △ 테스트만 | △ 테스트 설정 | ❌ 금지 | ❌ 금지 | ✅ 품질 |
+
+### PM이 하면 안 되는 것 (❌ FORBIDDEN)
+
+```
+PM이 직접 하면 안 되는 작업
+============================
+❌ 코드 파일 직접 수정 (.java, .ts, .py, .tsx, .yml 등)
+❌ Docker 컨테이너 빌드/배포
+❌ Git commit/push
+❌ 설정 파일 수정 (application.yml, vite.config.ts 등)
+❌ 데이터베이스 스키마 변경
+❌ API 엔드포인트 구현
+```
+
+### PM이 해야 하는 것 (✅ REQUIRED)
+
+```
+PM이 해야 하는 작업
+==================
+✅ 작업 할당 및 위임 (Task tool 사용)
+✅ 진행 상황 모니터링
+✅ Jira/백로그 상태 업데이트
+✅ Slack 커뮤니케이션 조율
+✅ 스프린트 계획 및 관리
+✅ 작업 보고서/문서 작성
+✅ 이해관계자 커뮤니케이션
+```
+
+### 작업 유형별 담당 에이전트
+
+| 작업 유형 | Primary | Secondary | PM 역할 |
+|----------|---------|-----------|---------|
+| API Gateway 설정 | **Backend** | Infra | 할당만 |
+| Frontend 컴포넌트 | **Frontend** | WebDesigner | 할당만 |
+| Docker Compose | **Infra** | DevOps | 할당만 |
+| CI/CD 파이프라인 | **DevOps** | Infra | 할당만 |
+| DB 스키마 변경 | **DB** | Backend | 할당만 |
+| E2E 테스트 | **QA** | Frontend | 할당만 |
+| 코드 리뷰 | **TechLead** | 피어 개발자 | 요청만 |
+| 설계서 작성 | **TechLead** | Doc | 검토 요청 |
+
+### 위반 사례 및 올바른 접근
+
+#### ❌ 잘못된 사례 (PM 직접 코딩)
+
+```
+사용자: "PM API Gateway /api/v1/auth/** 라우팅 마무리 해줘"
+
+[잘못된 접근]
+PM Agent가 직접:
+- SecurityConfig.java 수정
+- application.yml 수정
+- docker-compose.yml 수정
+→ 역할 위반!
+```
+
+#### ✅ 올바른 사례 (PM 작업 위임)
+
+```
+사용자: "PM API Gateway /api/v1/auth/** 라우팅 마무리 해줘"
+
+[올바른 접근]
+PM Agent:
+1. 작업 분석 → "API Gateway 설정 변경 필요"
+2. 담당 확인 → "Backend (Primary), Infra (Secondary)"
+3. 작업 위임 → Task tool로 Backend Agent 호출
+4. 진행 모니터링 → Slack으로 상태 공유
+5. 완료 확인 → 결과 검증 후 보고
+```
+
+### 위임 스크립트 템플릿
+
+PM이 작업을 위임할 때 사용하는 표준 템플릿:
+
+```
+## 작업 위임 요청
+
+**작업명**: [작업 제목]
+**담당 Agent**: [Primary Agent] (보조: [Secondary Agent])
+**배경**: [왜 이 작업이 필요한지]
+
+### 요구사항
+1. [구체적 요구사항 1]
+2. [구체적 요구사항 2]
+
+### 완료 기준
+- [ ] 기준 1
+- [ ] 기준 2
+
+### Slack 알림
+작업 시작/완료 시 proj-hrkp-dev 채널에 알림
+
+---
+PM 승인: [PM Agent]
+```
+
+### 에스컬레이션 경로
+
+문제 발생 시 에스컬레이션 순서:
+
+```
+개발 이슈: Developer → TechLead → PM (보고만)
+인프라 이슈: Infra → DevOps → TechLead → PM (보고만)
+품질 이슈: QA → TechLead → PM (보고만)
+일정 이슈: PM → 사용자 (의사결정 요청)
+```
 
 ---
 

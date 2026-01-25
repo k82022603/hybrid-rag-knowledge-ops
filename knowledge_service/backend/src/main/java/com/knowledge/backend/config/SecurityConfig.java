@@ -1,22 +1,42 @@
 package com.knowledge.backend.config;
 
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.config.annotation.method.configuration.EnableReactiveMethodSecurity;
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
+import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.ReactiveSecurityContextHolder;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.security.web.server.authentication.AuthenticationWebFilter;
+import org.springframework.web.server.ServerWebExchange;
+import org.springframework.web.server.WebFilter;
+import org.springframework.web.server.WebFilterChain;
 
-import com.knowledge.backend.security.KeycloakJwtAuthenticationConverter;
+import com.knowledge.backend.security.JwtTokenProvider;
+import com.knowledge.backend.security.JwtUser;
+import com.knowledge.backend.security.JwtUserAuthenticationToken;
 
 import lombok.RequiredArgsConstructor;
+import reactor.core.publisher.Mono;
 
 /**
  * Spring Security Configuration
  *
- * <p>OAuth2 Resource Server with Keycloak JWT validation
- * <p>Role-based access control using Keycloak realm roles
+ * <p>Supports both:
+ * <ul>
+ *   <li>Self-issued JWT tokens (for direct login)</li>
+ *   <li>Keycloak JWT tokens (for OAuth2 integration)</li>
+ * </ul>
  */
 @Configuration
 @EnableWebFluxSecurity
@@ -24,7 +44,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter;
+    private final JwtTokenProvider jwtTokenProvider;
 
     @Bean
     public SecurityWebFilterChain securityWebFilterChain(ServerHttpSecurity http) {
@@ -35,6 +55,10 @@ public class SecurityConfig {
                 .pathMatchers("/actuator/health/**").permitAll()
                 .pathMatchers("/actuator/info").permitAll()
                 .pathMatchers("/actuator/prometheus").permitAll()
+
+                // Auth endpoints - public (login, refresh, logout)
+                .pathMatchers("/api/auth/**").permitAll()
+                .pathMatchers("/api/v1/auth/**").permitAll()
 
                 // Admin endpoints - admin role required
                 .pathMatchers("/api/v1/admin/**").hasRole("ADMIN")
@@ -60,11 +84,58 @@ public class SecurityConfig {
                 // Everything else
                 .anyExchange().authenticated()
             )
-            .oauth2ResourceServer(oauth2 -> oauth2
-                .jwt(jwt -> jwt
-                    .jwtAuthenticationConverter(keycloakJwtAuthenticationConverter)
-                )
-            )
+            // Add custom JWT filter before the default security filter
+            .addFilterAt(jwtAuthenticationFilter(), SecurityWebFiltersOrder.AUTHENTICATION)
             .build();
+    }
+
+    /**
+     * Custom JWT Authentication WebFilter for self-issued tokens
+     */
+    private WebFilter jwtAuthenticationFilter() {
+        return (exchange, chain) -> {
+            String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+
+            if (authHeader != null && authHeader.startsWith("Bearer ")) {
+                String token = authHeader.substring(7);
+
+                try {
+                    if (jwtTokenProvider.validateToken(token)) {
+                        Long userId = jwtTokenProvider.getUserIdFromToken(token);
+                        String email = jwtTokenProvider.getEmailFromToken(token);
+                        String username = jwtTokenProvider.getUsernameFromToken(token);
+                        Set<String> roles = jwtTokenProvider.getRolesFromToken(token);
+
+                        // Create authorities with ROLE_ prefix
+                        List<SimpleGrantedAuthority> authorities = roles.stream()
+                            .map(role -> new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()))
+                            .collect(Collectors.toList());
+
+                        // Create JwtUser
+                        JwtUser jwtUser = new JwtUser(
+                            userId.toString(),
+                            username,
+                            email,
+                            null,
+                            null,
+                            roles,
+                            Set.of(),
+                            authorities
+                        );
+
+                        // Create authentication token
+                        UsernamePasswordAuthenticationToken authToken =
+                            new UsernamePasswordAuthenticationToken(jwtUser, null, authorities);
+
+                        return chain.filter(exchange)
+                            .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authToken));
+                    }
+                } catch (Exception e) {
+                    // Invalid token, continue with unauthenticated request
+                }
+            }
+
+            return chain.filter(exchange);
+        };
     }
 }

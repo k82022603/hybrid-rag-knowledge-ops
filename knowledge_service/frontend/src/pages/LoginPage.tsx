@@ -1,46 +1,69 @@
 /**
  * Login Page
  *
- * Keycloak 로그인 페이지 (리다이렉트 전 표시)
+ * 직접 로그인 + Keycloak SSO 지원
  */
-import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/auth';
+import { LoginForm } from '@/components/auth';
+
+interface LocationState {
+  from?: {
+    pathname: string;
+  };
+}
 
 const LoginPage: React.FC = () => {
   const { isAuthenticated, isLoading, login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [, setShowForgotPassword] = useState(false);
+
+  // Get the page user was trying to access before being redirected to login
+  const from = (location.state as LocationState)?.from?.pathname || '/dashboard';
 
   useEffect(() => {
-    // 이미 인증된 경우 대시보드로 이동
+    // 이미 인증된 경우 원래 페이지 또는 대시보드로 이동
     if (isAuthenticated) {
-      navigate('/dashboard', { replace: true });
+      navigate(from, { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, from]);
 
-  const handleLogin = () => {
-    login(window.location.origin + '/dashboard');
+  const handleSSOLogin = () => {
+    // Keycloak SSO 로그인
+    login(window.location.origin + from);
+  };
+
+  const handleForgotPassword = () => {
+    setShowForgotPassword(true);
+    // TODO: 비밀번호 찾기 모달 또는 페이지 이동
+    console.log('Forgot password clicked');
   };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
-        <div className="spinner-lg text-primary-600" />
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600 mx-auto" />
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-accent-50 dark:from-gray-900 dark:to-gray-800 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-accent-50 dark:from-gray-900 dark:to-gray-800 px-4 py-12">
       <div className="max-w-md w-full">
         {/* Logo and Title */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-600 text-white mb-4">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-600 text-white mb-4 shadow-lg">
             <svg
               className="w-8 h-8"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
+              aria-hidden="true"
             >
               <path
                 strokeLinecap="round"
@@ -54,61 +77,40 @@ const LoginPage: React.FC = () => {
             Knowledge Portal
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">
-            Sign in to access your knowledge base
+            지식 베이스에 로그인하세요
           </p>
         </div>
 
         {/* Login Card */}
-        <div className="card p-8">
-          <div className="space-y-6">
-            {/* SSO Login Button */}
-            <button
-              onClick={handleLogin}
-              className="w-full btn-primary py-3 text-base"
-            >
-              <svg
-                className="w-5 h-5 mr-2"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"
-                />
-              </svg>
-              Sign in with SSO
-            </button>
-
-            {/* Divider */}
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200 dark:border-gray-700" />
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-4 bg-white dark:bg-gray-800 text-gray-500">
-                  Enterprise Single Sign-On
-                </span>
-              </div>
-            </div>
-
-            {/* Info */}
-            <div className="text-center">
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Use your company credentials to sign in.
-                <br />
-                Contact IT support if you have trouble accessing.
-              </p>
-            </div>
-          </div>
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
+          <LoginForm
+            onForgotPassword={handleForgotPassword}
+            onSSOLogin={handleSSOLogin}
+            redirectPath={from}
+          />
         </div>
 
+        {/* Development Info */}
+        {import.meta.env.DEV && (
+          <div className="mt-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+            <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-200 mb-2">
+              Development Mode - Test Accounts
+            </h3>
+            <ul className="text-xs text-yellow-700 dark:text-yellow-300 space-y-1">
+              <li>Admin: admin@example.com / admin123!</li>
+              <li>Manager: manager@example.com / manager123!</li>
+              <li>User: user@example.com / user123!</li>
+            </ul>
+          </div>
+        )}
+
         {/* Footer */}
-        <div className="text-center mt-8">
+        <div className="text-center mt-8 space-y-2">
           <p className="text-sm text-gray-500 dark:text-gray-400">
-            Powered by Keycloak SSO
+            SSO: Keycloak | Direct Login: API Gateway
+          </p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">
+            © 2026 Hybrid RAG Knowledge Operations
           </p>
         </div>
       </div>

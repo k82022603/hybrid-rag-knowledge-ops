@@ -2,6 +2,7 @@
  * KeycloakProvider
  *
  * Keycloak 인증 상태를 관리하는 React Context Provider
+ * Direct login (Redux) + Keycloak SSO 통합 지원
  */
 import React, {
   createContext,
@@ -12,6 +13,7 @@ import React, {
   useMemo,
   type ReactNode,
 } from 'react';
+import { useSelector } from 'react-redux';
 import keycloak, {
   keycloakInitOptions,
   refreshToken,
@@ -23,6 +25,7 @@ import keycloak, {
   hasResourceRole,
   TOKEN_REFRESH_MARGIN,
 } from './keycloak';
+import { selectIsAuthenticated as selectReduxAuth, selectUser as selectReduxUser } from '@/store/slices/authSlice';
 import type { User } from '@/types';
 
 // 인증 컨텍스트 타입
@@ -32,6 +35,7 @@ interface AuthContextType {
   isLoading: boolean;
   user: User | null;
   token: string | undefined;
+  authMethod: 'keycloak' | 'direct' | null;
   login: (redirectUri?: string) => void;
   logout: (redirectUri?: string) => void;
   refreshToken: () => Promise<boolean>;
@@ -61,18 +65,33 @@ export const KeycloakProvider: React.FC<KeycloakProviderProps> = ({
   onAuthError,
   onAuthLogout,
 }) => {
+  // Keycloak state
   const [isInitialized, setIsInitialized] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isKeycloakAuthenticated, setIsKeycloakAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | undefined>(undefined);
+  const [keycloakUser, setKeycloakUser] = useState<User | null>(null);
+  const [keycloakToken, setKeycloakToken] = useState<string | undefined>(undefined);
 
-  // 사용자 정보 업데이트
+  // Redux direct auth state
+  const isReduxAuthenticated = useSelector(selectReduxAuth);
+  const reduxUser = useSelector(selectReduxUser);
+
+  // Combined auth state - either Keycloak or Redux
+  const isAuthenticated = isKeycloakAuthenticated || isReduxAuthenticated;
+  const user = keycloakUser || reduxUser;
+  const token = keycloakToken;
+  const authMethod: 'keycloak' | 'direct' | null = isKeycloakAuthenticated
+    ? 'keycloak'
+    : isReduxAuthenticated
+      ? 'direct'
+      : null;
+
+  // 사용자 정보 업데이트 (Keycloak)
   const updateUserInfo = useCallback(() => {
     const userInfo = getUserInfo();
     if (userInfo) {
-      setUser(userInfo);
-      setToken(getToken());
+      setKeycloakUser(userInfo);
+      setKeycloakToken(getToken());
       return userInfo;
     }
     return null;
@@ -82,9 +101,17 @@ export const KeycloakProvider: React.FC<KeycloakProviderProps> = ({
   useEffect(() => {
     const initKeycloak = async () => {
       try {
+        // Skip Keycloak init if already authenticated via Redux (direct login)
+        if (isReduxAuthenticated) {
+          console.log('[Auth] Using Redux direct login - skipping Keycloak init');
+          setIsInitialized(true);
+          setIsLoading(false);
+          return;
+        }
+
         const authenticated = await keycloak.init(keycloakInitOptions);
 
-        setIsAuthenticated(authenticated);
+        setIsKeycloakAuthenticated(authenticated);
         setIsInitialized(true);
 
         if (authenticated) {
@@ -99,7 +126,8 @@ export const KeycloakProvider: React.FC<KeycloakProviderProps> = ({
       } catch (error) {
         console.error('Keycloak initialization failed:', error);
         setIsInitialized(true);
-        if (onAuthError) {
+        // Don't treat Keycloak init failure as error if we can use direct login
+        if (!isReduxAuthenticated && onAuthError) {
           onAuthError(error instanceof Error ? error : new Error('Keycloak init failed'));
         }
       } finally {
@@ -111,7 +139,7 @@ export const KeycloakProvider: React.FC<KeycloakProviderProps> = ({
 
     // Keycloak 이벤트 핸들러
     keycloak.onAuthSuccess = () => {
-      setIsAuthenticated(true);
+      setIsKeycloakAuthenticated(true);
       const userInfo = updateUserInfo();
       if (userInfo && onAuthSuccess) {
         onAuthSuccess(userInfo);
@@ -120,18 +148,18 @@ export const KeycloakProvider: React.FC<KeycloakProviderProps> = ({
 
     keycloak.onAuthError = (error) => {
       console.error('Auth error:', error);
-      setIsAuthenticated(false);
-      setUser(null);
-      setToken(undefined);
+      setIsKeycloakAuthenticated(false);
+      setKeycloakUser(null);
+      setKeycloakToken(undefined);
       if (onAuthError) {
         onAuthError(new Error(error?.error || 'Authentication error'));
       }
     };
 
     keycloak.onAuthLogout = () => {
-      setIsAuthenticated(false);
-      setUser(null);
-      setToken(undefined);
+      setIsKeycloakAuthenticated(false);
+      setKeycloakUser(null);
+      setKeycloakToken(undefined);
       if (onAuthLogout) {
         onAuthLogout();
       }
@@ -154,9 +182,9 @@ export const KeycloakProvider: React.FC<KeycloakProviderProps> = ({
 
     keycloak.onAuthRefreshError = () => {
       console.error('Token refresh failed');
-      setIsAuthenticated(false);
-      setUser(null);
-      setToken(undefined);
+      setIsKeycloakAuthenticated(false);
+      setKeycloakUser(null);
+      setKeycloakToken(undefined);
     };
 
     // Cleanup
@@ -168,7 +196,7 @@ export const KeycloakProvider: React.FC<KeycloakProviderProps> = ({
       keycloak.onAuthRefreshSuccess = undefined;
       keycloak.onAuthRefreshError = undefined;
     };
-  }, [onAuthSuccess, onAuthError, onAuthLogout, updateUserInfo]);
+  }, [onAuthSuccess, onAuthError, onAuthLogout, updateUserInfo, isReduxAuthenticated]);
 
   // 토큰 자동 갱신 설정
   const setupTokenRefresh = useCallback(() => {
@@ -206,15 +234,23 @@ export const KeycloakProvider: React.FC<KeycloakProviderProps> = ({
     return success;
   }, [updateUserInfo]);
 
-  // 역할 확인 함수
-  const checkRole = useCallback((role: string) => {
-    return hasRole(role);
-  }, []);
-
   // 리소스 역할 확인 함수
   const checkResourceRole = useCallback((role: string, resource?: string) => {
     return hasResourceRole(role, resource);
   }, []);
+
+  // Role check that works with both Keycloak and Redux
+  const checkRoleWithFallback = useCallback((role: string) => {
+    // Check Keycloak role first
+    if (isKeycloakAuthenticated) {
+      return hasRole(role);
+    }
+    // Fall back to Redux user roles
+    if (reduxUser?.roles) {
+      return reduxUser.roles.includes(role);
+    }
+    return false;
+  }, [isKeycloakAuthenticated, reduxUser]);
 
   // 컨텍스트 값
   const contextValue = useMemo(
@@ -224,10 +260,11 @@ export const KeycloakProvider: React.FC<KeycloakProviderProps> = ({
       isLoading,
       user,
       token,
+      authMethod,
       login,
       logout,
       refreshToken: handleRefreshToken,
-      hasRole: checkRole,
+      hasRole: checkRoleWithFallback,
       hasResourceRole: checkResourceRole,
     }),
     [
@@ -236,10 +273,11 @@ export const KeycloakProvider: React.FC<KeycloakProviderProps> = ({
       isLoading,
       user,
       token,
+      authMethod,
       login,
       logout,
       handleRefreshToken,
-      checkRole,
+      checkRoleWithFallback,
       checkResourceRole,
     ]
   );

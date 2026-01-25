@@ -5,7 +5,7 @@
 | 항목 | 값 |
 |------|-----|
 | **기간** | 2026-02-03 ~ 2026-02-14 (2주) |
-| **Velocity (계획)** | 30 pts |
+| **Velocity (계획)** | 35 pts |
 | **Velocity (실제)** | - |
 | **Status** | planned |
 | **Jira Sprint ID** | 36 |
@@ -44,7 +44,7 @@ Sprint 1 완료 항목 (필수):
 
 ## 백로그
 
-### Committed (30 pts)
+### Committed (35 pts)
 
 | Priority | ID | Jira | 제목 | Points | Assignee | Status |
 |----------|-----|------|------|--------|----------|--------|
@@ -53,6 +53,7 @@ Sprint 1 완료 항목 (필수):
 | P0 | STORY-003 | SCRUM-8 | Semantic Chunking | 8 | MLRag | To Do |
 | P0 | STORY-021 | SCRUM-21 | API Gateway 라우팅 구현 | 5 | Backend | To Do |
 | P0 | STORY-022 | SCRUM-22 | JWT 인증 필터 | 3 | Backend | To Do |
+| **P0** | **STORY-024** | **SCRUM-21** | **직접 로그인 API** | **5** | **Backend, QA** | **Done** |
 | P1 | STORY-023 | SCRUM-23 | CI/CD 파이프라인 기초 | 3 | DevOps | To Do |
 
 ### Stretch (여유 시 추가)
@@ -148,6 +149,7 @@ Sprint 1 완료 항목 (필수):
 | Risk | HWP 파싱 정확도 미달 | Medium | pyhwpx 폴백 준비 | Monitoring |
 | Risk | Docling 모델 다운로드 지연 | Low | 사전 다운로드 완료 | Resolved |
 | Blocker | Sprint 1 미완료 | Critical | Sprint 1 우선 완료 | Monitoring |
+| **Blocker** | **직접 로그인 API 미개발** | **Critical** | **STORY-024 긴급 추가** | **In Progress** |
 
 ---
 
@@ -230,5 +232,6 @@ knowledge_service/src/tests/
 - [STORY-003: Semantic Chunking](../stories/STORY-003-semantic-chunking.md)
 - [STORY-021: API Gateway 라우팅](../stories/STORY-021-api-gateway-routing.md)
 - [STORY-022: JWT 인증 필터](../stories/STORY-022-jwt-auth-filter.md)
+- [STORY-024: 직접 로그인 API](../stories/STORY-024-direct-login-api.md)
 - [STORY-023: CI/CD 파이프라인](../stories/STORY-023-cicd-pipeline-basic.md)
 - [스프린트 실행 계획서](../../docs/02_스프린트_실행_계획서.md)

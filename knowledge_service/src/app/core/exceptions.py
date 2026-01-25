@@ -185,3 +185,73 @@ class ConfigurationError(KnowledgeServiceError):
             status_code=500,
             details={"config_key": config_key} if config_key else None,
         )
+
+
+# 인증 관련 예외
+class AuthenticationError(KnowledgeServiceError):
+    """인증 관련 예외"""
+
+    def __init__(
+        self,
+        message: str = "인증에 실패했습니다",
+        details: Optional[Dict[str, Any]] = None,
+    ):
+        super().__init__(
+            message=message,
+            error_code="AUTHENTICATION_ERROR",
+            status_code=401,
+            details=details,
+        )
+
+
+class InvalidCredentialsError(AuthenticationError):
+    """잘못된 인증 정보 예외"""
+
+    def __init__(
+        self,
+        message: str = "이메일 또는 비밀번호가 올바르지 않습니다",
+    ):
+        super().__init__(message=message)
+        self.error_code = "INVALID_CREDENTIALS"
+
+
+class TokenExpiredError(AuthenticationError):
+    """토큰 만료 예외"""
+
+    def __init__(
+        self,
+        message: str = "토큰이 만료되었습니다",
+        token_type: Optional[str] = None,
+    ):
+        super().__init__(
+            message=message,
+            details={"token_type": token_type} if token_type else None,
+        )
+        self.error_code = "TOKEN_EXPIRED"
+
+
+class InvalidTokenError(AuthenticationError):
+    """유효하지 않은 토큰 예외"""
+
+    def __init__(
+        self,
+        message: str = "유효하지 않은 토큰입니다",
+    ):
+        super().__init__(message=message)
+        self.error_code = "INVALID_TOKEN"
+
+
+class AuthorizationError(KnowledgeServiceError):
+    """권한 관련 예외"""
+
+    def __init__(
+        self,
+        message: str = "접근 권한이 없습니다",
+        required_role: Optional[str] = None,
+    ):
+        super().__init__(
+            message=message,
+            error_code="AUTHORIZATION_ERROR",
+            status_code=403,
+            details={"required_role": required_role} if required_role else None,
+        )

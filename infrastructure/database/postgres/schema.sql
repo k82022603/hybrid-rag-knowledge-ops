@@ -1,11 +1,36 @@
 -- PostgreSQL Schema for Hybrid RAG Knowledge Operations
--- Version: 2.7
+-- Version: 2.8
 -- Created: 2026-01-12
--- Updated: 2026-01-22
+-- Updated: 2026-01-26
 -- Purpose: Master records, temporal metadata, and project information
 
 -- ============================================================================
--- 1. USERS & ORGANIZATIONS
+-- 0. AUTHENTICATION USERS (for Backend Service)
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS auth_users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    username VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    roles VARCHAR(255) DEFAULT 'USER',  -- Comma-separated: USER,ADMIN,DEVELOPER,VIEWER
+    is_active BOOLEAN DEFAULT true,
+    is_locked BOOLEAN DEFAULT false,
+    failed_login_attempts INT DEFAULT 0,
+    locked_until TIMESTAMP,
+    last_login_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_auth_users_email ON auth_users(email);
+CREATE INDEX idx_auth_users_username ON auth_users(username);
+CREATE INDEX idx_auth_users_active ON auth_users(is_active);
+
+-- ============================================================================
+-- 1. USERS & ORGANIZATIONS (Knowledge Domain)
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS users (
@@ -286,7 +311,16 @@ CREATE INDEX idx_audit_timestamp ON audit_logs(created_at DESC);
 -- 11. DEFAULT DATA
 -- ============================================================================
 
--- Admin User
+-- Test Users for E2E Testing (auth_users table)
+-- Passwords: test@example.com = password123, admin@example.com = admin123!
+-- BCrypt hashed with strength 10 ($2a$10$ format for Java BCryptPasswordEncoder compatibility)
+INSERT INTO auth_users (email, username, password_hash, first_name, last_name, roles, is_active, is_locked, failed_login_attempts)
+VALUES
+  ('test@example.com', 'testuser', '$2a$10$AJfMv872SXOwwTOB9HNP7eir9LEhj1pihhFt/Dhpd1.R1PVvtHq3S', 'Test', 'User', 'USER', true, false, 0),
+  ('admin@example.com', 'adminuser', '$2a$10$TklJOu/IfeMpihl740smseaj.Y1MaJHcFTvFjPc6k62Bdce4XJq22', 'Admin', 'User', 'ADMIN,USER', true, false, 0)
+ON CONFLICT (email) DO NOTHING;
+
+-- Admin User (knowledge domain users table)
 INSERT INTO users (username, email, full_name, role)
 VALUES ('admin', 'admin@example.com', 'Administrator', 'admin')
 ON CONFLICT DO NOTHING;
