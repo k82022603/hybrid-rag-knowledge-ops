@@ -1,0 +1,131 @@
+# =============================================================================
+# E2E Test Workflow - Playwright E2E Tests for Frontend
+# =============================================================================
+# Trigger: PR creation/update on main, develop branches (frontend changes only)
+# Purpose: Run E2E tests before merge to ensure UI functionality
+# =============================================================================
+
+name: E2E Tests
+
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'knowledge_service/frontend/**'
+      - '.github/workflows/e2e-test.yml'
+
+# Manual trigger for debugging
+  workflow_dispatch:
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # =============================================================================
+  # E2E Tests with Playwright
+  # =============================================================================
+  e2e-tests:
+    name: Playwright E2E Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: knowledge_service/frontend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: knowledge_service/frontend/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Install Playwright Browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Build Application
+        run: npm run build
+        env:
+          CI: true
+
+      - name: Run E2E Tests
+        run: npx playwright test
+        env:
+          CI: true
+
+      - name: Upload Playwright Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: knowledge_service/frontend/playwright-report/
+          retention-days: 14
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-test-results
+          path: knowledge_service/frontend/test-results/
+          retention-days: 7
+
+      - name: Upload Screenshots (on failure)
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-screenshots
+          path: knowledge_service/frontend/test-results/**/*.png
+          retention-days: 7
+
+      - name: Upload Videos (on failure)
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-videos
+          path: knowledge_service/frontend/test-results/**/*.webm
+          retention-days: 7
+
+  # =============================================================================
+  # E2E Summary - Generate test summary
+  # =============================================================================
+  e2e-summary:
+    name: E2E Test Summary
+    needs: [e2e-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Summary
+        run: |
+          echo "## E2E Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Test Suite | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Playwright E2E Tests | ${{ needs.e2e-tests.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ needs.e2e-tests.result }}" == "success" ]]; then
+            echo ":white_check_mark: **All E2E tests passed successfully.**" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ needs.e2e-tests.result }}" == "failure" ]]; then
+            echo ":x: **E2E tests failed. Please check the Playwright report artifact.**" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo ":warning: **E2E tests were skipped or cancelled.**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- **playwright-report**: HTML report for all tests" >> $GITHUB_STEP_SUMMARY
+          echo "- **playwright-test-results**: Raw test results and traces" >> $GITHUB_STEP_SUMMARY
+          echo "- **playwright-screenshots**: Screenshots on failure (if any)" >> $GITHUB_STEP_SUMMARY
+          echo "- **playwright-videos**: Videos on failure (if any)" >> $GITHUB_STEP_SUMMARY

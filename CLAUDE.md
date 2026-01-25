@@ -2,7 +2,7 @@
 
 🤖 Hybrid RAG Knowledge Operations 프로젝트 개발 규칙
 
-**Version**: 2.17 | **Updated**: 2026-01-26
+**Version**: 2.18 | **Updated**: 2026-01-26
 
 ---
 
@@ -210,63 +210,130 @@ flowchart LR
 
 ---
 
-## 📢 Slack 채널 가이드라인
+## 📢 Slack 채널 가이드라인 (MCP 필수)
 
-모든 에이전트는 동일한 기준으로 Slack 채널을 선택해야 합니다.
+> **2026-01-26 변경**: `send_slack.sh` 스크립트 사용 금지. **MCP Slack만 사용**
 
-### 채널 목록
-| 채널 | 용도 |
-|------|------|
-| `proj-hrkp-dev` | 개발 작업 (기본 채널) - 작업 시작/진행/완료, 리뷰, 테스트 결과 |
-| `proj-hrkp-standup` | 스탠드업 미팅, 인사 |
-| `proj-hrkp-alerts` | 장애/에러 알림 |
-| `proj-hrkp-general` | 일반 공지 |
+모든 에이전트는 **MCP Slack 도구**를 사용하여 Slack 메시지를 전송해야 합니다.
+
+### 채널 ID 목록 (MCP 필수)
+
+| 채널명 | Channel ID | 용도 |
+|--------|------------|------|
+| `proj-hrkp-dev` | **C0A9WGCD733** | 개발 작업 (기본) - 작업 시작/진행/완료, 리뷰, 테스트 |
+| `proj-hrkp-standup` | **C0A9B7HDEUB** | 스탠드업 미팅, 인사 |
+| `proj-hrkp-alerts` | **C0A9WGEVB97** | 장애/에러 알림 |
+| `proj-hrkp-general` | **C0AABTM716U** | 일반 공지 |
 
 ### 메시지 유형별 채널
-| 메시지 유형 | 채널 |
-|------------|------|
-| 스탠드업 미팅/인사 | `proj-hrkp-standup` |
-| 작업 시작/진행/완료 | `proj-hrkp-dev` |
-| 설계서/코드 리뷰 결과 | `proj-hrkp-dev` |
-| E2E 테스트 결과 | `proj-hrkp-dev` |
-| Jira 상태 업데이트 | `proj-hrkp-dev` |
-| 장애/에러 알림 | `proj-hrkp-alerts` |
 
-### 사용법
+| 메시지 유형 | Channel ID |
+|------------|------------|
+| 스탠드업 미팅/인사 | `C0A9B7HDEUB` (standup) |
+| 작업 시작/진행/완료 | `C0A9WGCD733` (dev) |
+| 설계서/코드 리뷰 결과 | `C0A9WGCD733` (dev) |
+| E2E 테스트 결과 | `C0A9WGCD733` (dev) |
+| Jira 상태 업데이트 | `C0A9WGCD733` (dev) |
+| 장애/에러 알림 | `C0A9WGEVB97` (alerts) |
+
+### MCP Slack 사용법 (필수)
+
+```
+mcp__slack__slack_post_message
+  channel_id: "C0A9WGCD733"  # dev 채널
+  text: "*[에이전트명]* 메시지 내용"
+```
+
+### 메시지 형식
+
+```
+*[PM]* 작업 시작: STORY-024
+*[Backend]* 작업 완료: AuthController 구현
+*[클로드]* EVENT: CLAUDE.md v2.18 업데이트
+```
+
+### ❌ 금지 사항
+
 ```bash
-./scripts/send_slack.sh <channel> <agent> <message>
-./scripts/send_slack.sh proj-hrkp-dev PM "작업 완료"
-./scripts/send_slack.sh dev Backend "작업 시작"  # 단축어 사용 가능
+# 사용 금지! MCP를 사용하세요
+./scripts/send_slack.sh ...
 ```
 
 **중요**: `proj-hrkp-review` 채널 대신 `proj-hrkp-dev` 채널을 사용합니다.
 
 ---
 
-## 🤖 클로드 Slack 알림 규칙
+## 🤖 클로드 Slack 알림 규칙 (MCP 필수)
 
-**클로드**는 메인 에이전트로서 작업 시작/완료 시 Slack 알림을 보냅니다.
+**클로드**는 메인 에이전트로서 작업 시작/완료 시 **MCP Slack**으로 알림을 보냅니다.
 
 ### 알림 시점
-| 시점 | 채널 | 필수 여부 |
-|------|------|----------|
-| 작업 시작 | `proj-hrkp-dev` | ✅ 필수 |
-| 작업 완료 | `proj-hrkp-dev` | ✅ 필수 |
-| 중요 이벤트 | `proj-hrkp-dev` | ✅ 필수 |
 
-### 메시지 형식
-```bash
+| 시점 | Channel ID | 필수 여부 |
+|------|------------|----------|
+| 작업 시작 | `C0A9WGCD733` (dev) | ✅ 필수 |
+| 작업 완료 | `C0A9WGCD733` (dev) | ✅ 필수 |
+| 중요 이벤트 | `C0A9WGCD733` (dev) | ✅ 필수 |
+
+### MCP 메시지 예시
+
+```
 # 작업 시작 시
-./scripts/send_slack.sh proj-hrkp-dev 클로드 "작업 시작: {작업명}"
+mcp__slack__slack_post_message
+  channel_id: "C0A9WGCD733"
+  text: "*[클로드]* 작업 시작: {작업명}"
 
 # 작업 완료 시
-./scripts/send_slack.sh proj-hrkp-dev 클로드 "작업 완료: {작업명} - {결과 요약}"
+mcp__slack__slack_post_message
+  channel_id: "C0A9WGCD733"
+  text: "*[클로드]* 작업 완료: {작업명} - {결과 요약}"
 
 # 중요 이벤트 발생 시
-./scripts/send_slack.sh proj-hrkp-dev 클로드 "EVENT: {이벤트 내용}"
+mcp__slack__slack_post_message
+  channel_id: "C0A9WGCD733"
+  text: "*[클로드]* EVENT: {이벤트 내용}"
 ```
 
 ### 중요 이벤트 목록
+
+| 이벤트 유형 | 예시 |
+|------------|------|
+| 에이전트 생성/수정 | 새 에이전트 추가, 에이전트 설정 변경 |
+| 문서 현행화 | CLAUDE.md, README.md, PLAN.md 업데이트 |
+| 설정 변경 | 프로젝트 설정, 환경 설정 변경 |
+| 일일 마무리 | `/daily:daily-close` 실행 ||## 🤖 클로드 Slack 알림 규칙 (MCP 필수)
+
+**클로드**는 메인 에이전트로서 작업 시작/완료 시 **MCP Slack**으로 알림을 보냅니다.
+
+### 알림 시점
+
+| 시점 | Channel ID | 필수 여부 |
+|------|------------|----------|
+| 작업 시작 | `C0A9WGCD733` (dev) | ✅ 필수 |
+| 작업 완료 | `C0A9WGCD733` (dev) | ✅ 필수 |
+| 중요 이벤트 | `C0A9WGCD733` (dev) | ✅ 필수 |
+
+### MCP 메시지 예시
+
+```
+# 작업 시작 시
+mcp__slack__slack_post_message
+  channel_id: "C0A9WGCD733"
+  text: "*[클로드]* 작업 시작: {작업명}"
+
+# 작업 완료 시
+mcp__slack__slack_post_message
+  channel_id: "C0A9WGCD733"
+  text: "*[클로드]* 작업 완료: {작업명} - {결과 요약}"
+
+# 중요 이벤트 발생 시
+mcp__slack__slack_post_message
+  channel_id: "C0A9WGCD733"
+  text: "*[클로드]* EVENT: {이벤트 내용}"
+```
+
+### 중요 이벤트 목록
+
 | 이벤트 유형 | 예시 |
 |------------|------|
 | 에이전트 생성/수정 | 새 에이전트 추가, 에이전트 설정 변경 |
