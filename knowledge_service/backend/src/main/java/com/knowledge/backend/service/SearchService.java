@@ -2,6 +2,7 @@ package com.knowledge.backend.service;
 
 import com.knowledge.backend.api.dto.SearchRequest;
 import com.knowledge.backend.api.dto.SearchResponse;
+import com.knowledge.backend.api.dto.search.ChatSearchRequest;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
@@ -60,6 +61,49 @@ public class SearchService {
      */
     public Mono<SearchResponse> hybridSearchFallback(SearchRequest request, String userId, Throwable t) {
         log.warn("Hybrid search fallback triggered for query: {}, reason: {}",
+            request.getQuery(), t.getMessage());
+
+        return Mono.just(SearchResponse.builder()
+            .query(request.getQuery())
+            .results(List.of())
+            .totalCount(0)
+            .processingTimeMs(0L)
+            .timestamp(Instant.now())
+            .build());
+    }
+
+    /**
+     * Chat-based conversational search
+     *
+     * @param request chat search request with conversation history
+     * @param userId user ID for access control
+     * @return search response
+     */
+    @CircuitBreaker(name = "ai-service", fallbackMethod = "chatSearchFallback")
+    @Retry(name = "ai-service")
+    public Mono<SearchResponse> chatSearch(ChatSearchRequest request, String userId) {
+        log.debug("Performing chat search for user: {}, query: {}", userId, request.getQuery());
+
+        long startTime = System.currentTimeMillis();
+
+        return aiServiceWebClient.post()
+            .uri("/api/v1/search/chat")
+            .bodyValue(request)
+            .retrieve()
+            .bodyToMono(SearchResponse.class)
+            .doOnSuccess(response -> {
+                long processingTime = System.currentTimeMillis() - startTime;
+                log.info("Chat search completed in {}ms, results: {}",
+                    processingTime, response.getTotalCount());
+            })
+            .doOnError(error -> log.error("Chat search failed: {}", error.getMessage()));
+    }
+
+    /**
+     * Fallback method for chat search
+     */
+    public Mono<SearchResponse> chatSearchFallback(ChatSearchRequest request, String userId, Throwable t) {
+        log.warn("Chat search fallback triggered for query: {}, reason: {}",
             request.getQuery(), t.getMessage());
 
         return Mono.just(SearchResponse.builder()

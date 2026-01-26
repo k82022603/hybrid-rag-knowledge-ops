@@ -138,6 +138,81 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handle ResourceNotFoundException
+     *
+     * @param ex the exception
+     * @param exchange server web exchange
+     * @return error response with 404 status
+     */
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public Mono<ResponseEntity<ErrorResponse>> handleResourceNotFoundException(
+            ResourceNotFoundException ex,
+            ServerWebExchange exchange
+    ) {
+        log.warn("Resource not found: {}", ex.getMessage());
+
+        ErrorResponse response = ErrorResponse.builder()
+                .status(HttpStatus.NOT_FOUND.value())
+                .error("Not Found")
+                .message(ex.getMessage())
+                .path(exchange.getRequest().getPath().value())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).body(response));
+    }
+
+    /**
+     * Handle BadRequestException
+     *
+     * @param ex the exception
+     * @param exchange server web exchange
+     * @return error response with 400 status
+     */
+    @ExceptionHandler(BadRequestException.class)
+    public Mono<ResponseEntity<ErrorResponse>> handleBadRequestException(
+            BadRequestException ex,
+            ServerWebExchange exchange
+    ) {
+        log.warn("Bad request: {}", ex.getMessage());
+
+        ErrorResponse response = ErrorResponse.builder()
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Bad Request")
+                .message(ex.getMessage())
+                .path(exchange.getRequest().getPath().value())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response));
+    }
+
+    /**
+     * Handle ForbiddenException
+     *
+     * @param ex the exception
+     * @param exchange server web exchange
+     * @return error response with 403 status
+     */
+    @ExceptionHandler(ForbiddenException.class)
+    public Mono<ResponseEntity<ErrorResponse>> handleForbiddenException(
+            ForbiddenException ex,
+            ServerWebExchange exchange
+    ) {
+        log.warn("Forbidden: {}", ex.getMessage());
+
+        ErrorResponse response = ErrorResponse.builder()
+                .status(HttpStatus.FORBIDDEN.value())
+                .error("Forbidden")
+                .message(ex.getMessage())
+                .path(exchange.getRequest().getPath().value())
+                .timestamp(LocalDateTime.now())
+                .build();
+
+        return Mono.just(ResponseEntity.status(HttpStatus.FORBIDDEN).body(response));
+    }
+
+    /**
      * Handle generic exceptions
      *
      * @param ex the exception

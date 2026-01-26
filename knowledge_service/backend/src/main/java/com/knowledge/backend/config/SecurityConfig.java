@@ -66,7 +66,13 @@ public class SecurityConfig {
                 // Debug endpoints - developer or admin
                 .pathMatchers("/api/v1/debug/**").hasAnyRole("DEVELOPER", "ADMIN")
 
-                // Document management
+                // Knowledge/Document management
+                .pathMatchers(HttpMethod.GET, "/api/v1/knowledge/**").hasAnyRole("USER", "VIEWER", "DEVELOPER", "ADMIN")
+                .pathMatchers(HttpMethod.POST, "/api/v1/knowledge/**").hasAnyRole("USER", "DEVELOPER", "ADMIN")
+                .pathMatchers(HttpMethod.PUT, "/api/v1/knowledge/**").hasAnyRole("USER", "DEVELOPER", "ADMIN")
+                .pathMatchers(HttpMethod.DELETE, "/api/v1/knowledge/**").hasAnyRole("DEVELOPER", "ADMIN")
+
+                // Legacy document endpoints
                 .pathMatchers(HttpMethod.GET, "/api/v1/documents/**").hasAnyRole("USER", "VIEWER", "DEVELOPER", "ADMIN")
                 .pathMatchers(HttpMethod.POST, "/api/v1/documents/**").hasAnyRole("USER", "DEVELOPER", "ADMIN")
                 .pathMatchers(HttpMethod.PUT, "/api/v1/documents/**").hasAnyRole("USER", "DEVELOPER", "ADMIN")
@@ -74,6 +80,19 @@ public class SecurityConfig {
 
                 // Search endpoints
                 .pathMatchers("/api/v1/search/**").hasAnyRole("USER", "VIEWER", "DEVELOPER", "ADMIN")
+
+                // User profile endpoints
+                .pathMatchers("/api/v1/users/me/**").authenticated()
+                .pathMatchers("/api/v1/users/**").authenticated()
+
+                // Bookmark endpoints
+                .pathMatchers("/api/v1/bookmarks/**").authenticated()
+
+                // Dashboard endpoints
+                .pathMatchers("/api/v1/dashboard/**").hasAnyRole("USER", "VIEWER", "DEVELOPER", "ADMIN")
+
+                // Export endpoints
+                .pathMatchers("/api/v1/export/**").hasAnyRole("USER", "DEVELOPER", "ADMIN")
 
                 // Graph endpoints
                 .pathMatchers("/api/v1/graph/**").hasAnyRole("USER", "DEVELOPER", "ADMIN")
