@@ -2,7 +2,7 @@
 
 🤖 Hybrid RAG Knowledge Operations 프로젝트 개발 규칙
 
-**Version**: 2.18 | **Updated**: 2026-01-26
+**Version**: 2.19 | **Updated**: 2026-01-26
 
 ---
 
@@ -210,20 +210,20 @@ flowchart LR
 
 ---
 
-## 📢 Slack 채널 가이드라인 (MCP 필수)
+## 📢 Slack 채널 가이드라인 (혼합 방식)
 
-> **2026-01-26 변경**: `send_slack.sh` 스크립트 사용 금지. **MCP Slack만 사용**
+> **2026-01-26 v2.19 변경**: MCP + Shell 혼합 방식 채택
+> - **메인 클로드**: MCP Slack 도구 사용
+> - **서브 에이전트** (Task 도구로 생성): `send_slack.sh` 사용 (MCP 접근 불가)
 
-모든 에이전트는 **MCP Slack 도구**를 사용하여 Slack 메시지를 전송해야 합니다.
+### 채널 ID 목록
 
-### 채널 ID 목록 (MCP 필수)
-
-| 채널명 | Channel ID | 용도 |
-|--------|------------|------|
-| `proj-hrkp-dev` | **C0A9WGCD733** | 개발 작업 (기본) - 작업 시작/진행/완료, 리뷰, 테스트 |
-| `proj-hrkp-standup` | **C0A9B7HDEUB** | 스탠드업 미팅, 인사 |
-| `proj-hrkp-alerts` | **C0A9WGEVB97** | 장애/에러 알림 |
-| `proj-hrkp-general` | **C0AABTM716U** | 일반 공지 |
+| 채널명 | Channel ID | Shell 약칭 | 용도 |
+|--------|------------|-----------|------|
+| `proj-hrkp-dev` | **C0A9WGCD733** | `dev` | 개발 작업 (기본) - 작업 시작/진행/완료, 리뷰, 테스트 |
+| `proj-hrkp-standup` | **C0A9B7HDEUB** | `standup` | 스탠드업 미팅, 인사 |
+| `proj-hrkp-alerts` | **C0A9WGEVB97** | `alerts` | 장애/에러 알림 |
+| `proj-hrkp-general` | **C0AABTM716U** | `general` | 일반 공지 |
 
 ### 메시지 유형별 채널
 
@@ -236,7 +236,7 @@ flowchart LR
 | Jira 상태 업데이트 | `C0A9WGCD733` (dev) |
 | 장애/에러 알림 | `C0A9WGEVB97` (alerts) |
 
-### MCP Slack 사용법 (필수)
+### 방법 1: MCP Slack (메인 클로드 전용)
 
 ```
 mcp__slack__slack_post_message
@@ -244,66 +244,37 @@ mcp__slack__slack_post_message
   text: "*[에이전트명]* 메시지 내용"
 ```
 
+### 방법 2: Shell 스크립트 (서브 에이전트용)
+
+```bash
+# 사용법: ./scripts/send_slack.sh <channel> <agent_name> <message>
+./scripts/send_slack.sh dev Backend "작업 시작: STORY-022 JWT Auth Filter"
+./scripts/send_slack.sh standup QA "안녕하세요! 테스트 준비 완료"
+./scripts/send_slack.sh alerts Infra "컨테이너 장애 감지: kp-backend"
+```
+
+### 전송 방식 결정 기준
+
+| 실행 주체 | 사용 방식 | 이유 |
+|----------|----------|------|
+| **메인 클로드** | MCP Slack | MCP 세션에 직접 연결 |
+| **서브 에이전트** (Task 도구) | `send_slack.sh` | MCP 접근 불가, Bash만 사용 가능 |
+
 ### 메시지 형식
 
 ```
 *[PM]* 작업 시작: STORY-024
 *[Backend]* 작업 완료: AuthController 구현
-*[클로드]* EVENT: CLAUDE.md v2.18 업데이트
-```
-
-### ❌ 금지 사항
-
-```bash
-# 사용 금지! MCP를 사용하세요
-./scripts/send_slack.sh ...
+*[클로드]* EVENT: CLAUDE.md v2.19 업데이트
 ```
 
 **중요**: `proj-hrkp-review` 채널 대신 `proj-hrkp-dev` 채널을 사용합니다.
 
 ---
 
-## 🤖 클로드 Slack 알림 규칙 (MCP 필수)
+## 🤖 클로드 Slack 알림 규칙 (혼합 방식)
 
-**클로드**는 메인 에이전트로서 작업 시작/완료 시 **MCP Slack**으로 알림을 보냅니다.
-
-### 알림 시점
-
-| 시점 | Channel ID | 필수 여부 |
-|------|------------|----------|
-| 작업 시작 | `C0A9WGCD733` (dev) | ✅ 필수 |
-| 작업 완료 | `C0A9WGCD733` (dev) | ✅ 필수 |
-| 중요 이벤트 | `C0A9WGCD733` (dev) | ✅ 필수 |
-
-### MCP 메시지 예시
-
-```
-# 작업 시작 시
-mcp__slack__slack_post_message
-  channel_id: "C0A9WGCD733"
-  text: "*[클로드]* 작업 시작: {작업명}"
-
-# 작업 완료 시
-mcp__slack__slack_post_message
-  channel_id: "C0A9WGCD733"
-  text: "*[클로드]* 작업 완료: {작업명} - {결과 요약}"
-
-# 중요 이벤트 발생 시
-mcp__slack__slack_post_message
-  channel_id: "C0A9WGCD733"
-  text: "*[클로드]* EVENT: {이벤트 내용}"
-```
-
-### 중요 이벤트 목록
-
-| 이벤트 유형 | 예시 |
-|------------|------|
-| 에이전트 생성/수정 | 새 에이전트 추가, 에이전트 설정 변경 |
-| 문서 현행화 | CLAUDE.md, README.md, PLAN.md 업데이트 |
-| 설정 변경 | 프로젝트 설정, 환경 설정 변경 |
-| 일일 마무리 | `/daily:daily-close` 실행 ||## 🤖 클로드 Slack 알림 규칙 (MCP 필수)
-
-**클로드**는 메인 에이전트로서 작업 시작/완료 시 **MCP Slack**으로 알림을 보냅니다.
+**클로드**는 메인 에이전트로서 MCP Slack으로, **서브 에이전트**는 Shell 스크립트로 알림을 보냅니다.
 
 ### 알림 시점
 
@@ -313,23 +284,20 @@ mcp__slack__slack_post_message
 | 작업 완료 | `C0A9WGCD733` (dev) | ✅ 필수 |
 | 중요 이벤트 | `C0A9WGCD733` (dev) | ✅ 필수 |
 
-### MCP 메시지 예시
+### 메인 클로드: MCP 사용
 
 ```
-# 작업 시작 시
 mcp__slack__slack_post_message
   channel_id: "C0A9WGCD733"
   text: "*[클로드]* 작업 시작: {작업명}"
+```
 
-# 작업 완료 시
-mcp__slack__slack_post_message
-  channel_id: "C0A9WGCD733"
-  text: "*[클로드]* 작업 완료: {작업명} - {결과 요약}"
+### 서브 에이전트: Shell 스크립트 사용
 
-# 중요 이벤트 발생 시
-mcp__slack__slack_post_message
-  channel_id: "C0A9WGCD733"
-  text: "*[클로드]* EVENT: {이벤트 내용}"
+```bash
+# 서브 에이전트는 MCP 접근 불가 → send_slack.sh 사용
+./scripts/send_slack.sh dev Backend "작업 시작: STORY-022 JWT Auth Filter"
+./scripts/send_slack.sh dev QA "작업 완료: E2E 테스트 47/77 Pass"
 ```
 
 ### 중요 이벤트 목록

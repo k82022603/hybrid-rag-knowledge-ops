@@ -54,6 +54,7 @@ storage/elasticsearch-data/
 
 # Knowledge Data (운영 데이터 - 로컬 전용)
 knowledge_data/
+knowledge_service/data/
 
 # Temporary files
 tmp/

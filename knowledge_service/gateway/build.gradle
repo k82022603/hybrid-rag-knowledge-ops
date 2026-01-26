@@ -43,6 +43,11 @@ dependencies {
     // Redis for Rate Limiting
     implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive'
 
+    // JWT (for self-issued HS256 token validation)
+    implementation 'io.jsonwebtoken:jjwt-api:0.12.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.5'
+
     // Lombok
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'

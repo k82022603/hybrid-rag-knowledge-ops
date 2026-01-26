@@ -13,6 +13,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 import org.springframework.web.cors.reactive.CorsConfigurationSource;
 
 import com.knowledge.gateway.route.FallbackController;
+import com.knowledge.gateway.security.JwtTokenValidator;
 import com.knowledge.gateway.security.KeycloakJwtAuthenticationConverter;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -38,6 +39,9 @@ class SecurityConfigTest {
 
     @MockBean
     private ReactiveJwtDecoder jwtDecoder;
+
+    @MockBean
+    private JwtTokenValidator jwtTokenValidator;
 
     @Test
     @DisplayName("Actuator health endpoint is publicly accessible")

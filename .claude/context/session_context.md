@@ -5,15 +5,15 @@
 
 ### Recent Commits
 ```
-5a14938 [DOCS] 2026-01-24 마감 스탠드업 회의록 복원
-4144f72 [DOCS] 일일 마무리 (2026-01-24) - Sprint 02 Day 1 완료
-2b312ff [FEAT] Sprint 02 에이전트 작업 통합 커밋
-364517f [FEAT] WSL2 장애 재발 방지 자동화
-d942f4e [DOCS] 인프라 설계서 v2.3 - WSL2 개발 환경 가이드 추가
+ac9d93c [DOCS] 소스코드 종합 리뷰 보고서 - Sprint 02 전체 레이어
+7eaf58f [FEAT] STORY-004 선행: BGE-M3 EmbeddingService 구현
+5600b91 [TEST] QA 테스트 보고서 3건 추가
+6dc4575 [FEAT] AI Service 코어 파이프라인 구현 - SearchService + RAGPipeline + EntityExtraction
+1579504 [FEAT] Frontend 페이지 완성 - 4개 신규 + 11개 개선
 ```
 
 ## Work Log Status
-- Today's log: not_created
+- Today's log: exists
 - Path: work_logs/daily_logs/2026/01-January/2026-01-26.md
 
 ## Quick Commands

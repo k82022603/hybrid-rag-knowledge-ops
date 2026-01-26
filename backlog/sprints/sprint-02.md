@@ -44,22 +44,31 @@ Sprint 1 완료 항목 (필수):
 
 ## 백로그
 
-### Committed (35 pts)
+### Committed (37 pts)
 
 | Priority | ID | Jira | 제목 | Points | Assignee | Status |
 |----------|-----|------|------|--------|----------|--------|
-| P0 | STORY-001 | SCRUM-6 | 문서 업로드 API | 3 | Backend | To Do |
-| P0 | STORY-002 | SCRUM-7 | Docling 문서 파싱 | 8 | MLRag | To Do |
+| P0 | STORY-001 | SCRUM-6 | 문서 업로드 API | 3 | Backend | **In Progress** |
+| P0 | STORY-002 | SCRUM-7 | Docling 문서 파싱 | 8 | MLRag | **In Progress** (테스트 검증) |
 | P0 | STORY-003 | SCRUM-8 | Semantic Chunking | 8 | MLRag | To Do |
-| P0 | STORY-021 | SCRUM-21 | API Gateway 라우팅 구현 | 5 | Backend | To Do |
-| P0 | STORY-022 | SCRUM-22 | JWT 인증 필터 | 3 | Backend | To Do |
+| P0 | STORY-021 | SCRUM-21 | API Gateway 라우팅 구현 | 5 | Backend | **Done** |
+| P0 | STORY-022 | SCRUM-22 | JWT 인증 필터 | 3 | Backend | **Done** |
 | **P0** | **STORY-024** | **SCRUM-21** | **직접 로그인 API** | **5** | **Backend, QA** | **Done** |
-| P1 | STORY-023 | SCRUM-23 | CI/CD 파이프라인 기초 | 3 | DevOps | To Do |
+| P1 | STORY-023 | SCRUM-23 | CI/CD 파이프라인 기초 | 3 | DevOps | **In Progress** |
+| P1 | STORY-025 | SCRUM-25 | UI 디자인 검토 및 Gap 분석 | 2 | Frontend | **In Progress** |
+
+### Validation (Sprint 01 검증)
+
+| Priority | ID | Jira | 제목 | Points | Assignee | Status |
+|----------|-----|------|------|--------|----------|--------|
+| P0 | STORY-020 | SCRUM-20 | Infrastructure E2E Test | 3 | QA | **Done** |
 
 ### Stretch (여유 시 추가)
 
 | ID | 제목 | Points |
 |----|------|--------|
+| STORY-041 | Dashboard UI 구현 | 5 |
+| STORY-042 | Search UI 구현 | 5 |
 | - | HWP 파서 고도화 (pyhwpx 최적화) | 3 |
 | - | 업로드 진행률 WebSocket 알림 | 2 |
 

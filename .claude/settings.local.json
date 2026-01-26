@@ -115,7 +115,21 @@
       "Bash(sudo -S npx playwright install-deps:*)",
       "Bash(sudo -S apt-get update:*)",
       "Bash(sudo -S apt-get install:*)",
-      "Skill(daily:session-log)"
+      "Skill(daily:session-log)",
+      "Bash(git rm:*)",
+      "Bash(PYTHONPATH=src .venv/bin/python:*)",
+      "Bash(PYTHONPATH=src timeout 60 .venv/bin/python -m pytest:*)",
+      "Bash(PYTHONPATH=src timeout 120 .venv/bin/python -m pytest:*)",
+      "Bash(nslookup hybrid-rag-knowledge-ops.atlassian.net)",
+      "Bash(bash:*)",
+      "Bash(.venvScriptspip.exe install sentence-transformers)",
+      "Bash(.venv/Scripts/pip.exe install:*)",
+      "Bash(where:*)",
+      "Bash(cmd.exe /c \"dir D:\\\\Users\\\\KTDS\\\\Documents\\\\06.과제\\\\hybrid-rag-knowledge-ops\\\\knowledge_service\\\\.venv\\\\Scripts\\\\pip.exe\")",
+      "Bash(test:*)",
+      "Bash(\"D:/Users/KTDS/Documents/06.과제/hybrid-rag-knowledge-ops/knowledge_service/.venv/bin/pip\" install sentence-transformers)",
+      "Bash(git check-ignore:*)",
+      "Bash(findstr:*)"
     ]
   },
   "enabledMcpjsonServers": [
