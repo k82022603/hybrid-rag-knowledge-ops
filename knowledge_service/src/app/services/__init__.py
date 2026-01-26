@@ -2,11 +2,33 @@
 비즈니스 서비스 모듈
 
 도메인 로직 및 외부 서비스 연동
-- llm_service: LLM 호출 관리
-- document_service: 문서 처리
-- search_service: 검색 서비스
+- llm_service: LLM 호출 관리 (DeepSeek V3.2)
+- storage: 파일 스토리지 (MinIO / 로컬 폴백)
+- search: 통합 검색 서비스 (Hybrid/Semantic/Keyword)
+- rag_pipeline: RAG 파이프라인 (Retrieval-Augmentation-Generation)
+- entity_extraction: 엔티티/관계 추출 + Gleaning
 """
 
 from app.services.llm_service import LLMService
+from app.services.storage import delete_file, get_file_url, upload_file
+from app.services.search import SearchService, get_search_service
+from app.services.rag_pipeline import RAGPipeline, get_rag_pipeline
+from app.services.entity_extraction import EntityExtractionService, get_entity_extraction_service
 
-__all__ = ["LLMService"]
+__all__ = [
+    # LLM
+    "LLMService",
+    # Storage
+    "upload_file",
+    "get_file_url",
+    "delete_file",
+    # Search
+    "SearchService",
+    "get_search_service",
+    # RAG Pipeline
+    "RAGPipeline",
+    "get_rag_pipeline",
+    # Entity Extraction
+    "EntityExtractionService",
+    "get_entity_extraction_service",
+]
