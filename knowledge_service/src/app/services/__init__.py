@@ -7,6 +7,7 @@
 - search: 통합 검색 서비스 (Hybrid/Semantic/Keyword)
 - rag_pipeline: RAG 파이프라인 (Retrieval-Augmentation-Generation)
 - entity_extraction: 엔티티/관계 추출 + Gleaning
+- embedding: BGE-M3 임베딩 서비스 (Dense + Sparse)
 """
 
 from app.services.llm_service import LLMService
@@ -14,6 +15,7 @@ from app.services.storage import delete_file, get_file_url, upload_file
 from app.services.search import SearchService, get_search_service
 from app.services.rag_pipeline import RAGPipeline, get_rag_pipeline
 from app.services.entity_extraction import EntityExtractionService, get_entity_extraction_service
+from app.services.embedding import EmbeddingService, get_embedding_service
 
 __all__ = [
     # LLM
@@ -31,4 +33,7 @@ __all__ = [
     # Entity Extraction
     "EntityExtractionService",
     "get_entity_extraction_service",
+    # Embedding
+    "EmbeddingService",
+    "get_embedding_service",
 ]
