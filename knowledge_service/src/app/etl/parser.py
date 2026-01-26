@@ -483,7 +483,7 @@ class DocumentParser:
 
             for row_idx, line in enumerate(lines):
                 # 구분선 건너뛰기 (|---|---|)
-                if re.match(r"^\|[\s\-:]+\|$", line):
+                if re.match(r"^\|[\s\-:|]+$", line):
                     continue
 
                 # 셀 파싱
