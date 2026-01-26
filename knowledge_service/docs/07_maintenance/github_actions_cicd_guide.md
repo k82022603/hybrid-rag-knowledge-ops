@@ -1,16 +1,16 @@
 # GitHub Actions CI/CD 가이드
 
 **프로젝트**: Hybrid RAG Knowledge Operations Platform
-**버전**: 1.1
+**버전**: 2.0
 **작성일**: 2026-01-22
-**최종 수정일**: 2026-01-25
+**최종 수정일**: 2026-01-26
 **작성자**: DevOps Agent
 
 ---
 
 ## 목차
 
-1. [개요](#1-개요)
+1. [개요](#1-개요) (현재 운영 현황 포함)
 2. [아키텍처](#2-아키텍처)
 3. [워크플로우 구성](#3-워크플로우-구성)
 4. [CI Pipeline (ci.yml)](#4-ci-pipeline-ciyml)
@@ -19,10 +19,12 @@
 7. [Docker Build (docker-build.yml)](#7-docker-build-docker-buildyml)
 8. [Code Quality (code-quality.yml)](#8-code-quality-code-qualityyml)
 9. [Branch Protection Rules](#9-branch-protection-rules)
-10. [환경 변수 및 Secrets](#10-환경-변수-및-secrets)
-11. [사용 가이드](#11-사용-가이드)
-12. [트러블슈팅](#12-트러블슈팅)
-13. [베스트 프랙티스](#13-베스트-프랙티스)
+10. [Docker Compose Validate (docker-compose-validate.yml)](#10-docker-compose-validate-docker-compose-validateyml) **(NEW)**
+11. [E2E Tests (e2e-test.yml)](#11-e2e-tests-e2e-testyml) **(NEW)**
+12. [환경 변수 및 Secrets](#12-환경-변수-및-secrets)
+13. [사용 가이드](#13-사용-가이드)
+14. [트러블슈팅](#14-트러블슈팅) (실제 장애 사례 포함)
+15. [베스트 프랙티스](#15-베스트-프랙티스)
 
 ---
 
@@ -35,8 +37,11 @@
 | **CI Pipeline** | PR 검증, 코드 품질 보장 | `.github/workflows/ci.yml` |
 | **CD Pipeline** | Docker 이미지 빌드 및 배포 | `.github/workflows/cd.yml` |
 | **PR Build** | PR 시 빌드 및 테스트 검증 | `.github/workflows/pr-build.yml` |
-| **Docker Build** | Docker 이미지 빌드 (멀티 아키텍처) | `.github/workflows/docker-build.yml` |
+| **Docker Build** | Docker 이미지 빌드 (amd64) | `.github/workflows/docker-build.yml` |
 | **Code Quality** | 린트, 포맷, 정적 분석 | `.github/workflows/code-quality.yml` |
+| **Docker Compose Validate** | Docker Compose 구문/설정 검증 | `.github/workflows/docker-compose-validate.yml` |
+| **E2E Tests** | Playwright E2E 테스트 | `.github/workflows/e2e-test.yml` |
+| **Dependabot Updates** | 자동 의존성 업데이트 | `.github/dependabot.yml` (GitHub 자동 관리) |
 
 ### 1.2 지원 서비스
 
@@ -47,7 +52,30 @@
 | **Frontend** | React 18, TypeScript | `knowledge_service/frontend/` |
 | **AI Service** | FastAPI, Python 3.11 | `knowledge_service/src/` |
 
-### 1.3 전체 흐름
+### 1.3 현재 운영 현황
+
+> **최종 확인일**: 2026-01-26
+
+| 워크플로우 | 현재 상태 | 비고 | 마지막 확인 |
+|-----------|----------|------|------------|
+| CI Pipeline | 정상 (PR/develop 트리거) | - | 2026-01-26 |
+| CD Pipeline | Build 성공 / Deploy 미설정 | SSH 시크릿 미설정 | 2026-01-26 |
+| PR Build | 정상 | - | 2026-01-26 |
+| Docker Build | 정상 (amd64) | arm64 제외 | 2026-01-26 |
+| Code Quality | 정상 | - | 2026-01-26 |
+| Docker Compose Validate | 정상 | - | 2026-01-26 |
+| E2E Tests | 정상 (PR/수동) | Playwright Chromium | 2026-01-26 |
+| Dependabot Updates | 정상 | GitHub 자동 관리 | 2026-01-26 |
+
+#### CD Pipeline 배포를 위한 필수 GitHub Secrets
+
+| 환경 | 필요 Secrets | 상태 |
+|------|-------------|------|
+| **Staging** | `STAGING_HOST`, `STAGING_USER`, `STAGING_SSH_KEY` | 미설정 |
+| **Production** | `PRODUCTION_HOST`, `PRODUCTION_USER`, `PRODUCTION_SSH_KEY` | 미설정 |
+| **알림 (선택)** | `SLACK_BOT_TOKEN`, `SLACK_CHANNEL_ALERTS` | 미설정 |
+
+### 1.4 전체 흐름
 
 ```mermaid
 flowchart LR
@@ -188,11 +216,16 @@ flowchart LR
 
 ```
 .github/workflows/
-  - ci.yml           # 통합 CI 파이프라인 (기존)
-  - cd.yml           # 배포 파이프라인 (기존)
-  - pr-build.yml     # PR 빌드 전용 (NEW)
-  - docker-build.yml # Docker 빌드 전용 (NEW)
-  - code-quality.yml # 코드 품질 전용 (NEW)
+  - ci.yml                        # 통합 CI 파이프라인
+  - cd.yml                        # 배포 파이프라인
+  - pr-build.yml                  # PR 빌드 전용
+  - docker-build.yml              # Docker 빌드 전용
+  - code-quality.yml              # 코드 품질 전용
+  - docker-compose-validate.yml   # Docker Compose 검증 (NEW)
+  - e2e-test.yml                  # E2E 테스트 (NEW)
+
+.github/
+  - dependabot.yml                # 의존성 자동 업데이트 (GitHub 관리)
 ```
 
 ### 3.2 워크플로우별 역할
@@ -202,8 +235,11 @@ flowchart LR
 | `ci.yml` | PR, push to develop | 종합 CI (린트, 테스트, 보안 스캔) |
 | `cd.yml` | push to main, tags | 배포 (Staging, Production) |
 | `pr-build.yml` | PR only | PR 빌드 및 테스트 검증 |
-| `docker-build.yml` | push, PR, manual | Docker 이미지 빌드 |
+| `docker-build.yml` | push, PR, manual | Docker 이미지 빌드 (amd64) |
 | `code-quality.yml` | PR, push to develop | 코드 품질 체크만 |
+| `docker-compose-validate.yml` | push, PR (docker-compose 변경) | Docker Compose 구문/설정 검증 |
+| `e2e-test.yml` | PR (frontend 변경), manual | Playwright E2E 테스트 |
+| `dependabot.yml` | GitHub 자동 스케줄 | 의존성 자동 업데이트 |
 
 ---
 
@@ -340,6 +376,11 @@ flowchart TB
 
 ### 5.2 배포 흐름
 
+> **v2.0 변경사항**:
+> - 빌드 플랫폼이 `linux/amd64`로 변경 (arm64 제외, `eclipse-temurin:17-jre-alpine` 미지원)
+> - matrix job의 미사용 `outputs` 섹션 및 동적 step ID 제거 (워크플로우 시작 실패 해결)
+> - 현재 상태: Build 4건 성공, Deploy to Staging은 SSH 시크릿 미설정으로 실패 (예상된 동작)
+
 ```mermaid
 flowchart TB
     subgraph Trigger["트리거"]
@@ -354,7 +395,7 @@ flowchart TB
         Buildx["Setup Buildx"]
         Login["Login to GHCR"]
         Meta["Extract Metadata"]
-        BuildPush["Build & Push<br/>linux/amd64, linux/arm64"]
+        BuildPush["Build & Push<br/>linux/amd64"]
     end
 
     subgraph Staging["Staging 배포"]
@@ -463,7 +504,12 @@ on:
 
 ### 7.1 개요
 
-Docker 이미지 빌드 전용 워크플로우로, 멀티 아키텍처 빌드를 지원합니다.
+Docker 이미지 빌드 전용 워크플로우입니다.
+
+> **v2.0 변경**: 기본 빌드 플랫폼이 `linux/amd64`로 변경되었습니다.
+> Backend/Gateway의 런타임 이미지 `eclipse-temurin:17-jre-alpine`이 arm64 매니페스트를 제공하지 않아
+> 멀티 아키텍처 빌드(`linux/amd64,linux/arm64`)가 실패합니다.
+> arm64 지원이 필요한 경우 Dockerfile의 런타임 이미지를 `eclipse-temurin:17-jre` (Ubuntu 기반)로 교체해야 합니다.
 
 ### 7.2 트리거
 
@@ -491,7 +537,6 @@ on:
         options:
           - linux/amd64
           - linux/arm64
-          - linux/amd64,linux/arm64
 ```
 
 ### 7.3 빌드 대상
@@ -673,9 +718,95 @@ GitHub의 새로운 Ruleset 기능을 사용할 수도 있습니다:
 
 ---
 
-## 10. 환경 변수 및 Secrets
+## 10. Docker Compose Validate (docker-compose-validate.yml)
 
-### 10.1 필수 Secrets
+### 10.1 개요
+
+Docker Compose 설정 파일의 구문, 설정, 호환성을 자동으로 검증하는 워크플로우입니다.
+[INC-2026-01-25-001] 장애를 계기로 도입되었습니다.
+
+### 10.2 트리거
+
+```yaml
+on:
+  push:
+    paths:
+      - 'infrastructure/docker/docker-compose*.yml'
+  pull_request:
+    paths:
+      - 'infrastructure/docker/docker-compose*.yml'
+```
+
+### 10.3 검증 항목
+
+| 검증 항목 | 설명 | 규칙 |
+|-----------|------|------|
+| YAML 구문 검증 | YAML 파싱 오류 체크 | 표준 YAML 문법 |
+| Docker Compose config | `docker compose config` 검증 | 서비스 정의 유효성 |
+| Healthcheck 설정 | 호스트명/명령어 검증 | `localhost` 대신 `127.0.0.1` 사용 |
+| WSL2 호환성 | 보안 설정 호환성 체크 | WSL2 환경 동작 보장 |
+
+### 10.4 Healthcheck 검증 규칙
+
+| 규칙 | 잘못된 예 | 올바른 예 |
+|------|----------|----------|
+| 호스트명 | `localhost` | `127.0.0.1` |
+| wget 명령 | `wget --spider` | `wget -q -O /dev/null` |
+
+> **배경**: Docker 컨테이너 내부에서 `localhost`가 호스트 머신이 아닌 컨테이너 자신을 가리키므로
+> healthcheck에서 `127.0.0.1`을 명시적으로 사용해야 안정적입니다.
+
+---
+
+## 11. E2E Tests (e2e-test.yml)
+
+### 11.1 개요
+
+Playwright를 활용한 E2E(End-to-End) 테스트 워크플로우입니다.
+Frontend 변경이 포함된 PR에서 자동 실행되며, 수동 실행도 지원합니다.
+
+### 11.2 트리거
+
+```yaml
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'knowledge_service/frontend/**'
+  workflow_dispatch:
+```
+
+### 11.3 설정
+
+| 항목 | 값 |
+|------|-----|
+| **Timeout** | 30분 |
+| **브라우저** | Chromium만 사용 |
+| **Runner** | ubuntu-latest |
+
+### 11.4 Artifacts
+
+| Artifact | 보존 기간 | 조건 |
+|----------|----------|------|
+| `playwright-report` | 14일 | 항상 업로드 |
+| `test-results` | 7일 | 항상 업로드 |
+| `screenshots` | 7일 | 테스트 실패 시만 |
+| `videos` | 7일 | 테스트 실패 시만 |
+
+### 11.5 로컬 실행
+
+```bash
+cd knowledge_service/frontend
+npx playwright install chromium
+npx playwright test
+npx playwright show-report
+```
+
+---
+
+## 12. 환경 변수 및 Secrets
+
+### 12.1 필수 Secrets
 
 GitHub Repository Settings → Secrets and variables → Actions에서 설정:
 
@@ -690,13 +821,13 @@ GitHub Repository Settings → Secrets and variables → Actions에서 설정:
 | `SLACK_BOT_TOKEN` | Slack 알림용 토큰 | 선택 |
 | `SLACK_CHANNEL_ALERTS` | Slack 알림 채널 ID | 선택 |
 
-### 10.2 자동 제공 Secrets
+### 12.2 자동 제공 Secrets
 
 | Secret | 설명 |
 |--------|------|
 | `GITHUB_TOKEN` | GitHub API 접근용 (자동 생성) |
 
-### 10.3 환경 변수
+### 12.3 환경 변수
 
 | 변수 | 값 | 용도 |
 |------|-----|------|
@@ -705,7 +836,7 @@ GitHub Repository Settings → Secrets and variables → Actions에서 설정:
 | `NODE_VERSION` | 20 | Node.js 버전 |
 | `REGISTRY` | ghcr.io | 컨테이너 레지스트리 |
 
-### 10.4 GitHub Environments 설정
+### 12.4 GitHub Environments 설정
 
 **Repository Settings → Environments**에서 환경별 보호 규칙 설정:
 
@@ -719,9 +850,9 @@ GitHub Repository Settings → Secrets and variables → Actions에서 설정:
 
 ---
 
-## 11. 사용 가이드
+## 13. 사용 가이드
 
-### 11.1 일반 개발 워크플로우
+### 13.1 일반 개발 워크플로우
 
 ```mermaid
 sequenceDiagram
@@ -744,7 +875,7 @@ sequenceDiagram
     CD->>Staging: 8. Staging 배포
 ```
 
-### 11.2 릴리즈 워크플로우
+### 13.2 릴리즈 워크플로우
 
 ```mermaid
 sequenceDiagram
@@ -767,7 +898,7 @@ sequenceDiagram
     CD->>Dev: 8. Slack 알림
 ```
 
-### 11.3 태그 생성 방법
+### 13.3 태그 생성 방법
 
 ```bash
 # 버전 태그 생성
@@ -781,14 +912,14 @@ git push origin v1.0.0
 # 4. "Publish release" 클릭
 ```
 
-### 11.4 수동 배포
+### 13.4 수동 배포
 
 1. **GitHub Actions 탭** 이동
 2. 좌측에서 **CD Pipeline** 선택
 3. **Run workflow** 버튼 클릭
 4. 환경 선택 후 실행
 
-### 11.5 CI 상태 확인
+### 13.5 CI 상태 확인
 
 PR 페이지에서 CI 상태 확인:
 
@@ -801,9 +932,9 @@ PR 페이지에서 CI 상태 확인:
 
 ---
 
-## 12. 트러블슈팅
+## 14. 트러블슈팅
 
-### 12.1 CI 실패 원인별 해결
+### 14.1 CI 실패 원인별 해결
 
 #### Backend Test 실패
 
@@ -844,7 +975,7 @@ poetry run pytest src/tests/ -v
 docker build -t test-image ./knowledge_service/backend
 ```
 
-### 12.2 CD 실패 원인별 해결
+### 14.2 CD 실패 원인별 해결
 
 #### SSH 연결 실패
 
@@ -863,7 +994,7 @@ docker build -t test-image ./knowledge_service/backend
 2. 컨테이너 상태 확인: `docker compose ps`
 3. 네트워크 설정 확인
 
-### 12.3 일반적인 문제
+### 14.3 일반적인 문제
 
 | 문제 | 원인 | 해결 |
 |------|------|------|
@@ -872,11 +1003,48 @@ docker build -t test-image ./knowledge_service/backend
 | "Cache not found" | 캐시 키 불일치 | 캐시 키 패턴 확인 |
 | "No space left on device" | 디스크 공간 부족 | 이미지 정리 (`docker image prune`) |
 
+### 14.4 실제 장애 사례 및 해결
+
+#### 장애 1: Docker Build - Backend/Gateway arm64 빌드 실패
+
+| 항목 | 내용 |
+|------|------|
+| **증상** | Build Backend, Build Gateway job에서 "Build and Push" 단계가 1초 만에 실패 |
+| **에러** | `eclipse-temurin:17-jre-alpine: no match for platform in manifest: not found` |
+| **원인** | Backend/Gateway Dockerfile의 런타임 이미지 `eclipse-temurin:17-jre-alpine`이 arm64 매니페스트를 제공하지 않음. 워크플로우가 `linux/amd64,linux/arm64` 멀티플랫폼 빌드를 시도하여 실패 |
+| **해결** | `docker-build.yml`, `cd.yml`의 기본 빌드 플랫폼을 `linux/amd64`로 변경 |
+| **커밋** | `26ddea1` |
+| **향후 조치** | arm64 지원이 필요한 경우 Dockerfile 런타임 이미지를 `eclipse-temurin:17-jre` (Ubuntu 기반)로 교체 |
+
+#### 장애 2: CD Pipeline - 시작 자체 실패 (0 jobs, 0초)
+
+| 항목 | 내용 |
+|------|------|
+| **증상** | CD Pipeline이 0초/0 jobs로 즉시 실패. GitHub API에서 워크플로우 이름이 `CD Pipeline` 대신 파일 경로(`cd.yml`)로 표시 |
+| **원인** | `build-and-push` matrix job의 `outputs` 섹션이 동적 step ID(`meta-${{ matrix.name }}`)를 참조. GitHub Actions는 워크플로우 YAML 평가(파싱) 단계에서 동적 step ID를 해석할 수 없어 워크플로우 자체가 로드되지 않음 |
+| **해결** | 미사용 `outputs` 섹션 및 동적 step ID 제거 |
+| **커밋** | `a3baf54` |
+
+```yaml
+# 문제가 된 코드 (제거됨)
+outputs:
+  image-tag-${{ matrix.name }}: ${{ steps.meta-${{ matrix.name }}.outputs.tags }}
+```
+
+#### 장애 3: CD Pipeline - Deploy to Staging SSH 실패
+
+| 항목 | 내용 |
+|------|------|
+| **증상** | Deploy to Staging job에서 `Error: missing server host` |
+| **원인** | GitHub Repository Secrets에 `STAGING_HOST`, `STAGING_USER`, `STAGING_SSH_KEY`가 미설정 |
+| **해결** | 스테이징 서버 준비 후 GitHub Settings > Secrets and variables > Actions에서 SSH 관련 시크릿 추가 |
+| **현재 상태** | 서버 미구축으로 인한 예상된 실패. Build 단계(4건)는 정상 통과 |
+
 ---
 
-## 13. 베스트 프랙티스
+## 15. 베스트 프랙티스
 
-### 13.1 브랜치 전략
+### 15.1 브랜치 전략
 
 ```mermaid
 gitGraph
@@ -896,7 +1064,7 @@ gitGraph
     commit id: "Feature B"
 ```
 
-### 13.2 커밋 메시지 규칙
+### 15.2 커밋 메시지 규칙
 
 ```
 [TYPE] 간단한 설명
@@ -907,7 +1075,7 @@ gitGraph
 관련 이슈: #123
 ```
 
-### 13.3 PR 체크리스트
+### 15.3 PR 체크리스트
 
 - [ ] 로컬에서 테스트 통과 확인
 - [ ] 린트 오류 없음
@@ -915,7 +1083,7 @@ gitGraph
 - [ ] 문서 업데이트 (필요 시)
 - [ ] 적절한 리뷰어 지정
 
-### 13.4 CI/CD 최적화 팁
+### 15.4 CI/CD 최적화 팁
 
 1. **캐시 활용**: 의존성 캐시로 빌드 시간 단축
 2. **병렬 실행**: 독립적인 Job은 병렬로 실행
@@ -928,7 +1096,7 @@ concurrency:
   cancel-in-progress: true
 ```
 
-### 13.5 보안 권장사항
+### 15.5 보안 권장사항
 
 1. **Secrets 관리**: 민감 정보는 반드시 GitHub Secrets 사용
 2. **최소 권한**: 필요한 최소 권한만 부여
@@ -962,6 +1130,7 @@ concurrency:
 |------|------|----------|
 | 1.0 | 2026-01-22 | 초기 작성 |
 | 1.1 | 2026-01-25 | pr-build.yml, docker-build.yml, code-quality.yml 추가, Branch Protection Rules 섹션 추가 |
+| 2.0 | 2026-01-26 | Docker Build arm64 호환 수정, CD Pipeline startup failure 수정, Docker Compose Validate/E2E Tests 워크플로우 추가, 운영 현황 및 트러블슈팅 보강 |
 
 ---
 

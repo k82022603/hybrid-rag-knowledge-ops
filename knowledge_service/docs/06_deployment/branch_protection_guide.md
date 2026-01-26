@@ -1,6 +1,6 @@
 # Branch Protection 설정 가이드
 
-**Version**: 1.0 | **Created**: 2026-01-26 | **Author**: DevOps Engineer
+**Version**: 1.1 | **Updated**: 2026-01-26 | **Author**: DevOps Engineer
 **STORY**: STORY-023 CI/CD Pipeline 기초 검증 및 Branch Protection
 
 ---
@@ -105,15 +105,68 @@ Required Status Checks:
 
 ---
 
-## 4. GitHub UI로 설정하기
+## 4. 1인 개발 환경 설정
 
-### 4.1 설정 경로
+> **주의**: 1인 프로젝트에서 "Required approvals: 1"로 설정하면 본인이 올린 PR을 본인이 승인할 수 없어 **머지가 불가능**합니다.
+
+### 4.1 권장 설정 (1인 개발)
+
+| 설정 | 값 | 설명 |
+|------|-----|------|
+| **Require a pull request before merging** | OFF 또는 approvals=0 | PR 없이 push 가능 |
+| **Require status checks to pass** | ON | CI 통과는 필수 유지 |
+| ├─ Require branches to be up to date | ON | 최신 base와 동기화 |
+| ├─ Required status checks | `CI Summary` | ci.yml의 ci-summary job |
+| **Do not allow force pushes** | ON | Force push 차단 |
+| **Do not allow deletions** | ON | 브랜치 삭제 차단 |
+| **Include administrators** | OFF | 관리자(본인)는 긴급 시 우회 가능 |
+
+### 4.2 gh CLI 설정 (1인 개발)
+
+```bash
+gh api \
+  --method PUT \
+  -H "Accept: application/vnd.github+json" \
+  -H "X-GitHub-Api-Version: 2022-11-28" \
+  /repos/{owner}/{repo}/branches/main/protection \
+  --input - << 'EOF'
+{
+  "required_status_checks": {
+    "strict": true,
+    "contexts": [
+      "CI Summary"
+    ]
+  },
+  "enforce_admins": false,
+  "required_pull_request_reviews": null,
+  "restrictions": null,
+  "required_conversation_resolution": false,
+  "allow_force_pushes": false,
+  "allow_deletions": false
+}
+EOF
+```
+
+### 4.3 팀 규모 전환 시
+
+1인 → 팀 개발 전환 시 아래 항목을 활성화합니다:
+
+1. `required_pull_request_reviews` 활성화 (approvals: 1)
+2. `enforce_admins` → `true`
+3. `required_conversation_resolution` → `true`
+4. CODEOWNERS 파일 생성 (섹션 7 참조)
+
+---
+
+## 5. GitHub UI로 설정하기
+
+### 5.1 설정 경로
 
 ```
 Repository > Settings > Branches > Branch protection rules > Add rule
 ```
 
-### 4.2 main 브랜치 설정 단계
+### 5.2 main 브랜치 설정 단계
 
 1. **Branch name pattern**: `main`
 2. 아래 항목을 체크합니다:
@@ -129,7 +182,7 @@ Repository > Settings > Branches > Branch protection rules > Add rule
 
 3. **Create** 버튼 클릭
 
-### 4.3 develop 브랜치 설정 단계
+### 5.3 develop 브랜치 설정 단계
 
 1. **Branch name pattern**: `develop`
 2. 아래 항목을 체크합니다:
@@ -142,9 +195,9 @@ Repository > Settings > Branches > Branch protection rules > Add rule
 
 ---
 
-## 5. gh CLI로 설정하기
+## 6. gh CLI로 설정하기
 
-### 5.1 사전 준비
+### 6.1 사전 준비
 
 ```bash
 # gh CLI 설치 확인
@@ -157,7 +210,7 @@ gh auth login
 gh repo view --json nameWithOwner
 ```
 
-### 5.2 main 브랜치 보호 규칙 설정
+### 6.2 main 브랜치 보호 규칙 설정
 
 ```bash
 # main 브랜치 보호 규칙 설정
@@ -192,7 +245,7 @@ gh api \
 EOF
 ```
 
-### 5.3 develop 브랜치 보호 규칙 설정
+### 6.3 develop 브랜치 보호 규칙 설정
 
 ```bash
 # develop 브랜치 보호 규칙 설정
@@ -224,7 +277,7 @@ gh api \
 EOF
 ```
 
-### 5.4 보호 규칙 확인
+### 6.4 보호 규칙 확인
 
 ```bash
 # main 브랜치 보호 규칙 확인
@@ -238,7 +291,7 @@ gh api \
   /repos/{owner}/{repo}/branches/develop/protection
 ```
 
-### 5.5 보호 규칙 삭제 (비상 시)
+### 6.5 보호 규칙 삭제 (비상 시)
 
 ```bash
 # 보호 규칙 삭제 (주의: 되돌릴 수 없음)
@@ -250,9 +303,9 @@ gh api \
 
 ---
 
-## 6. CODEOWNERS 설정 (선택)
+## 7. CODEOWNERS 설정 (선택)
 
-### 6.1 CODEOWNERS 파일
+### 7.1 CODEOWNERS 파일
 
 프로젝트 루트에 `.github/CODEOWNERS` 파일을 생성하여 자동 리뷰어를 지정할 수 있습니다.
 
@@ -281,9 +334,9 @@ infrastructure/               @infra-engineer @devops-engineer
 
 ---
 
-## 7. 운영 가이드
+## 8. 운영 가이드
 
-### 7.1 긴급 배포 시 (Bypass)
+### 8.1 긴급 배포 시 (Bypass)
 
 비상 상황에서 Branch Protection을 우회해야 하는 경우:
 
@@ -292,7 +345,7 @@ infrastructure/               @infra-engineer @devops-engineer
 3. 작업 완료 후 즉시 "Include administrators" 다시 활성화
 4. Slack alerts 채널에 우회 사유 기록
 
-### 7.2 Status Check 실패 시
+### 8.2 Status Check 실패 시
 
 | 상황 | 대응 |
 |------|------|
@@ -301,7 +354,7 @@ infrastructure/               @infra-engineer @devops-engineer
 | 인프라 문제 | Actions runner 상태 확인 |
 | Timeout | 타임아웃 값 조정 (workflow timeout-minutes) |
 
-### 7.3 모니터링
+### 8.3 모니터링
 
 ```bash
 # 최근 워크플로우 실행 결과 확인
@@ -316,7 +369,7 @@ gh run list --status failure --limit 5
 
 ---
 
-## 8. 참고 문서
+## 9. 참고 문서
 
 - [CI/CD Pipeline 검증 보고서](./cicd_pipeline_report.md) - 워크플로우 정합성 분석
 - [인프라 설계서](../02_design/infrastructure_detailed_design.md) - Docker Compose 기반 아키텍처
