@@ -2,10 +2,10 @@
 
 > Claude Code 세션 간 컨텍스트 유지를 위한 계획 문서
 >
-> **Last Updated**: 2026-01-25
-> **Current Phase**: Phase 3 구현 진행 중 - Sprint 02 Day 2 완료 (STORY-024 Direct Login API) ✅
+> **Last Updated**: 2026-01-26
+> **Current Phase**: Phase 3 구현 진행 중 - Sprint 02 Day 4 완료 (78%, 29/37 SP) ✅
 > **Frontend 전략 변경**: Tailwind + Antigravity + Stitch MCP 도입 결정 (2026-01-25)
-> **E2E 테스트**: Playwright 10/10 통과 (Gateway 경유)
+> **소스코드 리뷰**: 72.5/100 B+ (Gateway 65, Backend 72, AI Service 78, Frontend 75)
 
 ---
 
@@ -14,8 +14,8 @@
 ```
 [Phase 1: 기획]     ████████████████████ 100% ✅ 완료
 [Phase 2: 설계]     ████████████████████ 100% ✅ 완료 (91점 A등급 승인)
-[Phase 3: 구현]     ███████░░░░░░░░░░░░░  35% 🔄 Sprint 02 Day 2 완료 (5/35 SP)
-[Phase 4: 테스트]   ██░░░░░░░░░░░░░░░░░░  10% 🔄 E2E 테스트 환경 구축
+[Phase 3: 구현]     ████████████░░░░░░░░  60% 🔄 Sprint 02 Day 4 완료 (29/37 SP)
+[Phase 4: 테스트]   ████░░░░░░░░░░░░░░░░  20% 🔄 테스트 81개 (Unit 31 + E2E 52)
 [Phase 5: 배포]     ░░░░░░░░░░░░░░░░░░░░   0%
 ```
 
@@ -208,7 +208,7 @@
   - 모든 설계서 통합 리뷰
   - 시스템 전체 아키텍처 다이어그램
 
-## Phase 3: Implementation (구현) - 20% 🔄 진행 중
+## Phase 3: Implementation (구현) - 60% 🔄 진행 중
 
 ### Sprint 01 (2026-01-20) - 100% ✅ 완료!
 
@@ -231,15 +231,25 @@
 - Keycloak SSO + OAuth2 연동
 - 개발 가이드 3종
 
-### Sprint 02 (예정) - Core API 개발
+### Sprint 02 (진행 중) - Document Processing Pipeline (78%)
 
-| Story | SP | 담당 | 우선순위 |
-|-------|-----|------|---------|
-| Search API 구현 | 5 | Backend/MLRag | P0 |
-| Document CRUD API | 5 | Backend | P0 |
-| Knowledge Graph Query | 5 | Data/MLRag | P1 |
-| RAG Pipeline 구현 | 8 | MLRag | P0 |
-| Frontend 검색 UI | 5 | Frontend | P1 |
+| Story | SP | 담당 | 상태 |
+|-------|:--:|------|:----:|
+| STORY-020 Infra E2E Test | 3 | Infra/QA | Done |
+| STORY-021 Gateway 라우팅 | 5 | Backend | Done |
+| STORY-022 JWT 인증 필터 | 3 | Backend | Done |
+| STORY-024 직접 로그인 API | 5 | Backend | Done |
+| STORY-023 CI/CD 기초 | 3 | DevOps | Done |
+| STORY-025 UI 디자인 검토 | 2 | Frontend | Done |
+| STORY-003 Semantic Chunking | 8 | RAG | Done |
+| STORY-001 문서 업로드 API | 3 | RAG | In Progress (리뷰 필요) |
+| STORY-002 Docling 파싱 | 5 | RAG/QA | In Progress (재테스트 필요) |
+
+**Stretch 달성** (Sprint 03 선행):
+- Backend API 전체 구현 (6 Controller, 10 Entity, 9 Repository, 6 Service)
+- Frontend 4 신규 페이지 + 11개 개선
+- AI Service 코어 파이프라인 (SearchService, RAGPipeline, EntityExtraction)
+- BGE-M3 EmbeddingService 코드 작성
 
 ---
 
@@ -785,6 +795,19 @@ CI/CD Pipeline (GitHub Actions)
 ---
 
 ## Session Notes
+
+### 2026-01-26 (Sprint 02 Day 3~4 - 최대 생산일)
+- **에이전트 대량 투입**: 7종 9회 동시 투입, 커밋 10건
+- **STORY-003 Semantic Chunking 완료** (8 SP)
+- **Backend API 전체 구현**: 6 Controller, 10 Entity, 9 Repository, 6 Service, 30+ DTO
+- **Frontend 페이지 완성**: 4 신규 + 11 개선
+- **AI Service 코어 파이프라인**: SearchService, RAGPipeline, EntityExtraction
+- **BGE-M3 EmbeddingService 구현** (STORY-004 선행)
+- **소스코드 종합 리뷰**: 72.5/100 B+ (Gateway 65, Backend 72, AI 78, Frontend 75)
+- **아키텍처 Critical 3건 해결**: PG 스키마, Internal API, ES 매핑
+- **Slack 인코딩 수정**: send_slack.sh UTF-8 temp file 방식
+- **Sprint 진행률**: 14% → 78% (+64%p)
+- **패키지 설치**: sentence-transformers 5.2.0, torch 2.10.0+cpu
 
 ### 2026-01-25 (Frontend 전략 변경 - Tailwind + Antigravity + Stitch MCP)
 - **Frontend 스타일링 전략 변경 결정**
