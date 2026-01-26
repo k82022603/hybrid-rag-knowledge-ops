@@ -10,6 +10,10 @@ import {
   HomeIcon,
   MagnifyingGlassIcon,
   BookOpenIcon,
+  BookmarkIcon,
+  ArrowUpTrayIcon,
+  UserIcon,
+  Cog6ToothIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline';
 import { useAuth } from '@/auth';
@@ -25,6 +29,7 @@ interface MenuItem {
   icon: React.ReactNode;
   path: string;
   roles?: string[];
+  dividerBefore?: boolean;
 }
 
 const menuItems: MenuItem[] = [
@@ -43,6 +48,30 @@ const menuItems: MenuItem[] = [
     icon: <BookOpenIcon className="h-5 w-5" />,
     path: '/knowledge',
     roles: ['KNOWLEDGE_MANAGER', 'ADMIN'],
+  },
+  {
+    text: 'Upload',
+    icon: <ArrowUpTrayIcon className="h-5 w-5" />,
+    path: '/upload',
+    roles: ['KNOWLEDGE_MANAGER', 'ADMIN'],
+  },
+  {
+    text: 'Bookmarks',
+    icon: <BookmarkIcon className="h-5 w-5" />,
+    path: '/bookmarks',
+    dividerBefore: true,
+  },
+  {
+    text: 'Profile',
+    icon: <UserIcon className="h-5 w-5" />,
+    path: '/profile',
+  },
+  {
+    text: 'Admin',
+    icon: <Cog6ToothIcon className="h-5 w-5" />,
+    path: '/admin',
+    roles: ['ADMIN'],
+    dividerBefore: true,
   },
 ];
 
@@ -102,29 +131,33 @@ const Sidebar: React.FC<SidebarProps> = ({ open, width, onClose }) => {
           {filteredMenuItems.map((item) => {
             const isActive = location.pathname === item.path;
             return (
-              <button
-                key={item.path}
-                onClick={() => handleNavigation(item.path)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/50 dark:text-primary-300'
-                    : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
-                }`}
-              >
-                <span
-                  className={
-                    isActive
-                      ? 'text-primary-600 dark:text-primary-400'
-                      : 'text-gray-400 dark:text-gray-500'
-                  }
-                >
-                  {item.icon}
-                </span>
-                {item.text}
-                {isActive && (
-                  <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-600 dark:bg-primary-400" />
+              <React.Fragment key={item.path}>
+                {item.dividerBefore && (
+                  <div className="my-2 border-t border-gray-200 dark:border-gray-700" />
                 )}
-              </button>
+                <button
+                  onClick={() => handleNavigation(item.path)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/50 dark:text-primary-300'
+                      : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
+                  }`}
+                >
+                  <span
+                    className={
+                      isActive
+                        ? 'text-primary-600 dark:text-primary-400'
+                        : 'text-gray-400 dark:text-gray-500'
+                    }
+                  >
+                    {item.icon}
+                  </span>
+                  {item.text}
+                  {isActive && (
+                    <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-600 dark:bg-primary-400" />
+                  )}
+                </button>
+              </React.Fragment>
             );
           })}
         </nav>

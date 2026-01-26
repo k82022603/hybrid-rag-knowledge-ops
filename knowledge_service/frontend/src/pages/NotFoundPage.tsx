@@ -1,41 +1,34 @@
-import { Box, Typography, Button } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
-import HomeIcon from '@mui/icons-material/Home';
-
 /**
  * NotFoundPage - 404 에러 페이지
+ *
+ * Tailwind CSS 기반
  */
+import { useNavigate } from 'react-router-dom';
+import { HomeIcon } from '@heroicons/react/24/outline';
+
 const NotFoundPage: React.FC = () => {
   const navigate = useNavigate();
 
   return (
-    <Box
-      sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minHeight: '60vh',
-        textAlign: 'center',
-      }}
+    <div
+      className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4"
+      data-testid="not-found-page"
     >
-      <Typography variant="h1" sx={{ fontSize: '6rem', fontWeight: 'bold' }}>
-        404
-      </Typography>
-      <Typography variant="h5" color="text.secondary" sx={{ mb: 3 }}>
+      <p className="text-8xl font-bold text-gray-200 dark:text-gray-700">404</p>
+      <h1 className="mt-4 text-xl font-semibold text-gray-900 dark:text-white">
         Page Not Found
-      </Typography>
-      <Typography variant="body1" color="text.secondary" sx={{ mb: 4 }}>
-        The page you are looking for does not exist.
-      </Typography>
-      <Button
-        variant="contained"
-        startIcon={<HomeIcon />}
+      </h1>
+      <p className="mt-2 text-sm text-gray-500 dark:text-gray-400 max-w-md">
+        The page you are looking for does not exist or has been moved.
+      </p>
+      <button
         onClick={() => navigate('/dashboard')}
+        className="mt-6 inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
       >
+        <HomeIcon className="h-5 w-5" />
         Go to Dashboard
-      </Button>
-    </Box>
+      </button>
+    </div>
   );
 };
 

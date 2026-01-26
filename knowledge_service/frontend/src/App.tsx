@@ -4,9 +4,13 @@ import MainLayout from '@/components/common/MainLayout';
 import DashboardPage from '@/pages/DashboardPage';
 import SearchPage from '@/pages/SearchPage';
 import KnowledgePage from '@/pages/KnowledgePage';
+import BookmarkPage from '@/pages/BookmarkPage';
+import ProfilePage from '@/pages/ProfilePage';
+import AdminPage from '@/pages/AdminPage';
+import DocumentUploadPage from '@/pages/DocumentUploadPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 import LoginPage from '@/pages/LoginPage';
-import { ProtectedRoute, RequireKnowledgeManager } from '@/auth';
+import { ProtectedRoute, RequireKnowledgeManager, RequireAdmin } from '@/auth';
 
 function App() {
   return (
@@ -32,6 +36,24 @@ function App() {
             element={
               <RequireKnowledgeManager>
                 <KnowledgePage />
+              </RequireKnowledgeManager>
+            }
+          />
+          <Route path="bookmarks" element={<BookmarkPage />} />
+          <Route path="profile" element={<ProfilePage />} />
+          <Route
+            path="admin"
+            element={
+              <RequireAdmin>
+                <AdminPage />
+              </RequireAdmin>
+            }
+          />
+          <Route
+            path="upload"
+            element={
+              <RequireKnowledgeManager>
+                <DocumentUploadPage />
               </RequireKnowledgeManager>
             }
           />

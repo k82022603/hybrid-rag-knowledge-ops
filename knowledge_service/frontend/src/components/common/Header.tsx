@@ -153,6 +153,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
                     <MenuItem>
                       {({ focus }) => (
                         <button
+                          onClick={() => navigate('/profile')}
                           className={`${
                             focus ? 'bg-gray-100 dark:bg-gray-700' : ''
                           } flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200`}
@@ -165,6 +166,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
                     <MenuItem>
                       {({ focus }) => (
                         <button
+                          onClick={() => navigate('/admin')}
                           className={`${
                             focus ? 'bg-gray-100 dark:bg-gray-700' : ''
                           } flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200`}
