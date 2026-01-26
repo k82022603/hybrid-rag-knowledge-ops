@@ -50,12 +50,6 @@ jobs:
             context: ./knowledge_service
             dockerfile: Dockerfile
 
-    outputs:
-      backend-image: ${{ steps.meta-backend.outputs.tags }}
-      gateway-image: ${{ steps.meta-gateway.outputs.tags }}
-      frontend-image: ${{ steps.meta-frontend.outputs.tags }}
-      ai-service-image: ${{ steps.meta-ai-service.outputs.tags }}
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -116,11 +110,6 @@ jobs:
             BUILD_DATE=${{ github.event.head_commit.timestamp }}
             VCS_REF=${{ github.sha }}
             VERSION=${{ github.ref_name }}
-
-      - name: Output image tags
-        if: steps.check-dockerfile.outputs.exists == 'true'
-        id: meta-${{ matrix.name }}
-        run: echo "tags=${{ steps.meta.outputs.tags }}" >> $GITHUB_OUTPUT
 
   # =============================================================================
   # Deploy to Staging
