@@ -6,6 +6,7 @@
 **마지막 업데이트**: 2026-01-26
 **설계서 상태**: ✅ 설계 완료 (Phase 2 - 100%, 91점 A등급 승인)
 **구현 진행**: ✅ Sprint 02 Day 4 완료 - 78% (29/37 SP), 소스코드 B+ (72.5/100)
+**CI/CD**: ✅ GitHub Actions 8개 워크플로우 정상 운영 (Docker Build + CD Pipeline 장애 수정 완료)
 
 ## 📋 개요
 
@@ -105,7 +106,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 | 문서 | 설명 |
 |------|------|
-| [CLAUDE.md](./CLAUDE.md) | Claude Code 프로젝트 규칙 v2.6 |
+| [CLAUDE.md](./CLAUDE.md) | Claude Code 프로젝트 규칙 v2.19 |
 | [PLAN.md](./PLAN.md) | 프로젝트 전체 계획 및 AI 에이전트 협업 구조 |
 | [통합 설계서](./knowledge_service/docs/02_design/integrated_detailed_design.md) | 전체 시스템 통합 설계 |
 
@@ -142,6 +143,17 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 |:-:|------|------|:----:|
 | 4 | **Knowledge Graph Query** | Neo4j 그래프 쿼리 API | ⏳ |
 | 5 | **Frontend 검색 UI** | 검색 인터페이스 구현 | ⏳ |
+
+### ✅ 완료된 작업 (2026-01-26 야간)
+
+| # | 문서/작업 | 설명 |
+|:-:|------|------|
+| ✅ | **Docker Build 장애 수정** | eclipse-temurin arm64 미지원 → linux/amd64 단일 플랫폼 |
+| ✅ | **CD Pipeline 장애 수정** | matrix job outputs 동적 step ID 파싱 실패 → outputs 제거 |
+| ✅ | **CI/CD 운영 가이드 v2.0** | 8개 워크플로우 전체 가이드, 트러블슈팅 사례 포함 |
+| ✅ | **장애보고서** | INC-2026-01-26-001 (Docker Build + CD Pipeline) |
+| ✅ | **Branch Protection 가이드 v1.1** | 1인 개발 실용 설정 추가 |
+| ✅ | **인터랙션 모드 가이드** | Shift+Tab 3모드 (Default/Auto-Accept/Plan) |
 
 ### ✅ 완료된 작업 (2026-01-24 Sprint 02)
 

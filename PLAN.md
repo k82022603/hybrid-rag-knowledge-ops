@@ -796,6 +796,15 @@ CI/CD Pipeline (GitHub Actions)
 
 ## Session Notes
 
+### 2026-01-26 Night (GitHub Actions 장애 수정 + 문서화)
+- **Docker Build 장애 수정**: `eclipse-temurin:17-jre-alpine` arm64 미지원 → `linux/amd64` 단일 플랫폼
+- **CD Pipeline 장애 수정**: matrix job outputs 동적 step ID 파싱 실패 → outputs/동적 step ID 제거
+- **장애보고서 작성**: INC-2026-01-26-001
+- **GitHub Actions CI/CD 가이드 v2.0**: 8개 워크플로우 전체 운영 가이드
+- **Branch Protection 가이드 v1.1**: 1인 개발 실용 설정 추가
+- **Claude Code 인터랙션 모드 가이드**: Shift+Tab 3모드 사용법
+- **커밋**: `26ddea1`, `a3baf54`, `53b4a91`
+
 ### 2026-01-26 (Sprint 02 Day 3~4 - 최대 생산일)
 - **에이전트 대량 투입**: 7종 9회 동시 투입, 커밋 10건
 - **STORY-003 Semantic Chunking 완료** (8 SP)
