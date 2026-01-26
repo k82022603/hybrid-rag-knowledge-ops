@@ -216,28 +216,11 @@ spring:
 
         # ==============================================
         # Internal API Routes (/internal/v1/**)
-        # AI Service internal endpoints
+        # REMOVED: Internal API는 Docker 네트워크를 통해 직접 통신해야 합니다.
+        # 설계서: "내부 네트워크에서만 접근" 명시 (보안 위험으로 Gateway 노출 제거)
+        # Backend/AI Service 간 통신은 kp-backend 네트워크에서 직접 수행
+        # Ref: architecture_compliance_review_2026-01-26.md Critical C3
         # ==============================================
-        - id: internal-ai-service
-          uri: ${AI_SERVICE_URL:http://localhost:8000}
-          predicates:
-            - Path=/internal/v1/**
-          filters:
-            - TokenRelay=
-            - name: CircuitBreaker
-              args:
-                name: ai-service-circuit-breaker
-                fallbackUri: forward:/fallback/ai-service
-            - name: Retry
-              args:
-                retries: 2
-                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT
-                methods: GET,POST
-            - name: RequestRateLimiter
-              args:
-                redis-rate-limiter.replenishRate: 10
-                redis-rate-limiter.burstCapacity: 20
-                redis-rate-limiter.requestedTokens: 1
 
         # ==============================================
         # AI Service Direct Routes (/ai/**)
@@ -285,6 +268,11 @@ spring:
           issuer-uri: ${KEYCLOAK_URL:http://localhost:8180}/realms/${KEYCLOAK_REALM:knowledge-platform}
           jwk-set-uri: ${KEYCLOAK_URL:http://localhost:8180}/realms/${KEYCLOAK_REALM:knowledge-platform}/protocol/openid-connect/certs
 
+# JWT Configuration (for self-issued HS256 tokens from Direct Login)
+jwt:
+  secret: ${JWT_SECRET:your-256-bit-secret-key-for-jwt-token-generation-minimum-32-characters}
+  issuer: ${JWT_ISSUER:knowledge-platform}
+
 # Actuator Configuration
 management:
   endpoints:
@@ -327,6 +315,8 @@ resilience4j:
         slow-call-duration-threshold: 5s
         slow-call-rate-threshold: 80
     instances:
+      auth-circuit-breaker:
+        base-config: default
       backend-circuit-breaker:
         base-config: default
       knowledge-circuit-breaker:
@@ -342,6 +332,8 @@ resilience4j:
       ai-timeout:
         timeout-duration: 60s
     instances:
+      auth-circuit-breaker:
+        timeout-duration: 15s
       backend-circuit-breaker:
         timeout-duration: 30s
       knowledge-circuit-breaker:
@@ -535,26 +527,8 @@ spring:
                 redis-rate-limiter.requestedTokens: 1
 
         # Internal AI Service (Docker)
-        - id: internal-ai-service
-          uri: http://ai-service:8000
-          predicates:
-            - Path=/internal/v1/**
-          filters:
-            - TokenRelay=
-            - name: CircuitBreaker
-              args:
-                name: ai-service-circuit-breaker
-                fallbackUri: forward:/fallback/ai-service
-            - name: Retry
-              args:
-                retries: 2
-                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT
-                methods: GET,POST
-            - name: RequestRateLimiter
-              args:
-                redis-rate-limiter.replenishRate: 10
-                redis-rate-limiter.burstCapacity: 20
-                redis-rate-limiter.requestedTokens: 1
+        # REMOVED: Internal API는 Docker 네트워크(kp-backend)를 통해 직접 통신
+        # 설계서: "내부 네트워크에서만 접근" (Gateway 외부 노출 제거)
 
         # AI Service (Docker)
         - id: ai-service

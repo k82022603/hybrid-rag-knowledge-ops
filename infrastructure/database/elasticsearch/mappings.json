@@ -2,7 +2,25 @@
   "settings": {
     "number_of_shards": 1,
     "number_of_replicas": 0,
+    "index.codec": "best_compression",
     "analysis": {
+      "analyzer": {
+        "korean_analyzer": {
+          "type": "custom",
+          "tokenizer": "nori_tokenizer",
+          "filter": ["lowercase", "nori_part_of_speech"]
+        },
+        "text_analyzer": {
+          "type": "custom",
+          "tokenizer": "standard",
+          "filter": ["lowercase", "asciifolding"]
+        },
+        "ngram_analyzer": {
+          "type": "custom",
+          "tokenizer": "ngram_tokenizer",
+          "filter": ["lowercase"]
+        }
+      },
       "tokenizer": {
         "ngram_tokenizer": {
           "type": "ngram",
@@ -11,49 +29,65 @@
           "token_chars": ["letter", "digit"]
         }
       },
-      "analyzer": {
-        "korean_analyzer": {
-          "type": "custom",
-          "tokenizer": "standard",
-          "filter": ["lowercase", "stop"]
-        },
-        "ngram_analyzer": {
-          "type": "custom",
-          "tokenizer": "ngram_tokenizer",
-          "filter": ["lowercase"]
+      "filter": {
+        "nori_part_of_speech": {
+          "type": "nori_part_of_speech",
+          "stoptags": ["E", "IC", "J", "MAG", "MAJ", "MM", "SP", "SSC", "SSO", "SC", "SE", "XPN", "XSA", "XSN", "XSV", "UNA", "NA", "VSV"]
         }
       }
-    }
+    },
+    "index.knn": true
   },
   "mappings": {
     "properties": {
+      "chunk_id": {
+        "type": "keyword"
+      },
+      "document_id": {
+        "type": "keyword"
+      },
+      "chunk_index": {
+        "type": "integer"
+      },
       "text": {
         "type": "text",
+        "analyzer": "korean_analyzer",
+        "search_analyzer": "korean_analyzer",
         "fields": {
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          },
-          "english": {
+          "standard": {
             "type": "text",
-            "analyzer": "english"
-          },
-          "korean": {
-            "type": "text",
-            "analyzer": "korean_analyzer"
+            "analyzer": "text_analyzer"
           },
           "ngram": {
             "type": "text",
             "analyzer": "ngram_analyzer"
+          },
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
           }
-        },
-        "analyzer": "standard"
+        }
       },
-      "vector_field": {
+      "dense_vector": {
         "type": "dense_vector",
         "dims": 1024,
         "index": true,
         "similarity": "cosine"
+      },
+      "sparse_vector": {
+        "type": "sparse_vector"
+      },
+      "heading": {
+        "type": "text",
+        "analyzer": "korean_analyzer",
+        "fields": {
+          "keyword": {
+            "type": "keyword"
+          }
+        }
+      },
+      "token_count": {
+        "type": "integer"
       },
       "metadata": {
         "type": "object",
@@ -65,16 +99,19 @@
           "project_name": {
             "type": "keyword"
           },
-          "project_id": {
-            "type": "integer"
+          "project_code": {
+            "type": "keyword"
+          },
+          "author_name": {
+            "type": "keyword"
           },
           "valid_start_date": {
             "type": "date",
-            "format": "yyyy-MM-dd"
+            "format": "yyyy-MM-dd||yyyy-MM-dd'T'HH:mm:ss||epoch_millis"
           },
           "valid_end_date": {
             "type": "date",
-            "format": "yyyy-MM-dd"
+            "format": "yyyy-MM-dd||yyyy-MM-dd'T'HH:mm:ss||epoch_millis"
           },
           "entities": {
             "type": "object",
@@ -94,18 +131,33 @@
               }
             }
           },
-          "chunk_id": {
+          "categories": {
             "type": "keyword"
           },
-          "chunk_index": {
-            "type": "integer"
+          "keywords": {
+            "type": "keyword"
           },
-          "total_chunks": {
-            "type": "integer"
+          "language": {
+            "type": "keyword"
           },
-          "ingestion_timestamp": {
-            "type": "date",
-            "format": "strict_date_time"
+          "summary": {
+            "type": "text",
+            "analyzer": "korean_analyzer"
+          },
+          "title": {
+            "type": "text",
+            "analyzer": "korean_analyzer",
+            "fields": {
+              "keyword": {
+                "type": "keyword"
+              }
+            }
+          },
+          "knowledge_type": {
+            "type": "keyword"
+          },
+          "tags": {
+            "type": "keyword"
           },
           "source": {
             "type": "keyword"
@@ -113,30 +165,31 @@
           "page": {
             "type": "integer"
           },
-          "summary": {
-            "type": "text"
-          },
-          "knowledge_id": {
-            "type": "integer"
-          },
-          "title": {
-            "type": "text",
-            "fields": {
-              "keyword": {
-                "type": "keyword"
-              }
-            }
+          "ingestion_timestamp": {
+            "type": "date",
+            "format": "strict_date_time||yyyy-MM-dd'T'HH:mm:ss.SSSZ||epoch_millis"
           },
           "contributor_name": {
             "type": "keyword"
-          },
-          "knowledge_type": {
-            "type": "keyword"
-          },
-          "tags": {
-            "type": "keyword"
           }
         }
+      },
+      "neo4j_entity_ids": {
+        "type": "keyword"
+      },
+      "neo4j_community_id": {
+        "type": "keyword"
+      },
+      "total_chunks": {
+        "type": "integer"
+      },
+      "created_at": {
+        "type": "date",
+        "format": "yyyy-MM-dd'T'HH:mm:ss.SSSZ||yyyy-MM-dd'T'HH:mm:ssZ||epoch_millis"
+      },
+      "updated_at": {
+        "type": "date",
+        "format": "yyyy-MM-dd'T'HH:mm:ss.SSSZ||yyyy-MM-dd'T'HH:mm:ssZ||epoch_millis"
       }
     }
   }
