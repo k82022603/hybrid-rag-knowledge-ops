@@ -69,7 +69,7 @@ Sprint 1 완료 항목 (필수):
 |----|------|--------|--------|------|
 | STORY-046 | Frontend 4개 페이지 + 11개 개선 | 8 | **In Progress** | 20파일 완료 (커밋: 1579504) |
 | STORY-047 | Backend API 32개 전체 구현 | 13 | **In Progress** | 57파일 완료 (커밋: 34f0d10) |
-| STORY-004 | BGE-M3 EmbeddingService (선행) | 5 | **30%** | 코드 작성 (커밋: 7eaf58f) |
+| STORY-004 | BGE-M3 EmbeddingService (선행) | 5 | **90%** | 전면 구현 + 68/68 테스트 통과 (커밋: 9b95a3a) |
 | - | AI Service 코어 파이프라인 | - | **In Progress** | SearchService+RAGPipeline (커밋: 6dc4575) |
 
 ---
