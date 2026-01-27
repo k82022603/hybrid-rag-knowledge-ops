@@ -2,10 +2,21 @@
 Hybrid Retriever
 
 Elasticsearch Vector Search + Neo4j Graph Search를 결합한 Hybrid 검색
-RRF (Reciprocal Rank Fusion) 기반 결과 융합
+SearchService 위임 구조로 중복 제거 (ADR-001)
+
+Architecture:
+    - ElasticsearchRetriever: ES kNN 벡터 + BM25 키워드 검색 래퍼
+    - Neo4jRetriever: Neo4j 그래프 탐색 래퍼
+    - HybridRetriever: 3-source 통합 + RRF Fusion (SearchService 위임)
+
+Usage:
+    RAG 워크플로우에서 HybridRetriever를 사용하여 검색을 수행합니다.
+    REST API에서는 SearchService를 직접 사용합니다.
+    둘 다 내부적으로 같은 검색 로직을 공유합니다.
 """
 
 import asyncio
+import time
 from typing import Any, Dict, List, Optional
 
 from app.agents.state import SearchResult
@@ -15,107 +26,166 @@ from app.core.logging import get_logger
 logger = get_logger(__name__)
 
 
-class HybridRetriever:
+class ElasticsearchRetriever:
     """
-    Hybrid Retriever
+    Elasticsearch 검색 래퍼
 
-    Vector Search (Elasticsearch kNN)와 Graph Search (Neo4j Cypher)를
-    병렬로 실행하고 RRF로 결과를 융합합니다.
+    SearchService의 semantic_search 및 keyword_search를 위임하여
+    ES kNN 벡터 검색과 BM25 키워드 검색을 수행합니다.
+
+    Attributes:
+        _search_service: SearchService 인스턴스 (지연 초기화)
     """
 
     def __init__(
         self,
         es_client: Optional[Any] = None,
-        neo4j_driver: Optional[Any] = None,
+        search_service: Optional[Any] = None,
     ):
         """
         초기화
 
         Args:
-            es_client: Elasticsearch 클라이언트
-            neo4j_driver: Neo4j 드라이버
+            es_client: Elasticsearch 클라이언트 (SearchService 생성 시 사용)
+            search_service: 기존 SearchService 인스턴스 (직접 주입)
         """
-        self.es_client = es_client
-        self.neo4j_driver = neo4j_driver
+        self._es_client = es_client
+        self._search_service = search_service
 
-    async def retrieve(
-        self,
-        query: str,
-        entities: Optional[List[Dict[str, Any]]] = None,
-        top_k: int = 10,
-    ) -> List[SearchResult]:
-        """
-        Hybrid 검색 수행
+    @property
+    def search_service(self) -> Any:
+        """SearchService 지연 초기화"""
+        if self._search_service is None:
+            from app.services.search import SearchService
+            self._search_service = SearchService(es_client=self._es_client)
+        return self._search_service
 
-        Args:
-            query: 검색 질의
-            entities: 추출된 엔티티 목록 (Graph Search 활용)
-            top_k: 반환할 결과 수
-
-        Returns:
-            융합된 검색 결과 목록
-        """
-        logger.info(f"Hybrid retrieval - Query: {query[:50]}..., top_k={top_k}")
-
-        # 1. 병렬 검색 실행
-        es_results, neo_results = await asyncio.gather(
-            self._vector_search(query, top_k=top_k * 2),
-            self._graph_search(query, entities, top_k=top_k * 2),
-        )
-
-        logger.info(
-            f"Search results - Vector: {len(es_results)}, Graph: {len(neo_results)}"
-        )
-
-        # 2. RRF 융합
-        fused = self._rrf_fusion(es_results, neo_results, k=settings.rrf_k)
-
-        # 3. Reranking (옵션)
-        # TODO: Cross-encoder reranking 구현
-
-        return fused[:top_k]
-
-    async def _vector_search(
+    async def search(
         self,
         query: str,
         top_k: int = 20,
+        filters: Optional[Dict[str, Any]] = None,
+        search_type: str = "vector",
     ) -> List[SearchResult]:
         """
-        Elasticsearch kNN Vector Search
+        Elasticsearch 검색 수행
 
         Args:
             query: 검색 질의
             top_k: 반환할 결과 수
+            filters: 필터 조건 딕셔너리
+            search_type: 검색 유형 ('vector' 또는 'keyword')
+
+        Returns:
+            SearchResult 목록
+        """
+        try:
+            if search_type == "keyword":
+                result = await self.search_service.keyword_search(
+                    query=query, filters=filters, top_k=top_k
+                )
+            else:
+                result = await self.search_service.semantic_search(
+                    query=query, filters=filters, top_k=top_k
+                )
+
+            results = result.get("results", [])
+            logger.debug(
+                "ES %s search - Query: '%s', Results: %d",
+                search_type, query[:50], len(results),
+            )
+            return results
+
+        except Exception as e:
+            logger.warning("ES %s search failed: %s", search_type, e)
+            return []
+
+    async def vector_search(
+        self,
+        query: str,
+        top_k: int = 20,
+        filters: Optional[Dict[str, Any]] = None,
+    ) -> List[SearchResult]:
+        """
+        벡터 유사도 검색 (kNN)
+
+        Args:
+            query: 검색 질의
+            top_k: 반환할 결과 수
+            filters: 필터 조건
 
         Returns:
             Vector Search 결과 목록
         """
-        if self.es_client is None:
-            logger.warning("Elasticsearch client not initialized")
-            return []
+        return await self.search(
+            query=query, top_k=top_k, filters=filters, search_type="vector"
+        )
 
-        # TODO: 실제 Elasticsearch kNN 검색 구현
-        # query_vector = await self._get_embedding(query)
-        # results = await self.es_client.search(
-        #     index=settings.elasticsearch_index,
-        #     knn={
-        #         "field": "embedding",
-        #         "query_vector": query_vector,
-        #         "k": top_k,
-        #         "num_candidates": top_k * 10,
-        #     },
-        # )
+    async def keyword_search(
+        self,
+        query: str,
+        top_k: int = 20,
+        filters: Optional[Dict[str, Any]] = None,
+    ) -> List[SearchResult]:
+        """
+        키워드 검색 (BM25)
 
-        return []
+        Args:
+            query: 검색 질의
+            top_k: 반환할 결과 수
+            filters: 필터 조건
 
-    async def _graph_search(
+        Returns:
+            Keyword Search 결과 목록
+        """
+        return await self.search(
+            query=query, top_k=top_k, filters=filters, search_type="keyword"
+        )
+
+
+class Neo4jRetriever:
+    """
+    Neo4j Graph 검색 래퍼
+
+    SearchService의 _graph_search를 위임하여 Knowledge Graph 탐색을 수행합니다.
+
+    Attributes:
+        _search_service: SearchService 인스턴스 (지연 초기화)
+    """
+
+    def __init__(
+        self,
+        neo4j_driver: Optional[Any] = None,
+        search_service: Optional[Any] = None,
+    ):
+        """
+        초기화
+
+        Args:
+            neo4j_driver: Neo4j 드라이버 (SearchService 생성 시 사용)
+            search_service: 기존 SearchService 인스턴스 (직접 주입)
+        """
+        self._neo4j_driver = neo4j_driver
+        self._search_service = search_service
+
+    @property
+    def search_service(self) -> Any:
+        """SearchService 지연 초기화"""
+        if self._search_service is None:
+            from app.services.search import SearchService
+            self._search_service = SearchService(neo4j_driver=self._neo4j_driver)
+        return self._search_service
+
+    async def search(
         self,
         query: str,
         entities: Optional[List[Dict[str, Any]]] = None,
         top_k: int = 20,
     ) -> List[SearchResult]:
         """
-        Neo4j Graph Search
+        Graph 검색 수행
+
+        엔티티 기반으로 Knowledge Graph를 탐색하여 관련 청크를 검색합니다.
 
         Args:
             query: 검색 질의
@@ -125,74 +195,360 @@ class HybridRetriever:
         Returns:
             Graph Search 결과 목록
         """
-        if self.neo4j_driver is None:
-            logger.warning("Neo4j driver not initialized")
+        try:
+            results = await self.search_service._graph_search(
+                query=query, entities=entities, top_k=top_k
+            )
+            logger.debug(
+                "Graph search - Query: '%s', Entities: %d, Results: %d",
+                query[:50],
+                len(entities or []),
+                len(results),
+            )
+            return results
+
+        except Exception as e:
+            logger.warning("Graph search failed: %s", e)
             return []
 
-        # TODO: 실제 Neo4j Cypher 검색 구현
-        # entity_names = [e["name"] for e in (entities or [])]
-        # cypher = """
-        # MATCH (d:Document)-[:CONTAINS]->(c:Chunk)
-        # WHERE any(name IN $entity_names WHERE c.content CONTAINS name)
-        # RETURN c.id AS chunk_id, c.content AS content, d.id AS document_id
-        # LIMIT $top_k
-        # """
 
-        return []
+class HybridRetriever:
+    """
+    Hybrid Retriever
 
-    def _rrf_fusion(
+    Vector Search (Elasticsearch kNN + BM25)와 Graph Search (Neo4j Cypher)를
+    병렬로 실행하고 RRF로 결과를 융합합니다.
+
+    ADR-001 결정에 따라 SearchService에 위임하여 중복 로직을 제거합니다.
+    - HybridRetriever: RAG 워크플로우 인터페이스
+    - SearchService: REST API 인터페이스
+    - 둘 다 동일한 검색/융합 로직 공유
+
+    Attributes:
+        _search_service: SearchService 인스턴스
+        _es_retriever: Elasticsearch 검색 래퍼
+        _neo4j_retriever: Neo4j 검색 래퍼
+    """
+
+    def __init__(
         self,
-        vector_results: List[SearchResult],
-        graph_results: List[SearchResult],
-        k: int = 60,
-    ) -> List[SearchResult]:
+        es_client: Optional[Any] = None,
+        neo4j_driver: Optional[Any] = None,
+        search_service: Optional[Any] = None,
+    ):
         """
-        RRF (Reciprocal Rank Fusion) 융합
+        초기화
+
+        SearchService 인스턴스를 직접 주입하거나, es_client/neo4j_driver로
+        새 인스턴스를 생성합니다.
 
         Args:
-            vector_results: Vector Search 결과
-            graph_results: Graph Search 결과
-            k: RRF 파라미터 (기본값 60)
+            es_client: Elasticsearch 클라이언트
+            neo4j_driver: Neo4j 드라이버
+            search_service: 기존 SearchService 인스턴스 (직접 주입, 우선)
+        """
+        self._es_client = es_client
+        self._neo4j_driver = neo4j_driver
+        self._injected_search_service = search_service
+        self._search_service: Optional[Any] = None
+
+        # 개별 Retriever (SearchService 공유)
+        self._es_retriever: Optional[ElasticsearchRetriever] = None
+        self._neo4j_retriever: Optional[Neo4jRetriever] = None
+
+    @property
+    def search_service(self) -> Any:
+        """SearchService 지연 초기화 (싱글톤)"""
+        if self._search_service is None:
+            if self._injected_search_service is not None:
+                self._search_service = self._injected_search_service
+            else:
+                from app.services.search import SearchService
+                self._search_service = SearchService(
+                    es_client=self._es_client,
+                    neo4j_driver=self._neo4j_driver,
+                )
+        return self._search_service
+
+    @property
+    def es_retriever(self) -> ElasticsearchRetriever:
+        """ElasticsearchRetriever 지연 초기화"""
+        if self._es_retriever is None:
+            self._es_retriever = ElasticsearchRetriever(
+                search_service=self.search_service
+            )
+        return self._es_retriever
+
+    @property
+    def neo4j_retriever(self) -> Neo4jRetriever:
+        """Neo4jRetriever 지연 초기화"""
+        if self._neo4j_retriever is None:
+            self._neo4j_retriever = Neo4jRetriever(
+                search_service=self.search_service
+            )
+        return self._neo4j_retriever
+
+    async def retrieve(
+        self,
+        query: str,
+        entities: Optional[List[Dict[str, Any]]] = None,
+        top_k: int = 10,
+        filters: Optional[Dict[str, Any]] = None,
+        user_id: Optional[str] = None,
+    ) -> List[SearchResult]:
+        """
+        Hybrid 검색 수행
+
+        SearchService.hybrid_search()에 위임하여 Vector + Keyword + Graph
+        3-source 병렬 검색 후 RRF 융합 결과를 반환합니다.
+
+        Args:
+            query: 검색 질의
+            entities: 추출된 엔티티 목록 (Graph Search 활용)
+            top_k: 반환할 결과 수
+            filters: 필터 조건 딕셔너리
+            user_id: 사용자 ID (이력 기록용)
 
         Returns:
-            융합된 결과 목록
+            RRF 융합된 검색 결과 목록 (상위 top_k개)
         """
-        scores: Dict[str, float] = {}
-        results_map: Dict[str, SearchResult] = {}
+        start_time = time.monotonic()
 
-        # Vector 결과 스코어 계산
-        for rank, result in enumerate(vector_results):
-            chunk_id = result.chunk_id
-            scores[chunk_id] = scores.get(chunk_id, 0) + 1.0 / (k + rank + 1)
-            results_map[chunk_id] = result
+        logger.info(
+            "Hybrid retrieval - Query: '%s', top_k=%d, entities=%d",
+            query[:80], top_k, len(entities or []),
+        )
 
-        # Graph 결과 스코어 계산
-        for rank, result in enumerate(graph_results):
-            chunk_id = result.chunk_id
-            scores[chunk_id] = scores.get(chunk_id, 0) + 1.0 / (k + rank + 1)
-            if chunk_id not in results_map:
-                results_map[chunk_id] = result
+        try:
+            # SearchService에 위임하여 hybrid search 수행
+            result = await self.search_service.hybrid_search(
+                query=query,
+                filters=filters,
+                top_k=top_k,
+                user_id=user_id,
+            )
 
-        # 스코어 기준 정렬
-        sorted_ids = sorted(scores.keys(), key=lambda x: scores[x], reverse=True)
+            fused_results = result.get("results", [])
 
-        # 결과 반환
-        fused_results = []
-        for chunk_id in sorted_ids:
-            result = results_map[chunk_id]
-            result.score = scores[chunk_id]
-            fused_results.append(result)
+            latency_ms = (time.monotonic() - start_time) * 1000
+            debug_info = result.get("debug", {})
 
-        return fused_results
+            logger.info(
+                "Hybrid retrieval complete - "
+                "Vector: %d, Keyword: %d, Graph: %d, "
+                "Fused: %d, Latency: %.1fms",
+                debug_info.get("vector_count", 0),
+                debug_info.get("keyword_count", 0),
+                debug_info.get("graph_count", 0),
+                len(fused_results),
+                latency_ms,
+            )
+
+            return fused_results
+
+        except Exception as e:
+            latency_ms = (time.monotonic() - start_time) * 1000
+            logger.error(
+                "Hybrid retrieval failed (%.1fms): %s", latency_ms, e
+            )
+            # Fallback: 개별 Retriever로 부분 검색 시도
+            return await self._fallback_retrieve(
+                query=query, entities=entities, top_k=top_k, filters=filters
+            )
+
+    async def aretrieve(
+        self,
+        query: str,
+        entities: Optional[List[Dict[str, Any]]] = None,
+        top_k: int = 10,
+        filters: Optional[Dict[str, Any]] = None,
+        user_id: Optional[str] = None,
+    ) -> List[SearchResult]:
+        """
+        비동기 Hybrid 검색 (retrieve의 별칭)
+
+        LangChain/LangGraph 호환성을 위한 비동기 인터페이스입니다.
+
+        Args:
+            query: 검색 질의
+            entities: 추출된 엔티티 목록
+            top_k: 반환할 결과 수
+            filters: 필터 조건 딕셔너리
+            user_id: 사용자 ID
+
+        Returns:
+            RRF 융합된 검색 결과 목록
+        """
+        return await self.retrieve(
+            query=query,
+            entities=entities,
+            top_k=top_k,
+            filters=filters,
+            user_id=user_id,
+        )
+
+    async def retrieve_by_source(
+        self,
+        query: str,
+        source: str = "vector",
+        entities: Optional[List[Dict[str, Any]]] = None,
+        top_k: int = 10,
+        filters: Optional[Dict[str, Any]] = None,
+    ) -> List[SearchResult]:
+        """
+        특정 소스로 검색
+
+        Args:
+            query: 검색 질의
+            source: 검색 소스 ('vector', 'keyword', 'graph')
+            entities: 추출된 엔티티 목록
+            top_k: 반환할 결과 수
+            filters: 필터 조건
+
+        Returns:
+            검색 결과 목록
+        """
+        if source == "graph":
+            return await self.neo4j_retriever.search(
+                query=query, entities=entities, top_k=top_k
+            )
+        elif source == "keyword":
+            return await self.es_retriever.keyword_search(
+                query=query, top_k=top_k, filters=filters
+            )
+        else:
+            return await self.es_retriever.vector_search(
+                query=query, top_k=top_k, filters=filters
+            )
+
+    async def _fallback_retrieve(
+        self,
+        query: str,
+        entities: Optional[List[Dict[str, Any]]] = None,
+        top_k: int = 10,
+        filters: Optional[Dict[str, Any]] = None,
+    ) -> List[SearchResult]:
+        """
+        Fallback 검색: 개별 소스 병렬 검색 + RRF 융합
+
+        hybrid_search 전체가 실패한 경우, 개별 Retriever로
+        부분 검색을 시도하고 가용한 결과를 RRF 융합합니다.
+
+        Args:
+            query: 검색 질의
+            entities: 추출된 엔티티 목록
+            top_k: 반환할 결과 수
+            filters: 필터 조건
+
+        Returns:
+            가용한 검색 결과 목록 (부분 결과 가능)
+        """
+        logger.warning("Falling back to individual source retrieval")
+
+        # 병렬 검색 (return_exceptions로 부분 실패 허용)
+        vector_task = self.es_retriever.vector_search(
+            query=query, top_k=top_k * 2, filters=filters
+        )
+        keyword_task = self.es_retriever.keyword_search(
+            query=query, top_k=top_k * 2, filters=filters
+        )
+        graph_task = self.neo4j_retriever.search(
+            query=query, entities=entities, top_k=top_k * 2
+        )
+
+        results = await asyncio.gather(
+            vector_task, keyword_task, graph_task,
+            return_exceptions=True,
+        )
+
+        # 성공한 결과만 수집
+        result_lists: List[List[SearchResult]] = []
+        source_names: List[str] = []
+
+        for i, (name, res) in enumerate(
+            zip(["vector", "keyword", "graph"], results)
+        ):
+            if isinstance(res, Exception):
+                logger.warning("Fallback %s search failed: %s", name, res)
+            elif isinstance(res, list):
+                result_lists.append(res)
+                source_names.append(name)
+
+        if not result_lists:
+            logger.error("All fallback searches failed")
+            return []
+
+        # RRF 융합 (SearchService의 메서드 사용)
+        fused = self.search_service._rrf_fusion(
+            result_lists=result_lists,
+            source_names=source_names,
+            k=settings.rrf_k,
+        )
+
+        logger.info(
+            "Fallback retrieval - Sources: %s, Fused: %d",
+            source_names, len(fused),
+        )
+
+        return fused[:top_k]
+
+    def health_check(self) -> Dict[str, Any]:
+        """
+        Retriever 상태 점검
+
+        Returns:
+            상태 정보 딕셔너리
+        """
+        return {
+            "service": "HybridRetriever",
+            "es_client": self._es_client is not None or (
+                self._injected_search_service is not None
+                and getattr(self._injected_search_service, "es_client", None) is not None
+            ),
+            "neo4j_driver": self._neo4j_driver is not None or (
+                self._injected_search_service is not None
+                and getattr(self._injected_search_service, "neo4j_driver", None) is not None
+            ),
+            "search_service_initialized": self._search_service is not None,
+            "rrf_k": settings.rrf_k,
+            "retrieval_top_k": settings.retrieval_top_k,
+        }
 
 
-# 싱글톤 인스턴스
+# ---------------------------------------------------------------------------
+# Singleton instance
+# ---------------------------------------------------------------------------
+
 _retriever: Optional[HybridRetriever] = None
 
 
-def get_hybrid_retriever() -> HybridRetriever:
-    """Hybrid Retriever 인스턴스 반환"""
+def get_hybrid_retriever(
+    es_client: Optional[Any] = None,
+    neo4j_driver: Optional[Any] = None,
+    search_service: Optional[Any] = None,
+) -> HybridRetriever:
+    """
+    HybridRetriever 인스턴스 반환 (싱글톤)
+
+    Args:
+        es_client: Elasticsearch 클라이언트
+        neo4j_driver: Neo4j 드라이버
+        search_service: SearchService 인스턴스
+
+    Returns:
+        HybridRetriever 싱글톤 인스턴스
+    """
     global _retriever
     if _retriever is None:
-        _retriever = HybridRetriever()
+        _retriever = HybridRetriever(
+            es_client=es_client,
+            neo4j_driver=neo4j_driver,
+            search_service=search_service,
+        )
     return _retriever
+
+
+def reset_hybrid_retriever() -> None:
+    """싱글톤 인스턴스 초기화 (테스트용)"""
+    global _retriever
+    _retriever = None
