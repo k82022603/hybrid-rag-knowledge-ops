@@ -8,7 +8,7 @@
 | **Velocity (계획)** | 52 pts |
 | **Velocity (실제)** | - |
 | **Status** | planned |
-| **Jira Sprint ID** | 37 |
+| **Jira Sprint ID** | 69 |
 
 ---
 
@@ -56,21 +56,21 @@ Sprint 2 완료 항목 (필수):
 
 | Priority | ID | Jira | 제목 | Points | Assignee | Status |
 |----------|-----|------|------|--------|----------|--------|
-| P0 | STORY-030 | SCRUM-30 | HybridRetriever 구현 | 8 | MLRag | To Do |
-| P0 | STORY-031 | SCRUM-31 | RRF Fusion 알고리즘 | 5 | MLRag | To Do |
-| P0 | STORY-032 | SCRUM-32 | BGE Reranker 통합 | 5 | MLRag | To Do |
-| P0 | STORY-033 | SCRUM-33 | LangGraph 워크플로우 | 8 | MLRag | To Do |
-| P1 | STORY-044 | SCRUM-44 | Backend Search Service | 5 | Backend | To Do |
-| P1 | STORY-045 | SCRUM-45 | 초기 데이터 ETL | 3 | Data | To Do |
+| P0 | STORY-030 | SCRUM-25 | HybridRetriever 구현 | 8 | MLRag | To Do |
+| P0 | STORY-031 | SCRUM-26 | RRF Fusion 알고리즘 | 5 | MLRag | To Do |
+| P0 | STORY-032 | SCRUM-27 | BGE Reranker 통합 | 5 | MLRag | To Do |
+| P0 | STORY-033 | SCRUM-28 | LangGraph 워크플로우 | 8 | MLRag | To Do |
+| P1 | STORY-044 | SCRUM-33 | Backend Search Service | 5 | Backend | To Do |
+| P1 | STORY-045 | SCRUM-34 | 초기 데이터 ETL | 3 | Data | To Do |
 
 ### Epic 003: Frontend UI/UX (18 pts)
 
 | Priority | ID | Jira | 제목 | Points | Assignee | Status |
 |----------|-----|------|------|--------|----------|--------|
-| P0 | STORY-040 | SCRUM-41 | Frontend Keycloak 연동 | 5 | Frontend | To Do |
-| P0 | STORY-041 | SCRUM-42 | Dashboard UI | 5 | Frontend | To Do |
-| P0 | STORY-042 | SCRUM-43 | Search UI 컴포넌트 | 5 | Frontend | To Do |
-| P1 | STORY-043 | SCRUM-46 | SSE 스트리밍 응답 | 3 | Frontend | To Do |
+| P0 | STORY-040 | SCRUM-29 | Frontend Keycloak 연동 | 5 | Frontend | To Do |
+| P0 | STORY-041 | SCRUM-30 | Dashboard UI | 5 | Frontend | To Do |
+| P0 | STORY-042 | SCRUM-31 | Search UI 컴포넌트 | 5 | Frontend | To Do |
+| P1 | STORY-043 | SCRUM-32 | SSE 스트리밍 응답 | 3 | Frontend | To Do |
 
 ### Stretch (여유 시 추가)
 
