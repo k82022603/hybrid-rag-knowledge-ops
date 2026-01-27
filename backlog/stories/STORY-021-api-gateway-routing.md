@@ -4,9 +4,9 @@
 
 | 항목 | 값 |
 |------|-----|
-| **Jira ID** | SCRUM-21 |
+| **Jira ID** | SCRUM-22 |
 | **Epic** | EPIC-001 |
-| **Status** | To Do |
+| **Status** | **Done** ✅ (2026-01-24) |
 | **Priority** | High |
 | **Story Points** | 5 |
 | **Assignee** | Backend |

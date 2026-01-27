@@ -4,9 +4,9 @@
 
 | 항목 | 값 |
 |------|-----|
-| **Jira ID** | SCRUM-23 |
+| **Jira ID** | SCRUM-24 |
 | **Epic** | EPIC-001 |
-| **Status** | To Do |
+| **Status** | **Done** ✅ (2026-01-26) |
 | **Priority** | Medium |
 | **Story Points** | 3 |
 | **Assignee** | DevOps |

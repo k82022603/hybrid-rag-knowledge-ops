@@ -6,7 +6,7 @@
 |------|-----|
 | **Jira ID** | SCRUM-25 |
 | **Epic** | EPIC-002 |
-| **Status** | In Progress |
+| **Status** | **Done** ✅ (2026-01-26) |
 | **Priority** | High |
 | **Story Points** | 2 |
 | **Assignee** | Frontend |

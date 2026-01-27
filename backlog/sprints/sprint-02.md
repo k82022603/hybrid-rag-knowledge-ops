@@ -6,8 +6,8 @@
 |------|-----|
 | **기간** | 2026-02-03 ~ 2026-02-14 (2주) |
 | **Velocity (계획)** | 35 pts |
-| **Velocity (실제)** | - |
-| **Status** | planned |
+| **Velocity (실제)** | 37 pts |
+| **Status** | **Done** ✅ (Day 5, 100%) |
 | **Jira Sprint ID** | 36 |
 
 ---
@@ -46,16 +46,16 @@ Sprint 1 완료 항목 (필수):
 
 ### Committed (37 pts)
 
-| Priority | ID | Jira | 제목 | Points | Assignee | Status |
-|----------|-----|------|------|--------|----------|--------|
-| P0 | STORY-001 | SCRUM-6 | 문서 업로드 API | 3 | Backend | **In Progress** |
-| P0 | STORY-002 | SCRUM-7 | Docling 문서 파싱 | 8 | MLRag | **In Progress** (테스트 검증) |
-| P0 | STORY-003 | SCRUM-8 | Semantic Chunking | 8 | MLRag | To Do |
-| P0 | STORY-021 | SCRUM-21 | API Gateway 라우팅 구현 | 5 | Backend | **Done** |
-| P0 | STORY-022 | SCRUM-22 | JWT 인증 필터 | 3 | Backend | **Done** |
-| **P0** | **STORY-024** | **SCRUM-21** | **직접 로그인 API** | **5** | **Backend, QA** | **Done** |
-| P1 | STORY-023 | SCRUM-23 | CI/CD 파이프라인 기초 | 3 | DevOps | **In Progress** |
-| P1 | STORY-025 | SCRUM-25 | UI 디자인 검토 및 Gap 분석 | 2 | Frontend | **In Progress** |
+| Priority | ID | Jira | 제목 | Points | Assignee | Status | 완료일 |
+|----------|-----|------|------|--------|----------|--------|--------|
+| P0 | STORY-001 | SCRUM-6 | 문서 업로드 API | 3 | RAG | **Done** ✅ | 2026-01-27 |
+| P0 | STORY-002 | SCRUM-7 | Docling 문서 파싱 | 5 | RAG/QA | **Done** ✅ | 2026-01-27 |
+| P0 | STORY-003 | SCRUM-8 | Semantic Chunking | 8 | RAG | **Done** ✅ | 2026-01-26 |
+| P0 | STORY-021 | SCRUM-22 | API Gateway 라우팅 구현 | 5 | Backend | **Done** ✅ | 2026-01-24 |
+| P0 | STORY-022 | SCRUM-23 | JWT 인증 필터 | 3 | Backend | **Done** ✅ | 2026-01-24 |
+| P0 | STORY-024 | SCRUM-21 | 직접 로그인 API | 5 | Backend/QA | **Done** ✅ | 2026-01-25 |
+| P1 | STORY-023 | SCRUM-24 | CI/CD 파이프라인 기초 | 3 | DevOps | **Done** ✅ | 2026-01-26 |
+| P1 | STORY-025 | - | UI 디자인 검토 및 Gap 분석 | 2 | Frontend | **Done** ✅ | 2026-01-26 |
 
 ### Validation (Sprint 01 검증)
 
@@ -63,14 +63,14 @@ Sprint 1 완료 항목 (필수):
 |----------|-----|------|------|--------|----------|--------|
 | P0 | STORY-020 | SCRUM-20 | Infrastructure E2E Test | 3 | QA | **Done** |
 
-### Stretch (여유 시 추가)
+### Stretch (Sprint 03 선행 - Day 4에서 달성)
 
-| ID | 제목 | Points |
-|----|------|--------|
-| STORY-041 | Dashboard UI 구현 | 5 |
-| STORY-042 | Search UI 구현 | 5 |
-| - | HWP 파서 고도화 (pyhwpx 최적화) | 3 |
-| - | 업로드 진행률 WebSocket 알림 | 2 |
+| ID | 제목 | Points | Status | 비고 |
+|----|------|--------|--------|------|
+| STORY-046 | Frontend 4개 페이지 + 11개 개선 | 8 | **In Progress** | 20파일 완료 (커밋: 1579504) |
+| STORY-047 | Backend API 32개 전체 구현 | 13 | **In Progress** | 57파일 완료 (커밋: 34f0d10) |
+| STORY-004 | BGE-M3 EmbeddingService (선행) | 5 | **30%** | 코드 작성 (커밋: 7eaf58f) |
+| - | AI Service 코어 파이프라인 | - | **In Progress** | SearchService+RAGPipeline (커밋: 6dc4575) |
 
 ---
 
@@ -209,11 +209,16 @@ knowledge_service/src/tests/
 
 ## 스프린트 리뷰
 
-### 완료된 항목
-- (스프린트 종료 후 작성)
-
-### 미완료 항목
-- (스프린트 종료 후 작성)
+### 완료된 항목 (37/37 SP, 100%)
+- [x] STORY-020: Infrastructure E2E Test (3 SP) - QA/Infra
+- [x] STORY-021: API Gateway 라우팅 구현 (5 SP) - Backend
+- [x] STORY-022: JWT 인증 필터 (3 SP) - Backend
+- [x] STORY-024: 직접 로그인 API (5 SP) - Backend/QA
+- [x] STORY-023: CI/CD 파이프라인 기초 (3 SP) - DevOps
+- [x] STORY-025: UI 디자인 검토 및 Gap 분석 (2 SP) - Frontend
+- [x] STORY-003: Semantic Chunking 구현 (8 SP) - RAG
+- [x] STORY-001: 문서 업로드 API (3 SP) - RAG (2026-01-27 리뷰 통과)
+- [x] STORY-002: Docling 문서 파싱 (5 SP) - RAG/QA (2026-01-27 재테스트 통과)
 
 ### 데모 노트
 - (스프린트 종료 후 작성)

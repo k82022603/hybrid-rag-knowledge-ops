@@ -6,10 +6,11 @@
 |------|-----|
 | **Jira ID** | SCRUM-8 |
 | **Epic** | EPIC-001 |
-| **Status** | To Do |
+| **Status** | **Done** ✅ |
 | **Priority** | Critical |
 | **Story Points** | 8 |
-| **Assignee** | - |
+| **Assignee** | RAG |
+| **완료일** | 2026-01-26 |
 | **Sprint** | 2 |
 
 ---

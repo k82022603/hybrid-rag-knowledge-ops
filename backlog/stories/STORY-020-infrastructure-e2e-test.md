@@ -6,7 +6,7 @@
 |------|-------|
 | **Jira ID** | SCRUM-20 |
 | **Epic** | EPIC-000 (Infrastructure Setup) |
-| **Status** | In Progress |
+| **Status** | **Done** ✅ (2026-01-22) |
 | **Priority** | P0 (Critical) |
 | **Story Points** | 5 |
 | **Assignee** | QA |
