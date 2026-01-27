@@ -3,7 +3,7 @@
 > Claude Code 세션 간 컨텍스트 유지를 위한 계획 문서
 >
 > **Last Updated**: 2026-01-27
-> **Current Phase**: Phase 3 구현 진행 중 - Sprint 02 100% 완료 (37/37 SP) ✅
+> **Current Phase**: Phase 3 구현 진행 중 - Sprint 03 Day 1 (5 Story Review, 24pts)
 > **Frontend 전략 변경**: Tailwind + Antigravity + Stitch MCP 도입 결정 (2026-01-25)
 > **소스코드 리뷰**: 72.5/100 B+ (Gateway 65, Backend 72, AI Service 78, Frontend 75)
 
@@ -14,7 +14,7 @@
 ```
 [Phase 1: 기획]     ████████████████████ 100% ✅ 완료
 [Phase 2: 설계]     ████████████████████ 100% ✅ 완료 (91점 A등급 승인)
-[Phase 3: 구현]     █████████████░░░░░░░  65% 🔄 Sprint 02 100% 완료 (37/37 SP)
+[Phase 3: 구현]     ██████████████░░░░░░  70% 🔄 Sprint 03 Day 1 (5 Story Review)
 [Phase 4: 테스트]   ████░░░░░░░░░░░░░░░░  20% 🔄 테스트 81개 (Unit 31 + E2E 52)
 [Phase 5: 배포]     ░░░░░░░░░░░░░░░░░░░░   0%
 ```
@@ -208,7 +208,7 @@
   - 모든 설계서 통합 리뷰
   - 시스템 전체 아키텍처 다이어그램
 
-## Phase 3: Implementation (구현) - 60% 🔄 진행 중
+## Phase 3: Implementation (구현) - 70% 🔄 진행 중
 
 ### Sprint 01 (2026-01-20) - 100% ✅ 완료!
 
@@ -250,6 +250,31 @@
 - Frontend 4 신규 페이지 + 11개 개선
 - AI Service 코어 파이프라인 (SearchService, RAGPipeline, EntityExtraction)
 - BGE-M3 EmbeddingService 코드 작성
+
+### Sprint 03 (진행 중) - RAG Pipeline + Frontend UI
+
+**목표**: Hybrid RAG 검색 파이프라인 완성 + Frontend 핵심 UI 구현
+**총 포인트**: 84 pts (신규 52 + 이월 32)
+
+| Story | SP | 담당 | 상태 |
+|-------|:--:|------|:----:|
+| STORY-005 KG 엔티티 추출 | 5 | ETL/RAG | Review |
+| STORY-006 Neo4j/ES 저장 | 5 | ETL/DB | Review |
+| STORY-004 BGE-M3 통합 테스트 | 1 | RAG | Review |
+| STORY-030 HybridRetriever | 8 | MLRag | Review |
+| STORY-040 Keycloak 연동 | 5 | Frontend | Review |
+| STORY-046 Frontend 이월 | 8 | Frontend | In Progress |
+| STORY-047 Backend API 이월 | 13 | Backend | In Progress |
+| STORY-031 RRF Fusion | 5 | MLRag | To Do |
+| STORY-032 BGE Reranker | 5 | MLRag | To Do |
+| STORY-033 LangGraph 워크플로우 | 8 | MLRag | To Do |
+| STORY-041 Dashboard UI | 5 | Frontend | To Do |
+| STORY-042 Search UI | 5 | Frontend | To Do |
+| STORY-043 SSE 스트리밍 | 3 | Frontend | To Do |
+| STORY-044 Search Service | 5 | Backend | To Do |
+| STORY-045 초기 데이터 ETL | 3 | Data | To Do |
+
+**Day 1 성과** (2026-01-27): 5 Story → Review (24pts), 커밋 21건, 테스트 245/247
 
 ---
 
