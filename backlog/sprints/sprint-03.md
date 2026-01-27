@@ -44,19 +44,19 @@ Sprint 2 완료 항목 (필수):
 
 ### Sprint 02 이월 + 선행 조건 (P0, Day 1-3 집중)
 
-| Priority | ID | 제목 | Points | Assignee | Status | 비고 |
-|----------|-----|------|--------|----------|--------|------|
-| P0 | STORY-005 | KG 엔티티 추출 | 5 | ETL/RAG | **To Do** | Sprint 03 선행 조건 (미착수) |
-| P0 | STORY-006 | Neo4j/ES 저장 | 5 | ETL/DB | **To Do** | Sprint 03 선행 조건 (미착수) |
-| P1 | STORY-004 | BGE-M3 Embedding 통합 테스트 | 1 | RAG | **90%** | 잔여: 실제 모델 로드 테스트 |
-| P1 | STORY-046 | Frontend 4페이지 + 11개 개선 (이월) | - | Frontend | **In Progress** | 20파일 완료 |
-| P1 | STORY-047 | Backend API 32개 (이월) | - | Backend | **In Progress** | 57파일 완료 |
+| Priority | ID | Jira | 제목 | Points | Assignee | Status | 비고 |
+|----------|-----|------|------|--------|----------|--------|------|
+| P0 | STORY-005 | SCRUM-35 | KG 엔티티 추출 | 5 | ETL/RAG | **Review** ✅ (106/106 테스트) | 커밋 a45d686 |
+| P0 | STORY-006 | SCRUM-36 | Neo4j/ES 저장 | 5 | ETL/DB | **Review** ✅ (84/86 테스트) | 구현 완료, async mock 2건 잔여 |
+| P1 | STORY-004 | SCRUM-37 | BGE-M3 Embedding 통합 테스트 | 1 | RAG | **90%** | 잔여: 실제 모델 로드 테스트 |
+| P1 | STORY-046 | SCRUM-38 | Frontend 4페이지 + 11개 개선 (이월) | 8 | Frontend | **In Progress** | 20파일 완료 |
+| P1 | STORY-047 | SCRUM-39 | Backend API 32개 (이월) | 13 | Backend | **In Progress** | 57파일 완료 |
 
 ### Epic 002: Hybrid RAG Search (34 pts)
 
 | Priority | ID | Jira | 제목 | Points | Assignee | Status |
 |----------|-----|------|------|--------|----------|--------|
-| P0 | STORY-030 | SCRUM-25 | HybridRetriever 구현 | 8 | MLRag | To Do |
+| P0 | STORY-030 | SCRUM-25 | HybridRetriever 구현 | 8 | MLRag | **Review** ✅ (43/43 테스트) |
 | P0 | STORY-031 | SCRUM-26 | RRF Fusion 알고리즘 | 5 | MLRag | To Do |
 | P0 | STORY-032 | SCRUM-27 | BGE Reranker 통합 | 5 | MLRag | To Do |
 | P0 | STORY-033 | SCRUM-28 | LangGraph 워크플로우 | 8 | MLRag | To Do |
@@ -67,7 +67,7 @@ Sprint 2 완료 항목 (필수):
 
 | Priority | ID | Jira | 제목 | Points | Assignee | Status |
 |----------|-----|------|------|--------|----------|--------|
-| P0 | STORY-040 | SCRUM-29 | Frontend Keycloak 연동 | 5 | Frontend | To Do |
+| P0 | STORY-040 | SCRUM-29 | Frontend Keycloak 연동 | 5 | Frontend | **Review** ✅ (AC 5/5) |
 | P0 | STORY-041 | SCRUM-30 | Dashboard UI | 5 | Frontend | To Do |
 | P0 | STORY-042 | SCRUM-31 | Search UI 컴포넌트 | 5 | Frontend | To Do |
 | P1 | STORY-043 | SCRUM-32 | SSE 스트리밍 응답 | 3 | Frontend | To Do |
@@ -90,10 +90,10 @@ Sprint 2 완료 항목 (필수):
 - [ ] DeepSeek API 키 설정
 
 ### Frontend
-- [ ] Keycloak JS Adapter 설치
-- [ ] **Tailwind CSS 설치 및 설정** (MUI 대체, 2026-01-25 결정)
-- [ ] **Headless UI 설치** (접근성 지원 컴포넌트)
-- [ ] **Heroicons 설치** (MUI Icons 대체)
+- [x] Keycloak JS Adapter 설치 ✅ (keycloak-js 26.2.2)
+- [x] **Tailwind CSS 설치 및 설정** ✅ (3.4.17, MUI 대체, 2026-01-25 결정)
+- [x] **Headless UI 설치** ✅ (2.2.9, 접근성 지원 컴포넌트)
+- [x] **Heroicons 설치** ✅ (2.2.0, MUI Icons 대체)
 - [ ] Zustand 상태관리 설정
 - [ ] 마이그레이션 가이드 참조: [MUI to Tailwind](../../knowledge_service/docs/05_development/mui_to_tailwind_migration.md)
 
@@ -108,12 +108,12 @@ Sprint 2 완료 항목 (필수):
 
 ### Week 1
 
-#### Day 1 (02-17, Mon)
-- [ ] 스프린트 킥오프 미팅
-- [ ] **STORY-005 착수: KG 엔티티 추출** (선행 조건, P0)
-- [ ] **STORY-006 착수: Neo4j/ES 저장** (선행 조건, P0)
-- [ ] STORY-030 착수: ElasticsearchRetriever 구현 (병렬)
-- [ ] STORY-040 착수: Keycloak JS Adapter 연동 (병렬)
+#### Day 1 (02-17, Mon) — 2026-01-27 실행
+- [x] 스프린트 킥오프 미팅 ✅ (스탠드업 완료)
+- [x] **STORY-005 착수: KG 엔티티 추출** ✅ (RAG Agent, 테스트 작성 중)
+- [x] **STORY-006 착수: Neo4j/ES 저장** ✅ (ETL Agent, 구현 중)
+- [x] STORY-030 착수: HybridRetriever 구현 ✅ (RAG Agent, 43/43 테스트 완료)
+- [x] STORY-040 착수: Keycloak 연동 ✅ (Frontend Agent, 구현 중)
 
 #### Day 2 (02-18, Tue)
 - [ ] **STORY-005 완료: 엔티티 추출 테스트**
