@@ -28,19 +28,29 @@
 ## 선행 조건
 
 Sprint 2 완료 항목 (필수):
-- [x] 문서 업로드 API (STORY-001)
-- [x] Docling 문서 파싱 (STORY-002)
-- [x] Semantic Chunking (STORY-003)
-- [ ] BGE-M3 임베딩 생성 (STORY-004)
-- [ ] Knowledge Graph 엔티티 추출 (STORY-005)
-- [ ] Neo4j/ES 저장 (STORY-006)
-- [ ] API Gateway 라우팅 (STORY-021)
-- [ ] JWT 인증 필터 (STORY-022)
-- [ ] CI/CD 파이프라인 기초 (STORY-023)
+- [x] 문서 업로드 API (STORY-001) ✅ 2026-01-27
+- [x] Docling 문서 파싱 (STORY-002) ✅ 2026-01-27
+- [x] Semantic Chunking (STORY-003) ✅ 2026-01-26
+- [x] BGE-M3 임베딩 생성 (STORY-004) ✅ 90% (68/68 테스트, 통합 테스트 잔여)
+- [ ] **Knowledge Graph 엔티티 추출 (STORY-005)** ⚠️ 미착수 → Sprint 03 Day 1-2 우선 배치
+- [ ] **Neo4j/ES 저장 (STORY-006)** ⚠️ 미착수 → Sprint 03 Day 2-3 우선 배치
+- [x] API Gateway 라우팅 (STORY-021) ✅ 2026-01-24
+- [x] JWT 인증 필터 (STORY-022) ✅ 2026-01-24
+- [x] CI/CD 파이프라인 기초 (STORY-023) ✅ 2026-01-26
 
 ---
 
 ## 백로그
+
+### Sprint 02 이월 + 선행 조건 (P0, Day 1-3 집중)
+
+| Priority | ID | 제목 | Points | Assignee | Status | 비고 |
+|----------|-----|------|--------|----------|--------|------|
+| P0 | STORY-005 | KG 엔티티 추출 | 5 | ETL/RAG | **To Do** | Sprint 03 선행 조건 (미착수) |
+| P0 | STORY-006 | Neo4j/ES 저장 | 5 | ETL/DB | **To Do** | Sprint 03 선행 조건 (미착수) |
+| P1 | STORY-004 | BGE-M3 Embedding 통합 테스트 | 1 | RAG | **90%** | 잔여: 실제 모델 로드 테스트 |
+| P1 | STORY-046 | Frontend 4페이지 + 11개 개선 (이월) | - | Frontend | **In Progress** | 20파일 완료 |
+| P1 | STORY-047 | Backend API 32개 (이월) | - | Backend | **In Progress** | 57파일 완료 |
 
 ### Epic 002: Hybrid RAG Search (34 pts)
 
@@ -100,14 +110,20 @@ Sprint 2 완료 항목 (필수):
 
 #### Day 1 (02-17, Mon)
 - [ ] 스프린트 킥오프 미팅
-- [ ] STORY-030 착수: ElasticsearchRetriever 구현
-- [ ] STORY-040 착수: Keycloak JS Adapter 연동
+- [ ] **STORY-005 착수: KG 엔티티 추출** (선행 조건, P0)
+- [ ] **STORY-006 착수: Neo4j/ES 저장** (선행 조건, P0)
+- [ ] STORY-030 착수: ElasticsearchRetriever 구현 (병렬)
+- [ ] STORY-040 착수: Keycloak JS Adapter 연동 (병렬)
 
 #### Day 2 (02-18, Tue)
+- [ ] **STORY-005 완료: 엔티티 추출 테스트**
+- [ ] **STORY-006 계속: 인덱스 매핑 + 저장 로직**
 - [ ] STORY-030: Neo4jRetriever 구현
 - [ ] STORY-040: 로그인/로그아웃 플로우
 
 #### Day 3 (02-19, Wed)
+- [ ] **STORY-006 완료: 통합 테스트**
+- [ ] STORY-004 통합 테스트 완료 (이월 잔여)
 - [ ] STORY-030: Retriever 통합
 - [ ] STORY-031 착수: RRF Fusion 알고리즘
 - [ ] STORY-041 착수: Dashboard 레이아웃

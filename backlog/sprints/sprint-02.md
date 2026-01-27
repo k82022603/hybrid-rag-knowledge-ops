@@ -63,14 +63,16 @@ Sprint 1 완료 항목 (필수):
 |----------|-----|------|------|--------|----------|--------|
 | P0 | STORY-020 | SCRUM-20 | Infrastructure E2E Test | 3 | QA | **Done** |
 
-### Stretch (Sprint 03 선행 - Day 4에서 달성)
+### Stretch (Sprint 03 선행 - Day 4~5에서 착수)
 
-| ID | 제목 | Points | Status | 비고 |
-|----|------|--------|--------|------|
-| STORY-046 | Frontend 4개 페이지 + 11개 개선 | 8 | **In Progress** | 20파일 완료 (커밋: 1579504) |
-| STORY-047 | Backend API 32개 전체 구현 | 13 | **In Progress** | 57파일 완료 (커밋: 34f0d10) |
-| STORY-004 | BGE-M3 EmbeddingService (선행) | 5 | **90%** | 전면 구현 + 68/68 테스트 통과 (커밋: 9b95a3a) |
-| - | AI Service 코어 파이프라인 | - | **In Progress** | SearchService+RAGPipeline (커밋: 6dc4575) |
+| ID | 제목 | Points | Status | 비고 | 이월 |
+|----|------|--------|--------|------|------|
+| STORY-046 | Frontend 4개 페이지 + 11개 개선 | 8 | **In Progress** | 20파일 완료 (커밋: 1579504) | → Sprint 03 |
+| STORY-047 | Backend API 32개 전체 구현 | 13 | **In Progress** | 57파일 완료 (커밋: 34f0d10) | → Sprint 03 |
+| STORY-004 | BGE-M3 EmbeddingService (선행) | 5 | **90%** | 전면 구현 + 68/68 테스트 (커밋: 9b95a3a) | → Sprint 03 (통합 테스트) |
+| - | AI Service 코어 파이프라인 | - | **In Progress** | SearchService+RAGPipeline (커밋: 6dc4575) | → Sprint 03 |
+
+> **이월 결정**: 4건 모두 Sprint 03으로 이월. Sprint 03의 RAG/Frontend Epic에 직접 기여하므로 연속 작업으로 처리.
 
 ---
 
@@ -228,13 +230,28 @@ knowledge_service/src/tests/
 ## 회고 (Retrospective)
 
 ### Keep (계속할 것)
--
+- 병렬 에이전트 활용으로 높은 생산성 달성 (37 SP Committed + Stretch 26 SP 추가 진행)
+- 코드 리뷰/QA 프로세스 잘 작동 (STORY-001 PASS WITH COMMENTS, STORY-002 CONDITIONAL PASS)
+- 5일 만에 계획된 10일치 Committed 작업 100% 완료 → Velocity 105% (37/35 계획)
+- Slack 보고 체계화 (#dev 채널 실시간 작업 추적)
+- Stretch 작업으로 Sprint 03 선행 확보 (Frontend 20파일, Backend 57파일, Embedding 855줄)
+- TDD/Test-Along 방식으로 테스트 동시 작성 (68개 Embedding 테스트, 37개 Parser 테스트)
 
 ### Problem (문제점)
--
+- 직접 로그인 API 미개발 발견 → STORY-024 긴급 추가 필요 (계획 누락)
+- Sub-agent Bash 권한 제한으로 테스트 실행 어려움 (pytest 실행 반복 실패)
+- HWP/PDF 파싱 정확도 검증 미완 (Docling 라이브러리 환경 제한, AC-1 PENDING)
+- 세션 컨텍스트 소진으로 세션 재시작 필요 (2회 발생)
+- STORY-005/006 (Entity Extraction, Neo4j/ES 저장) 미착수 → Sprint 03 선행 조건 불충족 위험
+- datetime.utcnow() 등 deprecation 경고 사후 발견 (코드 품질 개선 필요)
 
 ### Try (시도할 것)
--
+- Sprint 03에서 통합 테스트 환경 구축 (Docker 기반 Docling/BGE-M3 포함)
+- STORY-005/006을 Sprint 03 Day 1-2에 우선 배치하여 선행 조건 충족
+- Sub-agent Bash 권한 설정 개선 (허용 목록 확대)
+- 코드 품질 기준 자동 검사 도입 (pre-commit hooks: black, isort, mypy)
+- Sprint 계획 시 선행 조건 의존성을 더 명확히 검증
+- 세션 컨텍스트 절약을 위한 에이전트 작업 범위 축소 (한 에이전트 1개 파일 단위)
 
 ---
 
