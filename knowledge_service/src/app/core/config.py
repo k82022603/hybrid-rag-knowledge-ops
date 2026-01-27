@@ -50,6 +50,20 @@ class Settings(BaseSettings):
     # Embedding 설정 (BGE-M3)
     embedding_model: str = Field(default="BAAI/bge-m3", description="임베딩 모델명")
     embedding_dimension: int = Field(default=1024, description="임베딩 차원")
+    embedding_batch_size: int = Field(default=32, description="임베딩 배치 크기")
+    embedding_max_length: int = Field(default=8192, description="임베딩 최대 토큰 길이")
+    embedding_use_fp16: bool = Field(default=True, description="FP16 사용 여부")
+    embedding_device: Optional[str] = Field(default=None, description="임베딩 디바이스 (auto)")
+    embedding_normalize: bool = Field(default=True, description="벡터 정규화 여부")
+
+    # Redis 설정
+    redis_host: str = Field(default="localhost", description="Redis 호스트")
+    redis_port: int = Field(default=6379, description="Redis 포트")
+    redis_password: Optional[str] = Field(default=None, description="Redis 비밀번호")
+    redis_db: int = Field(default=0, description="Redis DB 번호")
+    redis_embedding_cache_ttl: int = Field(
+        default=86400 * 7, description="임베딩 캐시 TTL (초, 기본 7일)"
+    )
 
     # PostgreSQL 설정
     postgres_host: str = Field(default="localhost", description="PostgreSQL 호스트")

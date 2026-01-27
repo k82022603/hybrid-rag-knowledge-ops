@@ -15,7 +15,13 @@ from app.services.storage import delete_file, get_file_url, upload_file
 from app.services.search import SearchService, get_search_service
 from app.services.rag_pipeline import RAGPipeline, get_rag_pipeline
 from app.services.entity_extraction import EntityExtractionService, get_entity_extraction_service
-from app.services.embedding import EmbeddingService, get_embedding_service
+from app.services.embedding import (
+    ChunkEmbedding,
+    EmbeddingCache,
+    EmbeddingService,
+    get_embedding_service,
+    reset_embedding_service,
+)
 
 __all__ = [
     # LLM
@@ -34,6 +40,9 @@ __all__ = [
     "EntityExtractionService",
     "get_entity_extraction_service",
     # Embedding
+    "ChunkEmbedding",
+    "EmbeddingCache",
     "EmbeddingService",
     "get_embedding_service",
+    "reset_embedding_service",
 ]

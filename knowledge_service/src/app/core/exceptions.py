@@ -241,6 +241,38 @@ class InvalidTokenError(AuthenticationError):
         self.error_code = "INVALID_TOKEN"
 
 
+# 임베딩 관련 예외
+class EmbeddingError(KnowledgeServiceError):
+    """임베딩 처리 관련 예외"""
+
+    def __init__(
+        self,
+        message: str = "임베딩 처리 중 오류가 발생했습니다",
+        details: Optional[Dict[str, Any]] = None,
+    ):
+        super().__init__(
+            message=message,
+            error_code="EMBEDDING_ERROR",
+            status_code=500,
+            details=details,
+        )
+
+
+class EmbeddingModelLoadError(EmbeddingError):
+    """임베딩 모델 로드 실패 예외"""
+
+    def __init__(
+        self,
+        model_name: str,
+        message: Optional[str] = None,
+    ):
+        super().__init__(
+            message=message or f"임베딩 모델을 로드할 수 없습니다: {model_name}",
+            details={"model_name": model_name},
+        )
+        self.error_code = "EMBEDDING_MODEL_LOAD_ERROR"
+
+
 class AuthorizationError(KnowledgeServiceError):
     """권한 관련 예외"""
 
