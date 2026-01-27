@@ -124,9 +124,9 @@ Elasticsearch Vector Search와 Neo4j Graph Search를 결합한 Hybrid RAG 파이
 
 ## 선행 조건 (Sprint 2 완료 필요)
 
-- [ ] Elasticsearch 벡터 인덱스 생성 (STORY-006)
-- [ ] Neo4j Knowledge Graph 구축 (STORY-005)
-- [ ] BGE-M3 임베딩 파이프라인 (STORY-004)
+- [x] Elasticsearch 벡터 인덱스 생성 (STORY-006) ✅ Review
+- [x] Neo4j Knowledge Graph 구축 (STORY-005) ✅ Review
+- [x] BGE-M3 임베딩 파이프라인 (STORY-004) ✅ Review (Basic 5/5, Integration 7/7)
 - [ ] Backend AI Service 연동 기반 (API Gateway)
 
 ---

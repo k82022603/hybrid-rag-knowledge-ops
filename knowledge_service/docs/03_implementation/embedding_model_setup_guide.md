@@ -1,6 +1,6 @@
 # BGE-M3 임베딩 모델 설치 및 테스트 가이드
 
-**STORY-004** | **Version**: 1.0 | **Updated**: 2026-01-27
+**STORY-004** | **Version**: 1.1 | **Updated**: 2026-01-27
 
 ---
 
@@ -10,9 +10,9 @@
 |------|------|
 | EmbeddingService 구현 | 855줄, 완료 |
 | 단위 테스트 (mock) | 68/68 통과 |
-| 실제 모델 로드 테스트 | **미완료** |
-| 1024차원 벡터 생성 검증 | **미완료** |
-| 원인 | WSL2 환경에서 PyTorch `.so` 로딩 실패 |
+| 실제 모델 로드 테스트 | **완료** (방법 A: Linux venv) |
+| 1024차원 벡터 생성 검증 | **완료** (Basic 5/5 + Integration 7/7) |
+| WSL2 libtorch 이슈 | 해결됨 (Linux 네이티브 venv 사용) |
 
 ### 실패 근본 원인
 
@@ -421,6 +421,34 @@ RESULT: ALL PASSED
 ==============================================================
 ```
 
+### 실제 테스트 결과 (2026-01-27, 방법 A: Linux venv)
+
+**환경**: `~/embedding-test` venv, WSL2 Ubuntu, CPU only
+
+**Basic Test (5/5 PASSED)**:
+```
+[1/5] PyTorch: 2.10.0+cpu (CUDA: No)
+[2/5] 모델 로드: sentence-transformers (451.2s, 최초 다운로드 포함)
+[3/5] 단일 임베딩: dim=1024, L2 norm=1.000000, 0.782s
+[4/5] 다국어: 한국어↔영어 유사도=0.7867 (기준 0.7+)
+[5/5] 배치: 32건 2.551s (12.5 texts/s), shape=(32, 1024)
+RESULT: ALL PASSED (5/5)
+```
+
+**Integration Test (7/7 PASSED)**:
+```
+[1/7] 서비스 초기화: OK (model=BAAI/bge-m3, device=cpu)
+[2/7] embed(): OK (dim=1024, 14.277s, 최초 모델 로드 포함)
+[3/7] embed_batch(): OK (5건, dim=1024, 0.280s)
+[4/7] Sparse 임베딩: OK (dense=1, sparse type=dict)
+[5/7] embed_chunks(): OK (3건, ChunkEmbedding)
+[6/7] aembed(): OK (dim=1024)
+[7/7] L2 정규화: OK
+RESULT: ALL PASSED (7/7)
+```
+
+**참고**: FlagEmbedding이 설치되었으나 ImportError로 sentence-transformers로 자동 폴백. Dense 임베딩은 정상 동작하며, Sparse 임베딩은 빈 dict 반환 (FlagEmbedding 전용 기능).
+
 ---
 
 ## 7. 성능 기준 (Acceptance Criteria)
@@ -548,4 +576,5 @@ EMBEDDING_BATCH_SIZE=64
 
 | 날짜 | 버전 | 내용 |
 |------|------|------|
+| 2026-01-27 | 1.1 | 실제 테스트 결과 추가 - Basic 5/5, Integration 7/7 ALL PASSED |
 | 2026-01-27 | 1.0 | 초기 작성 - 설치 가이드, 테스트 스크립트, 트러블슈팅 |

@@ -31,7 +31,7 @@ Sprint 2 완료 항목 (필수):
 - [x] 문서 업로드 API (STORY-001) ✅ 2026-01-27
 - [x] Docling 문서 파싱 (STORY-002) ✅ 2026-01-27
 - [x] Semantic Chunking (STORY-003) ✅ 2026-01-26
-- [x] BGE-M3 임베딩 생성 (STORY-004) ✅ 90% (68/68 테스트, 통합 테스트 잔여)
+- [x] BGE-M3 임베딩 생성 (STORY-004) ✅ 2026-01-27 (Basic 5/5, Integration 7/7)
 - [ ] **Knowledge Graph 엔티티 추출 (STORY-005)** ⚠️ 미착수 → Sprint 03 Day 1-2 우선 배치
 - [ ] **Neo4j/ES 저장 (STORY-006)** ⚠️ 미착수 → Sprint 03 Day 2-3 우선 배치
 - [x] API Gateway 라우팅 (STORY-021) ✅ 2026-01-24
@@ -48,7 +48,7 @@ Sprint 2 완료 항목 (필수):
 |----------|-----|------|------|--------|----------|--------|------|
 | P0 | STORY-005 | SCRUM-35 | KG 엔티티 추출 | 5 | ETL/RAG | **Review** ✅ (106/106 테스트) | 커밋 a45d686 |
 | P0 | STORY-006 | SCRUM-36 | Neo4j/ES 저장 | 5 | ETL/DB | **Review** ✅ (84/86 테스트) | 구현 완료, async mock 2건 잔여 |
-| P1 | STORY-004 | SCRUM-37 | BGE-M3 Embedding 통합 테스트 | 1 | RAG | **90%** | 잔여: 실제 모델 로드 테스트 |
+| P1 | STORY-004 | SCRUM-37 | BGE-M3 Embedding 통합 테스트 | 1 | RAG | **Review** ✅ (Basic 5/5, Integration 7/7) | 모델 로드+벡터 생성 검증 완료 |
 | P1 | STORY-046 | SCRUM-38 | Frontend 4페이지 + 11개 개선 (이월) | 8 | Frontend | **In Progress** | 20파일 완료 |
 | P1 | STORY-047 | SCRUM-39 | Backend API 32개 (이월) | 13 | Backend | **In Progress** | 57파일 완료 |
 
@@ -85,7 +85,7 @@ Sprint 2 완료 항목 (필수):
 ## 기술 의존성 (사전 준비)
 
 ### AI Service
-- [ ] BGE-M3 모델 다운로드 (~1.5GB)
+- [x] BGE-M3 모델 다운로드 (~1.5GB) ✅ ~/embedding-test venv, HF cache
 - [ ] BGE-reranker-v2-m3 모델 다운로드 (~1GB)
 - [ ] DeepSeek API 키 설정
 
@@ -123,7 +123,7 @@ Sprint 2 완료 항목 (필수):
 
 #### Day 3 (02-19, Wed)
 - [ ] **STORY-006 완료: 통합 테스트**
-- [ ] STORY-004 통합 테스트 완료 (이월 잔여)
+- [x] STORY-004 통합 테스트 완료 ✅ (Day 1에 조기 완료)
 - [ ] STORY-030: Retriever 통합
 - [ ] STORY-031 착수: RRF Fusion 알고리즘
 - [ ] STORY-041 착수: Dashboard 레이아웃

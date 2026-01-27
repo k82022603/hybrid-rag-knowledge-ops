@@ -46,9 +46,9 @@
 | STORY-001 | SCRUM-6 | 문서 업로드 API | 3 | To Do | 2 |
 | STORY-002 | SCRUM-7 | Docling 문서 파싱 | 8 | To Do | 2 |
 | STORY-003 | SCRUM-8 | Semantic Chunking | 8 | To Do | 2 |
-| STORY-004 | - | BGE-M3 임베딩 생성 | 5 | draft | 3 |
-| STORY-005 | - | Knowledge Graph 엔티티 추출 | 5 | draft | 3 |
-| STORY-006 | - | Neo4j/ES 저장 | 5 | draft | 3 |
+| STORY-004 | SCRUM-37 | BGE-M3 임베딩 생성 | 5 | Review | 3 |
+| STORY-005 | SCRUM-35 | Knowledge Graph 엔티티 추출 | 5 | Review | 3 |
+| STORY-006 | SCRUM-36 | Neo4j/ES 저장 | 5 | Review | 3 |
 
 ---
 
