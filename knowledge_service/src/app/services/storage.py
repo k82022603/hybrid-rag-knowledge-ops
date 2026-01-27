@@ -5,6 +5,7 @@ MinIO 오브젝트 스토리지 기반 파일 저장/조회
 MinIO 미사용 환경에서는 로컬 파일시스템으로 폴백
 """
 
+import asyncio
 import os
 import shutil
 from pathlib import Path
@@ -143,15 +144,17 @@ async def _upload_to_minio(
     import io
 
     try:
-        # 버킷 존재 확인 및 생성
-        if not client.bucket_exists(bucket):
-            client.make_bucket(bucket)
+        # 버킷 존재 확인 및 생성 (동기 API를 스레드풀에서 실행)
+        bucket_exists = await asyncio.to_thread(client.bucket_exists, bucket)
+        if not bucket_exists:
+            await asyncio.to_thread(client.make_bucket, bucket)
             logger.info(f"Created MinIO bucket: {bucket}")
 
         data_stream = io.BytesIO(file_data)
         data_length = len(file_data)
 
-        client.put_object(
+        await asyncio.to_thread(
+            client.put_object,
             bucket_name=bucket,
             object_name=object_name,
             data=data_stream,

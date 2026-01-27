@@ -8,7 +8,7 @@ import json
 import math
 import re
 import unicodedata
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 from uuid import UUID, uuid4
 
@@ -228,8 +228,9 @@ async def upload_document(
         HTTPException 413: 파일 크기 초과
     """
     logger.info(
-        f"Document upload request - filename: {file.filename}, "
-        f"content_type: {file.content_type}"
+        "Document upload request - filename: %s, content_type: %s",
+        file.filename,
+        file.content_type,
     )
 
     # 1. 파일명 처리 및 보안
@@ -248,7 +249,7 @@ async def upload_document(
     try:
         file_data = await file.read()
     except Exception as e:
-        logger.error(f"Failed to read uploaded file: {e}")
+        logger.error("Failed to read uploaded file: %s", e)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="파일을 읽을 수 없습니다",
@@ -297,7 +298,7 @@ async def upload_document(
 
     # 7. document_id 생성
     document_id = uuid4()
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     # 8. 파일 저장
     object_name = f"{document_id}/{safe_filename}"
@@ -311,7 +312,7 @@ async def upload_document(
             content_type=content_type,
         )
     except IOError as e:
-        logger.error(f"File storage failed for document {document_id}: {e}")
+        logger.error("File storage failed for document %s: %s", document_id, e)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="파일 저장에 실패했습니다. 잠시 후 다시 시도해주세요.",
@@ -337,9 +338,11 @@ async def upload_document(
     _document_store[document_id] = doc_record
 
     logger.info(
-        f"Document uploaded successfully - id: {document_id}, "
-        f"filename: {safe_filename}, format: {doc_format.value}, "
-        f"size: {file_size} bytes"
+        "Document uploaded successfully - id: %s, filename: %s, format: %s, size: %d bytes",
+        document_id,
+        safe_filename,
+        doc_format.value,
+        file_size,
     )
 
     return DocumentResponse(

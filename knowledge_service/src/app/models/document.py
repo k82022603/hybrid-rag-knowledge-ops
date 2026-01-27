@@ -122,7 +122,7 @@ class DocumentResponse(BaseModel):
     """문서 업로드 응답 모델"""
 
     document_id: UUID = Field(description="문서 UUID")
-    filename: str = Field(description="원본 파일명")
+    filename: str = Field(description="정제된 파일명")
     format: DocumentFormat = Field(description="문서 형식")
     size_bytes: int = Field(ge=0, description="파일 크기 (바이트)")
     status: DocumentStatus = Field(description="처리 상태")
