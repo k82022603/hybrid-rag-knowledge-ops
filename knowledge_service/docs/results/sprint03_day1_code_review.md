@@ -283,4 +283,38 @@ Sprint 03 Day 1의 P0 작업 4건은 전반적으로 **높은 품질**로 구현
 
 ---
 
+## 7. 리뷰 결과 처리 현황 (2026-01-27 추가)
+
+### 7.1 즉시 조치 완료
+
+| # | Story | 내용 | 처리 | 커밋 |
+|---|-------|------|------|------|
+| 1 | STORY-006 | `TestQuerySubgraph` async mock 이슈 2건 | **수정 완료** - `MockNeo4jResult` 클래스 추가, `__aiter__`/`__anext__` 프로토콜 구현 | `dc496d7` |
+
+### 7.2 Medium 등급 → 기술 부채 백로그 등록
+
+| # | Story | 내용 | 처리 | 비고 |
+|---|-------|------|------|------|
+| 1 | STORY-006 | `_save_entities_by_label` 전략 패턴 리팩토링 | **기술 부채 등록** (TECH-DEBT-001) | Sprint 04 후보 |
+| 2 | STORY-006 | `query_subgraph` depth 파라미터화 쿼리 전환 | **기술 부채 등록** (TECH-DEBT-002) | 보안 강화 |
+| 3 | STORY-040 | Keycloak 토큰 확장 인터페이스 정의 | **기술 부채 등록** (TECH-DEBT-003) | `any` 캐스팅 제거 |
+| 4 | STORY-040 | 테스트 계정 정보 환경 변수 분리 | **기술 부채 등록** (TECH-DEBT-004) | 보안 개선 |
+
+### 7.3 Low 등급 → 참고 사항 (작업 중 자연 개선)
+
+| # | Story | 내용 | 처리 |
+|---|-------|------|------|
+| 1 | STORY-006 | `verify_certs` 설정 환경별 분리 | 프로덕션 배포 시 적용 예정 |
+| 2 | STORY-006 | `StorageTransaction` 단위 테스트 추가 | 통합 테스트 단계에서 함께 작성 |
+| 3 | STORY-030 | `entities` 파라미터 전달 경로 확인 | SearchService 내부 처리 확인됨 |
+| 4 | STORY-040 | useEffect 콜백 의존성 최적화 | Frontend 후속 작업 시 반영 |
+| 5 | STORY-005 | conftest.py fixture 추출 | 통합 테스트 작성 시 반영 |
+| 6 | STORY-005 | 엔티티 ID 미존재 시 UUID 생성 | 현재 동작 의도적 (빈 문자열 허용) |
+| 7 | STORY-005 | `max_gleanings` None 체크 명확화 | `or` 연산자 동작은 Python idiom으로 수용 |
+| 8 | STORY-030 | `rrf_k` 인스턴스 설정 주입 | 현재 settings 모듈 직접 참조로 충분 |
+| 9 | STORY-030 | `health_check` 헬퍼 분리 | 리팩토링 시 반영 |
+
+---
+
 *Reviewed by TechLead Agent | 2026-01-27*
+*처리 현황 추가: PM Agent | 2026-01-27*

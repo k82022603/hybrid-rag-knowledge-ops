@@ -46,10 +46,10 @@ React 18 + **Tailwind CSS** 기반의 지식 검색 플랫폼 프론트엔드 �
 
 | ID | Jira | 제목 | Points | Status | Sprint |
 |----|------|------|--------|--------|--------|
-| STORY-040 | SCRUM-41 | Frontend Keycloak 연동 | 5 | To Do | 3 |
-| STORY-041 | SCRUM-42 | Dashboard UI | 5 | To Do | 3 |
-| STORY-042 | SCRUM-43 | Search UI 컴포넌트 | 5 | To Do | 3 |
-| STORY-043 | SCRUM-46 | SSE 스트리밍 응답 | 3 | To Do | 3 |
+| STORY-040 | SCRUM-29 | Frontend Keycloak 연동 | 5 | Review | 3 |
+| STORY-041 | SCRUM-30 | Dashboard UI | 5 | To Do | 3 |
+| STORY-042 | SCRUM-31 | Search UI 컴포넌트 | 5 | To Do | 3 |
+| STORY-043 | SCRUM-32 | SSE 스트리밍 응답 | 3 | To Do | 3 |
 
 ---
 

@@ -4,7 +4,7 @@
 
 | 항목 | 값 |
 |------|-----|
-| **Jira ID** | - |
+| **Jira ID** | SCRUM-35 |
 | **Epic** | EPIC-001 |
 | **Status** | To Do |
 | **Priority** | High |
@@ -28,6 +28,7 @@
 - [ ] **Given** 추출된 엔티티, **When** 관계 추출, **Then** 엔티티 간 관계 유형 식별
 - [ ] **Given** 동일 엔티티 다른 표현, **When** 정규화, **Then** 단일 노드로 통합
 - [ ] **Given** 추출 결과, **When** 신뢰도 < 0.7, **Then** 수동 검토 플래그
+- [ ] **Given** 1차 추출 완료, **When** Gleaning 활성화, **Then** 다중 패스로 누락 엔티티 보완 추출 (Recall +33%)
 
 ---
 

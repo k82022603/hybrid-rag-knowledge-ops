@@ -162,6 +162,6 @@ GF_AUTH_ANONYMOUS_ENABLED=true
 
 ## References
 
-- [QA Review: E2E Test Coverage Analysis](../../knowledge_service/docs/02_design/review/2026-01-22_qa_review.md)
+- [QA Review: E2E Test Coverage Analysis](../../knowledge_service/docs/02_design/review/2026-01-22/2026-01-22_qa_review.md)
 - [Infrastructure E2E Test Report (2026-01-21)](../../knowledge_service/docs/04_testing/infrastructure_e2e/04.infrastructure_e2e_test_report_2026-01-21.md)
 - [STORY-020: Infrastructure E2E Test](./STORY-020-infrastructure-e2e-test.md)

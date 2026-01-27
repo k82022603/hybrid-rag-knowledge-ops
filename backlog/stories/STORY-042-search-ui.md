@@ -4,7 +4,7 @@
 
 | 항목 | 값 |
 |------|-----|
-| **Jira ID** | SCRUM-43 |
+| **Jira ID** | SCRUM-31 |
 | **Epic** | EPIC-003 |
 | **Status** | To Do |
 | **Priority** | High |
@@ -29,6 +29,9 @@
 - [ ] **Given** AI 응답, **When** 출처 포함, **Then** 출처 문서 링크 표시
 - [ ] **Given** 검색 중, **When** 로딩 상태, **Then** 로딩 인디케이터 표시
 - [ ] **Given** 긴 대화, **When** 스크롤, **Then** 자동 스크롤 및 수동 스크롤 지원
+- [ ] **Given** 키워드 검색 페이지 접근 (/search/keyword), **When** 렌더링, **Then** 검색어 입력창과 결과 목록 표시
+- [ ] **Given** 키워드 입력 후 검색, **When** API 응답, **Then** 검색 결과가 카드/리스트 형태로 표시 (제목, 요약, 출처)
+- [ ] **Given** 검색 결과, **When** 항목 클릭, **Then** 문서 상세 또는 채팅 검색으로 이동
 
 ---
 
@@ -42,7 +45,11 @@
 - [ ] useSearchChat 훅 구현
 - [ ] 자동 스크롤 로직
 - [ ] 에러 처리 및 재시도
-- [ ] 단위 테스트 작성
+- [ ] KeywordSearch 페이지 컴포넌트 (/search/keyword)
+- [ ] SearchResultCard 컴포넌트
+- [ ] SearchResultList 컴포넌트
+- [ ] useKeywordSearch 훅 구현
+- [ ] 단위 테스트 작성 (Chat + Keyword)
 
 ---
 

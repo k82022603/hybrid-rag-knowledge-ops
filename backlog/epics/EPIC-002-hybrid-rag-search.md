@@ -43,12 +43,12 @@ Elasticsearch Vector Search와 Neo4j Graph Search를 결합한 Hybrid RAG 파이
 
 | ID | Jira | 제목 | Points | Status | Sprint |
 |----|------|------|--------|--------|--------|
-| STORY-030 | SCRUM-30 | HybridRetriever 구현 | 8 | To Do | 3 |
-| STORY-031 | SCRUM-31 | RRF Fusion 알고리즘 | 5 | To Do | 3 |
-| STORY-032 | SCRUM-32 | BGE Reranker 통합 | 5 | To Do | 3 |
-| STORY-033 | SCRUM-33 | LangGraph 워크플로우 | 8 | To Do | 3 |
-| STORY-044 | SCRUM-44 | Backend Search Service | 5 | To Do | 3 |
-| STORY-045 | SCRUM-45 | 초기 데이터 ETL | 3 | To Do | 3 |
+| STORY-030 | SCRUM-25 | HybridRetriever 구현 | 8 | Review | 3 |
+| STORY-031 | SCRUM-26 | RRF Fusion 알고리즘 | 5 | To Do | 3 |
+| STORY-032 | SCRUM-27 | BGE Reranker 통합 | 5 | To Do | 3 |
+| STORY-033 | SCRUM-28 | LangGraph 워크플로우 | 8 | To Do | 3 |
+| STORY-044 | SCRUM-33 | Backend Search Service | 5 | To Do | 3 |
+| STORY-045 | SCRUM-34 | 초기 데이터 ETL | 3 | To Do | 3 |
 
 ---
 

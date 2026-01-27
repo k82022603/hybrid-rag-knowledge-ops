@@ -4,7 +4,7 @@
 
 | 항목 | 값 |
 |------|-----|
-| **Jira ID** | SCRUM-32 |
+| **Jira ID** | SCRUM-27 |
 | **Epic** | EPIC-002 |
 | **Status** | To Do |
 | **Priority** | High |

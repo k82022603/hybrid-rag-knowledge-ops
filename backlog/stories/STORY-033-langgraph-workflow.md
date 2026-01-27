@@ -4,7 +4,7 @@
 
 | 항목 | 값 |
 |------|-----|
-| **Jira ID** | SCRUM-33 |
+| **Jira ID** | SCRUM-28 |
 | **Epic** | EPIC-002 |
 | **Status** | To Do |
 | **Priority** | Critical |
@@ -24,10 +24,12 @@
 
 ## Acceptance Criteria
 
-- [ ] **Given** 사용자 질의, **When** 워크플로우 실행, **Then** Planner -> Retriever -> Generator 순서로 실행
+- [ ] **Given** 사용자 질의, **When** 워크플로우 실행, **Then** Planner -> Retriever -> Generator -> Validator 순서로 실행
 - [ ] **Given** 복잡한 질의, **When** Planner 분석, **Then** 검색 전략 결정 (키워드/의미/하이브리드)
 - [ ] **Given** 검색 결과, **When** Generator 실행, **Then** 컨텍스트 기반 응답 생성
 - [ ] **Given** 스트리밍 모드, **When** 응답 생성, **Then** 토큰 단위 스트리밍 지원
+- [ ] **Given** Generator 응답 생성 완료, **When** Validator 실행, **Then** 응답 품질 검증 (Faithfulness, Relevance) 수행
+- [ ] **Given** Validator 검증 실패, **When** 품질 기준 미달, **Then** Retriever로 재검색 또는 사용자에게 경고 표시
 - [ ] **Given** 워크플로우 실행, **When** 전체 흐름, **Then** 상태 추적 가능
 
 ---
@@ -38,7 +40,8 @@
 - [ ] Planner 노드 구현
 - [ ] Retriever 노드 구현
 - [ ] Generator 노드 구현
-- [ ] 워크플로우 그래프 컴파일
+- [ ] Validator 노드 구현 (Faithfulness/Relevance 검증, 조건부 재검색)
+- [ ] 워크플로우 그래프 컴파일 (Validator 조건 분기 포함)
 - [ ] 스트리밍 지원
 - [ ] 에러 핸들링
 - [ ] 단위/통합 테스트 작성
@@ -299,7 +302,8 @@ class RAGWorkflow:
 - [ ] Unit Test: PlannerNode 전략 결정
 - [ ] Unit Test: RetrieverNode 검색 실행
 - [ ] Unit Test: GeneratorNode 응답 생성
-- [ ] Integration Test: 전체 워크플로우 실행
+- [ ] Unit Test: ValidatorNode 품질 검증 (통과/실패 시나리오)
+- [ ] Integration Test: 전체 워크플로우 실행 (Validator 포함)
 - [ ] Integration Test: 스트리밍 동작
 
 ---

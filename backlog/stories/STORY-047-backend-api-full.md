@@ -4,6 +4,7 @@
 | 항목 | 내용 |
 |------|------|
 | **Story ID** | STORY-047 |
+| **Jira ID** | SCRUM-39 |
 | **Epic** | EPIC-03: Backend API |
 | **Sprint** | Sprint 02 |
 | **Story Points** | 13 |

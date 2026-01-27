@@ -4,6 +4,7 @@
 | 항목 | 내용 |
 |------|------|
 | **Story ID** | STORY-046 |
+| **Jira ID** | SCRUM-38 |
 | **Epic** | EPIC-04: Frontend UI |
 | **Sprint** | Sprint 02 |
 | **Story Points** | 8 |
