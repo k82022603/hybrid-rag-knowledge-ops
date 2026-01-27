@@ -1,6 +1,6 @@
 # BGE-M3 임베딩 모델 운영 매뉴얼
 
-**Version**: 1.0 | **Updated**: 2026-01-27
+**Version**: 1.1 | **Updated**: 2026-01-27
 
 ---
 
@@ -54,6 +54,7 @@
 1차 시도: FlagEmbedding (BGEM3FlagModel)
  ├─ Dense + Sparse 벡터 동시 지원
  ├─ BGE-M3에 최적화된 라이브러리
+ ├─ 필수 조건: transformers < 5.0.0 (Section 7.3 참조)
  └─ 실패 시 → 2차 시도
 
 2차 시도: sentence-transformers (SentenceTransformer)
@@ -61,6 +62,27 @@
  ├─ 범용 Transformer 라이브러리
  └─ 실패 시 → EmbeddingModelLoadError 발생
 ```
+
+### 1.4 FlagEmbedding vs sentence-transformers 비교 (실측)
+
+2026-01-27 검증 결과 (WSL2, CPU, `~/embedding-test` venv):
+
+| 항목 | FlagEmbedding | sentence-transformers |
+|------|--------------|----------------------|
+| 모델 로드 | 402.7s | 451.2s |
+| 벡터 차원 | 1024 | 1024 |
+| L2 norm | 1.000000 | 1.000000 |
+| 한국어↔영어 유사도 | **0.7867** | **0.7867** |
+| 배치 32건 | 3.127s (10.2 texts/s) | 2.551s (12.5 texts/s) |
+| Sparse 벡터 | **지원** (lexical_weights) | 빈 dict 반환 |
+| 테스트 결과 | 5/5 PASSED | 5/5 PASSED |
+| 필수 의존성 | `transformers<5.0.0` | 제약 없음 |
+
+**결론**:
+- Dense 벡터는 동일 모델 가중치를 사용하므로 **품질 차이 없음** (유사도 동일)
+- FlagEmbedding은 **Sparse 벡터(하이브리드 검색)**가 필요할 때 사용
+- sentence-transformers는 의존성 제약이 적어 **안정성이 높음**
+- 하이브리드 검색(Dense + Sparse) 시 FlagEmbedding 권장, Dense만 사용 시 어느 쪽이든 무방
 
 ---
 
@@ -249,7 +271,7 @@ status = svc.health_check()
     "service": "EmbeddingService",
     "model_name": "BAAI/bge-m3",
     "model_loaded": true,
-    "model_type": "sentence_transformers",
+    "model_type": "flag_embedding",   // 또는 "sentence_transformers"
     "device": "cpu",
     "vector_dimension": 1024,
     "batch_size": 32,
@@ -405,7 +427,7 @@ svc._cache.invalidate("특정 텍스트", svc.model_name)
 ```
 EmbeddingService initialized: model=BAAI/bge-m3, device=cpu, ...
 Embedding cache connected: host=localhost, port=6379, ttl=604800s
-Model loaded: type=sentence_transformers, elapsed=14.2s
+Model loaded: type=flag_embedding, elapsed=14.2s   // 또는 sentence_transformers
 Batch embed: 32 texts, 2.5s (12.8 texts/s), cache_hits=20
 ```
 
@@ -424,7 +446,9 @@ All model loading methods failed
 
 ### 6.3 성능 기준 (검증 완료)
 
-2026-01-27 테스트 결과 (WSL2, CPU, sentence-transformers):
+2026-01-27 테스트 결과 (WSL2, CPU):
+
+**sentence-transformers (1차 테스트)**:
 
 | 항목 | 측정값 | 기준 | 판정 |
 |------|--------|------|------|
@@ -433,7 +457,17 @@ All model loading methods failed
 | 단일 임베딩 | 0.782s | < 1s | PASS |
 | 배치 32건 | 2.551s (12.5 texts/s) | < 5s | PASS |
 | 한국어↔영어 유사도 | 0.7867 | > 0.7 | PASS |
-| Sparse 벡터 | dict 반환 | 지원 여부 확인 | PASS (FlagEmbedding 시 활성) |
+| Sparse 벡터 | 빈 dict | - | N/A (미지원) |
+
+**FlagEmbedding (2차 테스트, transformers 4.57.6으로 다운그레이드 후)**:
+
+| 항목 | 측정값 | 기준 | 판정 |
+|------|--------|------|------|
+| 벡터 차원 | 1024 | 1024 | PASS |
+| L2 정규화 | 1.000000 | ~1.0 | PASS |
+| 배치 32건 | 3.127s (10.2 texts/s) | < 5s | PASS |
+| 한국어↔영어 유사도 | 0.7867 | > 0.7 | PASS |
+| Sparse 벡터 | lexical_weights 반환 | 지원 확인 | PASS |
 
 ### 6.4 성능 튜닝 가이드
 
@@ -519,11 +553,51 @@ python -c "import torch; print(f'PyTorch {torch.__version__} OK')"
 | 원인 | 해결 |
 |------|------|
 | FlagEmbedding 미설치 | `pip install FlagEmbedding` |
+| **transformers 5.x 호환성 문제** (아래 상세) | `pip install "transformers>=4.44.2,<5.0.0"` |
 | FlagEmbedding 내부 의존성 충돌 | `pip install FlagEmbedding --force-reinstall` |
 | C++ 컴파일러 부재 (Windows) | Linux 환경에서 설치 또는 sentence-transformers만 사용 |
 
-**참고**: sentence-transformers 폴백으로도 Dense 임베딩 품질은 동일합니다.
+#### transformers 5.x 호환성 문제 (2026-01-27 확인)
+
+FlagEmbedding 1.3.5는 `transformers>=4.44.2`를 요구하지만 상한을 설정하지 않아서,
+pip이 `transformers 5.0.0`을 설치할 수 있습니다. 이 경우 다음 ImportError가 발생합니다:
+
+```
+ImportError: cannot import name 'is_torch_fx_available'
+  from 'transformers.utils.import_utils'
+```
+
+**원인 경로**:
+```
+FlagEmbedding/__init__.py
+ → inference/__init__.py
+  → auto_reranker.py
+   → reranker/decoder_only/layerwise.py
+    → models/modeling_minicpm_reranker.py (line 53)
+     → from transformers.utils.import_utils import is_torch_fx_available
+        ↑ transformers 5.0.0에서 제거됨 (4.x에만 존재)
+```
+
+**해결**:
+```bash
+# transformers를 4.x로 다운그레이드
+pip install "transformers>=4.44.2,<5.0.0"
+
+# 검증
+python -c "from FlagEmbedding import BGEM3FlagModel; print('OK')"
+```
+
+**의존성 버전 조합 (검증 완료)**:
+```
+FlagEmbedding==1.3.5
+transformers==4.57.6    # <5.0.0 필수
+torch==2.10.0+cpu
+sentence-transformers==5.2.1
+```
+
+**참고**: sentence-transformers 폴백으로도 Dense 임베딩 품질은 동일합니다 (유사도 0.7867로 동일).
 Sparse 임베딩이 필수가 아니라면 sentence-transformers만으로 운영 가능합니다.
+하이브리드 검색(Dense + Sparse)이 필요한 경우 FlagEmbedding + transformers 4.x 조합을 사용하세요.
 
 ### 7.4 OOM (Out of Memory)
 
@@ -683,9 +757,11 @@ systemctl restart redis
 - [ ] 모델 파일 존재 확인 (오프라인 환경 시)
 - [ ] 환경 변수 설정 확인
 - [ ] Redis 연결 가능 확인
+- [ ] **transformers 버전 확인** (`<5.0.0`, FlagEmbedding 사용 시)
 - [ ] 테스트 임베딩 생성 성공
 - [ ] 벡터 차원 1024 확인
 - [ ] L2 정규화 norm ~= 1.0 확인
+- [ ] 모델 로딩 전략 확인 (`health_check()` → `model_type` 필드)
 
 ---
 
@@ -705,4 +781,5 @@ systemctl restart redis
 
 | 날짜 | 버전 | 내용 |
 |------|------|------|
+| 2026-01-27 | 1.1 | FlagEmbedding ImportError 원인 분석 (transformers 5.x), 전략 비교표 추가, 의존성 버전 조합 |
 | 2026-01-27 | 1.0 | 초기 작성 - 환경 설정, 모델 관리, 캐시 운영, 트러블슈팅, 체크리스트 |

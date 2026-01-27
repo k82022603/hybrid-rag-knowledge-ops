@@ -1,6 +1,6 @@
 # BGE-M3 임베딩 모델 설치 및 테스트 가이드
 
-**STORY-004** | **Version**: 1.1 | **Updated**: 2026-01-27
+**STORY-004** | **Version**: 1.2 | **Updated**: 2026-01-27
 
 ---
 
@@ -13,6 +13,8 @@
 | 실제 모델 로드 테스트 | **완료** (방법 A: Linux venv) |
 | 1024차원 벡터 생성 검증 | **완료** (Basic 5/5 + Integration 7/7) |
 | WSL2 libtorch 이슈 | 해결됨 (Linux 네이티브 venv 사용) |
+| FlagEmbedding ImportError | **해결됨** (`transformers<5.0.0`으로 다운그레이드) |
+| FlagEmbedding 테스트 | **완료** (Basic 5/5 PASSED) |
 
 ### 실패 근본 원인
 
@@ -352,6 +354,7 @@ source ~/embedding-test/bin/activate
 
 # 2. 의존성 설치 (~5분, 네트워크 속도에 따라)
 pip install torch --index-url https://download.pytorch.org/whl/cpu
+pip install "transformers>=4.44.2,<5.0.0"  # ⚠️ 5.0.0 이상은 FlagEmbedding 호환 불가
 pip install FlagEmbedding sentence-transformers numpy
 
 # 3. 프로젝트 경로 설정
@@ -447,7 +450,43 @@ RESULT: ALL PASSED (5/5)
 RESULT: ALL PASSED (7/7)
 ```
 
-**참고**: FlagEmbedding이 설치되었으나 ImportError로 sentence-transformers로 자동 폴백. Dense 임베딩은 정상 동작하며, Sparse 임베딩은 빈 dict 반환 (FlagEmbedding 전용 기능).
+**참고**: 1차 테스트 시 FlagEmbedding이 설치되었으나 ImportError로 sentence-transformers로 자동 폴백. Dense 임베딩은 정상 동작하며, Sparse 임베딩은 빈 dict 반환 (FlagEmbedding 전용 기능).
+
+### FlagEmbedding 테스트 결과 (2차, ImportError 해결 후)
+
+**원인 해결**: `transformers 5.0.0` → `4.57.6` 다운그레이드 (상세: Section 8 문제 5)
+
+**Basic Test (5/5 PASSED)**:
+```
+[1/5] PyTorch: 2.10.0+cpu (CUDA: No)
+[2/5] 모델 로드: FlagEmbedding (BGEM3FlagModel) (402.7s)
+[3/5] 단일 임베딩: dim=1024, L2 norm=1.000000, 0.430s
+[4/5] 다국어: 한국어↔영어 유사도=0.7867 (기준 0.7+)
+[5/5] 배치: 32건 3.127s (10.2 texts/s), shape=(32, 1024)
+RESULT: ALL PASSED (5/5)
+```
+
+### 모델 로딩 전략 비교표
+
+| 항목 | FlagEmbedding (`BGEM3FlagModel`) | sentence-transformers (`SentenceTransformer`) |
+|------|----------------------------------|----------------------------------------------|
+| 모델 로드 시간 | 402.7s | 451.2s |
+| 벡터 차원 | 1024 | 1024 |
+| L2 norm | 1.000000 | 1.000000 |
+| 앞 5개 값 | [-0.0590, -0.0214, 0.0086, 0.0234, -0.0275] | [-0.0590, -0.0214, 0.0086, 0.0234, -0.0275] |
+| 한국어↔영어 유사도 | **0.7867** | **0.7867** |
+| 한국어↔하이브리드 유사도 | 0.4957 | 0.4957 |
+| 배치 32건 처리 | 3.127s (10.2 texts/s) | 2.551s (12.5 texts/s) |
+| Sparse 벡터 | **지원** (`lexical_weights`) | 빈 dict 반환 |
+| ColBERT 벡터 | **지원** (`colbert_vecs`) | 미지원 |
+| 테스트 결과 | **5/5 PASSED** | **5/5 PASSED** |
+| 필수 의존성 제약 | `transformers<5.0.0` 필수 | 제약 없음 |
+
+**결론**:
+- Dense 벡터 품질은 **완전히 동일** (같은 모델 가중치 사용)
+- **FlagEmbedding**: Sparse/ColBERT 벡터 지원 → Hybrid RAG에 필수
+- **sentence-transformers**: 의존성 제약 없음, 배치 처리 약간 빠름 → 안정적 폴백
+- **권장**: FlagEmbedding을 Primary로, sentence-transformers를 Fallback으로 사용 (현재 EmbeddingService 구조)
 
 ---
 
@@ -519,6 +558,47 @@ pip install sentence-transformers
 # Sparse 임베딩은 불가, Dense만 지원
 ```
 
+### 문제 5: FlagEmbedding ImportError (transformers 5.x 호환성)
+
+```
+ImportError: cannot import name 'is_torch_fx_available' from 'transformers.utils.import_utils'
+```
+
+**원인**: FlagEmbedding 1.3.5가 `transformers>=4.44.2`를 요구하지만 상한선을 지정하지 않음.
+pip이 `transformers 5.0.0`을 설치하면 제거된 API(`is_torch_fx_available`)를 참조하여 ImportError 발생.
+
+**import 체인**:
+```
+FlagEmbedding/__init__.py
+  → inference/__init__.py
+    → auto_reranker.py
+      → reranker/decoder_only/layerwise.py
+        → models/modeling_minicpm_reranker.py (line 53)
+          → from transformers.utils.import_utils import is_torch_fx_available  ← 실패!
+```
+
+**해결**:
+```bash
+# transformers 버전을 4.x대로 고정
+pip install "transformers>=4.44.2,<5.0.0"
+
+# 확인
+python -c "import transformers; print(transformers.__version__)"
+# 출력: 4.57.6 (OK)
+
+python -c "from FlagEmbedding import BGEM3FlagModel; print('OK')"
+# 출력: OK
+```
+
+**검증된 호환 의존성 조합**:
+```
+FlagEmbedding==1.3.5
+transformers==4.57.6  (4.44.2 이상, 5.0.0 미만)
+torch==2.10.0+cpu
+sentence-transformers==5.2.1
+numpy==2.4.1
+```
+
 ---
 
 ## 9. 관련 파일
@@ -576,5 +656,6 @@ EMBEDDING_BATCH_SIZE=64
 
 | 날짜 | 버전 | 내용 |
 |------|------|------|
+| 2026-01-27 | 1.2 | FlagEmbedding ImportError 해결 반영, 비교표 추가, transformers 버전 제약 문서화 |
 | 2026-01-27 | 1.1 | 실제 테스트 결과 추가 - Basic 5/5, Integration 7/7 ALL PASSED |
 | 2026-01-27 | 1.0 | 초기 작성 - 설치 가이드, 테스트 스크립트, 트러블슈팅 |
