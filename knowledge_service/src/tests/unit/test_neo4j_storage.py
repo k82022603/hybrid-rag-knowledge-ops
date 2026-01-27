@@ -23,6 +23,32 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+
+# ---------------------------------------------------------------------------
+# Async iteration helper for mocking Neo4j Result objects
+# ---------------------------------------------------------------------------
+
+class AsyncRecordIterator:
+    """Mock async iterator that properly implements __aiter__/__anext__.
+
+    Neo4j Result objects support ``async for record in result``.
+    ``AsyncMock.__aiter__`` returns a coroutine which does NOT satisfy
+    the async-iterator protocol.  This helper wraps a plain iterable so
+    that it can be consumed via ``async for``.
+    """
+
+    def __init__(self, records):
+        self._records = iter(records)
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        try:
+            return next(self._records)
+        except StopIteration:
+            raise StopAsyncIteration
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
 
 # importlib로 직접 모듈 로드 (무거운 의존성 회피)
@@ -107,18 +133,56 @@ def sample_relationships():
     ]
 
 
+class MockNeo4jResult:
+    """Mock Neo4j Result that supports both ``async for`` and ``.single()``.
+
+    ``MagicMock`` / ``AsyncMock`` cannot easily provide a working
+    ``__aiter__`` / ``__anext__`` pair because dunder methods are resolved
+    on the *type*, not the instance.  This lightweight class avoids that
+    problem entirely.
+    """
+
+    def __init__(self, records=None, single_value=None):
+        if single_value is None and records:
+            single_value = records[0]
+        self._records = list(records) if records else []
+        self._single_value = single_value
+        self._iter = None
+
+    def __aiter__(self):
+        self._iter = iter(self._records)
+        return self
+
+    async def __anext__(self):
+        try:
+            return next(self._iter)
+        except StopIteration:
+            raise StopAsyncIteration
+
+    async def single(self):
+        return self._single_value
+
+
+def _make_mock_result(records=None, single_value=None):
+    """Mock Neo4j Result 생성 (async for 지원).
+
+    Args:
+        records: async for로 순회할 레코드 리스트 (None이면 [single_value] 사용)
+        single_value: result.single()이 반환할 값
+    """
+    if single_value is None and records is None:
+        single_value = {"cnt": 3, "kid": "doc-001"}
+    if records is None:
+        records = [single_value] if single_value is not None else []
+
+    return MockNeo4jResult(records=records, single_value=single_value)
+
+
 def _make_mock_session():
     """Mock Neo4j 세션 생성"""
     mock_session = AsyncMock()
 
-    # run 결과 mock
-    mock_result = AsyncMock()
-    mock_record = {"cnt": 3, "kid": "doc-001"}
-    mock_result.single = AsyncMock(return_value=mock_record)
-
-    # async for 지원 (records iteration)
-    mock_result.__aiter__ = AsyncMock(return_value=iter([mock_record]))
-
+    mock_result = _make_mock_result()
     mock_session.run = AsyncMock(return_value=mock_result)
 
     return mock_session
@@ -437,9 +501,8 @@ class TestQuerySubgraph:
         """결과 없는 서브그래프 조회"""
         mock_driver, mock_session = _make_mock_driver()
 
-        # 빈 결과 반환
-        mock_result = AsyncMock()
-        mock_result.__aiter__ = AsyncMock(return_value=iter([]))
+        # 빈 결과 반환 (async for 가능한 이터레이터)
+        mock_result = _make_mock_result(records=[], single_value=None)
         mock_session.run = AsyncMock(return_value=mock_result)
 
         service._driver = mock_driver
@@ -455,8 +518,8 @@ class TestQuerySubgraph:
         """깊이 지정 서브그래프 조회"""
         mock_driver, mock_session = _make_mock_driver()
 
-        mock_result = AsyncMock()
-        mock_result.__aiter__ = AsyncMock(return_value=iter([]))
+        # 빈 결과 반환 (async for 가능한 이터레이터)
+        mock_result = _make_mock_result(records=[], single_value=None)
         mock_session.run = AsyncMock(return_value=mock_result)
 
         service._driver = mock_driver
@@ -608,14 +671,12 @@ class TestHealthCheck:
         """연결된 상태의 health check"""
         mock_driver, mock_session = _make_mock_driver()
 
-        # stats 결과
-        mock_stats_result = AsyncMock()
-        mock_stats_result.__aiter__ = AsyncMock(
-            return_value=iter([
-                {"label": ["Knowledge"], "cnt": 100},
-                {"label": ["Chunk"], "cnt": 500},
-            ])
-        )
+        # stats 결과 (async for 가능한 이터레이터)
+        stats_records = [
+            {"label": ["Knowledge"], "cnt": 100},
+            {"label": ["Chunk"], "cnt": 500},
+        ]
+        mock_stats_result = _make_mock_result(records=stats_records, single_value=None)
         mock_session.run = AsyncMock(return_value=mock_stats_result)
 
         service._driver = mock_driver
