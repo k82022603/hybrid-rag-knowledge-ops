@@ -25,8 +25,8 @@ export const keycloakInitOptions: Keycloak.KeycloakInitOptions = {
   enableLogging: import.meta.env.DEV,
 };
 
-// 토큰 갱신 간격 (만료 2분 전에 갱신)
-export const TOKEN_REFRESH_MARGIN = 120; // seconds
+// 토큰 갱신 간격 (만료 5분 전에 갱신 - AC4 요구사항)
+export const TOKEN_REFRESH_MARGIN = 300; // seconds (5 minutes)
 
 // 토큰 갱신 함수
 export const refreshToken = async (minValidity = TOKEN_REFRESH_MARGIN): Promise<boolean> => {

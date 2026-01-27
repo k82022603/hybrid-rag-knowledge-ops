@@ -1,10 +1,11 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
-import keycloak, { refreshToken, logout } from '@/auth/keycloak';
+import keycloak, { refreshToken, logout, TOKEN_REFRESH_MARGIN } from '@/auth/keycloak';
 
 /**
- * Axios 인스턴스 설정
+ * Axios API 인스턴스
  *
- * 기본 URL과 공통 헤더를 설정하고 인터셉터를 추가
+ * 기본 URL과 공통 헤더를 설정하고 인증 인터셉터를 추가.
+ * Keycloak SSO 토큰 또는 Direct login 토큰을 자동으로 요청에 포함.
  */
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
@@ -14,26 +15,37 @@ const api = axios.create({
   timeout: 30000,
 });
 
-// Request interceptor - Keycloak 토큰 추가
+/**
+ * Request interceptor - 인증 토큰 자동 추가
+ *
+ * 1. Keycloak 인증: 토큰 만료 임박 시 자동 갱신 후 Bearer 토큰 추가
+ * 2. Direct 인증: localStorage에서 토큰 읽어서 Bearer 토큰 추가
+ */
 api.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
-    // 토큰이 만료 임박한 경우 갱신
+    // Strategy 1: Keycloak SSO token
     if (keycloak.authenticated) {
       const tokenExpiry = keycloak.tokenParsed?.exp;
       const now = Math.floor(Date.now() / 1000);
 
-      // 토큰이 2분 이내에 만료되면 갱신
-      if (tokenExpiry && tokenExpiry - now < 120) {
+      // 토큰이 5분 이내에 만료되면 갱신 (TOKEN_REFRESH_MARGIN = 300s)
+      if (tokenExpiry && tokenExpiry - now < TOKEN_REFRESH_MARGIN) {
         try {
-          await refreshToken(120);
+          await refreshToken(TOKEN_REFRESH_MARGIN);
         } catch (error) {
-          console.error('Failed to refresh token before request:', error);
+          console.error('[API] Failed to refresh Keycloak token before request:', error);
         }
       }
 
-      // Authorization 헤더에 토큰 추가
+      // Authorization 헤더에 Keycloak 토큰 추가
       if (keycloak.token) {
         config.headers.Authorization = `Bearer ${keycloak.token}`;
+      }
+    } else {
+      // Strategy 2: Direct login token from localStorage
+      const directToken = localStorage.getItem('auth_access_token');
+      if (directToken) {
+        config.headers.Authorization = `Bearer ${directToken}`;
       }
     }
 
@@ -44,7 +56,13 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor - 에러 처리
+/**
+ * Response interceptor - 인증 에러 및 서버 에러 처리
+ *
+ * - 401: Keycloak 토큰 갱신 시도 후 재요청, 실패 시 로그아웃
+ * - 403: 권한 부족 로깅
+ * - 500+: 서버 에러 로깅
+ */
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
@@ -52,38 +70,46 @@ api.interceptors.response.use(
       _retry?: boolean;
     };
 
-    // 401 Unauthorized 처리
+    // 401 Unauthorized - attempt token refresh and retry
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 
-      try {
-        // 토큰 갱신 시도
-        const refreshed = await refreshToken(0);
+      // Only try Keycloak refresh if Keycloak is the auth method
+      if (keycloak.authenticated) {
+        try {
+          const refreshed = await refreshToken(0);
 
-        if (refreshed && keycloak.token) {
-          // 새 토큰으로 원래 요청 재시도
-          originalRequest.headers.Authorization = `Bearer ${keycloak.token}`;
-          return api(originalRequest);
-        } else {
-          // 갱신 실패 시 로그아웃
-          console.error('Token refresh failed - logging out');
+          if (refreshed && keycloak.token) {
+            // Retry original request with new token
+            originalRequest.headers.Authorization = `Bearer ${keycloak.token}`;
+            return api(originalRequest);
+          } else {
+            console.error('[API] Keycloak token refresh failed - logging out');
+            logout();
+          }
+        } catch (refreshError) {
+          console.error('[API] Error during Keycloak token refresh:', refreshError);
           logout();
         }
-      } catch (refreshError) {
-        console.error('Error during token refresh:', refreshError);
-        logout();
+      } else {
+        // Direct login - clear stored tokens and redirect to login
+        console.error('[API] Direct auth token invalid/expired');
+        localStorage.removeItem('auth_access_token');
+        localStorage.removeItem('auth_refresh_token');
+        localStorage.removeItem('auth_user');
+        localStorage.removeItem('auth_method');
+        window.location.href = '/login';
       }
     }
 
-    // 403 Forbidden 처리
+    // 403 Forbidden
     if (error.response?.status === 403) {
-      console.error('Access denied - insufficient permissions');
-      // 권한 부족 알림 또는 리다이렉트 처리 가능
+      console.error('[API] Access denied - insufficient permissions');
     }
 
-    // 500 Server Error 처리
+    // 500+ Server Error
     if (error.response?.status && error.response.status >= 500) {
-      console.error('Server error:', error.response.data);
+      console.error('[API] Server error:', error.response.status, error.response.data);
     }
 
     return Promise.reject(error);

@@ -3,6 +3,13 @@
  *
  * Keycloak 인증 상태를 관리하는 React Context Provider
  * Direct login (Redux) + Keycloak SSO 통합 지원
+ *
+ * Features:
+ * - Keycloak SSO 초기화 (check-sso + PKCE S256)
+ * - Direct login fallback (Redux 기반)
+ * - 토큰 자동 갱신 (만료 5분 전 Silent Refresh)
+ * - onTokenExpired 이벤트 핸들링
+ * - 인증 상태 Context 제공
  */
 import React, {
   createContext,
@@ -11,6 +18,7 @@ import React, {
   useState,
   useCallback,
   useMemo,
+  useRef,
   type ReactNode,
 } from 'react';
 import { useSelector } from 'react-redux';
@@ -28,35 +36,63 @@ import keycloak, {
 import { selectIsAuthenticated as selectReduxAuth, selectUser as selectReduxUser } from '@/store/slices/authSlice';
 import type { User } from '@/types';
 
-// 인증 컨텍스트 타입
-interface AuthContextType {
+/** Authentication context type exposed via useAuth hook */
+export interface AuthContextType {
+  /** Whether Keycloak has been initialized (or skipped) */
   isInitialized: boolean;
+  /** Whether user is authenticated (via Keycloak SSO or direct login) */
   isAuthenticated: boolean;
+  /** Whether initialization or login is in progress */
   isLoading: boolean;
+  /** Current user information */
   user: User | null;
+  /** Current access token (Keycloak managed) */
   token: string | undefined;
+  /** Which authentication method is active */
   authMethod: 'keycloak' | 'direct' | null;
+  /** Redirect to Keycloak login page */
   login: (redirectUri?: string) => void;
+  /** Logout from Keycloak and clear session */
   logout: (redirectUri?: string) => void;
+  /** Manually trigger token refresh */
   refreshToken: () => Promise<boolean>;
+  /** Check if user has a specific realm role */
   hasRole: (role: string) => boolean;
+  /** Check if user has a specific resource role */
   hasResourceRole: (role: string, resource?: string) => boolean;
 }
 
-// 컨텍스트 생성
+// Context
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Provider Props
+/** Provider Props */
 interface KeycloakProviderProps {
   children: ReactNode;
+  /** Component to show while initializing */
   loadingComponent?: ReactNode;
+  /** Callback when authentication succeeds */
   onAuthSuccess?: (user: User) => void;
+  /** Callback when authentication fails */
   onAuthError?: (error: Error) => void;
+  /** Callback when user logs out */
   onAuthLogout?: () => void;
 }
 
 /**
- * Keycloak Provider 컴포넌트
+ * KeycloakProvider component
+ *
+ * Wraps the application to provide authentication context.
+ * Supports both Keycloak SSO and direct (Redux-based) login.
+ *
+ * @example
+ * ```tsx
+ * <KeycloakProvider
+ *   loadingComponent={<LoadingScreen />}
+ *   onAuthSuccess={(user) => console.log('Logged in:', user.username)}
+ * >
+ *   <App />
+ * </KeycloakProvider>
+ * ```
  */
 export const KeycloakProvider: React.FC<KeycloakProviderProps> = ({
   children,
@@ -72,6 +108,9 @@ export const KeycloakProvider: React.FC<KeycloakProviderProps> = ({
   const [keycloakUser, setKeycloakUser] = useState<User | null>(null);
   const [keycloakToken, setKeycloakToken] = useState<string | undefined>(undefined);
 
+  // Ref to track token refresh interval for proper cleanup
+  const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   // Redux direct auth state
   const isReduxAuthenticated = useSelector(selectReduxAuth);
   const reduxUser = useSelector(selectReduxUser);
@@ -86,7 +125,7 @@ export const KeycloakProvider: React.FC<KeycloakProviderProps> = ({
       ? 'direct'
       : null;
 
-  // 사용자 정보 업데이트 (Keycloak)
+  // Update user info from Keycloak token
   const updateUserInfo = useCallback(() => {
     const userInfo = getUserInfo();
     if (userInfo) {
@@ -97,19 +136,49 @@ export const KeycloakProvider: React.FC<KeycloakProviderProps> = ({
     return null;
   }, []);
 
-  // Keycloak 초기화
+  // Set up automatic token refresh interval
+  const setupTokenRefresh = useCallback(() => {
+    // Clear any existing interval
+    if (refreshIntervalRef.current) {
+      clearInterval(refreshIntervalRef.current);
+      refreshIntervalRef.current = null;
+    }
+
+    // Refresh token periodically (every 60 seconds, requesting validity for TOKEN_REFRESH_MARGIN)
+    // TOKEN_REFRESH_MARGIN = 300s (5 min), so Keycloak will only refresh if expiry < 5 min away
+    refreshIntervalRef.current = setInterval(async () => {
+      if (keycloak.authenticated) {
+        try {
+          const success = await refreshToken(TOKEN_REFRESH_MARGIN);
+          if (success) {
+            updateUserInfo();
+          }
+        } catch (error) {
+          console.error('[Auth] Periodic token refresh failed:', error);
+        }
+      }
+    }, 60 * 1000); // Check every 60 seconds
+  }, [updateUserInfo]);
+
+  // Keycloak initialization
   useEffect(() => {
+    let mounted = true;
+
     const initKeycloak = async () => {
       try {
         // Skip Keycloak init if already authenticated via Redux (direct login)
         if (isReduxAuthenticated) {
           console.log('[Auth] Using Redux direct login - skipping Keycloak init');
-          setIsInitialized(true);
-          setIsLoading(false);
+          if (mounted) {
+            setIsInitialized(true);
+            setIsLoading(false);
+          }
           return;
         }
 
         const authenticated = await keycloak.init(keycloakInitOptions);
+
+        if (!mounted) return;
 
         setIsKeycloakAuthenticated(authenticated);
         setIsInitialized(true);
@@ -120,25 +189,30 @@ export const KeycloakProvider: React.FC<KeycloakProviderProps> = ({
             onAuthSuccess(userInfo);
           }
 
-          // 토큰 자동 갱신 설정
+          // Set up automatic token refresh
           setupTokenRefresh();
         }
       } catch (error) {
-        console.error('Keycloak initialization failed:', error);
-        setIsInitialized(true);
-        // Don't treat Keycloak init failure as error if we can use direct login
-        if (!isReduxAuthenticated && onAuthError) {
-          onAuthError(error instanceof Error ? error : new Error('Keycloak init failed'));
+        console.error('[Auth] Keycloak initialization failed:', error);
+        if (mounted) {
+          setIsInitialized(true);
+          // Don't treat Keycloak init failure as error if we can use direct login
+          if (!isReduxAuthenticated && onAuthError) {
+            onAuthError(error instanceof Error ? error : new Error('Keycloak init failed'));
+          }
         }
       } finally {
-        setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     };
 
     initKeycloak();
 
-    // Keycloak 이벤트 핸들러
+    // Keycloak event handlers
     keycloak.onAuthSuccess = () => {
+      if (!mounted) return;
       setIsKeycloakAuthenticated(true);
       const userInfo = updateUserInfo();
       if (userInfo && onAuthSuccess) {
@@ -147,7 +221,8 @@ export const KeycloakProvider: React.FC<KeycloakProviderProps> = ({
     };
 
     keycloak.onAuthError = (error) => {
-      console.error('Auth error:', error);
+      console.error('[Auth] Authentication error:', error);
+      if (!mounted) return;
       setIsKeycloakAuthenticated(false);
       setKeycloakUser(null);
       setKeycloakToken(undefined);
@@ -157,6 +232,7 @@ export const KeycloakProvider: React.FC<KeycloakProviderProps> = ({
     };
 
     keycloak.onAuthLogout = () => {
+      if (!mounted) return;
       setIsKeycloakAuthenticated(false);
       setKeycloakUser(null);
       setKeycloakToken(undefined);
@@ -166,22 +242,29 @@ export const KeycloakProvider: React.FC<KeycloakProviderProps> = ({
     };
 
     keycloak.onTokenExpired = async () => {
-      console.log('Token expired, attempting refresh...');
-      const success = await refreshToken();
-      if (success) {
-        updateUserInfo();
-      } else {
-        // 갱신 실패 시 로그아웃
+      console.log('[Auth] Token expired, attempting refresh...');
+      try {
+        const success = await refreshToken(TOKEN_REFRESH_MARGIN);
+        if (success) {
+          if (mounted) updateUserInfo();
+          console.log('[Auth] Token refreshed after expiry');
+        } else {
+          console.warn('[Auth] Token refresh returned false, logging out');
+          keycloakLogout();
+        }
+      } catch (error) {
+        console.error('[Auth] Token refresh failed after expiry:', error);
         keycloakLogout();
       }
     };
 
     keycloak.onAuthRefreshSuccess = () => {
-      updateUserInfo();
+      if (mounted) updateUserInfo();
     };
 
     keycloak.onAuthRefreshError = () => {
-      console.error('Token refresh failed');
+      console.error('[Auth] Token refresh error');
+      if (!mounted) return;
       setIsKeycloakAuthenticated(false);
       setKeycloakUser(null);
       setKeycloakToken(undefined);
@@ -189,29 +272,21 @@ export const KeycloakProvider: React.FC<KeycloakProviderProps> = ({
 
     // Cleanup
     return () => {
+      mounted = false;
       keycloak.onAuthSuccess = undefined;
       keycloak.onAuthError = undefined;
       keycloak.onAuthLogout = undefined;
       keycloak.onTokenExpired = undefined;
       keycloak.onAuthRefreshSuccess = undefined;
       keycloak.onAuthRefreshError = undefined;
-    };
-  }, [onAuthSuccess, onAuthError, onAuthLogout, updateUserInfo, isReduxAuthenticated]);
 
-  // 토큰 자동 갱신 설정
-  const setupTokenRefresh = useCallback(() => {
-    // 토큰 만료 전에 갱신하도록 인터벌 설정
-    const refreshInterval = setInterval(async () => {
-      if (keycloak.authenticated) {
-        const success = await refreshToken(TOKEN_REFRESH_MARGIN);
-        if (success) {
-          updateUserInfo();
-        }
+      // Clean up token refresh interval
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+        refreshIntervalRef.current = null;
       }
-    }, (TOKEN_REFRESH_MARGIN - 30) * 1000); // 만료 30초 전에 갱신 시도
-
-    return () => clearInterval(refreshInterval);
-  }, [updateUserInfo]);
+    };
+  }, [onAuthSuccess, onAuthError, onAuthLogout, updateUserInfo, isReduxAuthenticated, setupTokenRefresh]);
 
   // 로그인 함수
   const login = useCallback((redirectUri?: string) => {

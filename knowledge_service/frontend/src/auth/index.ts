@@ -1,5 +1,10 @@
 /**
  * Auth Module Exports
+ *
+ * Central export point for all authentication-related functionality:
+ * - Keycloak instance and utilities
+ * - KeycloakProvider and useAuth hook
+ * - Protected route components
  */
 
 // Keycloak instance and utilities
@@ -18,8 +23,9 @@ export {
   TOKEN_REFRESH_MARGIN,
 } from './keycloak';
 
-// Provider and hooks
+// Provider, hooks, and types
 export { KeycloakProvider, useAuth } from './KeycloakProvider';
+export type { AuthContextType } from './KeycloakProvider';
 
 // Protected routes
 export {

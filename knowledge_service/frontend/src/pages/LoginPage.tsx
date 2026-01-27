@@ -1,9 +1,16 @@
 /**
- * Login Page
+ * LoginPage
  *
- * 직접 로그인 + Keycloak SSO 지원
+ * 로그인 페이지 - 직접 로그인(이메일/비밀번호) + Keycloak SSO 지원
+ *
+ * Features:
+ * - Direct login form (email + password)
+ * - Keycloak SSO login button
+ * - Auto-redirect if already authenticated
+ * - Redirect to original page after login
+ * - Development mode test account display
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/auth';
 import { LoginForm } from '@/components/auth';
@@ -18,27 +25,25 @@ const LoginPage: React.FC = () => {
   const { isAuthenticated, isLoading, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [, setShowForgotPassword] = useState(false);
 
   // Get the page user was trying to access before being redirected to login
   const from = (location.state as LocationState)?.from?.pathname || '/dashboard';
 
   useEffect(() => {
-    // 이미 인증된 경우 원래 페이지 또는 대시보드로 이동
+    // Already authenticated - redirect to original page or dashboard
     if (isAuthenticated) {
       navigate(from, { replace: true });
     }
   }, [isAuthenticated, navigate, from]);
 
   const handleSSOLogin = () => {
-    // Keycloak SSO 로그인
+    // Keycloak SSO login - redirect to Keycloak login page
     login(window.location.origin + from);
   };
 
   const handleForgotPassword = () => {
-    setShowForgotPassword(true);
-    // TODO: 비밀번호 찾기 모달 또는 페이지 이동
-    console.log('Forgot password clicked');
+    // TODO: Implement forgot password modal or page navigation
+    console.log('[LoginPage] Forgot password clicked');
   };
 
   if (isLoading) {
