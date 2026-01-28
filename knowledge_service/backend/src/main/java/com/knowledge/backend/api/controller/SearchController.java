@@ -1,6 +1,7 @@
 package com.knowledge.backend.api.controller;
 
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 import com.knowledge.backend.api.dto.SearchRequest;
 import com.knowledge.backend.api.dto.SearchResponse;
@@ -9,9 +10,12 @@ import com.knowledge.backend.api.dto.search.SearchFeedbackRequest;
 import com.knowledge.backend.api.dto.search.SearchFeedbackResponse;
 import com.knowledge.backend.api.dto.search.SearchHistoryResponse;
 import com.knowledge.backend.api.dto.search.SearchSuggestionResponse;
+import com.knowledge.backend.exception.BadRequestException;
 import com.knowledge.backend.security.JwtUser;
 import com.knowledge.backend.service.SearchService;
+import com.knowledge.backend.util.InputSanitizer;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -20,6 +24,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -44,8 +49,12 @@ import reactor.core.publisher.Mono;
 @RestController
 @RequestMapping("/api/v1/search")
 @RequiredArgsConstructor
+@Validated
 @Slf4j
 public class SearchController {
+
+    /** Maximum allowed query length for search endpoints */
+    private static final int MAX_QUERY_LENGTH = 1000;
 
     private final SearchService searchService;
 
@@ -145,23 +154,29 @@ public class SearchController {
      * <p>Returns search results as Server-Sent Events for real-time streaming.
      * Each chunk is wrapped in a ServerSentEvent.
      *
-     * @param query search query
+     * <p>Security: Query input is validated for length (max 1000 chars)
+     * and sanitized to remove XSS patterns before processing.
+     *
+     * @param query search query (max 1000 characters)
      * @param user authenticated JWT user (AC5)
      * @return SSE stream of search chunks
      */
     @GetMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @PreAuthorize("hasAnyRole('USER', 'VIEWER', 'DEVELOPER', 'ADMIN')")
     public Flux<ServerSentEvent<String>> streamSearch(
-        @RequestParam String query,
+        @RequestParam @Size(max = 1000, message = "Query must not exceed 1000 characters") String query,
         @AuthenticationPrincipal JwtUser user
     ) {
+        // Validate and sanitize input
+        String sanitizedQuery = validateAndSanitizeQuery(query);
+
         String userId = user != null ? user.id() : null;
         log.info("Stream search request from user: {} ({}), query: {}",
             user != null ? user.username() : "anonymous",
             user != null ? user.realmRoles() : "no roles",
-            query);
+            sanitizedQuery);
 
-        return searchService.streamSearch(query, userId)
+        return searchService.streamSearch(sanitizedQuery, userId)
             .map(chunk -> ServerSentEvent.<String>builder()
                 .data(chunk)
                 .build());
@@ -172,21 +187,27 @@ public class SearchController {
      *
      * <p>Maps to the same stream search for backward compatibility.
      *
-     * @param query search query
+     * <p>Security: Query input is validated for length (max 1000 chars)
+     * and sanitized to remove XSS patterns before processing.
+     *
+     * @param query search query (max 1000 characters)
      * @param user authenticated JWT user
      * @return SSE stream of search chunks
      */
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @PreAuthorize("hasAnyRole('USER', 'VIEWER', 'DEVELOPER', 'ADMIN')")
     public Flux<ServerSentEvent<String>> streamSearchLegacy(
-        @RequestParam String query,
+        @RequestParam @Size(max = 1000, message = "Query must not exceed 1000 characters") String query,
         @AuthenticationPrincipal JwtUser user
     ) {
+        // Validate and sanitize input
+        String sanitizedQuery = validateAndSanitizeQuery(query);
+
         String userId = user != null ? user.id() : null;
         log.info("Stream search (legacy) from user: {}, query: {}",
-            user != null ? user.username() : "anonymous", query);
+            user != null ? user.username() : "anonymous", sanitizedQuery);
 
-        return searchService.streamSearch(query, userId)
+        return searchService.streamSearch(sanitizedQuery, userId)
             .map(chunk -> ServerSentEvent.<String>builder()
                 .data(chunk)
                 .build());
@@ -222,18 +243,19 @@ public class SearchController {
      *
      * <p>Returns search suggestions based on popular and recent queries.
      *
-     * @param q partial query text for prefix matching
+     * @param q partial query text for prefix matching (max 200 characters)
      * @param limit max results (default 10)
      * @return list of search suggestions
      */
     @GetMapping("/suggestions")
     @PreAuthorize("hasAnyRole('USER', 'VIEWER', 'DEVELOPER', 'ADMIN')")
     public Flux<SearchSuggestionResponse> getSearchSuggestions(
-        @RequestParam(required = false) String q,
+        @RequestParam(required = false) @Size(max = 200, message = "Suggestion query must not exceed 200 characters") String q,
         @RequestParam(defaultValue = "10") int limit
     ) {
-        log.info("Search suggestions request - q: {}, limit: {}", q, limit);
-        return searchService.getSearchSuggestions(q, limit);
+        String sanitizedQ = (q != null) ? InputSanitizer.sanitize(q) : null;
+        log.info("Search suggestions request - q: {}, limit: {}", sanitizedQ, limit);
+        return searchService.getSearchSuggestions(sanitizedQ, limit);
     }
 
     /**
@@ -272,8 +294,34 @@ public class SearchController {
                 request.getSearchId(),
                 request.getDocumentId(),
                 request.getRating(),
-                request.getFeedbackType(),
-                request.getComment()
+                InputSanitizer.sanitize(request.getFeedbackType()),
+                InputSanitizer.sanitize(request.getComment())
         ).map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response));
+    }
+
+    /**
+     * Validate and sanitize query input for streaming endpoints.
+     *
+     * <p>Performs:
+     * <ul>
+     *   <li>Null/blank check</li>
+     *   <li>Length validation (max 1000 characters)</li>
+     *   <li>XSS pattern removal (HTML/Script tags)</li>
+     * </ul>
+     *
+     * @param query raw query input
+     * @return sanitized query string
+     * @throws BadRequestException if query is blank or exceeds max length
+     */
+    private String validateAndSanitizeQuery(String query) {
+        if (query == null || query.isBlank()) {
+            throw new BadRequestException("Query parameter is required and must not be blank");
+        }
+        if (query.length() > MAX_QUERY_LENGTH) {
+            throw new BadRequestException(
+                "Query must not exceed " + MAX_QUERY_LENGTH + " characters. Current length: " + query.length()
+            );
+        }
+        return InputSanitizer.sanitize(query);
     }
 }

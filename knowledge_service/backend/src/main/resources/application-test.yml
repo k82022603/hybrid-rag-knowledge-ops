@@ -12,13 +12,24 @@ spring:
           issuer-uri: http://localhost:8180/realms/test
           jwk-set-uri: http://localhost:8180/realms/test/protocol/openid-connect/certs
 
+# JWT Configuration for tests only - NOT a real secret
+jwt:
+  secret: TestOnlyJwtSecretKeyForUnitTestsMustBeAtLeast256Bits!!
+
+# Test user initialization (test profile only)
+init:
+  test-user:
+    password: test-password-for-tests-only
+  admin:
+    password: admin-password-for-tests-only
+
 ai-service:
   url: http://localhost:8000
 
 minio:
   url: http://localhost:9000
-  access-key: test
-  secret-key: test
+  access-key: test-access-key-not-real
+  secret-key: test-secret-key-not-real
   bucket: test
 
 logging:

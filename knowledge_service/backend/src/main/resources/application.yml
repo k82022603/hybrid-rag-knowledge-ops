@@ -48,8 +48,9 @@ keycloak:
   auth-server-url: ${KEYCLOAK_URL:http://localhost:8180}
 
 # JWT Configuration (Direct Login)
+# SECURITY: JWT_SECRET must be set via environment variable. No default value allowed.
 jwt:
-  secret: ${JWT_SECRET:YourSecretKeyForJWTTokenGenerationMustBeAtLeast256Bits}
+  secret: ${JWT_SECRET:}
   access-token-expiration: 3600000  # 1 hour in milliseconds
   refresh-token-expiration: 604800000  # 7 days in milliseconds
   issuer: knowledge-platform
@@ -65,10 +66,11 @@ ai-service:
   timeout: 60s
 
 # MinIO Configuration
+# SECURITY: MinIO credentials must be set via environment variables. No default credentials allowed.
 minio:
   url: ${MINIO_URL:http://localhost:9000}
-  access-key: ${MINIO_ACCESS_KEY:minioadmin}
-  secret-key: ${MINIO_SECRET_KEY:minioadmin}
+  access-key: ${MINIO_ACCESS_KEY:}
+  secret-key: ${MINIO_SECRET_KEY:}
   bucket: ${MINIO_BUCKET:documents}
 
 # Actuator Configuration

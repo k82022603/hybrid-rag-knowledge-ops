@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -102,6 +103,45 @@ public class GlobalExceptionHandler {
                 .build();
 
         return Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).body(response));
+    }
+
+    /**
+     * Handle constraint violation errors from @Validated controller parameters
+     *
+     * <p>Handles @Size, @NotBlank, etc. on @RequestParam and @PathVariable
+     * when the controller class is annotated with @Validated.
+     *
+     * @param ex the constraint violation exception
+     * @param exchange server web exchange
+     * @return error response with 400 status and validation details
+     */
+    @ExceptionHandler(ConstraintViolationException.class)
+    public Mono<ResponseEntity<ErrorResponse>> handleConstraintViolationException(
+            ConstraintViolationException ex,
+            ServerWebExchange exchange
+    ) {
+        log.warn("Constraint violation: {}", ex.getMessage());
+
+        Map<String, String> errors = new HashMap<>();
+        ex.getConstraintViolations().forEach(violation -> {
+            String propertyPath = violation.getPropertyPath().toString();
+            // Extract the parameter name from the property path (e.g., "streamSearch.query" -> "query")
+            String paramName = propertyPath.contains(".")
+                ? propertyPath.substring(propertyPath.lastIndexOf('.') + 1)
+                : propertyPath;
+            errors.put(paramName, violation.getMessage());
+        });
+
+        ErrorResponse response = ErrorResponse.builder()
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Bad Request")
+                .message("Parameter validation failed")
+                .path(exchange.getRequest().getPath().value())
+                .timestamp(LocalDateTime.now())
+                .validationErrors(errors)
+                .build();
+
+        return Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response));
     }
 
     /**

@@ -26,13 +26,17 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * JWT Token Provider
  *
- * <p>Handles JWT token generation, validation, and parsing
+ * <p>Handles JWT token generation, validation, and parsing.
+ *
+ * <p>Security: JWT_SECRET must be provided via environment variable.
+ * The application will fail to start if JWT_SECRET is not set or is too short.
+ * No default/fallback secret is allowed.
  */
 @Slf4j
 @Component
 public class JwtTokenProvider {
 
-    @Value("${jwt.secret:defaultSecretKeyForDevelopmentOnly123456789}")
+    @Value("${jwt.secret}")
     private String secret;
 
     @Value("${jwt.access-token-expiration:3600000}")
@@ -46,13 +50,32 @@ public class JwtTokenProvider {
 
     private SecretKey key;
 
+    /**
+     * Validate and initialize the JWT signing key.
+     *
+     * <p>Fails fast if JWT_SECRET is not configured or is too short.
+     * This prevents the application from starting with an insecure configuration.
+     *
+     * @throws IllegalStateException if JWT_SECRET is missing or shorter than 32 characters
+     */
     @PostConstruct
     public void init() {
-        // Ensure secret is at least 256 bits (32 bytes) for HS256
+        if (secret == null || secret.isBlank()) {
+            throw new IllegalStateException(
+                "JWT_SECRET environment variable is not set. " +
+                "Application cannot start without a valid JWT secret. " +
+                "Set JWT_SECRET with at least 32 characters."
+            );
+        }
         if (secret.length() < 32) {
-            secret = secret + "0".repeat(32 - secret.length());
+            throw new IllegalStateException(
+                "JWT_SECRET must be at least 32 characters (256 bits) for HS256 signing. " +
+                "Current length: " + secret.length() + ". " +
+                "Generate a secure secret: openssl rand -base64 48"
+            );
         }
         this.key = Keys.hmacShaKeyFor(secret.getBytes());
+        log.info("JWT Token Provider initialized successfully (secret length: {} chars)", secret.length());
     }
 
     /**

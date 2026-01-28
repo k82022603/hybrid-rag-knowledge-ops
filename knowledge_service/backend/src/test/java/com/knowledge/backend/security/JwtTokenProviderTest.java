@@ -263,12 +263,57 @@ class JwtTokenProviderTest {
     }
 
     @Nested
-    @DisplayName("Secret Key Tests")
+    @DisplayName("Secret Key Security Tests")
     class SecretKeyTests {
 
         @Test
-        @DisplayName("Should pad short secret key")
-        void shouldPadShortSecretKey() {
+        @DisplayName("Should reject null secret key")
+        void shouldRejectNullSecretKey() {
+            // Given
+            JwtTokenProvider nullSecretProvider = new JwtTokenProvider();
+            ReflectionTestUtils.setField(nullSecretProvider, "secret", null);
+            ReflectionTestUtils.setField(nullSecretProvider, "accessTokenExpiration", 3600000L);
+            ReflectionTestUtils.setField(nullSecretProvider, "refreshTokenExpiration", 604800000L);
+            ReflectionTestUtils.setField(nullSecretProvider, "issuer", "test-issuer");
+
+            // When & Then
+            IllegalStateException ex = assertThrows(IllegalStateException.class, nullSecretProvider::init);
+            assertTrue(ex.getMessage().contains("JWT_SECRET"));
+        }
+
+        @Test
+        @DisplayName("Should reject blank secret key")
+        void shouldRejectBlankSecretKey() {
+            // Given
+            JwtTokenProvider blankSecretProvider = new JwtTokenProvider();
+            ReflectionTestUtils.setField(blankSecretProvider, "secret", "   ");
+            ReflectionTestUtils.setField(blankSecretProvider, "accessTokenExpiration", 3600000L);
+            ReflectionTestUtils.setField(blankSecretProvider, "refreshTokenExpiration", 604800000L);
+            ReflectionTestUtils.setField(blankSecretProvider, "issuer", "test-issuer");
+
+            // When & Then
+            IllegalStateException ex = assertThrows(IllegalStateException.class, blankSecretProvider::init);
+            assertTrue(ex.getMessage().contains("JWT_SECRET"));
+        }
+
+        @Test
+        @DisplayName("Should reject empty secret key")
+        void shouldRejectEmptySecretKey() {
+            // Given
+            JwtTokenProvider emptySecretProvider = new JwtTokenProvider();
+            ReflectionTestUtils.setField(emptySecretProvider, "secret", "");
+            ReflectionTestUtils.setField(emptySecretProvider, "accessTokenExpiration", 3600000L);
+            ReflectionTestUtils.setField(emptySecretProvider, "refreshTokenExpiration", 604800000L);
+            ReflectionTestUtils.setField(emptySecretProvider, "issuer", "test-issuer");
+
+            // When & Then
+            IllegalStateException ex = assertThrows(IllegalStateException.class, emptySecretProvider::init);
+            assertTrue(ex.getMessage().contains("JWT_SECRET"));
+        }
+
+        @Test
+        @DisplayName("Should reject short secret key (less than 32 characters)")
+        void shouldRejectShortSecretKey() {
             // Given
             JwtTokenProvider shortSecretProvider = new JwtTokenProvider();
             ReflectionTestUtils.setField(shortSecretProvider, "secret", "short");
@@ -276,13 +321,27 @@ class JwtTokenProviderTest {
             ReflectionTestUtils.setField(shortSecretProvider, "refreshTokenExpiration", 604800000L);
             ReflectionTestUtils.setField(shortSecretProvider, "issuer", "test-issuer");
 
-            // When
-            shortSecretProvider.init();
-            String token = shortSecretProvider.generateAccessToken(testUser);
+            // When & Then
+            IllegalStateException ex = assertThrows(IllegalStateException.class, shortSecretProvider::init);
+            assertTrue(ex.getMessage().contains("at least 32 characters"));
+        }
 
-            // Then - should not throw and should generate valid token
+        @Test
+        @DisplayName("Should accept valid secret key with 32+ characters")
+        void shouldAcceptValidSecretKey() {
+            // Given
+            JwtTokenProvider validSecretProvider = new JwtTokenProvider();
+            ReflectionTestUtils.setField(validSecretProvider, "secret",
+                "ThisIsAValidSecretKeyWith32Chars!");
+            ReflectionTestUtils.setField(validSecretProvider, "accessTokenExpiration", 3600000L);
+            ReflectionTestUtils.setField(validSecretProvider, "refreshTokenExpiration", 604800000L);
+            ReflectionTestUtils.setField(validSecretProvider, "issuer", "test-issuer");
+
+            // When & Then - should not throw
+            assertDoesNotThrow(validSecretProvider::init);
+            String token = validSecretProvider.generateAccessToken(testUser);
             assertNotNull(token);
-            assertTrue(shortSecretProvider.validateToken(token));
+            assertTrue(validSecretProvider.validateToken(token));
         }
     }
 
