@@ -3,6 +3,7 @@ package com.knowledge.backend.api.controller;
 import com.knowledge.backend.api.dto.SearchRequest;
 import com.knowledge.backend.api.dto.SearchResponse;
 import com.knowledge.backend.api.dto.search.ChatSearchRequest;
+import com.knowledge.backend.api.dto.search.SearchHistoryResponse;
 import com.knowledge.backend.security.JwtUser;
 import com.knowledge.backend.service.SearchService;
 import jakarta.validation.Valid;
@@ -19,19 +20,19 @@ import reactor.core.publisher.Mono;
 /**
  * Search API Controller
  *
- * <p>Provides search endpoints for knowledge retrieval
- * - Hybrid search (Vector + Graph)
- * - Chat-based conversational search
- * - SSE streaming for real-time results
+ * <p>Provides search endpoints for knowledge retrieval.
+ * All endpoints require authentication via JWT token.
  *
  * <p>Endpoints:
  * <ul>
- *   <li>POST /api/v1/search/hybrid  - Hybrid search</li>
- *   <li>POST /api/v1/search/chat    - Conversational search</li>
- *   <li>GET  /api/v1/search/stream  - SSE streaming search</li>
+ *   <li>POST /api/v1/search/hybrid  - Hybrid search (Vector + Graph)</li>
+ *   <li>POST /api/v1/search/chat    - RAG-based conversational search</li>
+ *   <li>GET  /api/v1/search/chat/stream - SSE streaming search</li>
+ *   <li>GET  /api/v1/search/history  - Search history for authenticated user</li>
  * </ul>
  *
- * <p>Requires authentication via JWT token
+ * <p>Architecture: Controller converts DTOs to domain parameters
+ * before calling Service methods (no RequestDTO passed to Service layer).
  */
 @RestController
 @RequestMapping("/api/v1/search")
@@ -44,6 +45,8 @@ public class SearchController {
     /**
      * Hybrid search endpoint
      *
+     * <p>Performs combined Vector + Graph search via AI Service.
+     *
      * @param request search request with query and options
      * @param user authenticated JWT user
      * @return search results
@@ -54,16 +57,25 @@ public class SearchController {
         @Valid @RequestBody SearchRequest request,
         @AuthenticationPrincipal JwtUser user
     ) {
+        String userId = user != null ? user.id() : null;
         log.info("Hybrid search from user: {} ({}), query: {}",
             user != null ? user.username() : "anonymous",
             user != null ? user.realmRoles() : "no roles",
             request.getQuery());
-        return searchService.hybridSearch(request,
-            user != null ? user.id() : null);
+
+        return searchService.hybridSearch(
+            request.getQuery(),
+            request.getTopK(),
+            request.getUseGraph(),
+            request.getUseVector(),
+            userId
+        );
     }
 
     /**
      * Legacy search endpoint (backward compatibility)
+     *
+     * <p>Maps to hybrid search for backward compatibility.
      *
      * @param request search request with query and options
      * @param user authenticated JWT user
@@ -75,19 +87,29 @@ public class SearchController {
         @Valid @RequestBody SearchRequest request,
         @AuthenticationPrincipal JwtUser user
     ) {
+        String userId = user != null ? user.id() : null;
         log.info("Search request from user: {} ({}), query: {}",
             user != null ? user.username() : "anonymous",
             user != null ? user.realmRoles() : "no roles",
             request.getQuery());
-        return searchService.hybridSearch(request,
-            user != null ? user.id() : null);
+
+        return searchService.hybridSearch(
+            request.getQuery(),
+            request.getTopK(),
+            request.getUseGraph(),
+            request.getUseVector(),
+            userId
+        );
     }
 
     /**
-     * Chat-based conversational search endpoint
+     * Chat-based conversational search endpoint (AC1)
+     *
+     * <p>RAG-based search with conversation history context.
+     * Calls AI Service and returns results. Saves search history.
      *
      * @param request chat search request with conversation history
-     * @param user authenticated JWT user
+     * @param user authenticated JWT user (AC5)
      * @return search results
      */
     @PostMapping("/chat")
@@ -96,16 +118,52 @@ public class SearchController {
         @Valid @RequestBody ChatSearchRequest request,
         @AuthenticationPrincipal JwtUser user
     ) {
+        String userId = user != null ? user.id() : null;
         log.info("Chat search from user: {} ({}), query: {}",
             user != null ? user.username() : "anonymous",
             user != null ? user.realmRoles() : "no roles",
             request.getQuery());
-        return searchService.chatSearch(request,
-            user != null ? user.id() : null);
+
+        return searchService.chatSearch(
+            request.getQuery(),
+            request.getHistory(),
+            request.getTopK(),
+            userId
+        );
     }
 
     /**
-     * SSE streaming search endpoint
+     * SSE streaming search endpoint (AC2)
+     *
+     * <p>Returns search results as Server-Sent Events for real-time streaming.
+     * Each chunk is wrapped in a ServerSentEvent.
+     *
+     * @param query search query
+     * @param user authenticated JWT user (AC5)
+     * @return SSE stream of search chunks
+     */
+    @GetMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @PreAuthorize("hasAnyRole('USER', 'VIEWER', 'DEVELOPER', 'ADMIN')")
+    public Flux<ServerSentEvent<String>> streamSearch(
+        @RequestParam String query,
+        @AuthenticationPrincipal JwtUser user
+    ) {
+        String userId = user != null ? user.id() : null;
+        log.info("Stream search request from user: {} ({}), query: {}",
+            user != null ? user.username() : "anonymous",
+            user != null ? user.realmRoles() : "no roles",
+            query);
+
+        return searchService.streamSearch(query, userId)
+            .map(chunk -> ServerSentEvent.<String>builder()
+                .data(chunk)
+                .build());
+    }
+
+    /**
+     * Legacy streaming endpoint (backward compatibility)
+     *
+     * <p>Maps to the same stream search for backward compatibility.
      *
      * @param query search query
      * @param user authenticated JWT user
@@ -113,18 +171,42 @@ public class SearchController {
      */
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @PreAuthorize("hasAnyRole('USER', 'VIEWER', 'DEVELOPER', 'ADMIN')")
-    public Flux<ServerSentEvent<String>> streamSearch(
+    public Flux<ServerSentEvent<String>> streamSearchLegacy(
         @RequestParam String query,
         @AuthenticationPrincipal JwtUser user
     ) {
-        log.info("Stream search request from user: {} ({}), query: {}",
-            user != null ? user.username() : "anonymous",
-            user != null ? user.realmRoles() : "no roles",
-            query);
-        return searchService.streamSearch(query,
-            user != null ? user.id() : null)
+        String userId = user != null ? user.id() : null;
+        log.info("Stream search (legacy) from user: {}, query: {}",
+            user != null ? user.username() : "anonymous", query);
+
+        return searchService.streamSearch(query, userId)
             .map(chunk -> ServerSentEvent.<String>builder()
                 .data(chunk)
                 .build());
+    }
+
+    /**
+     * Search history endpoint (AC4)
+     *
+     * <p>Returns search history for the authenticated user.
+     * Results are ordered by creation time (most recent first), limited to 50 entries.
+     *
+     * @param user authenticated JWT user (AC5)
+     * @return list of search history entries
+     */
+    @GetMapping("/history")
+    @PreAuthorize("hasAnyRole('USER', 'VIEWER', 'DEVELOPER', 'ADMIN')")
+    public Flux<SearchHistoryResponse> getSearchHistory(
+        @AuthenticationPrincipal JwtUser user
+    ) {
+        String userId = user != null ? user.id() : null;
+        log.info("Search history request from user: {}",
+            user != null ? user.username() : "anonymous");
+
+        if (userId == null) {
+            return Flux.empty();
+        }
+
+        return searchService.getSearchHistory(userId);
     }
 }

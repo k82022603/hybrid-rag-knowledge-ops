@@ -106,10 +106,14 @@ resilience4j:
         slow-call-duration-threshold: 2s
         slow-call-rate-threshold: 100
     instances:
-      ai-service:
+      aiService:
         base-config: default
-        sliding-window-size: 5
-        wait-duration-in-open-state: 10s
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        slow-call-duration-threshold: 5s
   retry:
     configs:
       default:
@@ -118,8 +122,10 @@ resilience4j:
         enable-exponential-backoff: true
         exponential-backoff-multiplier: 2
     instances:
-      ai-service:
+      aiService:
         base-config: default
+        max-attempts: 3
+        wait-duration: 2s
   ratelimiter:
     configs:
       default:
