@@ -3,7 +3,7 @@
 > Claude Code 세션 간 컨텍스트 유지를 위한 계획 문서
 >
 > **Last Updated**: 2026-01-28
-> **Current Phase**: Phase 3 구현 완료 → Sprint 04 계획 중 (보완 + 품질 강화, 52pts)
+> **Current Phase**: Phase 3 구현 완료 → Sprint 04 진행 중 (보완 + 품질 강화, 52pts)
 > **Frontend 전략 변경**: Tailwind + Antigravity + Stitch MCP 도입 결정 (2026-01-25)
 > **소스코드 리뷰**: 72.5/100 B+ (Gateway 65, Backend 72, AI Service 78, Frontend 75)
 
@@ -15,7 +15,7 @@
 [Phase 1: 기획]     ████████████████████ 100% ✅ 완료
 [Phase 2: 설계]     ████████████████████ 100% ✅ 완료 (91점 A등급 승인)
 [Phase 3: 구현]     ████████████████████ 100% ✅ Sprint 03 완료 (15 Story Done, 84/84 pts)
-[Phase 4: 테스트]   ████████░░░░░░░░░░░░  40% 🔄 테스트 390+ (Unit/Integration), Sprint 04 보완 중
+[Phase 4: 테스트]   █████████░░░░░░░░░░░  45% 🔄 테스트 390+ (Unit/Integration), Sprint 04 P0 착수
 [Phase 5: 배포]     ░░░░░░░░░░░░░░░░░░░░   0%
 ```
 
@@ -278,17 +278,17 @@
 **Day 2 성과** (2026-01-28): 10 Story → Done (+60pts), 테스트 390+ TC, Wave 1-3 전체 완료
 **Sprint 03 최종**: 15/15 Story Done (84/84 pts = 100%), 품질등급 B+, 프로덕션 준비도 65%
 
-### Sprint 04 (계획 중) - Sprint 03 보완 + 품질 강화
+### Sprint 04 (진행 중) - Sprint 03 보완 + 품질 강화
 
 **목표**: Critical/High 이슈 해결 + 프로덕션 준비도 65% → 85%
 **총 포인트**: 52 pts (13 Stories)
 
 | Story | SP | 담당 | 상태 | Jira |
 |-------|:--:|------|:----:|:----:|
-| STORY-050 SSE 프로토콜 수정 | 5 | Frontend | To Do | SCRUM-40 |
-| STORY-051 RAG 파이프라인 통합 | 8 | RAG | To Do | SCRUM-41 |
+| STORY-050 SSE 프로토콜 수정 | 5 | Frontend | In Progress | SCRUM-40 |
+| STORY-051 RAG 파이프라인 통합 | 8 | RAG | In Progress | SCRUM-41 |
 | STORY-052 Reranker async 전환 | 2 | RAG | To Do | SCRUM-42 |
-| STORY-053 보안 강화 | 3 | Backend | To Do | SCRUM-43 |
+| STORY-053 보안 강화 | 3 | Backend | In Progress | SCRUM-43 |
 | STORY-054 통합 테스트 (Contract) | 5 | QA | To Do | SCRUM-44 |
 | STORY-055 보안 테스트 | 3 | QA | To Do | SCRUM-45 |
 | STORY-056 Frontend ErrorBoundary | 3 | Frontend | To Do | SCRUM-46 |
@@ -298,6 +298,14 @@
 | STORY-060 Planner 전략 + 캐싱 | 3 | RAG | To Do | SCRUM-50 |
 | STORY-061 타임아웃 + Circuit Breaker | 3 | RAG | To Do | SCRUM-51 |
 | STORY-062 접근성 WCAG 2.1 AA | 2 | Frontend | To Do | SCRUM-52 |
+
+**Day 1 성과** (2026-01-28): 킥오프 + P0 3건 착수 (STORY-050/051/053), 커밋 7건
+- Sprint 04 킥오프 완료, Jira SCRUM-40~52 생성
+- STORY-050: SSE fetch+ReadableStream POST 전환 구현 (useStreamingSearch 훅)
+- STORY-051: RAG 파이프라인 통합 어댑터 + 부트스트랩 구현 (LLM Service Adapter)
+- STORY-053: 보안 강화 착수 (JWT Secret 환경변수화 설계)
+- Architecture Review 완료 (SSE/Pipeline/Security 3개 영역)
+- E2E 테스트 계획서 작성 (P0 Critical 4건 검증 시나리오)
 
 ---
 
@@ -843,6 +851,25 @@ CI/CD Pipeline (GitHub Actions)
 ---
 
 ## Session Notes
+
+### 2026-01-28 (Sprint 04 Day 1 - 킥오프 + P0 착수)
+- **Sprint 04 킥오프 완료**
+  - Sprint 문서 활성화, Jira SCRUM-40~52 (13개 Story) 생성
+  - Sprint 03 완료 리뷰 + DevOps 파이프라인 점검 회의록 작성
+- **STORY-050 SSE 프로토콜 전환** (Frontend, 5 SP) - In Progress
+  - EventSource(GET) → fetch+ReadableStream(POST) 전환 구현
+  - useStreamingSearch 훅 신규 작성
+  - POST body에 query, conversation_history, topK 파라미터 포함
+- **STORY-051 RAG 파이프라인 통합** (RAG, 8 SP) - In Progress
+  - LLM Service Adapter 패턴 구현 (llm_adapter.py)
+  - Pipeline 부트스트랩 코드 작성 (bootstrap.py)
+  - RetrieverNode ↔ HybridRetriever 연결 설계
+- **STORY-053 보안 강화** (Backend, 3 SP) - In Progress
+  - JWT Secret 환경변수화 설계
+  - 입력 검증 + 기본 자격증명 제거 계획
+- **Architecture Review 완료**: SSE/Pipeline/Security 3개 영역 사전 기술 검토
+- **E2E 테스트 계획서 작성**: P0 Critical 4건 검증 시나리오
+- **커밋 7건**: `1247a29`, `bc0524c`, `9a9aa99`, `d84c49e`, `0f27e84`, `a23367b`, `74c182c`
 
 ### 2026-01-26 Night (GitHub Actions 장애 수정 + 문서화)
 - **Docker Build 장애 수정**: `eclipse-temurin:17-jre-alpine` arm64 미지원 → `linux/amd64` 단일 플랫폼
