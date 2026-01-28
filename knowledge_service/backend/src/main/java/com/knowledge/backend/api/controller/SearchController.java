@@ -39,7 +39,7 @@ import reactor.core.publisher.Mono;
  * <ul>
  *   <li>POST /api/v1/search/hybrid  - Hybrid search (Vector + Graph)</li>
  *   <li>POST /api/v1/search/chat    - RAG-based conversational search</li>
- *   <li>GET  /api/v1/search/chat/stream - SSE streaming search</li>
+ *   <li>POST /api/v1/search/chat/stream - SSE streaming search (POST body with conversation_history, top_k)</li>
  *   <li>GET  /api/v1/search/history  - Search history for authenticated user</li>
  * </ul>
  *
@@ -152,31 +152,34 @@ public class SearchController {
      * SSE streaming search endpoint (AC2)
      *
      * <p>Returns search results as Server-Sent Events for real-time streaming.
-     * Each chunk is wrapped in a ServerSentEvent.
+     * Each chunk is wrapped in a ServerSentEvent. Accepts POST body with
+     * query, conversation_history, and top_k for richer context.
      *
      * <p>Security: Query input is validated for length (max 1000 chars)
      * and sanitized to remove XSS patterns before processing.
      *
-     * @param query search query (max 1000 characters)
+     * @param request chat search request with query, conversation history, and topK
      * @param user authenticated JWT user (AC5)
      * @return SSE stream of search chunks
      */
-    @GetMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @PreAuthorize("hasAnyRole('USER', 'VIEWER', 'DEVELOPER', 'ADMIN')")
     public Flux<ServerSentEvent<String>> streamSearch(
-        @RequestParam @Size(max = 1000, message = "Query must not exceed 1000 characters") String query,
+        @Valid @RequestBody ChatSearchRequest request,
         @AuthenticationPrincipal JwtUser user
     ) {
         // Validate and sanitize input
-        String sanitizedQuery = validateAndSanitizeQuery(query);
+        String sanitizedQuery = validateAndSanitizeQuery(request.getQuery());
 
         String userId = user != null ? user.id() : null;
-        log.info("Stream search request from user: {} ({}), query: {}",
+        log.info("Stream search request from user: {} ({}), query: {}, historySize: {}, topK: {}",
             user != null ? user.username() : "anonymous",
             user != null ? user.realmRoles() : "no roles",
-            sanitizedQuery);
+            sanitizedQuery,
+            request.getHistory() != null ? request.getHistory().size() : 0,
+            request.getTopK());
 
-        return searchService.streamSearch(sanitizedQuery, userId)
+        return searchService.streamSearch(sanitizedQuery, request.getHistory(), request.getTopK(), userId)
             .map(chunk -> ServerSentEvent.<String>builder()
                 .data(chunk)
                 .build());
@@ -207,7 +210,7 @@ public class SearchController {
         log.info("Stream search (legacy) from user: {}, query: {}",
             user != null ? user.username() : "anonymous", sanitizedQuery);
 
-        return searchService.streamSearch(sanitizedQuery, userId)
+        return searchService.streamSearch(sanitizedQuery, null, null, userId)
             .map(chunk -> ServerSentEvent.<String>builder()
                 .data(chunk)
                 .build());

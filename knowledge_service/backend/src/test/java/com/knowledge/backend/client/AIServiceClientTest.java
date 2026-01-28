@@ -159,17 +159,27 @@ class AIServiceClientTest {
     class StreamSearchTests {
 
         @Test
-        @DisplayName("Should call AI Service stream search endpoint")
+        @DisplayName("Should call AI Service stream search endpoint via POST")
         void shouldCallStreamSearchEndpoint() {
             // Given
-            when(aiServiceWebClient.get()).thenReturn(requestHeadersUriSpec);
-            when(requestHeadersUriSpec.uri(any(Function.class))).thenReturn(requestHeadersSpec);
+            List<ChatSearchRequest.ChatMessage> history = List.of(
+                    ChatSearchRequest.ChatMessage.builder()
+                            .role("user")
+                            .content("previous question")
+                            .build()
+            );
+
+            when(aiServiceWebClient.post()).thenReturn(requestBodyUriSpec);
+            when(requestBodyUriSpec.uri("/api/v1/search/chat/stream")).thenReturn(requestBodySpec);
+            when(requestBodySpec.contentType(any())).thenReturn(requestBodySpec);
+            when(requestBodySpec.accept(any())).thenReturn(requestBodySpec);
+            when(requestBodySpec.bodyValue(any())).thenReturn(requestHeadersSpec);
             when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
             when(responseSpec.bodyToFlux(String.class))
                     .thenReturn(Flux.just("chunk1", "chunk2"));
 
             // When & Then
-            StepVerifier.create(aiServiceClient.streamSearch("test query", "user-123"))
+            StepVerifier.create(aiServiceClient.streamSearch("test query", history, 5, "user-123"))
                     .expectNext("chunk1")
                     .expectNext("chunk2")
                     .verifyComplete();
@@ -179,14 +189,17 @@ class AIServiceClientTest {
         @DisplayName("Should handle stream error from AI Service")
         void shouldHandleStreamError() {
             // Given
-            when(aiServiceWebClient.get()).thenReturn(requestHeadersUriSpec);
-            when(requestHeadersUriSpec.uri(any(Function.class))).thenReturn(requestHeadersSpec);
+            when(aiServiceWebClient.post()).thenReturn(requestBodyUriSpec);
+            when(requestBodyUriSpec.uri("/api/v1/search/chat/stream")).thenReturn(requestBodySpec);
+            when(requestBodySpec.contentType(any())).thenReturn(requestBodySpec);
+            when(requestBodySpec.accept(any())).thenReturn(requestBodySpec);
+            when(requestBodySpec.bodyValue(any())).thenReturn(requestHeadersSpec);
             when(requestHeadersSpec.retrieve()).thenReturn(responseSpec);
             when(responseSpec.bodyToFlux(String.class))
                     .thenReturn(Flux.error(new RuntimeException("Stream interrupted")));
 
             // When & Then
-            StepVerifier.create(aiServiceClient.streamSearch("test query", "user-123"))
+            StepVerifier.create(aiServiceClient.streamSearch("test query", null, 5, "user-123"))
                     .expectErrorMessage("Stream interrupted")
                     .verify();
         }

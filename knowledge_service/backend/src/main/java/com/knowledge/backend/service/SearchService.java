@@ -192,16 +192,25 @@ public class SearchService {
      * Stream search results via SSE
      *
      * <p>Calls AI Service for streaming search and returns a Flux of result chunks.
+     * Supports conversation history and topK parameters for richer context.
      *
      * @param query search query text
+     * @param history conversation history (nullable)
+     * @param topK number of top results (nullable)
      * @param userId authenticated user ID
      * @return flux of search result chunks as strings
      */
     @CircuitBreaker(name = "aiService", fallbackMethod = "streamSearchFallback")
-    public Flux<String> streamSearch(String query, String userId) {
-        log.debug("Starting stream search for user: {}, query: {}", userId, query);
+    public Flux<String> streamSearch(
+            String query,
+            List<ChatSearchRequest.ChatMessage> history,
+            Integer topK,
+            String userId
+    ) {
+        log.debug("Starting stream search for user: {}, query: {}, historySize: {}, topK: {}",
+                userId, query, history != null ? history.size() : 0, topK);
 
-        return aiServiceClient.streamSearch(query, userId)
+        return aiServiceClient.streamSearch(query, history, topK, userId)
                 .doOnComplete(() -> {
                     log.info("Stream search completed for query: {}", query);
                     saveSearchHistory(userId, query, "stream", 0, 0, false)
@@ -215,11 +224,19 @@ public class SearchService {
      * Fallback method for stream search when AI Service is unavailable
      *
      * @param query search query text
+     * @param history conversation history (nullable)
+     * @param topK number of top results (nullable)
      * @param userId authenticated user ID
      * @param t the throwable that triggered the fallback
      * @return fallback flux with error message
      */
-    public Flux<String> streamSearchFallback(String query, String userId, Throwable t) {
+    public Flux<String> streamSearchFallback(
+            String query,
+            List<ChatSearchRequest.ChatMessage> history,
+            Integer topK,
+            String userId,
+            Throwable t
+    ) {
         log.warn("Stream search fallback triggered for query: {}, reason: {}",
                 query, t.getMessage());
 

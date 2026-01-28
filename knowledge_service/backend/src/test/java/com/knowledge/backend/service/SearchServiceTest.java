@@ -227,12 +227,19 @@ class SearchServiceTest {
         void shouldStreamSearchResultsSuccessfully() {
             // Given
             String query = "stream test";
+            List<ChatSearchRequest.ChatMessage> history = List.of(
+                    ChatSearchRequest.ChatMessage.builder()
+                            .role("user")
+                            .content("previous question")
+                            .build()
+            );
+            Integer topK = 5;
 
-            when(aiServiceClient.streamSearch(query, testUserId))
+            when(aiServiceClient.streamSearch(query, history, topK, testUserId))
                     .thenReturn(Flux.just("chunk1", "chunk2", "chunk3"));
 
             // When & Then
-            StepVerifier.create(searchService.streamSearch(query, testUserId))
+            StepVerifier.create(searchService.streamSearch(query, history, topK, testUserId))
                     .expectNext("chunk1")
                     .expectNext("chunk2")
                     .expectNext("chunk3")
@@ -247,7 +254,7 @@ class SearchServiceTest {
             Throwable error = new RuntimeException("Stream failed");
 
             // When & Then
-            StepVerifier.create(searchService.streamSearchFallback(query, testUserId, error))
+            StepVerifier.create(searchService.streamSearchFallback(query, null, null, testUserId, error))
                     .expectNextMatches(chunk -> chunk.contains("temporarily unavailable"))
                     .verifyComplete();
         }

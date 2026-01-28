@@ -5,11 +5,14 @@ import com.knowledge.backend.api.dto.SearchResponse;
 import com.knowledge.backend.api.dto.search.ChatSearchRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
 
 /**
  * AI Service WebClient
@@ -21,7 +24,7 @@ import reactor.core.publisher.Mono;
  * <ul>
  *   <li>POST /api/v1/search/hybrid - Hybrid search (Vector + Graph)</li>
  *   <li>POST /api/v1/search/chat - Chat-based conversational search</li>
- *   <li>GET /api/v1/search/stream - SSE streaming search</li>
+ *   <li>POST /api/v1/search/chat/stream - SSE streaming search (JSON body)</li>
  * </ul>
  */
 @Component
@@ -113,19 +116,35 @@ public class AIServiceClient {
     /**
      * Stream search results via SSE from AI Service
      *
+     * <p>Sends a POST request with JSON body containing query, conversation history,
+     * and topK parameter. Accepts SSE (text/event-stream) response.
+     *
      * @param query search query text
+     * @param history conversation history (nullable)
+     * @param topK number of top results (nullable, defaults to server-side default)
      * @param userId user ID for access control
      * @return flux of search result chunks as strings
      */
-    public Flux<String> streamSearch(String query, String userId) {
-        log.debug("Calling AI Service stream search - query: {}, userId: {}", query, userId);
+    public Flux<String> streamSearch(
+            String query,
+            List<ChatSearchRequest.ChatMessage> history,
+            Integer topK,
+            String userId
+    ) {
+        log.debug("Calling AI Service stream search - query: {}, historySize: {}, topK: {}, userId: {}",
+                query, history != null ? history.size() : 0, topK, userId);
 
-        return aiServiceWebClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("/api/v1/search/stream")
-                        .queryParam("query", query)
-                        .queryParam("user_id", userId)
-                        .build())
+        ChatSearchRequest streamRequest = ChatSearchRequest.builder()
+                .query(query)
+                .history(history)
+                .topK(topK != null ? topK : 5)
+                .build();
+
+        return aiServiceWebClient.post()
+                .uri("/api/v1/search/chat/stream")
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.TEXT_EVENT_STREAM)
+                .bodyValue(streamRequest)
                 .retrieve()
                 .bodyToFlux(String.class)
                 .doOnComplete(() -> log.debug("AI Service stream search completed for query: {}", query))

@@ -5,7 +5,7 @@
 | 항목 | 값 |
 |------|-----|
 | **기간** | 2026-01-29 ~ (2주) |
-| **Velocity (계획)** | 52 pts (13 Stories) |
+| **Velocity (계획)** | 55 pts (14 Stories) |
 | **Velocity (실제)** | - |
 | **Status** | active |
 | **Jira Sprint ID** | - |
@@ -48,10 +48,10 @@ Sprint 03 완료 항목 (모두 충족):
 
 | Priority | ID | Jira | 제목 | Points | Assignee | Status |
 |----------|-----|------|------|--------|----------|--------|
-| P0 | STORY-050 | SCRUM-40 | SSE 프로토콜 수정 (fetch+ReadableStream 전환) | 5 | Frontend | **In Progress** |
+| P0 | STORY-050 | SCRUM-40 | SSE 프로토콜 수정 (fetch+ReadableStream 전환) | 5 | Frontend | **In Review** |
 | P0 | STORY-051 | SCRUM-41 | RAG 파이프라인 통합 (ai_service ↔ knowledge_service) | 8 | RAG | **In Progress** |
-| P0 | STORY-052 | SCRUM-42 | Reranker async 전환 (asyncio.to_thread) | 2 | RAG | To Do |
-| P0 | STORY-053 | SCRUM-43 | 보안 강화 (JWT Secret, 입력 검증, 기본 자격증명 제거) | 3 | Backend | **In Progress** |
+| P0 | STORY-052 | SCRUM-42 | Reranker async 전환 (asyncio.to_thread) | 2 | RAG | **In Review** |
+| P0 | STORY-053 | SCRUM-43 | 보안 강화 (JWT Secret, 입력 검증, 기본 자격증명 제거) | 3 | Backend | **In Review** |
 
 **소계**: 18 pts (4 Stories)
 
@@ -75,8 +75,9 @@ Sprint 03 완료 항목 (모두 충족):
 | P2 | STORY-060 | SCRUM-50 | Planner 전략 유효화 + 검색 캐싱 | 3 | RAG | To Do |
 | P2 | STORY-061 | SCRUM-51 | 파이프라인 타임아웃 + Circuit Breaker | 3 | RAG | To Do |
 | P2 | STORY-062 | SCRUM-52 | 접근성 (WCAG 2.1 AA) 보완 | 2 | Frontend | To Do |
+| P2 | STORY-063 | SCRUM-53 | Docling 라이브러리 Docker 이미지 포함 및 테스트 활성화 | 3 | Infra, ETL | To Do |
 
-**소계**: 13 pts (4 Stories)
+**소계**: 16 pts (5 Stories)
 
 ---
 
@@ -111,11 +112,12 @@ Sprint 03 완료 항목 (모두 충족):
 - [x] STORY-051 착수: 파이프라인 통합 아키텍처 설계 -- LLMAdapter, KnowledgeServiceClient(이중모드), RetrieverAdapter, RerankerAdapter, bootstrap_rag_pipeline(), 31개 통합 테스트
 - [x] STORY-053 착수: JWT Secret 환경변수화 -- JWT Secret 환경변수, InputSanitizer, Bean Validation, 기본 자격증명 환경변수 전환, 30개 보안 테스트
 
-#### Day 2
-- [ ] STORY-050: fetch+ReadableStream 구현
-- [ ] STORY-051: RetrieverNode ↔ HybridRetriever 연결
-- [ ] STORY-052 착수: Reranker asyncio.to_thread 래핑
-- [ ] STORY-053: 입력 검증 + 기본 자격증명 제거
+#### Day 2 (완료)
+- [x] STORY-050: In Review (72개 테스트, 토큰 공백 수정 - commit a5341fb)
+- [x] STORY-051: RetrieverNode ↔ HybridRetriever 연결 + LLMAdapter + 57개 통합 테스트 ALL PASS
+- [x] STORY-052: In Review (asyncio.to_thread 래핑, 15s timeout+fallback - commit 8573f7e)
+- [x] STORY-053: In Review (JWT env, InputSanitizer, Bean Validation, .env.example - commit 3627bc7)
+- [ ] P1 병렬 착수 분석 및 에이전트 할당 계획 수립
 
 #### Day 3
 - [ ] STORY-050: useSearchChat 훅 리팩토링

@@ -187,15 +187,26 @@ class SearchControllerTest {
     }
 
     @Nested
-    @DisplayName("GET /api/v1/search/chat/stream Tests (AC2)")
+    @DisplayName("POST /api/v1/search/chat/stream Tests (AC2)")
     class StreamSearchTests {
 
         @Test
         @WithMockUser(roles = "USER")
-        @DisplayName("Should stream search results via SSE")
+        @DisplayName("Should stream search results via SSE with POST body")
         void shouldStreamSearchResultsViaSSE() {
             // Given
-            when(searchService.streamSearch(eq("stream query"), any()))
+            ChatSearchRequest request = ChatSearchRequest.builder()
+                    .query("stream query")
+                    .topK(5)
+                    .history(List.of(
+                            ChatSearchRequest.ChatMessage.builder()
+                                    .role("user")
+                                    .content("previous question")
+                                    .build()
+                    ))
+                    .build();
+
+            when(searchService.streamSearch(eq("stream query"), any(), eq(5), any()))
                     .thenReturn(Flux.just(
                             "{\"chunk\": \"part1\"}",
                             "{\"chunk\": \"part2\"}",
@@ -203,12 +214,11 @@ class SearchControllerTest {
                     ));
 
             // When & Then
-            webTestClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/api/v1/search/chat/stream")
-                            .queryParam("query", "stream query")
-                            .build())
+            webTestClient.post()
+                    .uri("/api/v1/search/chat/stream")
+                    .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.TEXT_EVENT_STREAM)
+                    .bodyValue(request)
                     .exchange()
                     .expectStatus().isOk()
                     .expectHeader().contentTypeCompatibleWith(MediaType.TEXT_EVENT_STREAM);
@@ -217,12 +227,16 @@ class SearchControllerTest {
         @Test
         @DisplayName("Should return 401 for unauthenticated stream request")
         void shouldReturn401ForUnauthenticatedStreamRequest() {
+            // Given
+            ChatSearchRequest request = ChatSearchRequest.builder()
+                    .query("test")
+                    .build();
+
             // When & Then
-            webTestClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/api/v1/search/chat/stream")
-                            .queryParam("query", "test")
-                            .build())
+            webTestClient.post()
+                    .uri("/api/v1/search/chat/stream")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(request)
                     .exchange()
                     .expectStatus().isUnauthorized();
         }
