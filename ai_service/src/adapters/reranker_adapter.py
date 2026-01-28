@@ -14,6 +14,7 @@ Architecture:
     Option B (확장): RetrieverNode -> RerankerNode(이 어댑터 사용)
 
 STORY-051: RAG 파이프라인 통합
+STORY-052: Reranker async 전환 (타임아웃 보호 적용)
 """
 
 import logging
@@ -43,11 +44,15 @@ class RerankerAdapter:
         ... )
     """
 
+    # STORY-052: 기본 타임아웃 15초
+    DEFAULT_TIMEOUT: float = 15.0
+
     def __init__(
         self,
         reranker: Optional[Any] = None,
         client: Optional[Any] = None,
         default_top_k: int = 10,
+        timeout: float = DEFAULT_TIMEOUT,
     ):
         """
         초기화
@@ -56,17 +61,20 @@ class RerankerAdapter:
             reranker: BGEReranker 인스턴스 (Direct 모드 우선)
             client: KnowledgeServiceClient 인스턴스 (HTTP 모드 폴백)
             default_top_k: 기본 리랭킹 상위 결과 수
+            timeout: 리랭킹 타임아웃 초 (STORY-052, 기본: 15.0)
         """
         self._reranker = reranker
         self._client = client
         self._default_top_k = default_top_k
+        self._timeout = timeout
 
         logger.info(
             "RerankerAdapter initialized - direct_reranker=%s, "
-            "http_client=%s, default_top_k=%d",
+            "http_client=%s, default_top_k=%d, timeout=%.1fs",
             reranker is not None,
             client is not None,
             default_top_k,
+            timeout,
         )
 
     async def rerank(
@@ -131,7 +139,10 @@ class RerankerAdapter:
         top_k: int,
     ) -> List[Dict[str, Any]]:
         """
-        BGEReranker 직접 리랭킹
+        BGEReranker 직접 리랭킹 (타임아웃 보호 적용)
+
+        STORY-052: arerank_with_timeout()을 사용하여 타임아웃 보호 적용.
+        타임아웃 발생 시 원본 순서 기반 fallback 결과를 반환합니다.
 
         Args:
             query: 검색 쿼리
@@ -141,11 +152,21 @@ class RerankerAdapter:
         Returns:
             리랭킹된 문서 딕셔너리 목록
         """
-        reranked = await self._reranker.rerank(
-            query=query,
-            documents=documents,
-            top_k=top_k,
-        )
+        # STORY-052: 타임아웃 보호가 적용된 async 리랭킹 사용
+        if hasattr(self._reranker, "arerank_with_timeout"):
+            reranked = await self._reranker.arerank_with_timeout(
+                query=query,
+                documents=documents,
+                top_k=top_k,
+                timeout=self._timeout,
+            )
+        else:
+            # arerank_with_timeout이 없는 경우 기존 rerank 사용 (하위 호환)
+            reranked = await self._reranker.rerank(
+                query=query,
+                documents=documents,
+                top_k=top_k,
+            )
 
         # RerankResult -> Dict 변환
         return [
@@ -188,5 +209,6 @@ class RerankerAdapter:
             "direct_reranker_available": self._reranker is not None,
             "http_client_available": self._client is not None,
             "default_top_k": self._default_top_k,
+            "timeout": self._timeout,
             "reranker": reranker_health,
         }

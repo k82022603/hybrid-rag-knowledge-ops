@@ -11,14 +11,17 @@ BAAI/bge-reranker-v2-m3 기반 크로스 인코더 리랭커입니다.
     - CPU/GPU 자동 감지
     - 입력 최대 길이: 512 토큰
     - 50개 문서 기준 500ms 이내 응답
+    - asyncio.to_thread() 래핑으로 이벤트루프 비블로킹 (STORY-052)
 
 Architecture:
     RRF 융합 후 reranking 단계에서 사용됩니다.
     HybridRetriever -> RRF Fusion -> BGE Reranker -> 최종 결과
 
 STORY-032: BGE Reranker 통합 구현
+STORY-052: Reranker async 전환 (asyncio.to_thread 래핑)
 """
 
+import asyncio
 import logging
 import time
 from dataclasses import dataclass, field
@@ -216,10 +219,13 @@ class BGEReranker:
         top_k: Optional[int] = None,
     ) -> List[RerankResult]:
         """
-        문서 재순위화
+        문서 재순위화 (async, non-blocking)
 
-        쿼리와 각 문서의 관련성 점수를 계산하여 정렬합니다.
+        CPU-intensive 모델 추론을 asyncio.to_thread()로 별도 스레드에서
+        실행하여 이벤트루프를 블로킹하지 않습니다.
         배치 처리로 대량 문서를 효율적으로 처리합니다.
+
+        STORY-052: asyncio.to_thread() 래핑으로 non-blocking 전환
 
         Args:
             query: 검색 쿼리 문자열
@@ -261,46 +267,15 @@ class BGEReranker:
 
         start_time = time.monotonic()
 
-        # 쿼리-문서 쌍 생성
-        contents = [
-            doc.get("content", "") for doc in documents
-        ]
-        pairs = [[query, content] for content in contents]
-
-        # 배치 점수 계산
-        scores = self._batch_process(pairs, self.batch_size)
-
-        # RerankResult 생성 및 정렬
-        rerank_results: List[RerankResult] = []
-        for idx, (doc, score) in enumerate(zip(documents, scores)):
-            rerank_results.append(
-                RerankResult(
-                    doc_id=doc.get("doc_id", doc.get("chunk_id", f"doc-{idx}")),
-                    content=doc.get("content", ""),
-                    score=score,
-                    original_score=doc.get("score", 0.0),
-                    metadata={
-                        **doc.get("metadata", {}),
-                        "rerank_score": score,
-                        "original_score": doc.get("score", 0.0),
-                    },
-                )
-            )
-
-        # 점수 내림차순 정렬
-        rerank_results.sort(key=lambda x: x.score, reverse=True)
-
-        # 순위 할당
-        for rank, result in enumerate(rerank_results):
-            result.rank = rank
-
-        # top_k 적용
-        if top_k is not None and top_k > 0:
-            rerank_results = rerank_results[:top_k]
+        # STORY-052: CPU-intensive 모델 추론을 별도 스레드에서 실행
+        # asyncio.to_thread()로 래핑하여 이벤트루프 비블로킹
+        rerank_results = await asyncio.to_thread(
+            self._sync_rerank, query, documents, top_k
+        )
 
         elapsed_ms = (time.monotonic() - start_time) * 1000
         logger.info(
-            "Reranking complete - query='%s', docs=%d, top_k=%s, "
+            "Reranking complete (async) - query='%s', docs=%d, top_k=%s, "
             "latency=%.1fms, top_score=%.4f",
             query[:50],
             len(documents),
@@ -310,6 +285,51 @@ class BGEReranker:
         )
 
         return rerank_results
+
+    async def arerank_with_timeout(
+        self,
+        query: str,
+        documents: List[Dict[str, Any]],
+        top_k: Optional[int] = None,
+        timeout: float = 15.0,
+    ) -> List[RerankResult]:
+        """
+        타임아웃 보호가 적용된 비동기 리랭킹
+
+        지정된 timeout 내에 리랭킹이 완료되지 않으면 fallback으로
+        원본 문서를 RerankResult로 변환하여 반환합니다.
+
+        STORY-052: 타임아웃 보호 + fallback
+
+        Args:
+            query: 검색 쿼리 문자열
+            documents: 재순위화할 문서 목록
+            top_k: 반환할 상위 문서 수 (None이면 전체 반환)
+            timeout: 최대 대기 시간 (초, 기본: 15.0)
+
+        Returns:
+            RerankResult 리스트 (타임아웃 시 원본 순서 기반 fallback)
+
+        Example:
+            >>> results = await reranker.arerank_with_timeout(
+            ...     query="FastAPI 사용법",
+            ...     documents=documents,
+            ...     top_k=5,
+            ...     timeout=10.0,
+            ... )
+        """
+        try:
+            return await asyncio.wait_for(
+                self.rerank(query, documents, top_k),
+                timeout=timeout,
+            )
+        except asyncio.TimeoutError:
+            logger.error(
+                "Reranking timed out after %.1fs - query='%s', docs=%d. "
+                "Returning original order as fallback.",
+                timeout, query[:50], len(documents),
+            )
+            return self._fallback_results(documents, top_k)
 
     async def rerank_search_results(
         self,
@@ -371,6 +391,109 @@ class BGEReranker:
     # ------------------------------------------------------------------
     # Internal methods
     # ------------------------------------------------------------------
+
+    def _sync_rerank(
+        self,
+        query: str,
+        documents: List[Dict[str, Any]],
+        top_k: Optional[int] = None,
+    ) -> List[RerankResult]:
+        """
+        동기 리랭킹 (스레드 풀에서 실행)
+
+        CPU-intensive 모델 추론을 포함하는 동기 메서드입니다.
+        asyncio.to_thread()에 의해 별도 스레드에서 호출됩니다.
+
+        STORY-052: rerank()에서 분리된 동기 전용 로직
+
+        Args:
+            query: 검색 쿼리 문자열
+            documents: 재순위화할 문서 목록
+            top_k: 반환할 상위 문서 수 (None이면 전체 반환)
+
+        Returns:
+            RerankResult 리스트 (점수 내림차순 정렬)
+        """
+        # 쿼리-문서 쌍 생성
+        contents = [
+            doc.get("content", "") for doc in documents
+        ]
+        pairs = [[query, content] for content in contents]
+
+        # 배치 점수 계산 (CPU-intensive)
+        scores = self._batch_process(pairs, self.batch_size)
+
+        # RerankResult 생성 및 정렬
+        rerank_results: List[RerankResult] = []
+        for idx, (doc, score) in enumerate(zip(documents, scores)):
+            rerank_results.append(
+                RerankResult(
+                    doc_id=doc.get("doc_id", doc.get("chunk_id", f"doc-{idx}")),
+                    content=doc.get("content", ""),
+                    score=score,
+                    original_score=doc.get("score", 0.0),
+                    metadata={
+                        **doc.get("metadata", {}),
+                        "rerank_score": score,
+                        "original_score": doc.get("score", 0.0),
+                    },
+                )
+            )
+
+        # 점수 내림차순 정렬
+        rerank_results.sort(key=lambda x: x.score, reverse=True)
+
+        # 순위 할당
+        for rank, result in enumerate(rerank_results):
+            result.rank = rank
+
+        # top_k 적용
+        if top_k is not None and top_k > 0:
+            rerank_results = rerank_results[:top_k]
+
+        return rerank_results
+
+    def _fallback_results(
+        self,
+        documents: List[Dict[str, Any]],
+        top_k: Optional[int] = None,
+    ) -> List[RerankResult]:
+        """
+        Fallback 결과 생성 (타임아웃/오류 시 원본 순서 유지)
+
+        리랭킹 실패 시 원본 문서를 RerankResult 형태로 변환하여 반환합니다.
+        원본 점수(score)를 rerank 점수로 사용합니다.
+
+        STORY-052: 타임아웃 fallback용
+
+        Args:
+            documents: 원본 문서 목록
+            top_k: 반환할 상위 문서 수 (None이면 전체 반환)
+
+        Returns:
+            RerankResult 리스트 (원본 순서 유지)
+        """
+        effective_top_k = top_k if (top_k is not None and top_k > 0) else len(documents)
+        fallback_results: List[RerankResult] = []
+
+        for idx, doc in enumerate(documents[:effective_top_k]):
+            original_score = doc.get("score", 0.0)
+            fallback_results.append(
+                RerankResult(
+                    doc_id=doc.get("doc_id", doc.get("chunk_id", f"doc-{idx}")),
+                    content=doc.get("content", ""),
+                    score=original_score,
+                    original_score=original_score,
+                    rank=idx,
+                    metadata={
+                        **doc.get("metadata", {}),
+                        "rerank_fallback": True,
+                        "original_score": original_score,
+                    },
+                )
+            )
+
+        return fallback_results
 
     def _compute_scores(self, pairs: List[List[str]]) -> List[float]:
         """
