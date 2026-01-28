@@ -6,7 +6,7 @@
 |------|-----|
 | **Jira ID** | SCRUM-40 |
 | **Epic** | EPIC-003 |
-| **Status** | In Progress |
+| **Status** | Review |
 | **Priority** | Critical |
 | **Story Points** | 5 |
 | **Assignee** | Frontend |
@@ -24,11 +24,11 @@
 
 ## Acceptance Criteria
 
-- [ ] **Given** 검색 요청 시, **When** POST body에 query, conversation_history, topK 파라미터 포함, **Then** SSE 연결이 정상적으로 수립되고 스트리밍 응답 수신
-- [ ] **Given** fetch+ReadableStream 기반 SSE 클라이언트, **When** 기존 useSearchChat 훅에서 호출, **Then** 기존 wrapper 인터페이스와 100% 호환
-- [ ] **Given** SSE 연결 중 네트워크 오류 발생, **When** 연결이 끊김, **Then** 자동 재연결 로직이 최대 3회까지 동작
-- [ ] **Given** POST SSE 연결 수립 후, **When** AI 응답이 생성됨, **Then** 토큰 단위 스트리밍이 정상 동작하고 [DONE] 이벤트로 완료 처리
-- [ ] **Given** EventSource(GET) 코드, **When** fetch+ReadableStream(POST)으로 전환 완료, **Then** 기존 EventSource 코드 완전 제거
+- [x] **Given** 검색 요청 시, **When** POST body에 query, conversation_history, topK 파라미터 포함, **Then** SSE 연결이 정상적으로 수립되고 스트리밍 응답 수신
+- [x] **Given** fetch+ReadableStream 기반 SSE 클라이언트, **When** 기존 useSearchChat 훅에서 호출, **Then** 기존 wrapper 인터페이스와 100% 호환
+- [x] **Given** SSE 연결 중 네트워크 오류 발생, **When** 연결이 끊김, **Then** 자동 재연결 로직이 최대 3회까지 동작
+- [x] **Given** POST SSE 연결 수립 후, **When** AI 응답이 생성됨, **Then** 토큰 단위 스트리밍이 정상 동작하고 [DONE] 이벤트로 완료 처리
+- [x] **Given** EventSource(GET) 코드, **When** fetch+ReadableStream(POST)으로 전환 완료, **Then** 기존 EventSource 코드 완전 제거
 
 ---
 
@@ -42,6 +42,8 @@
 - [x] 기존 EventSource 기반 SSEClient 코드 제거 또는 deprecation 처리 -- Day 1 완료 (EventSource 제거)
 - [x] AbortController를 활용한 취소 기능 구현 -- Day 1 완료
 - [x] 단위 테스트 작성 (연결, 파싱, 재연결, 취소) -- Day 1 완료 (72개 테스트)
+- [x] SSE 파서 토큰 공백 보존 버그 수정 (parseSSEBuffer trimStart -> single space strip) -- Day 2 완료
+- [x] 전체 149/149 테스트 통과 확인 -- Day 2 완료
 
 ---
 

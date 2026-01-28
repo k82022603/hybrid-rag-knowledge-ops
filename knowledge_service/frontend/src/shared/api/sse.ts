@@ -177,7 +177,11 @@ export function parseSSEBuffer(
       if (line.startsWith('event:')) {
         eventType = line.slice(6).trim();
       } else if (line.startsWith('data:')) {
-        dataLines.push(line.slice(5).trimStart());
+        // Per SSE spec: after "data:" there is an optional single space separator.
+        // Only strip one leading space (the protocol separator), preserving any
+        // additional whitespace that is part of the actual data payload.
+        const raw = line.slice(5);
+        dataLines.push(raw.startsWith(' ') ? raw.slice(1) : raw);
       } else if (line.startsWith('id:')) {
         // Event ID - not used currently but parsed for completeness
       } else if (line.startsWith(':')) {
@@ -390,7 +394,9 @@ export class SSEPostClient {
 
     for (const line of lines) {
       if (line.startsWith('data:')) {
-        dataLines.push(line.slice(5).trimStart());
+        // Per SSE spec: strip only the single optional space after "data:"
+        const raw = line.slice(5);
+        dataLines.push(raw.startsWith(' ') ? raw.slice(1) : raw);
       }
     }
 
