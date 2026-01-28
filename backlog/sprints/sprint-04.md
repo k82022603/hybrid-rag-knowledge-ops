@@ -48,10 +48,10 @@ Sprint 03 완료 항목 (모두 충족):
 
 | Priority | ID | Jira | 제목 | Points | Assignee | Status |
 |----------|-----|------|------|--------|----------|--------|
-| P0 | STORY-050 | SCRUM-40 | SSE 프로토콜 수정 (fetch+ReadableStream 전환) | 5 | Frontend | To Do |
-| P0 | STORY-051 | SCRUM-41 | RAG 파이프라인 통합 (ai_service ↔ knowledge_service) | 8 | RAG | To Do |
+| P0 | STORY-050 | SCRUM-40 | SSE 프로토콜 수정 (fetch+ReadableStream 전환) | 5 | Frontend | **In Progress** |
+| P0 | STORY-051 | SCRUM-41 | RAG 파이프라인 통합 (ai_service ↔ knowledge_service) | 8 | RAG | **In Progress** |
 | P0 | STORY-052 | SCRUM-42 | Reranker async 전환 (asyncio.to_thread) | 2 | RAG | To Do |
-| P0 | STORY-053 | SCRUM-43 | 보안 강화 (JWT Secret, 입력 검증, 기본 자격증명 제거) | 3 | Backend | To Do |
+| P0 | STORY-053 | SCRUM-43 | 보안 강화 (JWT Secret, 입력 검증, 기본 자격증명 제거) | 3 | Backend | **In Progress** |
 
 **소계**: 18 pts (4 Stories)
 
@@ -105,11 +105,11 @@ Sprint 03 완료 항목 (모두 충족):
 
 ### Week 1 (P0 Critical)
 
-#### Day 1
-- [ ] 스프린트 킥오프 미팅
-- [ ] STORY-050 착수: SSE 프로토콜 전환 설계
-- [ ] STORY-051 착수: 파이프라인 통합 아키텍처 설계
-- [ ] STORY-053 착수: JWT Secret 환경변수화
+#### Day 1 (완료)
+- [x] 스프린트 킥오프 미팅
+- [x] STORY-050 착수: SSE 프로토콜 전환 설계 -- SSEPostClient, useStreamingSearch 리팩토링, 72개 테스트, EventSource 제거
+- [x] STORY-051 착수: 파이프라인 통합 아키텍처 설계 -- LLMAdapter, KnowledgeServiceClient(이중모드), RetrieverAdapter, RerankerAdapter, bootstrap_rag_pipeline(), 31개 통합 테스트
+- [x] STORY-053 착수: JWT Secret 환경변수화 -- JWT Secret 환경변수, InputSanitizer, Bean Validation, 기본 자격증명 환경변수 전환, 30개 보안 테스트
 
 #### Day 2
 - [ ] STORY-050: fetch+ReadableStream 구현

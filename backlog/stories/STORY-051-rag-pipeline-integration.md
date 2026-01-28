@@ -6,7 +6,7 @@
 |------|-----|
 | **Jira ID** | SCRUM-41 |
 | **Epic** | EPIC-002 |
-| **Status** | To Do |
+| **Status** | In Progress |
 | **Priority** | Critical |
 | **Story Points** | 8 |
 | **Assignee** | RAG |
@@ -34,14 +34,14 @@
 
 ## Tasks
 
-- [ ] HybridRetriever 인스턴스를 RetrieverNode.retrieve_fn에 주입하는 부트스트랩 코드 구현
+- [x] HybridRetriever 인스턴스를 RetrieverNode.retrieve_fn에 주입하는 부트스트랩 코드 구현 -- Day 1 완료 (bootstrap_rag_pipeline())
 - [ ] ai_service의 SearchService가 LangGraph workflow를 호출하도록 수정
-- [ ] knowledge_service의 HybridRetriever HTTP API 또는 직접 임포트 연결
+- [x] knowledge_service의 HybridRetriever HTTP API 또는 직접 임포트 연결 -- Day 1 완료 (KnowledgeServiceClient 이중모드)
 - [ ] 이중 파이프라인 중 레거시 RAGPipeline 경로 비활성화
 - [ ] LangGraph State에 retrieval_results 필드 매핑 확인
-- [ ] Reranker Node에서 HybridRetriever 결과를 올바르게 처리하도록 수정
+- [x] Reranker Node에서 HybridRetriever 결과를 올바르게 처리하도록 수정 -- Day 1 완료 (RerankerAdapter)
 - [ ] Generator Node에서 reranked 문서를 프롬프트에 포함하도록 확인
-- [ ] 통합 스모크 테스트 작성 (검색 -> 리랭킹 -> 생성 전체 경로)
+- [x] 통합 스모크 테스트 작성 (검색 -> 리랭킹 -> 생성 전체 경로) -- Day 1 완료 (31개 통합 테스트)
 - [ ] 에러 핸들링: knowledge_service 연결 실패 시 graceful 오류 메시지
 
 ---
@@ -111,10 +111,10 @@ def bootstrap_pipeline():
 
 ## 테스트 계획
 
-- [ ] Unit Test: RetrieverNode에 HybridRetriever.retrieve 주입 확인
+- [x] Unit Test: RetrieverNode에 HybridRetriever.retrieve 주입 확인 -- Day 1 완료 (RetrieverAdapter 테스트)
 - [ ] Unit Test: SearchService가 LangGraph workflow 호출 확인
-- [ ] Integration Test: HybridRetriever -> Elasticsearch + Neo4j 실제 검색
-- [ ] Integration Test: 전체 파이프라인 (Planner -> Retriever -> Reranker -> Generator)
+- [x] Integration Test: HybridRetriever -> Elasticsearch + Neo4j 실제 검색 -- Day 1 완료 (KnowledgeServiceClient 테스트)
+- [x] Integration Test: 전체 파이프라인 (Planner -> Retriever -> Reranker -> Generator) -- Day 1 완료 (31개 통합 테스트)
 - [ ] E2E Test: Frontend 검색 요청 -> Backend -> AI Service -> Knowledge Service -> 응답
 
 ---

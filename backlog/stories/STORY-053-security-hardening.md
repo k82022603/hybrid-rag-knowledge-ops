@@ -6,7 +6,7 @@
 |------|-----|
 | **Jira ID** | SCRUM-43 |
 | **Epic** | EPIC-001 |
-| **Status** | To Do |
+| **Status** | In Progress |
 | **Priority** | Critical |
 | **Story Points** | 3 |
 | **Assignee** | Backend |
@@ -34,13 +34,13 @@
 
 ## Tasks
 
-- [ ] JWT Secret 기본값 하드코딩 제거 (application.yml, SecurityConfig)
-- [ ] JWT Secret 환경변수 미설정 시 애플리케이션 시작 실패 로직 추가
-- [ ] SSE 엔드포인트 쿼리 입력 길이 검증 (최대 1000자)
-- [ ] 쿼리 입력 새니타이징 (HTML/Script 태그 제거)
-- [ ] 기본 자격증명 제거 (Keycloak admin, DB 기본 비밀번호 등)
+- [x] JWT Secret 기본값 하드코딩 제거 (application.yml, SecurityConfig) -- Day 1 완료 (JWT Secret 환경변수 전환)
+- [x] JWT Secret 환경변수 미설정 시 애플리케이션 시작 실패 로직 추가 -- Day 1 완료
+- [x] SSE 엔드포인트 쿼리 입력 길이 검증 (최대 1000자) -- Day 1 완료 (InputSanitizer, Bean Validation)
+- [x] 쿼리 입력 새니타이징 (HTML/Script 태그 제거) -- Day 1 완료 (InputSanitizer)
+- [x] 기본 자격증명 제거 (Keycloak admin, DB 기본 비밀번호 등) -- Day 1 완료 (기본 자격증명 환경변수 전환)
 - [ ] 환경변수 기반 비밀번호 설정 가이드 문서화
-- [ ] 보안 설정 검증 통합 테스트 작성
+- [x] 보안 설정 검증 통합 테스트 작성 -- Day 1 완료 (30개 보안 테스트)
 
 ---
 
@@ -104,10 +104,10 @@ public SseEmitter streamSearch(
 
 ## 테스트 계획
 
-- [ ] Unit Test: JWT Secret 미설정 시 시작 실패 확인
-- [ ] Unit Test: 쿼리 길이 초과 시 400 응답
-- [ ] Unit Test: XSS 패턴 입력 시 새니타이징 또는 거부
-- [ ] Integration Test: 기본 자격증명 로그인 실패 확인
+- [x] Unit Test: JWT Secret 미설정 시 시작 실패 확인 -- Day 1 완료
+- [x] Unit Test: 쿼리 길이 초과 시 400 응답 -- Day 1 완료
+- [x] Unit Test: XSS 패턴 입력 시 새니타이징 또는 거부 -- Day 1 완료
+- [x] Integration Test: 기본 자격증명 로그인 실패 확인 -- Day 1 완료
 - [ ] Security Test: OWASP Top 10 체크리스트 검증
 
 ---

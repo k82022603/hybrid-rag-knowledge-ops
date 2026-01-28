@@ -6,7 +6,7 @@
 |------|-----|
 | **Jira ID** | SCRUM-40 |
 | **Epic** | EPIC-003 |
-| **Status** | To Do |
+| **Status** | In Progress |
 | **Priority** | Critical |
 | **Story Points** | 5 |
 | **Assignee** | Frontend |
@@ -34,14 +34,14 @@
 
 ## Tasks
 
-- [ ] fetch+ReadableStream 기반 SSE 클라이언트 클래스 구현 (SSEPostClient)
-- [ ] POST body 직렬화 및 Content-Type 설정
-- [ ] ReadableStream TextDecoder를 통한 SSE 이벤트 파싱 로직 구현
-- [ ] 재연결(exponential backoff) 로직 구현
-- [ ] useSearchChat 훅의 SSEClient 참조를 SSEPostClient로 교체
-- [ ] 기존 EventSource 기반 SSEClient 코드 제거 또는 deprecation 처리
-- [ ] AbortController를 활용한 취소 기능 구현
-- [ ] 단위 테스트 작성 (연결, 파싱, 재연결, 취소)
+- [x] fetch+ReadableStream 기반 SSE 클라이언트 클래스 구현 (SSEPostClient) -- Day 1 완료
+- [x] POST body 직렬화 및 Content-Type 설정 -- Day 1 완료
+- [x] ReadableStream TextDecoder를 통한 SSE 이벤트 파싱 로직 구현 -- Day 1 완료
+- [x] 재연결(exponential backoff) 로직 구현 -- Day 1 완료
+- [x] useSearchChat 훅의 SSEClient 참조를 SSEPostClient로 교체 -- Day 1 완료 (useStreamingSearch 리팩토링)
+- [x] 기존 EventSource 기반 SSEClient 코드 제거 또는 deprecation 처리 -- Day 1 완료 (EventSource 제거)
+- [x] AbortController를 활용한 취소 기능 구현 -- Day 1 완료
+- [x] 단위 테스트 작성 (연결, 파싱, 재연결, 취소) -- Day 1 완료 (72개 테스트)
 
 ---
 
@@ -91,11 +91,11 @@ const decoder = new TextDecoder();
 
 ## 테스트 계획
 
-- [ ] Unit Test: SSEPostClient fetch+ReadableStream 연결/종료
-- [ ] Unit Test: SSE 이벤트 파싱 (data:, event:, [DONE])
-- [ ] Unit Test: 재연결 로직 (exponential backoff)
-- [ ] Unit Test: AbortController 취소
-- [ ] Integration Test: POST body에 conversation_history 포함 전송
+- [x] Unit Test: SSEPostClient fetch+ReadableStream 연결/종료 -- Day 1 완료
+- [x] Unit Test: SSE 이벤트 파싱 (data:, event:, [DONE]) -- Day 1 완료
+- [x] Unit Test: 재연결 로직 (exponential backoff) -- Day 1 완료
+- [x] Unit Test: AbortController 취소 -- Day 1 완료
+- [x] Integration Test: POST body에 conversation_history 포함 전송 -- Day 1 완료
 - [ ] E2E Test: 전체 POST SSE 스트리밍 플로우
 
 ---
