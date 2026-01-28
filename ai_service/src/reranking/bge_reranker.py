@@ -1,0 +1,504 @@
+"""
+BGE Reranker v2 M3
+
+BAAI/bge-reranker-v2-m3 기반 크로스 인코더 리랭커입니다.
+쿼리-문서 쌍의 관련성 점수를 계산하여 검색 결과를 재순위화합니다.
+
+특징:
+    - 크로스 인코더 기반 정밀 관련성 점수 (0~1)
+    - 다국어 지원 (한국어 포함)
+    - 배치 처리 최적화 (batch_size=32)
+    - CPU/GPU 자동 감지
+    - 입력 최대 길이: 512 토큰
+    - 50개 문서 기준 500ms 이내 응답
+
+Architecture:
+    RRF 융합 후 reranking 단계에서 사용됩니다.
+    HybridRetriever -> RRF Fusion -> BGE Reranker -> 최종 결과
+
+STORY-032: BGE Reranker 통합 구현
+"""
+
+import logging
+import time
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional, Tuple
+
+logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Rerank 결과 데이터 모델
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class RerankResult:
+    """
+    리랭킹 결과 데이터 모델
+
+    Attributes:
+        doc_id: 문서(청크) 고유 식별자
+        content: 문서(청크) 내용
+        score: 리랭킹 점수 (0~1, sigmoid 정규화)
+        original_score: 리랭킹 이전 원본 점수 (RRF 등)
+        rank: 리랭킹 후 순위 (0-based)
+        metadata: 추가 메타데이터 딕셔너리
+    """
+
+    doc_id: str
+    content: str
+    score: float = 0.0
+    original_score: float = 0.0
+    rank: int = 0
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+    def __repr__(self) -> str:
+        return (
+            f"RerankResult(doc_id='{self.doc_id}', "
+            f"score={self.score:.6f}, "
+            f"original_score={self.original_score:.6f}, "
+            f"rank={self.rank})"
+        )
+
+
+# ---------------------------------------------------------------------------
+# BGE Reranker
+# ---------------------------------------------------------------------------
+
+
+class BGEReranker:
+    """
+    BGE Reranker v2 M3
+
+    BAAI/bge-reranker-v2-m3 모델을 사용한 크로스 인코더 기반 리랭커입니다.
+    쿼리와 문서 쌍의 관련성을 정밀하게 측정하여 검색 결과를 재순위화합니다.
+
+    Args:
+        model_name: HuggingFace 모델 이름 (기본: BAAI/bge-reranker-v2-m3)
+        device: 연산 디바이스 ('cpu', 'cuda', None=자동감지)
+        batch_size: 배치 처리 크기 (기본: 32)
+        max_length: 입력 최대 토큰 수 (기본: 512)
+
+    Attributes:
+        model_name: 사용 중인 모델 이름
+        device: 현재 디바이스 문자열
+        batch_size: 배치 크기
+        max_length: 최대 토큰 길이
+        is_loaded: 모델 로딩 완료 여부
+
+    Example:
+        >>> reranker = BGEReranker()
+        >>> await reranker.load_model()
+        >>> results = await reranker.rerank(
+        ...     query="Python FastAPI 사용법",
+        ...     documents=[
+        ...         {"doc_id": "1", "content": "FastAPI는 Python 웹 프레임워크입니다."},
+        ...         {"doc_id": "2", "content": "Java Spring Boot 가이드"},
+        ...     ],
+        ...     top_k=1,
+        ... )
+    """
+
+    def __init__(
+        self,
+        model_name: str = "BAAI/bge-reranker-v2-m3",
+        device: Optional[str] = None,
+        batch_size: int = 32,
+        max_length: int = 512,
+    ):
+        """
+        초기화
+
+        Args:
+            model_name: HuggingFace 모델 이름
+            device: 연산 디바이스 (None이면 자동 감지)
+            batch_size: 배치 처리 크기
+            max_length: 입력 최대 토큰 수
+
+        Raises:
+            ValueError: batch_size가 0 이하이거나 max_length가 0 이하인 경우
+        """
+        if batch_size <= 0:
+            raise ValueError(f"batch_size must be positive, got {batch_size}")
+        if max_length <= 0:
+            raise ValueError(f"max_length must be positive, got {max_length}")
+
+        self.model_name = model_name
+        self.batch_size = batch_size
+        self.max_length = max_length
+
+        # 디바이스 자동 감지
+        self.device = device or self._detect_device()
+
+        # 모델/토크나이저 (lazy loading)
+        self._model: Optional[Any] = None
+        self._tokenizer: Optional[Any] = None
+
+        logger.info(
+            "BGEReranker initialized - model=%s, device=%s, "
+            "batch_size=%d, max_length=%d",
+            self.model_name, self.device, self.batch_size, self.max_length,
+        )
+
+    @property
+    def is_loaded(self) -> bool:
+        """모델 로딩 완료 여부"""
+        return self._model is not None and self._tokenizer is not None
+
+    # ------------------------------------------------------------------
+    # Model Loading
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _detect_device() -> str:
+        """
+        사용 가능한 디바이스 자동 감지
+
+        Returns:
+            'cuda' (NVIDIA GPU 사용 가능) 또는 'cpu'
+        """
+        try:
+            import torch
+            if torch.cuda.is_available():
+                return "cuda"
+        except (ImportError, OSError):
+            pass
+        return "cpu"
+
+    async def load_model(self) -> None:
+        """
+        모델 및 토크나이저 로딩
+
+        HuggingFace transformers를 사용하여 크로스 인코더 모델을
+        로딩합니다. 이미 로딩된 경우 중복 로딩하지 않습니다.
+
+        Raises:
+            RuntimeError: 모델 로딩 실패
+        """
+        if self.is_loaded:
+            return
+
+        logger.info("Loading reranker model: %s (device=%s)", self.model_name, self.device)
+        start_time = time.monotonic()
+
+        try:
+            import torch
+            from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+            self._tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+            self._model = AutoModelForSequenceClassification.from_pretrained(
+                self.model_name
+            )
+            self._model.to(self.device)
+            self._model.eval()
+
+            elapsed_ms = (time.monotonic() - start_time) * 1000
+            logger.info(
+                "Reranker model loaded in %.1fms (device=%s)",
+                elapsed_ms, self.device,
+            )
+
+        except Exception as e:
+            self._model = None
+            self._tokenizer = None
+            logger.error("Failed to load reranker model: %s", e)
+            raise RuntimeError(f"Reranker model loading failed: {e}") from e
+
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
+
+    async def rerank(
+        self,
+        query: str,
+        documents: List[Dict[str, Any]],
+        top_k: Optional[int] = None,
+    ) -> List[RerankResult]:
+        """
+        문서 재순위화
+
+        쿼리와 각 문서의 관련성 점수를 계산하여 정렬합니다.
+        배치 처리로 대량 문서를 효율적으로 처리합니다.
+
+        Args:
+            query: 검색 쿼리 문자열
+            documents: 재순위화할 문서 목록.
+                각 문서는 최소 'content' 키를 포함해야 합니다.
+                선택적 키: 'doc_id', 'score', 'metadata'
+            top_k: 반환할 상위 문서 수 (None이면 전체 반환)
+
+        Returns:
+            RerankResult 리스트 (점수 내림차순 정렬)
+
+        Raises:
+            RuntimeError: 모델이 로딩되지 않은 경우
+            ValueError: query가 비어있는 경우
+
+        Example:
+            >>> results = await reranker.rerank(
+            ...     query="RAG 파이프라인 구현",
+            ...     documents=[
+            ...         {"doc_id": "c1", "content": "RAG는 Retrieval Augmented Generation입니다."},
+            ...         {"doc_id": "c2", "content": "Spring Boot 설정 가이드"},
+            ...     ],
+            ...     top_k=1,
+            ... )
+            >>> results[0].doc_id
+            'c1'
+        """
+        # 빈 입력 처리
+        if not documents:
+            return []
+
+        if not query or not query.strip():
+            logger.warning("Empty query provided to reranker")
+            return []
+
+        # 모델 로딩 확인
+        if not self.is_loaded:
+            await self.load_model()
+
+        start_time = time.monotonic()
+
+        # 쿼리-문서 쌍 생성
+        contents = [
+            doc.get("content", "") for doc in documents
+        ]
+        pairs = [[query, content] for content in contents]
+
+        # 배치 점수 계산
+        scores = self._batch_process(pairs, self.batch_size)
+
+        # RerankResult 생성 및 정렬
+        rerank_results: List[RerankResult] = []
+        for idx, (doc, score) in enumerate(zip(documents, scores)):
+            rerank_results.append(
+                RerankResult(
+                    doc_id=doc.get("doc_id", doc.get("chunk_id", f"doc-{idx}")),
+                    content=doc.get("content", ""),
+                    score=score,
+                    original_score=doc.get("score", 0.0),
+                    metadata={
+                        **doc.get("metadata", {}),
+                        "rerank_score": score,
+                        "original_score": doc.get("score", 0.0),
+                    },
+                )
+            )
+
+        # 점수 내림차순 정렬
+        rerank_results.sort(key=lambda x: x.score, reverse=True)
+
+        # 순위 할당
+        for rank, result in enumerate(rerank_results):
+            result.rank = rank
+
+        # top_k 적용
+        if top_k is not None and top_k > 0:
+            rerank_results = rerank_results[:top_k]
+
+        elapsed_ms = (time.monotonic() - start_time) * 1000
+        logger.info(
+            "Reranking complete - query='%s', docs=%d, top_k=%s, "
+            "latency=%.1fms, top_score=%.4f",
+            query[:50],
+            len(documents),
+            top_k,
+            elapsed_ms,
+            rerank_results[0].score if rerank_results else 0.0,
+        )
+
+        return rerank_results
+
+    async def rerank_search_results(
+        self,
+        query: str,
+        search_results: List[Any],
+        top_k: Optional[int] = None,
+    ) -> List[Any]:
+        """
+        SearchResult 객체 리스트 리랭킹
+
+        knowledge_service의 SearchResult (Pydantic 모델)을
+        직접 리랭킹하여 반환합니다.
+
+        Args:
+            query: 검색 쿼리
+            search_results: SearchResult 객체 리스트
+                (chunk_id, content, score, metadata 속성 필요)
+            top_k: 반환할 상위 결과 수
+
+        Returns:
+            리랭킹된 SearchResult 리스트 (score/metadata 업데이트됨)
+        """
+        if not search_results:
+            return []
+
+        # SearchResult -> dict 변환
+        documents = []
+        for sr in search_results:
+            documents.append({
+                "doc_id": getattr(sr, "chunk_id", ""),
+                "content": getattr(sr, "content", ""),
+                "score": getattr(sr, "score", 0.0),
+                "metadata": getattr(sr, "metadata", {}),
+                "document_id": getattr(sr, "document_id", ""),
+                "source": getattr(sr, "source", ""),
+            })
+
+        # 리랭킹 수행
+        reranked = await self.rerank(query, documents, top_k=top_k)
+
+        # SearchResult 재구성
+        result_map = {
+            getattr(sr, "chunk_id", ""): sr for sr in search_results
+        }
+
+        updated_results = []
+        for rr in reranked:
+            original = result_map.get(rr.doc_id)
+            if original is not None:
+                # score와 metadata 업데이트
+                original.score = rr.score
+                original.metadata["rerank_score"] = rr.score
+                original.metadata["rerank_rank"] = rr.rank
+                original.metadata["original_score"] = rr.original_score
+                updated_results.append(original)
+
+        return updated_results
+
+    # ------------------------------------------------------------------
+    # Internal methods
+    # ------------------------------------------------------------------
+
+    def _compute_scores(self, pairs: List[List[str]]) -> List[float]:
+        """
+        쿼리-문서 쌍의 관련성 점수 계산
+
+        크로스 인코더를 사용하여 각 쌍의 관련성 점수를 계산합니다.
+        Sigmoid 함수로 0~1 범위로 정규화합니다.
+
+        Args:
+            pairs: [query, document] 쌍 리스트
+
+        Returns:
+            관련성 점수 리스트 (0~1 범위)
+
+        Raises:
+            RuntimeError: 모델 미로딩 상태
+        """
+        if not self.is_loaded:
+            raise RuntimeError("Model not loaded. Call load_model() first.")
+
+        if not pairs:
+            return []
+
+        import torch
+
+        with torch.no_grad():
+            inputs = self._tokenizer(
+                pairs,
+                padding=True,
+                truncation=True,
+                max_length=self.max_length,
+                return_tensors="pt",
+            ).to(self.device)
+
+            outputs = self._model(**inputs)
+
+            # Sigmoid 정규화 (0~1)
+            logits = outputs.logits
+            if logits.dim() > 1:
+                logits = logits.squeeze(-1)
+            scores = torch.sigmoid(logits)
+
+            return scores.cpu().tolist()
+
+    def _batch_process(
+        self,
+        pairs: List[List[str]],
+        batch_size: int,
+    ) -> List[float]:
+        """
+        배치 단위 점수 계산
+
+        대량의 쿼리-문서 쌍을 batch_size 단위로 나누어 처리합니다.
+        메모리 효율성을 위해 배치별로 처리 후 결과를 합칩니다.
+
+        Args:
+            pairs: [query, document] 쌍 전체 리스트
+            batch_size: 한 번에 처리할 쌍의 수
+
+        Returns:
+            전체 쌍에 대한 관련성 점수 리스트
+        """
+        if not pairs:
+            return []
+
+        all_scores: List[float] = []
+
+        for i in range(0, len(pairs), batch_size):
+            batch = pairs[i:i + batch_size]
+            batch_scores = self._compute_scores(batch)
+            all_scores.extend(batch_scores)
+
+        return all_scores
+
+    def health_check(self) -> Dict[str, Any]:
+        """
+        Reranker 상태 점검
+
+        Returns:
+            상태 정보 딕셔너리
+        """
+        return {
+            "service": "BGEReranker",
+            "model_name": self.model_name,
+            "device": self.device,
+            "is_loaded": self.is_loaded,
+            "batch_size": self.batch_size,
+            "max_length": self.max_length,
+        }
+
+
+# ---------------------------------------------------------------------------
+# Singleton instance
+# ---------------------------------------------------------------------------
+
+_reranker: Optional[BGEReranker] = None
+
+
+def get_reranker(
+    model_name: str = "BAAI/bge-reranker-v2-m3",
+    device: Optional[str] = None,
+    batch_size: int = 32,
+    max_length: int = 512,
+) -> BGEReranker:
+    """
+    BGEReranker 싱글톤 인스턴스 반환
+
+    Args:
+        model_name: HuggingFace 모델 이름
+        device: 연산 디바이스
+        batch_size: 배치 처리 크기
+        max_length: 입력 최대 토큰 수
+
+    Returns:
+        BGEReranker 싱글톤 인스턴스
+    """
+    global _reranker
+    if _reranker is None:
+        _reranker = BGEReranker(
+            model_name=model_name,
+            device=device,
+            batch_size=batch_size,
+            max_length=max_length,
+        )
+    return _reranker
+
+
+def reset_reranker() -> None:
+    """싱글톤 인스턴스 초기화 (테스트용)"""
+    global _reranker
+    _reranker = None

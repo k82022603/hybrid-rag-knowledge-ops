@@ -235,6 +235,7 @@ class HybridRetriever:
         es_client: Optional[Any] = None,
         neo4j_driver: Optional[Any] = None,
         search_service: Optional[Any] = None,
+        reranker: Optional[Any] = None,
     ):
         """
         초기화
@@ -246,11 +247,13 @@ class HybridRetriever:
             es_client: Elasticsearch 클라이언트
             neo4j_driver: Neo4j 드라이버
             search_service: 기존 SearchService 인스턴스 (직접 주입, 우선)
+            reranker: BGEReranker 인스턴스 (STORY-032, None이면 리랭킹 비활성화)
         """
         self._es_client = es_client
         self._neo4j_driver = neo4j_driver
         self._injected_search_service = search_service
         self._search_service: Optional[Any] = None
+        self._reranker = reranker
 
         # 개별 Retriever (SearchService 공유)
         self._es_retriever: Optional[ElasticsearchRetriever] = None
@@ -295,12 +298,14 @@ class HybridRetriever:
         top_k: int = 10,
         filters: Optional[Dict[str, Any]] = None,
         user_id: Optional[str] = None,
+        use_reranking: bool = True,
     ) -> List[SearchResult]:
         """
         Hybrid 검색 수행
 
         SearchService.hybrid_search()에 위임하여 Vector + Keyword + Graph
         3-source 병렬 검색 후 RRF 융합 결과를 반환합니다.
+        Reranker가 설정된 경우, RRF 융합 후 BGE Reranker로 재순위화합니다.
 
         Args:
             query: 검색 질의
@@ -308,15 +313,21 @@ class HybridRetriever:
             top_k: 반환할 결과 수
             filters: 필터 조건 딕셔너리
             user_id: 사용자 ID (이력 기록용)
+            use_reranking: Reranker 사용 여부 (STORY-032)
 
         Returns:
-            RRF 융합된 검색 결과 목록 (상위 top_k개)
+            RRF 융합 (및 선택적 리랭킹) 검색 결과 목록 (상위 top_k개)
         """
         start_time = time.monotonic()
 
+        # Reranking 활성화 시 더 많은 결과를 요청하여 reranker 입력으로 사용
+        fetch_k = min(top_k * 5, 50) if (use_reranking and self._reranker) else top_k
+
         logger.info(
-            "Hybrid retrieval - Query: '%s', top_k=%d, entities=%d",
-            query[:80], top_k, len(entities or []),
+            "Hybrid retrieval - Query: '%s', top_k=%d, fetch_k=%d, "
+            "entities=%d, reranking=%s",
+            query[:80], top_k, fetch_k, len(entities or []),
+            use_reranking and self._reranker is not None,
         )
 
         try:
@@ -324,14 +335,43 @@ class HybridRetriever:
             result = await self.search_service.hybrid_search(
                 query=query,
                 filters=filters,
-                top_k=top_k,
+                top_k=fetch_k,
                 user_id=user_id,
             )
 
             fused_results = result.get("results", [])
+            debug_info = result.get("debug", {})
+
+            # STORY-032: Reranking 적용
+            if (
+                use_reranking
+                and self._reranker is not None
+                and len(fused_results) > top_k
+            ):
+                rerank_start = time.monotonic()
+                try:
+                    fused_results = await self._reranker.rerank_search_results(
+                        query=query,
+                        search_results=fused_results[:50],
+                        top_k=top_k,
+                    )
+                    rerank_ms = (time.monotonic() - rerank_start) * 1000
+                    logger.info(
+                        "Reranking applied - input=%d, output=%d, "
+                        "rerank_latency=%.1fms",
+                        min(len(fused_results), 50),
+                        len(fused_results),
+                        rerank_ms,
+                    )
+                except Exception as rerank_err:
+                    logger.warning(
+                        "Reranking failed, using RRF results: %s", rerank_err
+                    )
+                    fused_results = fused_results[:top_k]
+            else:
+                fused_results = fused_results[:top_k]
 
             latency_ms = (time.monotonic() - start_time) * 1000
-            debug_info = result.get("debug", {})
 
             logger.info(
                 "Hybrid retrieval complete - "
@@ -363,6 +403,7 @@ class HybridRetriever:
         top_k: int = 10,
         filters: Optional[Dict[str, Any]] = None,
         user_id: Optional[str] = None,
+        use_reranking: bool = True,
     ) -> List[SearchResult]:
         """
         비동기 Hybrid 검색 (retrieve의 별칭)
@@ -375,9 +416,10 @@ class HybridRetriever:
             top_k: 반환할 결과 수
             filters: 필터 조건 딕셔너리
             user_id: 사용자 ID
+            use_reranking: Reranker 사용 여부 (STORY-032)
 
         Returns:
-            RRF 융합된 검색 결과 목록
+            RRF 융합 (및 선택적 리랭킹) 검색 결과 목록
         """
         return await self.retrieve(
             query=query,
@@ -385,6 +427,7 @@ class HybridRetriever:
             top_k=top_k,
             filters=filters,
             user_id=user_id,
+            use_reranking=use_reranking,
         )
 
     async def retrieve_by_source(
@@ -499,7 +542,7 @@ class HybridRetriever:
         Returns:
             상태 정보 딕셔너리
         """
-        return {
+        health = {
             "service": "HybridRetriever",
             "es_client": self._es_client is not None or (
                 self._injected_search_service is not None
@@ -512,7 +555,14 @@ class HybridRetriever:
             "search_service_initialized": self._search_service is not None,
             "rrf_k": settings.rrf_k,
             "retrieval_top_k": settings.retrieval_top_k,
+            "reranker_enabled": self._reranker is not None,
         }
+
+        # STORY-032: Reranker 상태 포함
+        if self._reranker is not None and hasattr(self._reranker, "health_check"):
+            health["reranker"] = self._reranker.health_check()
+
+        return health
 
 
 # ---------------------------------------------------------------------------
@@ -526,6 +576,7 @@ def get_hybrid_retriever(
     es_client: Optional[Any] = None,
     neo4j_driver: Optional[Any] = None,
     search_service: Optional[Any] = None,
+    reranker: Optional[Any] = None,
 ) -> HybridRetriever:
     """
     HybridRetriever 인스턴스 반환 (싱글톤)
@@ -534,6 +585,7 @@ def get_hybrid_retriever(
         es_client: Elasticsearch 클라이언트
         neo4j_driver: Neo4j 드라이버
         search_service: SearchService 인스턴스
+        reranker: BGEReranker 인스턴스 (STORY-032)
 
     Returns:
         HybridRetriever 싱글톤 인스턴스
@@ -544,6 +596,7 @@ def get_hybrid_retriever(
             es_client=es_client,
             neo4j_driver=neo4j_driver,
             search_service=search_service,
+            reranker=reranker,
         )
     return _retriever
 
