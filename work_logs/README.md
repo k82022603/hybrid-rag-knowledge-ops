@@ -20,11 +20,17 @@ work_logs/
 │   │       └── ...
 │   └── README.md        # 바이브 로그 가이드
 │
-├── standups/            # 🌅 스탠드업 미팅 기록 (NEW)
+├── standups/            # 🌅 스탠드업 미팅 기록
 │   ├── 2026/
 │   │   └── 01-January/
 │   │       └── 2026-01-21_16-20.md   # 하루에 여러 번 가능
 │   └── README.md        # 스탠드업 가이드
+│
+├── meetings/            # 📋 회의록 (스프린트 리뷰, 기술 검토 등)
+│   ├── 2026/
+│   │   └── 01-January/
+│   │       └── 2026-01-28_sprint03_completion_review.md
+│   └── README.md        # 회의록 가이드
 │
 └── README.md            # 이 파일
 ```
@@ -64,6 +70,18 @@ work_logs/
 - 리스크 모니터링
 
 📖 가이드: [standups/README.md](./standups/README.md)
+
+### 📋 Meetings (회의록)
+**목적**: 공식 회의 기록 보관
+**담당**: PM Agent
+
+- 스프린트 완료 리뷰
+- 스프린트 킥오프
+- 아키텍처 리뷰
+- 회고 (Retrospective)
+- 기술 검토
+
+📖 가이드: [meetings/README.md](./meetings/README.md)
 
 ## 🚀 빠른 시작
 
