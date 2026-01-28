@@ -8,6 +8,7 @@
 - rag_pipeline: RAG 파이프라인 (Retrieval-Augmentation-Generation)
 - entity_extraction: 엔티티/관계 추출 + Gleaning
 - embedding: BGE-M3 임베딩 서비스 (Dense + Sparse)
+- rrf_fusion: RRF (Reciprocal Rank Fusion) 알고리즘
 """
 
 from app.services.llm_service import LLMService
@@ -21,6 +22,13 @@ from app.services.embedding import (
     EmbeddingService,
     get_embedding_service,
     reset_embedding_service,
+)
+from app.services.rrf_fusion import (
+    RRFFusion,
+    RRFResult,
+    RRFFusionExplanation,
+    get_rrf_fusion,
+    reset_rrf_fusion,
 )
 
 __all__ = [
@@ -45,4 +53,10 @@ __all__ = [
     "EmbeddingService",
     "get_embedding_service",
     "reset_embedding_service",
+    # RRF Fusion
+    "RRFFusion",
+    "RRFResult",
+    "RRFFusionExplanation",
+    "get_rrf_fusion",
+    "reset_rrf_fusion",
 ]
