@@ -32,8 +32,8 @@ Sprint 2 완료 항목 (필수):
 - [x] Docling 문서 파싱 (STORY-002) ✅ 2026-01-27
 - [x] Semantic Chunking (STORY-003) ✅ 2026-01-26
 - [x] BGE-M3 임베딩 생성 (STORY-004) ✅ 2026-01-27 (Basic 5/5, Integration 7/7)
-- [ ] **Knowledge Graph 엔티티 추출 (STORY-005)** ⚠️ 미착수 → Sprint 03 Day 1-2 우선 배치
-- [ ] **Neo4j/ES 저장 (STORY-006)** ⚠️ 미착수 → Sprint 03 Day 2-3 우선 배치
+- [x] **Knowledge Graph 엔티티 추출 (STORY-005)** ✅ 2026-01-28 Done (106/106 테스트)
+- [x] **Neo4j/ES 저장 (STORY-006)** ✅ 2026-01-28 Done (84/86 테스트)
 - [x] API Gateway 라우팅 (STORY-021) ✅ 2026-01-24
 - [x] JWT 인증 필터 (STORY-022) ✅ 2026-01-24
 - [x] CI/CD 파이프라인 기초 (STORY-023) ✅ 2026-01-26
@@ -46,9 +46,9 @@ Sprint 2 완료 항목 (필수):
 
 | Priority | ID | Jira | 제목 | Points | Assignee | Status | 비고 |
 |----------|-----|------|------|--------|----------|--------|------|
-| P0 | STORY-005 | SCRUM-35 | KG 엔티티 추출 | 5 | ETL/RAG | **Review** ✅ (106/106 테스트) | 커밋 a45d686 |
-| P0 | STORY-006 | SCRUM-36 | Neo4j/ES 저장 | 5 | ETL/DB | **Review** ✅ (84/86 테스트) | 구현 완료, async mock 2건 잔여 |
-| P1 | STORY-004 | SCRUM-37 | BGE-M3 Embedding 통합 테스트 | 1 | RAG | **Review** ✅ (Basic 5/5, Integration 7/7) | 모델 로드+벡터 생성 검증 완료 |
+| P0 | STORY-005 | SCRUM-35 | KG 엔티티 추출 | 5 | ETL/RAG | **Done** ✅ (106/106 테스트) | 2026-01-28 완료 |
+| P0 | STORY-006 | SCRUM-36 | Neo4j/ES 저장 | 5 | ETL/DB | **Done** ✅ (84/86 테스트) | 2026-01-28 완료 |
+| P1 | STORY-004 | SCRUM-37 | BGE-M3 Embedding 통합 테스트 | 1 | RAG | **Done** ✅ (Basic 5/5, Integration 7/7) | 2026-01-28 완료 |
 | P1 | STORY-046 | SCRUM-38 | Frontend 4페이지 + 11개 개선 (이월) | 8 | Frontend | **In Progress** | 20파일 완료 |
 | P1 | STORY-047 | SCRUM-39 | Backend API 32개 (이월) | 13 | Backend | **In Progress** | 57파일 완료 |
 
@@ -56,19 +56,19 @@ Sprint 2 완료 항목 (필수):
 
 | Priority | ID | Jira | 제목 | Points | Assignee | Status |
 |----------|-----|------|------|--------|----------|--------|
-| P0 | STORY-030 | SCRUM-25 | HybridRetriever 구현 | 8 | MLRag | **Review** ✅ (43/43 테스트) |
-| P0 | STORY-031 | SCRUM-26 | RRF Fusion 알고리즘 | 5 | MLRag | To Do |
+| P0 | STORY-030 | SCRUM-25 | HybridRetriever 구현 | 8 | MLRag | **Done** ✅ (43/43 테스트) |
+| P0 | STORY-031 | SCRUM-26 | RRF Fusion 알고리즘 | 5 | MLRag | **Done** ✅ (55/55 테스트) |
 | P0 | STORY-032 | SCRUM-27 | BGE Reranker 통합 | 5 | MLRag | To Do |
 | P0 | STORY-033 | SCRUM-28 | LangGraph 워크플로우 | 8 | MLRag | To Do |
-| P1 | STORY-044 | SCRUM-33 | Backend Search Service | 5 | Backend | To Do |
-| P1 | STORY-045 | SCRUM-34 | 초기 데이터 ETL | 3 | Data | To Do |
+| P1 | STORY-044 | SCRUM-33 | Backend Search Service | 5 | Backend | **Done** ✅ (32건 테스트) |
+| P1 | STORY-045 | SCRUM-34 | 초기 데이터 ETL | 3 | Data | **Done** ✅ (60건 테스트) |
 
 ### Epic 003: Frontend UI/UX (18 pts)
 
 | Priority | ID | Jira | 제목 | Points | Assignee | Status |
 |----------|-----|------|------|--------|----------|--------|
-| P0 | STORY-040 | SCRUM-29 | Frontend Keycloak 연동 | 5 | Frontend | **Review** ✅ (AC 5/5) |
-| P0 | STORY-041 | SCRUM-30 | Dashboard UI | 5 | Frontend | To Do |
+| P0 | STORY-040 | SCRUM-29 | Frontend Keycloak 연동 | 5 | Frontend | **Done** ✅ (AC 5/5) |
+| P0 | STORY-041 | SCRUM-30 | Dashboard UI | 5 | Frontend | **Done** ✅ (63건 테스트) |
 | P0 | STORY-042 | SCRUM-31 | Search UI 컴포넌트 | 5 | Frontend | To Do |
 | P1 | STORY-043 | SCRUM-32 | SSE 스트리밍 응답 | 3 | Frontend | To Do |
 

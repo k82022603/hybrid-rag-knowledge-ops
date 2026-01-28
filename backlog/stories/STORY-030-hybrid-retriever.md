@@ -6,7 +6,7 @@
 |------|-----|
 | **Jira ID** | SCRUM-25 |
 | **Epic** | EPIC-002 |
-| **Status** | To Do |
+| **Status** | Done |
 | **Priority** | Critical |
 | **Story Points** | 8 |
 | **Assignee** | MLRag |

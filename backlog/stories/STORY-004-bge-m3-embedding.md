@@ -6,7 +6,7 @@
 |------|-----|
 | **Jira ID** | SCRUM-37 |
 | **Epic** | EPIC-001 |
-| **Status** | Review |
+| **Status** | Done |
 | **Priority** | High |
 | **Story Points** | 5 |
 | **Assignee** | MLRag |

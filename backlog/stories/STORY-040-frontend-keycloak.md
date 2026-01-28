@@ -6,7 +6,7 @@
 |------|-----|
 | **Jira ID** | SCRUM-29 |
 | **Epic** | EPIC-003 |
-| **Status** | To Do |
+| **Status** | Done |
 | **Priority** | Critical |
 | **Story Points** | 5 |
 | **Assignee** | Frontend |
