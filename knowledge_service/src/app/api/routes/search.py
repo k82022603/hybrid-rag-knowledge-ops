@@ -5,8 +5,10 @@ Hybrid 검색 및 대화형 검색 (Chat) 제공
 - /hybrid: Vector + Keyword + Graph 통합 검색
 - /semantic: 시맨틱 벡터 검색
 - /keyword: 키워드 BM25 검색
-- /chat: RAG 기반 대화형 검색
+- /chat: LangGraph RAG Workflow 기반 대화형 검색
 - /chat/stream: SSE 스트리밍 대화형 검색
+
+STORY-051 Day 2: /chat 엔드포인트가 LangGraph RAGWorkflow를 사용
 """
 
 from typing import Any, Dict, List, Optional
@@ -16,7 +18,12 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.core.logging import get_logger
-from app.services.rag_pipeline import get_rag_pipeline
+from app.services.llm_adapter import (
+    ServiceConnectionError,
+    ServiceRateLimitError,
+    ServiceTimeoutError,
+    ServiceValidationError,
+)
 from app.services.search import get_search_service
 
 logger = get_logger(__name__)
@@ -81,6 +88,47 @@ class SemanticSearchRequest(BaseModel):
     query: str = Field(min_length=1, max_length=1000, description="검색 질의")
     top_k: int = Field(default=10, ge=1, le=100, description="반환할 결과 수")
     filters: Optional[Dict[str, Any]] = Field(default=None, description="필터 조건")
+
+
+# ---------------------------------------------------------------------------
+# Error translation helper
+# ---------------------------------------------------------------------------
+
+
+def _translate_service_error(error: Exception) -> HTTPException:
+    """
+    서비스 예외를 HTTPException으로 변환
+
+    Args:
+        error: 서비스 예외
+
+    Returns:
+        HTTPException (적절한 HTTP 상태 코드)
+    """
+    if isinstance(error, ServiceTimeoutError):
+        return HTTPException(
+            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+            detail=str(error),
+        )
+    if isinstance(error, ServiceConnectionError):
+        return HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(error),
+        )
+    if isinstance(error, ServiceRateLimitError):
+        return HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=str(error),
+        )
+    if isinstance(error, ServiceValidationError):
+        return HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(error),
+        )
+    return HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail=f"처리 중 오류가 발생했습니다: {str(error)}",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -259,55 +307,68 @@ async def keyword_search(request: SearchRequest) -> SearchResponse:
 
 
 # ---------------------------------------------------------------------------
-# Chat Search (RAG)
+# Chat Search (LangGraph RAG Workflow)
 # ---------------------------------------------------------------------------
 
 
 @router.post(
     "/chat",
     response_model=ChatResponse,
-    summary="대화형 검색",
-    description="검색 + RAG 답변 합성을 포함한 대화형 검색",
+    summary="대화형 검색 (LangGraph)",
+    description="LangGraph RAG Workflow 기반 대화형 검색 (STORY-051)",
 )
 async def chat_search(request: ChatRequest) -> ChatResponse:
     """
-    대화형 검색 (RAG)
+    대화형 검색 (LangGraph RAG Workflow)
 
-    1. Hybrid 검색으로 관련 문서 청크를 가져옴
-    2. RAG 파이프라인으로 컨텍스트 구성 + LLM 답변 생성
+    STORY-051: SearchService -> LangGraph Workflow 연결
+    Planner -> Retriever -> Reranker -> Generator 파이프라인을 통해
+    답변을 생성합니다.
 
     Args:
         request: 대화형 검색 요청
 
     Returns:
         생성된 답변 및 출처 정보
+
+    Raises:
+        HTTPException(400): 입력 검증 실패
+        HTTPException(429): Rate Limit 초과
+        HTTPException(502): 서비스 연결 실패
+        HTTPException(504): 타임아웃
     """
-    logger.info(f"Chat search - Query: {request.query[:50]}...")
+    logger.info(f"Chat search (LangGraph) - Query: {request.query[:50]}...")
 
     try:
-        # 1. Hybrid 검색
-        search_service = get_search_service()
-        search_result = await search_service.hybrid_search(
+        from app.agents.rag_workflow import get_rag_workflow
+        from app.services.search import get_search_service as _get_svc
+
+        # RAGWorkflow 초기화 (SearchService 주입)
+        search_svc = _get_svc()
+        workflow = get_rag_workflow(search_service=search_svc)
+
+        # 워크플로우 실행
+        response = await workflow.run(
             query=request.query,
             top_k=request.top_k,
-        )
-
-        search_results = search_result.get("results", [])
-
-        # 2. RAG 파이프라인
-        rag_pipeline = get_rag_pipeline()
-        rag_response = await rag_pipeline.process_query(
-            query=request.query,
-            search_results=search_results,
             use_reasoner=request.use_reasoner,
         )
 
         return ChatResponse(
-            answer=rag_response.answer,
-            sources=rag_response.sources,
+            answer=response.answer,
+            sources=response.sources,
             conversation_id=request.conversation_id,
-            latency_ms=rag_response.latency_ms,
+            latency_ms=response.latency_ms,
         )
+
+    except (
+        ServiceTimeoutError,
+        ServiceConnectionError,
+        ServiceRateLimitError,
+        ServiceValidationError,
+    ) as e:
+        logger.error(f"Chat search service error: {e}")
+        raise _translate_service_error(e)
 
     except Exception as e:
         logger.exception(f"Chat search failed: {e}")
@@ -349,34 +410,52 @@ async def chat_stream(request: ChatRequest) -> StreamingResponse:
 
     async def generate():
         """SSE 이벤트 생성기"""
+        import json
+        import re
+
         try:
-            # 1. Hybrid 검색
-            search_service = get_search_service()
-            search_result = await search_service.hybrid_search(
+            from app.agents.rag_workflow import get_rag_workflow
+            from app.services.search import get_search_service as _get_svc
+
+            search_svc = _get_svc()
+            workflow = get_rag_workflow(search_service=search_svc)
+
+            # 워크플로우 실행
+            response = await workflow.run(
                 query=request.query,
                 top_k=request.top_k,
+                use_reasoner=request.use_reasoner,
             )
 
-            search_results = search_result.get("results", [])
+            # 시작 이벤트
+            start_event = json.dumps({
+                "type": "start",
+                "sources": response.sources,
+                "context_length": response.context_length,
+            }, ensure_ascii=False)
+            yield f"data: {start_event}\n\n"
 
-            # 2. RAG 스트리밍
-            rag_pipeline = get_rag_pipeline()
-            async for event in rag_pipeline.generate_stream(
-                query=request.query,
-                search_results=search_results,
-            ):
-                yield event
+            # 답변을 문장 단위로 분할하여 스트리밍
+            sentences = re.split(r'(?<=[.!?。])\s+', response.answer)
+            for sentence in sentences:
+                sentence = sentence.strip()
+                if sentence:
+                    chunk_event = json.dumps({
+                        "type": "chunk",
+                        "content": sentence,
+                    }, ensure_ascii=False)
+                    yield f"data: {chunk_event}\n\n"
 
         except Exception as e:
-            import json
             error_event = json.dumps({
                 "type": "error",
                 "message": f"스트리밍 검색 실패: {str(e)}",
             }, ensure_ascii=False)
             yield f"data: {error_event}\n\n"
 
-            end_event = json.dumps({"type": "end"})
-            yield f"data: {end_event}\n\n"
+        # 종료 이벤트
+        end_event = json.dumps({"type": "end"})
+        yield f"data: {end_event}\n\n"
 
     return StreamingResponse(
         generate(),

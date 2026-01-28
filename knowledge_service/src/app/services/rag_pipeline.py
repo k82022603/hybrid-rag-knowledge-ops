@@ -1,8 +1,14 @@
 """
-RAG 파이프라인 서비스 모듈
+RAG 파이프라인 서비스 모듈 [DEPRECATED]
 
-Retrieval-Augmentation-Generation 파이프라인 구현
-- 컨텍스트 구성 (검색 결과 → 프롬프트 컨텍스트)
+.. deprecated:: STORY-051
+    이 모듈은 레거시 RAG 파이프라인입니다.
+    새로운 코드에서는 ``app.agents.rag_workflow.RAGWorkflow``를 사용하세요.
+    LangGraph 기반 워크플로우가 Planner -> Retriever -> Reranker -> Generator
+    파이프라인을 제공합니다.
+
+기존 기능:
+- 컨텍스트 구성 (검색 결과 -> 프롬프트 컨텍스트)
 - 프롬프트 템플릿 관리
 - LLM 기반 답변 생성 (DeepSeek V3.2)
 - 스트리밍 응답 지원
@@ -11,6 +17,7 @@ Retrieval-Augmentation-Generation 파이프라인 구현
 
 import json
 import time
+import warnings
 from typing import Any, AsyncIterator, Dict, List, Optional
 
 from app.agents.state import SearchResult
@@ -20,6 +27,13 @@ from app.core.logging import get_logger
 from app.services.llm_service import get_llm_service
 
 logger = get_logger(__name__)
+
+# STORY-051: 레거시 파이프라인 비활성화 경고
+_DEPRECATION_MSG = (
+    "RAGPipeline은 레거시 파이프라인입니다. "
+    "app.agents.rag_workflow.RAGWorkflow를 사용하세요. "
+    "(STORY-051: LangGraph 통합)"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -106,10 +120,14 @@ class RAGPipeline:
     """
     RAG (Retrieval-Augmented Generation) 파이프라인
 
+    .. deprecated:: STORY-051
+        이 클래스는 레거시 파이프라인입니다.
+        새로운 코드에서는 ``app.agents.rag_workflow.RAGWorkflow``를 사용하세요.
+
     검색 결과를 컨텍스트로 구성하고 LLM을 통해 답변을 생성합니다.
 
     Pipeline:
-        1. 검색 결과 → 컨텍스트 구성 (Augmentation)
+        1. 검색 결과 -> 컨텍스트 구성 (Augmentation)
         2. 프롬프트 템플릿 적용
         3. LLM 호출 (Generation)
         4. 출처 정보 생성
@@ -130,6 +148,9 @@ class RAGPipeline:
             max_context_length: 컨텍스트 최대 문자 수
             max_context_chunks: 컨텍스트에 포함할 최대 청크 수
         """
+        warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=2)
+        logger.warning(_DEPRECATION_MSG)
+
         self.system_prompt = system_prompt or SYSTEM_PROMPT_KO
         self.max_context_length = max_context_length
         self.max_context_chunks = max_context_chunks
