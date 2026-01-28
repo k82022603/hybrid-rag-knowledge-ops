@@ -2,8 +2,9 @@
 
 > Claude Code 세션 간 컨텍스트 유지를 위한 계획 문서
 >
-> **Last Updated**: 2026-01-28
-> **Current Phase**: Phase 3 구현 완료 → Sprint 04 진행 중 (보완 + 품질 강화, 52pts)
+> **Last Updated**: 2026-01-28 (Day 3 마감)
+> **Current Phase**: Phase 3 구현 완료 → Sprint 04 Day 3 (보완 + 품질 강화, 52pts)
+> **Sprint 04**: 4/13 Story 완료 (18/52pts), 블로커 SCRUM-55~60 (Docker E2E 19건 실패)
 > **Frontend 전략 변경**: Tailwind + Antigravity + Stitch MCP 도입 결정 (2026-01-25)
 > **소스코드 리뷰**: 72.5/100 B+ (Gateway 65, Backend 72, AI Service 78, Frontend 75)
 
@@ -15,7 +16,7 @@
 [Phase 1: 기획]     ████████████████████ 100% ✅ 완료
 [Phase 2: 설계]     ████████████████████ 100% ✅ 완료 (91점 A등급 승인)
 [Phase 3: 구현]     ████████████████████ 100% ✅ Sprint 03 완료 (15 Story Done, 84/84 pts)
-[Phase 4: 테스트]   █████████░░░░░░░░░░░  45% 🔄 테스트 390+ (Unit/Integration), Sprint 04 P0 착수
+[Phase 4: 테스트]   ██████████░░░░░░░░░░  50% 🔄 테스트 390+ (Unit) + 258 (E2E/Contract), Sprint 04 블로커 대응
 [Phase 5: 배포]     ░░░░░░░░░░░░░░░░░░░░   0%
 ```
 
@@ -285,11 +286,11 @@
 
 | Story | SP | 담당 | 상태 | Jira |
 |-------|:--:|------|:----:|:----:|
-| STORY-050 SSE 프로토콜 수정 | 5 | Frontend | In Progress | SCRUM-40 |
-| STORY-051 RAG 파이프라인 통합 | 8 | RAG | In Progress | SCRUM-41 |
-| STORY-052 Reranker async 전환 | 2 | RAG | To Do | SCRUM-42 |
-| STORY-053 보안 강화 | 3 | Backend | In Progress | SCRUM-43 |
-| STORY-054 통합 테스트 (Contract) | 5 | QA | To Do | SCRUM-44 |
+| STORY-050 SSE 프로토콜 수정 | 5 | Frontend | **Done** | SCRUM-40 |
+| STORY-051 RAG 파이프라인 통합 | 8 | RAG | **Done** | SCRUM-41 |
+| STORY-052 Reranker async 전환 | 2 | RAG | **Done** | SCRUM-42 |
+| STORY-053 보안 강화 | 3 | Backend | **Done** | SCRUM-43 |
+| STORY-054 통합 테스트 (Contract) | 5 | QA | **In Progress** (블로커) | SCRUM-44 |
 | STORY-055 보안 테스트 | 3 | QA | To Do | SCRUM-45 |
 | STORY-056 Frontend ErrorBoundary | 3 | Frontend | To Do | SCRUM-46 |
 | STORY-057 대화이력 + 스트리밍 | 5 | RAG | To Do | SCRUM-47 |
@@ -306,6 +307,23 @@
 - STORY-053: 보안 강화 착수 (JWT Secret 환경변수화 설계)
 - Architecture Review 완료 (SSE/Pipeline/Security 3개 영역)
 - E2E 테스트 계획서 작성 (P0 Critical 4건 검증 시나리오)
+
+**Day 2 성과** (2026-01-28): 4 Story 완료 (STORY-050/051/052/053 = 18pts), 커밋 8건
+- STORY-050: SSE 프로토콜 전환 완료 + 토큰 스트리밍 공백 처리 수정
+- STORY-051: RAG 파이프라인 SearchService→LangGraph, LLM Adapter 완성
+- STORY-052: Reranker asyncio.to_thread 래핑 전환 완료
+- STORY-053: 보안 환경변수 설정 가이드 + 최종 검증 완료
+- SSE GET/POST Mismatch 핫픽스
+- Day 1 구현물 TechLead Code Review 완료
+
+**Day 3 성과** (2026-01-28): E2E 테스트 체계 구축 + Docker E2E 19건 블로커 발견
+- E2E Frontend/Backend 테스트 5개 (Mock/Docker 듀얼모드) + Contract 테스트 3개
+- E2E 결과: Mock 96/96 (100%), Docker 39/96 (40.6%), Contract 62/62 (100%)
+- SCRUM-54~60: 7건 Jira 이슈 등록 (6건 블로커 + 1건 상위 이슈)
+- TechLead 근본원인 분석: SCRUM-57 해결 시 14/19건 연쇄 해결
+- 보안 정책 확정: 모든 데이터 API JWT 필수 (사용자 승인)
+- Mock 전수조사 보고서 (74파일 분석, 92% Mock 기반)
+- 긴급 회의 + 스탠드업 미팅 완료
 
 ---
 
@@ -852,24 +870,32 @@ CI/CD Pipeline (GitHub Actions)
 
 ## Session Notes
 
-### 2026-01-28 (Sprint 04 Day 1 - 킥오프 + P0 착수)
-- **Sprint 04 킥오프 완료**
-  - Sprint 문서 활성화, Jira SCRUM-40~52 (13개 Story) 생성
-  - Sprint 03 완료 리뷰 + DevOps 파이프라인 점검 회의록 작성
-- **STORY-050 SSE 프로토콜 전환** (Frontend, 5 SP) - In Progress
-  - EventSource(GET) → fetch+ReadableStream(POST) 전환 구현
-  - useStreamingSearch 훅 신규 작성
-  - POST body에 query, conversation_history, topK 파라미터 포함
-- **STORY-051 RAG 파이프라인 통합** (RAG, 8 SP) - In Progress
-  - LLM Service Adapter 패턴 구현 (llm_adapter.py)
-  - Pipeline 부트스트랩 코드 작성 (bootstrap.py)
-  - RetrieverNode ↔ HybridRetriever 연결 설계
-- **STORY-053 보안 강화** (Backend, 3 SP) - In Progress
-  - JWT Secret 환경변수화 설계
-  - 입력 검증 + 기본 자격증명 제거 계획
-- **Architecture Review 완료**: SSE/Pipeline/Security 3개 영역 사전 기술 검토
-- **E2E 테스트 계획서 작성**: P0 Critical 4건 검증 시나리오
-- **커밋 7건**: `1247a29`, `bc0524c`, `9a9aa99`, `d84c49e`, `0f27e84`, `a23367b`, `74c182c`
+### 2026-01-28 (Sprint 04 Day 1~3 - 킥오프 → 구현 → 블로커 발견)
+
+**Day 1 (킥오프 + P0 착수)**:
+- Sprint 04 킥오프, Jira SCRUM-40~52 (13개 Story) 생성
+- STORY-050 SSE 전환 착수, STORY-051 RAG 통합 착수, STORY-053 보안 강화 착수
+- Architecture Review (SSE/Pipeline/Security), E2E 테스트 계획서 작성
+- 커밋 7건
+
+**Day 2 (구현 완료 + 핫픽스)**:
+- STORY-050 SSE 전환 완료, STORY-051 RAG 파이프라인 완료
+- STORY-052 Reranker async 전환 완료, STORY-053 보안 강화 완료
+- SSE GET/POST Mismatch 핫픽스, TechLead Day 1 코드 리뷰 완료
+- 커밋 8건
+
+**Day 3 (E2E 테스트 + 블로커 발견)**:
+- E2E Frontend/Backend 5개 + Contract 3개 테스트 구현
+- E2E 실행: Mock 96/96 (100%), Docker 39/96 (40.6%), Contract 62/62 (100%)
+- **SCRUM-54~60**: Docker E2E 19건 실패 → 6건 근본원인 분류
+- **핵심**: SCRUM-57 (@JsonProperty) 해결 시 14/19건 연쇄 해결
+- 보안 정책 확정 (사용자 승인): 모든 데이터 API JWT 필수
+- 긴급 회의 (E2E 준비 미흡 대책) + 3단계 E2E 전략 합의
+- Mock 전수조사 보고서 (74파일, 92% Mock)
+- Docling Docker 설정 + 운영 매뉴얼
+- 스탠드업 미팅 (9 에이전트), 내일 의제 5건 확정
+- 커밋 1건 (Day 3 전체)
+- **총 Day 1~3**: 16 커밋, 4 Story Done (18/52pts), 20 Jira 이슈
 
 ### 2026-01-26 Night (GitHub Actions 장애 수정 + 문서화)
 - **Docker Build 장애 수정**: `eclipse-temurin:17-jre-alpine` arm64 미지원 → `linux/amd64` 단일 플랫폼
