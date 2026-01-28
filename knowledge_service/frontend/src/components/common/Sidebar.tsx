@@ -129,7 +129,9 @@ const Sidebar: React.FC<SidebarProps> = ({ open, width, onClose }) => {
         {/* Navigation */}
         <nav className="p-4 space-y-1">
           {filteredMenuItems.map((item) => {
-            const isActive = location.pathname === item.path;
+            const isActive =
+              location.pathname === item.path ||
+              location.pathname.startsWith(item.path + '/');
             return (
               <React.Fragment key={item.path}>
                 {item.dividerBefore && (

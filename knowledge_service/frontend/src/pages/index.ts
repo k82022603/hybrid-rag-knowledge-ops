@@ -3,3 +3,7 @@ export { default as SearchPage } from './SearchPage';
 export { default as KnowledgePage } from './KnowledgePage';
 export { default as NotFoundPage } from './NotFoundPage';
 export { default as LoginPage } from './LoginPage';
+export { default as BookmarkPage } from './BookmarkPage';
+export { default as ProfilePage } from './ProfilePage';
+export { default as AdminPage } from './AdminPage';
+export { default as DocumentUploadPage } from './DocumentUploadPage';

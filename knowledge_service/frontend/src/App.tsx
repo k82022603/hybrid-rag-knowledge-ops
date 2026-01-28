@@ -11,6 +11,7 @@ import DocumentUploadPage from '@/pages/DocumentUploadPage';
 import NotFoundPage from '@/pages/NotFoundPage';
 import LoginPage from '@/pages/LoginPage';
 import { ProtectedRoute, RequireKnowledgeManager, RequireAdmin } from '@/auth';
+import { ChatSearch, KeywordSearch } from '@/features/search';
 
 function App() {
   return (
@@ -31,6 +32,8 @@ function App() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="search" element={<SearchPage />} />
+          <Route path="search/chat" element={<ChatSearch />} />
+          <Route path="search/keyword" element={<KeywordSearch />} />
           <Route
             path="knowledge"
             element={
