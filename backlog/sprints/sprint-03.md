@@ -49,8 +49,8 @@ Sprint 2 완료 항목 (필수):
 | P0 | STORY-005 | SCRUM-35 | KG 엔티티 추출 | 5 | ETL/RAG | **Done** ✅ (106/106 테스트) | 2026-01-28 완료 |
 | P0 | STORY-006 | SCRUM-36 | Neo4j/ES 저장 | 5 | ETL/DB | **Done** ✅ (84/86 테스트) | 2026-01-28 완료 |
 | P1 | STORY-004 | SCRUM-37 | BGE-M3 Embedding 통합 테스트 | 1 | RAG | **Done** ✅ (Basic 5/5, Integration 7/7) | 2026-01-28 완료 |
-| P1 | STORY-046 | SCRUM-38 | Frontend 4페이지 + 11개 개선 (이월) | 8 | Frontend | **In Progress** | 20파일 완료 |
-| P1 | STORY-047 | SCRUM-39 | Backend API 32개 (이월) | 13 | Backend | **In Progress** | 57파일 완료 |
+| P1 | STORY-046 | SCRUM-38 | Frontend 4페이지 + 11개 개선 (이월) | 8 | Frontend | **Done** ✅ (4페이지 2552줄) | 2026-01-28 완료 |
+| P1 | STORY-047 | SCRUM-39 | Backend API 32개 (이월) | 13 | Backend | **Done** ✅ (40+ endpoints) | 2026-01-28 완료 |
 
 ### Epic 002: Hybrid RAG Search (34 pts)
 
@@ -58,7 +58,7 @@ Sprint 2 완료 항목 (필수):
 |----------|-----|------|------|--------|----------|--------|
 | P0 | STORY-030 | SCRUM-25 | HybridRetriever 구현 | 8 | MLRag | **Done** ✅ (43/43 테스트) |
 | P0 | STORY-031 | SCRUM-26 | RRF Fusion 알고리즘 | 5 | MLRag | **Done** ✅ (55/55 테스트) |
-| P0 | STORY-032 | SCRUM-27 | BGE Reranker 통합 | 5 | MLRag | To Do |
+| P0 | STORY-032 | SCRUM-27 | BGE Reranker 통합 | 5 | MLRag | **Done** ✅ (65 테스트) |
 | P0 | STORY-033 | SCRUM-28 | LangGraph 워크플로우 | 8 | MLRag | To Do |
 | P1 | STORY-044 | SCRUM-33 | Backend Search Service | 5 | Backend | **Done** ✅ (32건 테스트) |
 | P1 | STORY-045 | SCRUM-34 | 초기 데이터 ETL | 3 | Data | **Done** ✅ (60건 테스트) |
@@ -69,7 +69,7 @@ Sprint 2 완료 항목 (필수):
 |----------|-----|------|------|--------|----------|--------|
 | P0 | STORY-040 | SCRUM-29 | Frontend Keycloak 연동 | 5 | Frontend | **Done** ✅ (AC 5/5) |
 | P0 | STORY-041 | SCRUM-30 | Dashboard UI | 5 | Frontend | **Done** ✅ (63건 테스트) |
-| P0 | STORY-042 | SCRUM-31 | Search UI 컴포넌트 | 5 | Frontend | To Do |
+| P0 | STORY-042 | SCRUM-31 | Search UI 컴포넌트 | 5 | Frontend | **Done** ✅ (11파일 1272줄) |
 | P1 | STORY-043 | SCRUM-32 | SSE 스트리밍 응답 | 3 | Frontend | To Do |
 
 ### Stretch (여유 시 추가)
