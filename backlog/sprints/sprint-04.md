@@ -7,7 +7,7 @@
 | **기간** | 2026-01-29 ~ (2주) |
 | **Velocity (계획)** | 52 pts (13 Stories) |
 | **Velocity (실제)** | - |
-| **Status** | planning |
+| **Status** | active |
 | **Jira Sprint ID** | - |
 | **근거** | [Sprint 03 완료 리뷰](../../work_logs/meetings/2026/01-January/2026-01-28_sprint03_completion_review.md) |
 
