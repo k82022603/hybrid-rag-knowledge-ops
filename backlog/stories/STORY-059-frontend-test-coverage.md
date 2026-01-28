@@ -4,7 +4,7 @@
 
 | 항목 | 값 |
 |------|-----|
-| **Jira ID** | (미정) |
+| **Jira ID** | SCRUM-49 |
 | **Epic** | EPIC-003 |
 | **Status** | To Do |
 | **Priority** | Medium |

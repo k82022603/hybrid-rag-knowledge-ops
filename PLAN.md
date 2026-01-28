@@ -214,7 +214,7 @@
 
 **성과**: 10일 계획 → 1일 완료 (1000% 효율!)
 
-| Story | SP | 담당 | 상태 |
+| Story | SP | 담당 | 상태 | Jira |
 |-------|-----|------|------|
 | SCRUM-10: Docker Compose 18개 컨테이너 | 5 | Infra | ✅ Done |
 | SCRUM-11: DB 초기화 스크립트 | 3 | Data | ✅ Done |
@@ -233,8 +233,8 @@
 
 ### Sprint 02 (완료) - Document Processing Pipeline (100%)
 
-| Story | SP | 담당 | 상태 |
-|-------|:--:|------|:----:|
+| Story | SP | 담당 | 상태 | Jira |
+|-------|:--:|------|:----:|:----:|
 | STORY-020 Infra E2E Test | 3 | Infra/QA | Done |
 | STORY-021 Gateway 라우팅 | 5 | Backend | Done |
 | STORY-022 JWT 인증 필터 | 3 | Backend | Done |
@@ -256,8 +256,8 @@
 **목표**: Hybrid RAG 검색 파이프라인 완성 + Frontend 핵심 UI 구현
 **총 포인트**: 84 pts (신규 52 + 이월 32)
 
-| Story | SP | 담당 | 상태 |
-|-------|:--:|------|:----:|
+| Story | SP | 담당 | 상태 | Jira |
+|-------|:--:|------|:----:|:----:|
 | STORY-005 KG 엔티티 추출 | 5 | ETL/RAG | Done ✅ |
 | STORY-006 Neo4j/ES 저장 | 5 | ETL/DB | Done ✅ |
 | STORY-004 BGE-M3 통합 테스트 | 1 | RAG | Done ✅ |
@@ -283,21 +283,21 @@
 **목표**: Critical/High 이슈 해결 + 프로덕션 준비도 65% → 85%
 **총 포인트**: 52 pts (13 Stories)
 
-| Story | SP | 담당 | 상태 |
-|-------|:--:|------|:----:|
-| STORY-050 SSE 프로토콜 수정 | 5 | Frontend | To Do |
-| STORY-051 RAG 파이프라인 통합 | 8 | RAG | To Do |
-| STORY-052 Reranker async 전환 | 2 | RAG | To Do |
-| STORY-053 보안 강화 | 3 | Backend | To Do |
-| STORY-054 통합 테스트 (Contract) | 5 | QA | To Do |
-| STORY-055 보안 테스트 | 3 | QA | To Do |
-| STORY-056 Frontend ErrorBoundary | 3 | Frontend | To Do |
-| STORY-057 대화이력 + 스트리밍 | 5 | RAG | To Do |
-| STORY-058 RAGAS 평가 통합 | 5 | RAG | To Do |
-| STORY-059 Frontend 테스트 커버리지 | 5 | Frontend | To Do |
-| STORY-060 Planner 전략 + 캐싱 | 3 | RAG | To Do |
-| STORY-061 타임아웃 + Circuit Breaker | 3 | RAG | To Do |
-| STORY-062 접근성 WCAG 2.1 AA | 2 | Frontend | To Do |
+| Story | SP | 담당 | 상태 | Jira |
+|-------|:--:|------|:----:|:----:|
+| STORY-050 SSE 프로토콜 수정 | 5 | Frontend | To Do | SCRUM-40 |
+| STORY-051 RAG 파이프라인 통합 | 8 | RAG | To Do | SCRUM-41 |
+| STORY-052 Reranker async 전환 | 2 | RAG | To Do | SCRUM-42 |
+| STORY-053 보안 강화 | 3 | Backend | To Do | SCRUM-43 |
+| STORY-054 통합 테스트 (Contract) | 5 | QA | To Do | SCRUM-44 |
+| STORY-055 보안 테스트 | 3 | QA | To Do | SCRUM-45 |
+| STORY-056 Frontend ErrorBoundary | 3 | Frontend | To Do | SCRUM-46 |
+| STORY-057 대화이력 + 스트리밍 | 5 | RAG | To Do | SCRUM-47 |
+| STORY-058 RAGAS 평가 통합 | 5 | RAG | To Do | SCRUM-48 |
+| STORY-059 Frontend 테스트 커버리지 | 5 | Frontend | To Do | SCRUM-49 |
+| STORY-060 Planner 전략 + 캐싱 | 3 | RAG | To Do | SCRUM-50 |
+| STORY-061 타임아웃 + Circuit Breaker | 3 | RAG | To Do | SCRUM-51 |
+| STORY-062 접근성 WCAG 2.1 AA | 2 | Frontend | To Do | SCRUM-52 |
 
 ---
 

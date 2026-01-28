@@ -46,35 +46,35 @@ Sprint 03 완료 항목 (모두 충족):
 
 ### P0 - Critical (Week 1)
 
-| Priority | ID | 제목 | Points | Assignee | Status |
-|----------|-----|------|--------|----------|--------|
-| P0 | STORY-050 | SSE 프로토콜 수정 (fetch+ReadableStream 전환) | 5 | Frontend | To Do |
-| P0 | STORY-051 | RAG 파이프라인 통합 (ai_service ↔ knowledge_service) | 8 | RAG | To Do |
-| P0 | STORY-052 | Reranker async 전환 (asyncio.to_thread) | 2 | RAG | To Do |
-| P0 | STORY-053 | 보안 강화 (JWT Secret, 입력 검증, 기본 자격증명 제거) | 3 | Backend | To Do |
+| Priority | ID | Jira | 제목 | Points | Assignee | Status |
+|----------|-----|------|------|--------|----------|--------|
+| P0 | STORY-050 | SCRUM-40 | SSE 프로토콜 수정 (fetch+ReadableStream 전환) | 5 | Frontend | To Do |
+| P0 | STORY-051 | SCRUM-41 | RAG 파이프라인 통합 (ai_service ↔ knowledge_service) | 8 | RAG | To Do |
+| P0 | STORY-052 | SCRUM-42 | Reranker async 전환 (asyncio.to_thread) | 2 | RAG | To Do |
+| P0 | STORY-053 | SCRUM-43 | 보안 강화 (JWT Secret, 입력 검증, 기본 자격증명 제거) | 3 | Backend | To Do |
 
 **소계**: 18 pts (4 Stories)
 
 ### P1 - High (Week 2)
 
-| Priority | ID | 제목 | Points | Assignee | Status |
-|----------|-----|------|--------|----------|--------|
-| P1 | STORY-054 | 서비스 간 통합 테스트 (Contract Test) | 5 | QA | To Do |
-| P1 | STORY-055 | 보안 테스트 (XSS, SQL Injection, Auth) | 3 | QA | To Do |
-| P1 | STORY-056 | Frontend ErrorBoundary + 성능 최적화 | 3 | Frontend | To Do |
-| P1 | STORY-057 | Generator 대화이력 전달 + 진정한 스트리밍 | 5 | RAG | To Do |
-| P1 | STORY-058 | RAGAS 평가 프레임워크 통합 | 5 | RAG | To Do |
+| Priority | ID | Jira | 제목 | Points | Assignee | Status |
+|----------|-----|------|------|--------|----------|--------|
+| P1 | STORY-054 | SCRUM-44 | 서비스 간 통합 테스트 (Contract Test) | 5 | QA | To Do |
+| P1 | STORY-055 | SCRUM-45 | 보안 테스트 (XSS, SQL Injection, Auth) | 3 | QA | To Do |
+| P1 | STORY-056 | SCRUM-46 | Frontend ErrorBoundary + 성능 최적화 | 3 | Frontend | To Do |
+| P1 | STORY-057 | SCRUM-47 | Generator 대화이력 전달 + 진정한 스트리밍 | 5 | RAG | To Do |
+| P1 | STORY-058 | SCRUM-48 | RAGAS 평가 프레임워크 통합 | 5 | RAG | To Do |
 
 **소계**: 21 pts (5 Stories)
 
 ### P2 - Medium (Sprint 04+ 또는 Sprint 05)
 
-| Priority | ID | 제목 | Points | Assignee | Status |
-|----------|-----|------|--------|----------|--------|
-| P2 | STORY-059 | Frontend 테스트 커버리지 확장 (25%→60%) | 5 | Frontend | To Do |
-| P2 | STORY-060 | Planner 전략 유효화 + 검색 캐싱 | 3 | RAG | To Do |
-| P2 | STORY-061 | 파이프라인 타임아웃 + Circuit Breaker | 3 | RAG | To Do |
-| P2 | STORY-062 | 접근성 (WCAG 2.1 AA) 보완 | 2 | Frontend | To Do |
+| Priority | ID | Jira | 제목 | Points | Assignee | Status |
+|----------|-----|------|------|--------|----------|--------|
+| P2 | STORY-059 | SCRUM-49 | Frontend 테스트 커버리지 확장 (25%→60%) | 5 | Frontend | To Do |
+| P2 | STORY-060 | SCRUM-50 | Planner 전략 유효화 + 검색 캐싱 | 3 | RAG | To Do |
+| P2 | STORY-061 | SCRUM-51 | 파이프라인 타임아웃 + Circuit Breaker | 3 | RAG | To Do |
+| P2 | STORY-062 | SCRUM-52 | 접근성 (WCAG 2.1 AA) 보완 | 2 | Frontend | To Do |
 
 **소계**: 13 pts (4 Stories)
 
