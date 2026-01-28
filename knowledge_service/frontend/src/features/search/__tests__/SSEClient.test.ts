@@ -1,58 +1,76 @@
 /**
- * SSEClient unit tests
+ * SSEPostClient unit tests
  *
- * Tests the SSEClient utility class for:
- * - Connection lifecycle (connect, close, abort)
- * - Message parsing (token, sources, [DONE], raw text, JSON)
+ * Tests the SSEPostClient utility class for:
+ * - POST-based connection lifecycle (connect, close, abort)
+ * - fetch + ReadableStream processing
+ * - SSE event parsing (data:, event:, [DONE], JSON, raw text)
  * - Error handling with exponential backoff retry
- * - Abort cancellation
+ * - Abort/cancel via AbortController
  * - Reconnection logic
+ * - Authorization header inclusion
+ *
+ * STORY-050: Migrated from EventSource-based tests to
+ * fetch + ReadableStream mocks.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { SSEClient, type SSEOptions } from '@/shared/api/sse';
+import {
+  SSEPostClient,
+  parseSSEBuffer,
+  type SSEPostClientOptions,
+  type SSERequestBody,
+} from '@/shared/api/sse';
 
 // --------------------------------------------------------------------------
-// Mock EventSource
+// Mock fetch + ReadableStream
 // --------------------------------------------------------------------------
 
-type EventSourceHandler = ((event: MessageEvent) => void) | null;
-type EventSourceErrorHandler = ((event: Event) => void) | null;
-type EventSourceOpenHandler = ((event: Event) => void) | null;
+/** Helper to create a ReadableStream from SSE text chunks */
+function createSSEStream(
+  chunks: string[]
+): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  let index = 0;
 
-let mockEventSourceInstance: {
-  onmessage: EventSourceHandler;
-  onerror: EventSourceErrorHandler;
-  onopen: EventSourceOpenHandler;
-  close: ReturnType<typeof vi.fn>;
-  readyState: number;
-  url: string;
+  return new ReadableStream({
+    pull(controller) {
+      if (index < chunks.length) {
+        controller.enqueue(encoder.encode(chunks[index]));
+        index++;
+      } else {
+        controller.close();
+      }
+    },
+  });
+}
+
+/** Helper to create a mock Response with SSE stream */
+function createMockResponse(
+  chunks: string[],
+  status = 200,
+  statusText = 'OK'
+): Response {
+  const stream = createSSEStream(chunks);
+  return new Response(stream, {
+    status,
+    statusText,
+    headers: { 'Content-Type': 'text/event-stream' },
+  });
+}
+
+/** Default request body for tests */
+const defaultBody: SSERequestBody = {
+  query: 'test query',
+  conversation_history: [],
+  top_k: 5,
 };
 
-const MockEventSource = vi.fn().mockImplementation((url: string) => {
-  mockEventSourceInstance = {
-    onmessage: null,
-    onerror: null,
-    onopen: null,
-    close: vi.fn(),
-    readyState: EventSource.OPEN,
-    url,
-  };
-  return mockEventSourceInstance;
-});
-
-// Assign EventSource readyState constants
-Object.defineProperty(MockEventSource, 'CONNECTING', { value: 0 });
-Object.defineProperty(MockEventSource, 'OPEN', { value: 1 });
-Object.defineProperty(MockEventSource, 'CLOSED', { value: 2 });
-
-// Replace global EventSource
-vi.stubGlobal('EventSource', MockEventSource);
-
-// --------------------------------------------------------------------------
-// Helper to create options with default mocks
-// --------------------------------------------------------------------------
-function createOptions(overrides: Partial<SSEOptions> = {}): SSEOptions {
+/** Helper to create options with default mocks */
+function createOptions(
+  overrides: Partial<Omit<SSEPostClientOptions, 'body'>> = {}
+): SSEPostClientOptions {
   return {
+    body: defaultBody,
     onToken: vi.fn(),
     onSources: vi.fn(),
     onComplete: vi.fn(),
@@ -66,113 +84,212 @@ function createOptions(overrides: Partial<SSEOptions> = {}): SSEOptions {
 }
 
 // --------------------------------------------------------------------------
-// Tests
+// parseSSEBuffer Tests
 // --------------------------------------------------------------------------
 
-describe('SSEClient', () => {
+describe('parseSSEBuffer', () => {
+  it('should parse a single data event', () => {
+    const onEvent = vi.fn();
+    const remaining = parseSSEBuffer('data: Hello\n\n', onEvent);
+
+    expect(onEvent).toHaveBeenCalledWith('message', 'Hello');
+    expect(remaining).toBe('');
+  });
+
+  it('should parse multiple events', () => {
+    const onEvent = vi.fn();
+    const remaining = parseSSEBuffer(
+      'data: first\n\ndata: second\n\n',
+      onEvent
+    );
+
+    expect(onEvent).toHaveBeenCalledTimes(2);
+    expect(onEvent).toHaveBeenCalledWith('message', 'first');
+    expect(onEvent).toHaveBeenCalledWith('message', 'second');
+    expect(remaining).toBe('');
+  });
+
+  it('should handle custom event types', () => {
+    const onEvent = vi.fn();
+    parseSSEBuffer('event: custom\ndata: payload\n\n', onEvent);
+
+    expect(onEvent).toHaveBeenCalledWith('custom', 'payload');
+  });
+
+  it('should return incomplete events as remaining buffer', () => {
+    const onEvent = vi.fn();
+    const remaining = parseSSEBuffer('data: complete\n\ndata: incomp', onEvent);
+
+    expect(onEvent).toHaveBeenCalledTimes(1);
+    expect(onEvent).toHaveBeenCalledWith('message', 'complete');
+    expect(remaining).toBe('data: incomp');
+  });
+
+  it('should handle multi-line data events', () => {
+    const onEvent = vi.fn();
+    parseSSEBuffer('data: line1\ndata: line2\n\n', onEvent);
+
+    expect(onEvent).toHaveBeenCalledWith('message', 'line1\nline2');
+  });
+
+  it('should ignore comment lines', () => {
+    const onEvent = vi.fn();
+    parseSSEBuffer(': this is a comment\ndata: actual data\n\n', onEvent);
+
+    expect(onEvent).toHaveBeenCalledWith('message', 'actual data');
+  });
+
+  it('should skip empty events', () => {
+    const onEvent = vi.fn();
+    parseSSEBuffer('\n\ndata: real\n\n', onEvent);
+
+    expect(onEvent).toHaveBeenCalledTimes(1);
+    expect(onEvent).toHaveBeenCalledWith('message', 'real');
+  });
+
+  it('should handle [DONE] sentinel as data', () => {
+    const onEvent = vi.fn();
+    parseSSEBuffer('data: [DONE]\n\n', onEvent);
+
+    expect(onEvent).toHaveBeenCalledWith('message', '[DONE]');
+  });
+
+  it('should handle JSON data events', () => {
+    const onEvent = vi.fn();
+    const json = JSON.stringify({ type: 'token', data: 'hello' });
+    parseSSEBuffer(`data: ${json}\n\n`, onEvent);
+
+    expect(onEvent).toHaveBeenCalledWith('message', json);
+  });
+});
+
+// --------------------------------------------------------------------------
+// SSEPostClient Tests
+// --------------------------------------------------------------------------
+
+describe('SSEPostClient', () => {
+  let fetchSpy: ReturnType<typeof vi.fn>;
+
   beforeEach(() => {
     vi.useFakeTimers();
-    MockEventSource.mockClear();
+    fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   // ===== Connection Lifecycle =====
 
   describe('connection lifecycle', () => {
-    it('should create an EventSource with the provided URL on connect()', () => {
+    it('should start in idle state', () => {
       const options = createOptions();
-      const client = new SSEClient('/api/test', options);
+      const client = new SSEPostClient('/api/test', options);
 
       expect(client.state).toBe('idle');
+      expect(client.isConnected).toBe(false);
+      expect(client.isAborted).toBe(false);
+    });
+
+    it('should transition to connecting state on connect()', () => {
+      fetchSpy.mockReturnValue(new Promise(() => {})); // Never resolves
+      const options = createOptions();
+      const client = new SSEPostClient('/api/test', options);
 
       client.connect();
 
-      expect(MockEventSource).toHaveBeenCalledWith('/api/test');
       expect(client.state).toBe('connecting');
     });
 
-    it('should transition to connected state when onopen fires', () => {
-      const options = createOptions();
-      const client = new SSEClient('/api/test', options);
+    it('should send POST request with correct headers and body', async () => {
+      const mockResponse = createMockResponse(['data: hello\n\ndata: [DONE]\n\n']);
+      fetchSpy.mockResolvedValue(mockResponse);
+
+      const options = createOptions({
+        headers: { Authorization: 'Bearer test-token' },
+      });
+      const client = new SSEPostClient('/api/test', options);
 
       client.connect();
-      mockEventSourceInstance.onopen?.(new Event('open'));
+      await vi.runAllTimersAsync();
 
-      expect(client.state).toBe('connected');
+      expect(fetchSpy).toHaveBeenCalledWith(
+        '/api/test',
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            Accept: 'text/event-stream',
+            Authorization: 'Bearer test-token',
+          }),
+          body: JSON.stringify(defaultBody),
+        })
+      );
     });
 
-    it('should report isConnected=true when state is connected and readyState is OPEN', () => {
+    it('should transition to closed state after stream completes', async () => {
+      const mockResponse = createMockResponse(['data: [DONE]\n\n']);
+      fetchSpy.mockResolvedValue(mockResponse);
+
       const options = createOptions();
-      const client = new SSEClient('/api/test', options);
+      const client = new SSEPostClient('/api/test', options);
 
       client.connect();
-      mockEventSourceInstance.onopen?.(new Event('open'));
+      await vi.runAllTimersAsync();
 
-      expect(client.isConnected).toBe(true);
+      expect(client.state).toBe('closed');
+      expect(options.onComplete).toHaveBeenCalled();
     });
 
-    it('should close the EventSource on close()', () => {
+    it('should close connection on close()', () => {
+      fetchSpy.mockReturnValue(new Promise(() => {}));
       const options = createOptions();
-      const client = new SSEClient('/api/test', options);
+      const client = new SSEPostClient('/api/test', options);
 
       client.connect();
       client.close();
 
-      expect(mockEventSourceInstance.close).toHaveBeenCalled();
       expect(client.state).toBe('closed');
-    });
-
-    it('should close existing connection before creating a new one on reconnect', () => {
-      const options = createOptions();
-      const client = new SSEClient('/api/test', options);
-
-      client.connect();
-      const firstInstance = mockEventSourceInstance;
-
-      // Simulate a second connect
-      client.connect();
-
-      expect(firstInstance.close).toHaveBeenCalled();
-      expect(MockEventSource).toHaveBeenCalledTimes(2);
     });
   });
 
   // ===== Message Parsing =====
 
   describe('message parsing', () => {
-    it('should call onToken for raw text data', () => {
+    it('should call onToken for raw text data', async () => {
+      const mockResponse = createMockResponse([
+        'data: Hello \n\ndata: [DONE]\n\n',
+      ]);
+      fetchSpy.mockResolvedValue(mockResponse);
+
       const options = createOptions();
-      const client = new SSEClient('/api/test', options);
+      const client = new SSEPostClient('/api/test', options);
 
       client.connect();
-      mockEventSourceInstance.onmessage?.(
-        new MessageEvent('message', { data: 'Hello ' })
-      );
+      await vi.runAllTimersAsync();
 
       expect(options.onToken).toHaveBeenCalledWith('Hello ');
     });
 
-    it('should call onToken for JSON token events', () => {
+    it('should call onToken for JSON token events', async () => {
+      const tokenEvent = JSON.stringify({ type: 'token', data: 'world' });
+      const mockResponse = createMockResponse([
+        `data: ${tokenEvent}\n\ndata: [DONE]\n\n`,
+      ]);
+      fetchSpy.mockResolvedValue(mockResponse);
+
       const options = createOptions();
-      const client = new SSEClient('/api/test', options);
+      const client = new SSEPostClient('/api/test', options);
 
       client.connect();
-      mockEventSourceInstance.onmessage?.(
-        new MessageEvent('message', {
-          data: JSON.stringify({ type: 'token', data: 'world' }),
-        })
-      );
+      await vi.runAllTimersAsync();
 
       expect(options.onToken).toHaveBeenCalledWith('world');
     });
 
-    it('should call onSources for JSON sources events', () => {
-      const options = createOptions();
-      const client = new SSEClient('/api/test', options);
-
+    it('should call onSources for JSON sources events', async () => {
       const sources = [
         {
           chunkId: 'c1',
@@ -181,41 +298,52 @@ describe('SSEClient', () => {
           score: 0.95,
         },
       ];
+      const sourcesEvent = JSON.stringify({ type: 'sources', data: sources });
+      const mockResponse = createMockResponse([
+        `data: ${sourcesEvent}\n\ndata: [DONE]\n\n`,
+      ]);
+      fetchSpy.mockResolvedValue(mockResponse);
+
+      const options = createOptions();
+      const client = new SSEPostClient('/api/test', options);
 
       client.connect();
-      mockEventSourceInstance.onmessage?.(
-        new MessageEvent('message', {
-          data: JSON.stringify({ type: 'sources', data: sources }),
-        })
-      );
+      await vi.runAllTimersAsync();
 
       expect(options.onSources).toHaveBeenCalledWith(sources);
     });
 
-    it('should call onComplete and close on [DONE] sentinel', () => {
+    it('should call onComplete and close on [DONE] sentinel', async () => {
+      const mockResponse = createMockResponse([
+        'data: some text\n\ndata: [DONE]\n\n',
+      ]);
+      fetchSpy.mockResolvedValue(mockResponse);
+
       const options = createOptions();
-      const client = new SSEClient('/api/test', options);
+      const client = new SSEPostClient('/api/test', options);
 
       client.connect();
-      mockEventSourceInstance.onmessage?.(
-        new MessageEvent('message', { data: '[DONE]' })
-      );
+      await vi.runAllTimersAsync();
 
       expect(options.onComplete).toHaveBeenCalled();
-      expect(mockEventSourceInstance.close).toHaveBeenCalled();
       expect(client.state).toBe('closed');
     });
 
-    it('should call onError for JSON error events from server', () => {
+    it('should call onError for JSON error events from server', async () => {
+      const errorEvent = JSON.stringify({
+        type: 'error',
+        message: 'Rate limit exceeded',
+      });
+      const mockResponse = createMockResponse([
+        `data: ${errorEvent}\n\ndata: [DONE]\n\n`,
+      ]);
+      fetchSpy.mockResolvedValue(mockResponse);
+
       const options = createOptions();
-      const client = new SSEClient('/api/test', options);
+      const client = new SSEPostClient('/api/test', options);
 
       client.connect();
-      mockEventSourceInstance.onmessage?.(
-        new MessageEvent('message', {
-          data: JSON.stringify({ type: 'error', message: 'Rate limit exceeded' }),
-        })
-      );
+      await vi.runAllTimersAsync();
 
       expect(options.onError).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -225,84 +353,133 @@ describe('SSEClient', () => {
       );
     });
 
-    it('should treat unknown JSON structure as raw token text', () => {
-      const options = createOptions();
-      const client = new SSEClient('/api/test', options);
-
+    it('should treat unknown JSON structure as raw token text', async () => {
       const unknownJson = JSON.stringify({ foo: 'bar' });
+      const mockResponse = createMockResponse([
+        `data: ${unknownJson}\n\ndata: [DONE]\n\n`,
+      ]);
+      fetchSpy.mockResolvedValue(mockResponse);
+
+      const options = createOptions();
+      const client = new SSEPostClient('/api/test', options);
+
       client.connect();
-      mockEventSourceInstance.onmessage?.(
-        new MessageEvent('message', { data: unknownJson })
-      );
+      await vi.runAllTimersAsync();
 
       expect(options.onToken).toHaveBeenCalledWith(unknownJson);
     });
 
-    it('should ignore messages after abort', () => {
+    it('should handle multiple chunks arriving separately', async () => {
+      const mockResponse = createMockResponse([
+        'data: first\n\n',
+        'data: second\n\n',
+        'data: [DONE]\n\n',
+      ]);
+      fetchSpy.mockResolvedValue(mockResponse);
+
       const options = createOptions();
-      const client = new SSEClient('/api/test', options);
+      const client = new SSEPostClient('/api/test', options);
 
       client.connect();
-      client.abort();
+      await vi.runAllTimersAsync();
 
-      mockEventSourceInstance.onmessage?.(
-        new MessageEvent('message', { data: 'ignored' })
-      );
+      expect(options.onToken).toHaveBeenCalledWith('first');
+      expect(options.onToken).toHaveBeenCalledWith('second');
+      expect(options.onComplete).toHaveBeenCalled();
+    });
 
-      expect(options.onToken).not.toHaveBeenCalled();
+    it('should handle split SSE events across chunks', async () => {
+      // Event split across two chunks
+      const mockResponse = createMockResponse([
+        'data: hel',
+        'lo\n\ndata: [DONE]\n\n',
+      ]);
+      fetchSpy.mockResolvedValue(mockResponse);
+
+      const options = createOptions();
+      const client = new SSEPostClient('/api/test', options);
+
+      client.connect();
+      await vi.runAllTimersAsync();
+
+      expect(options.onToken).toHaveBeenCalledWith('hello');
+      expect(options.onComplete).toHaveBeenCalled();
     });
   });
 
   // ===== Error Handling & Retry =====
 
   describe('error handling and retry', () => {
-    it('should retry on error with exponential backoff', () => {
-      const options = createOptions({ maxRetries: 3, retryDelay: 100 });
-      const client = new SSEClient('/api/test', options);
+    it('should retry on network error with exponential backoff', async () => {
+      // First 3 calls fail, 4th succeeds
+      fetchSpy
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+        .mockResolvedValueOnce(
+          createMockResponse(['data: [DONE]\n\n'])
+        );
+
+      const options = createOptions({
+        maxRetries: 3,
+        retryDelay: 100,
+      });
+      const client = new SSEPostClient('/api/test', options);
 
       client.connect();
-      expect(MockEventSource).toHaveBeenCalledTimes(1);
 
-      // First error - should schedule retry after 100ms
-      mockEventSourceInstance.onerror?.(new Event('error'));
+      // Wait for first fetch to fail
+      await vi.advanceTimersByTimeAsync(0);
+
       expect(client.state).toBe('reconnecting');
       expect(options.onReconnect).toHaveBeenCalledWith(1, 3);
 
-      vi.advanceTimersByTime(100);
-      expect(MockEventSource).toHaveBeenCalledTimes(2);
+      // Advance past first retry delay (100ms)
+      await vi.advanceTimersByTimeAsync(100);
+      // Second failure
+      await vi.advanceTimersByTimeAsync(0);
 
-      // Second error - should schedule retry after 200ms
-      mockEventSourceInstance.onerror?.(new Event('error'));
       expect(options.onReconnect).toHaveBeenCalledWith(2, 3);
 
-      vi.advanceTimersByTime(200);
-      expect(MockEventSource).toHaveBeenCalledTimes(3);
+      // Advance past second retry delay (200ms)
+      await vi.advanceTimersByTimeAsync(200);
+      // Third failure
+      await vi.advanceTimersByTimeAsync(0);
 
-      // Third error - should schedule retry after 400ms
-      mockEventSourceInstance.onerror?.(new Event('error'));
       expect(options.onReconnect).toHaveBeenCalledWith(3, 3);
 
-      vi.advanceTimersByTime(400);
-      expect(MockEventSource).toHaveBeenCalledTimes(4);
+      // Advance past third retry delay (400ms)
+      await vi.advanceTimersByTimeAsync(400);
+      // Fourth attempt succeeds
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.runAllTimersAsync();
+
+      expect(options.onComplete).toHaveBeenCalled();
     });
 
-    it('should call onError with MAX_RETRIES_EXCEEDED after all retries exhausted', () => {
-      const options = createOptions({ maxRetries: 2, retryDelay: 100 });
-      const client = new SSEClient('/api/test', options);
+    it('should call onError with MAX_RETRIES_EXCEEDED after all retries exhausted', async () => {
+      fetchSpy.mockRejectedValue(new TypeError('Failed to fetch'));
+
+      const options = createOptions({
+        maxRetries: 2,
+        retryDelay: 100,
+      });
+      const client = new SSEPostClient('/api/test', options);
 
       client.connect();
 
-      // First error -> retry 1
-      mockEventSourceInstance.onerror?.(new Event('error'));
-      vi.advanceTimersByTime(100);
+      // Initial attempt fails
+      await vi.advanceTimersByTimeAsync(0);
 
-      // Second error -> retry 2
-      mockEventSourceInstance.onerror?.(new Event('error'));
-      vi.advanceTimersByTime(200);
+      // Retry 1 (delay 100ms)
+      await vi.advanceTimersByTimeAsync(100);
+      await vi.advanceTimersByTimeAsync(0);
 
-      // Third error -> exhausted
-      mockEventSourceInstance.onerror?.(new Event('error'));
+      // Retry 2 (delay 200ms)
+      await vi.advanceTimersByTimeAsync(200);
+      await vi.advanceTimersByTimeAsync(0);
 
+      // Exhausted - should fail
       expect(options.onError).toHaveBeenCalledWith(
         expect.objectContaining({
           code: 'MAX_RETRIES_EXCEEDED',
@@ -312,123 +489,247 @@ describe('SSEClient', () => {
       expect(client.state).toBe('error');
     });
 
-    it('should reset retry count after successful reconnection', () => {
-      const options = createOptions({ maxRetries: 3, retryDelay: 100 });
-      const client = new SSEClient('/api/test', options);
+    it('should handle HTTP error responses', async () => {
+      fetchSpy.mockResolvedValue(
+        new Response('Forbidden', { status: 403, statusText: 'Forbidden' })
+      );
+
+      const options = createOptions();
+      const client = new SSEPostClient('/api/test', options);
 
       client.connect();
+      await vi.runAllTimersAsync();
 
-      // Error -> retry
-      mockEventSourceInstance.onerror?.(new Event('error'));
-      vi.advanceTimersByTime(100);
-
-      // Successful reconnect
-      mockEventSourceInstance.onopen?.(new Event('open'));
-
-      // Another error -> should start from retry 1 again
-      mockEventSourceInstance.onerror?.(new Event('error'));
-      expect(options.onReconnect).toHaveBeenLastCalledWith(1, 3);
+      expect(options.onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          code: 'HTTP_ERROR',
+        })
+      );
     });
 
-    it('should cap retry delay at maxRetryDelay', () => {
+    it('should retry on 5xx server errors', async () => {
+      fetchSpy
+        .mockResolvedValueOnce(
+          new Response('Server Error', { status: 500, statusText: 'Internal Server Error' })
+        )
+        .mockResolvedValueOnce(
+          createMockResponse(['data: [DONE]\n\n'])
+        );
+
       const options = createOptions({
-        maxRetries: 10,
-        retryDelay: 500,
-        maxRetryDelay: 1000,
+        maxRetries: 3,
+        retryDelay: 100,
       });
-      const client = new SSEClient('/api/test', options);
+      const client = new SSEPostClient('/api/test', options);
 
       client.connect();
 
-      // Error 1: delay = 500ms
-      mockEventSourceInstance.onerror?.(new Event('error'));
-      vi.advanceTimersByTime(500);
+      // First attempt - 500 error (retriable)
+      await vi.advanceTimersByTimeAsync(0);
 
-      // Error 2: delay = 1000ms (500 * 2)
-      mockEventSourceInstance.onerror?.(new Event('error'));
-      vi.advanceTimersByTime(1000);
+      // Retry after delay
+      await vi.advanceTimersByTimeAsync(100);
+      await vi.runAllTimersAsync();
 
-      // Error 3: delay = 1000ms (capped, not 2000)
-      mockEventSourceInstance.onerror?.(new Event('error'));
-
-      // Verify it does NOT reconnect at 1500ms but at 1000ms
-      vi.advanceTimersByTime(999);
-      expect(MockEventSource).toHaveBeenCalledTimes(3);
-      vi.advanceTimersByTime(1);
-      expect(MockEventSource).toHaveBeenCalledTimes(4);
+      expect(options.onComplete).toHaveBeenCalled();
     });
   });
 
   // ===== Abort =====
 
   describe('abort', () => {
-    it('should close connection and prevent further retries', () => {
+    it('should prevent further retries on abort', async () => {
+      fetchSpy.mockRejectedValue(new TypeError('Failed to fetch'));
+
       const options = createOptions({ maxRetries: 3, retryDelay: 100 });
-      const client = new SSEClient('/api/test', options);
+      const client = new SSEPostClient('/api/test', options);
 
       client.connect();
-      mockEventSourceInstance.onerror?.(new Event('error'));
+      await vi.advanceTimersByTimeAsync(0);
 
       // Abort before retry fires
       client.abort();
 
-      vi.advanceTimersByTime(1000);
+      await vi.advanceTimersByTimeAsync(10000);
 
-      // Should not have reconnected
-      expect(MockEventSource).toHaveBeenCalledTimes(1);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
       expect(client.isAborted).toBe(true);
       expect(client.state).toBe('closed');
     });
 
     it('should not connect after abort', () => {
       const options = createOptions();
-      const client = new SSEClient('/api/test', options);
+      const client = new SSEPostClient('/api/test', options);
 
       client.abort();
       client.connect();
 
-      expect(MockEventSource).not.toHaveBeenCalled();
+      expect(fetchSpy).not.toHaveBeenCalled();
     });
 
-    it('should not retry after abort during error handling', () => {
-      const options = createOptions({ maxRetries: 3, retryDelay: 100 });
-      const client = new SSEClient('/api/test', options);
+    it('should use AbortController signal in fetch call', () => {
+      fetchSpy.mockReturnValue(new Promise(() => {}));
+      const options = createOptions();
+      const client = new SSEPostClient('/api/test', options);
 
       client.connect();
 
-      // Abort then trigger error
-      client.abort();
-      mockEventSourceInstance.onerror?.(new Event('error'));
+      expect(fetchSpy).toHaveBeenCalledWith(
+        '/api/test',
+        expect.objectContaining({
+          signal: expect.any(AbortSignal),
+        })
+      );
+    });
+  });
 
-      vi.advanceTimersByTime(5000);
-      expect(MockEventSource).toHaveBeenCalledTimes(1);
+  // ===== POST Body =====
+
+  describe('POST body', () => {
+    it('should include conversation_history in request body', async () => {
+      const mockResponse = createMockResponse(['data: [DONE]\n\n']);
+      fetchSpy.mockResolvedValue(mockResponse);
+
+      const body: SSERequestBody = {
+        query: 'What is RAG?',
+        conversation_history: [
+          { role: 'user', content: 'Tell me about AI' },
+          { role: 'assistant', content: 'AI is...' },
+        ],
+        top_k: 10,
+      };
+
+      const options = createOptions();
+      options.body = body;
+      const client = new SSEPostClient('/api/test', options);
+
+      client.connect();
+      await vi.runAllTimersAsync();
+
+      expect(fetchSpy).toHaveBeenCalledWith(
+        '/api/test',
+        expect.objectContaining({
+          body: JSON.stringify(body),
+        })
+      );
+    });
+
+    it('should include filters in request body when provided', async () => {
+      const mockResponse = createMockResponse(['data: [DONE]\n\n']);
+      fetchSpy.mockResolvedValue(mockResponse);
+
+      const body: SSERequestBody = {
+        query: 'test',
+        filters: {
+          documentType: 'manual',
+          projectName: 'ProjectA',
+        },
+      };
+
+      const options = createOptions();
+      options.body = body;
+      const client = new SSEPostClient('/api/test', options);
+
+      client.connect();
+      await vi.runAllTimersAsync();
+
+      const callBody = JSON.parse(
+        fetchSpy.mock.calls[0][1].body as string
+      );
+      expect(callBody.filters.documentType).toBe('manual');
+      expect(callBody.filters.projectName).toBe('ProjectA');
+    });
+  });
+
+  // ===== Authorization Headers =====
+
+  describe('authorization headers', () => {
+    it('should include Authorization header when provided', async () => {
+      const mockResponse = createMockResponse(['data: [DONE]\n\n']);
+      fetchSpy.mockResolvedValue(mockResponse);
+
+      const options = createOptions({
+        headers: { Authorization: 'Bearer jwt-token-123' },
+      });
+      const client = new SSEPostClient('/api/test', options);
+
+      client.connect();
+      await vi.runAllTimersAsync();
+
+      expect(fetchSpy).toHaveBeenCalledWith(
+        '/api/test',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: 'Bearer jwt-token-123',
+          }),
+        })
+      );
+    });
+
+    it('should not include Authorization header when not provided', async () => {
+      const mockResponse = createMockResponse(['data: [DONE]\n\n']);
+      fetchSpy.mockResolvedValue(mockResponse);
+
+      const options = createOptions();
+      const client = new SSEPostClient('/api/test', options);
+
+      client.connect();
+      await vi.runAllTimersAsync();
+
+      const callHeaders = fetchSpy.mock.calls[0][1].headers as Record<string, string>;
+      expect(callHeaders).not.toHaveProperty('Authorization');
     });
   });
 
   // ===== Default Options =====
 
   describe('default options', () => {
-    it('should use default maxRetries of 3 when not specified', () => {
-      const options: SSEOptions = {
+    it('should use default maxRetries of 3 when not specified', async () => {
+      fetchSpy.mockRejectedValue(new TypeError('Failed to fetch'));
+
+      const options: SSEPostClientOptions = {
+        body: defaultBody,
         onToken: vi.fn(),
         onError: vi.fn(),
       };
-      const client = new SSEClient('/api/test', options);
+      const client = new SSEPostClient('/api/test', options);
 
       client.connect();
 
       // Exhaust 3 retries
       for (let i = 0; i < 3; i++) {
-        mockEventSourceInstance.onerror?.(new Event('error'));
-        vi.advanceTimersByTime(10000);
+        await vi.advanceTimersByTimeAsync(0);
+        await vi.advanceTimersByTimeAsync(10000);
       }
 
-      // 4th error should trigger MAX_RETRIES_EXCEEDED
-      mockEventSourceInstance.onerror?.(new Event('error'));
+      // 4th attempt should exceed retries
+      await vi.advanceTimersByTimeAsync(0);
 
       expect(options.onError).toHaveBeenCalledWith(
         expect.objectContaining({ code: 'MAX_RETRIES_EXCEEDED' })
       );
+    });
+  });
+
+  // ===== Stream Completion Without [DONE] =====
+
+  describe('stream completion without [DONE]', () => {
+    it('should call onComplete when stream naturally ends', async () => {
+      const mockResponse = createMockResponse([
+        'data: hello\n\n',
+        'data: world\n\n',
+      ]);
+      fetchSpy.mockResolvedValue(mockResponse);
+
+      const options = createOptions();
+      const client = new SSEPostClient('/api/test', options);
+
+      client.connect();
+      await vi.runAllTimersAsync();
+
+      expect(options.onToken).toHaveBeenCalledWith('hello');
+      expect(options.onToken).toHaveBeenCalledWith('world');
+      expect(options.onComplete).toHaveBeenCalled();
     });
   });
 });

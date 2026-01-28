@@ -1,4 +1,23 @@
+/**
+ * SearchService - Search API service
+ *
+ * Provides search endpoints for:
+ * - Keyword search (synchronous POST)
+ * - Chat search (POST-based SSE streaming via SSEPostClient)
+ * - Expert search
+ *
+ * STORY-050: Migrated streamSearch from EventSource (GET) to
+ * SSEPostClient (POST) for secure, full-featured streaming.
+ * The primary streaming interface is useStreamingSearch hook;
+ * this service is kept for non-hook usage patterns.
+ */
 import api from './api';
+import {
+  SSEPostClient,
+  getAuthToken,
+  type SSEPostClientOptions,
+  type SSERequestBody,
+} from '@/shared/api/sse';
 
 export interface SearchQuery {
   query: string;
@@ -40,12 +59,26 @@ export interface SearchResponse {
   totalCount: number;
 }
 
+/** Options for POST-based stream search */
+export interface StreamSearchOptions {
+  query: string;
+  conversationHistory?: Array<{
+    role: 'user' | 'assistant';
+    content: string;
+  }>;
+  topK?: number;
+  filters?: SearchQuery['filters'];
+  onToken: (token: string) => void;
+  onError: (error: Error) => void;
+  onComplete: () => void;
+}
+
 /**
- * SearchService - 검색 API 서비스
+ * SearchService - Search API service
  */
 export const searchService = {
   /**
-   * 키워드 검색 (동기)
+   * Keyword search (synchronous)
    */
   async search(params: SearchQuery): Promise<SearchResponse> {
     const response = await api.post<SearchResponse>('/search', params);
@@ -53,43 +86,60 @@ export const searchService = {
   },
 
   /**
-   * 채팅 검색 (SSE 스트리밍)
+   * Chat search (POST-based SSE streaming)
    *
-   * @param query 검색 쿼리
-   * @param onMessage 메시지 수신 콜백
-   * @param onError 에러 콜백
-   * @param onComplete 완료 콜백
-   * @returns EventSource 인스턴스
+   * Uses fetch + ReadableStream via SSEPostClient to support:
+   * - POST method with JSON body
+   * - Authorization header (JWT Bearer token)
+   * - conversation_history for multi-turn chat
+   * - AbortController-based cancellation
+   *
+   * @param options - Stream search configuration
+   * @returns SSEPostClient instance (call .abort() to cancel)
    */
-  streamSearch(
-    query: string,
-    onMessage: (data: string) => void,
-    onError: (error: Event) => void,
-    onComplete: () => void
-  ): EventSource {
-    const eventSource = new EventSource(
-      `/api/v1/search/stream?query=${encodeURIComponent(query)}`
+  streamSearch(options: StreamSearchOptions): SSEPostClient {
+    const { query, conversationHistory, topK, filters, onToken, onError, onComplete } = options;
+
+    // Build request body
+    const body: SSERequestBody = {
+      query,
+      conversation_history: conversationHistory ?? [],
+      top_k: topK ?? 5,
+    };
+
+    if (filters) {
+      body.filters = filters;
+    }
+
+    // Build authorization headers
+    const headers: Record<string, string> = {};
+    const token = getAuthToken();
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const clientOptions: SSEPostClientOptions = {
+      body,
+      headers,
+      onToken,
+      onComplete,
+      onError: (sseError) => onError(sseError),
+      maxRetries: 3,
+      retryDelay: 1000,
+    };
+
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+    const client = new SSEPostClient(
+      `${baseUrl}/search/chat/stream`,
+      clientOptions
     );
+    client.connect();
 
-    eventSource.onmessage = (event) => {
-      if (event.data === '[DONE]') {
-        eventSource.close();
-        onComplete();
-      } else {
-        onMessage(event.data);
-      }
-    };
-
-    eventSource.onerror = (error) => {
-      eventSource.close();
-      onError(error);
-    };
-
-    return eventSource;
+    return client;
   },
 
   /**
-   * 전문가 검색
+   * Expert search
    */
   async findExperts(topic: string, depth = 2, limit = 5) {
     const response = await api.post('/graph/experts', { topic, depth, limit });

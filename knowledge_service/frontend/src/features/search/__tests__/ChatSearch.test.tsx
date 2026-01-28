@@ -1,49 +1,86 @@
 /**
  * ChatSearch integration tests
  *
- * Tests the ChatSearch page component with SSE streaming integration:
+ * Tests the ChatSearch page component with POST-based SSE streaming integration:
  * - Renders all sub-components
  * - Streaming indicator and cancel button visibility
  * - Error banner display and dismiss
- * - End-to-end message flow with SSE
+ * - End-to-end message flow with fetch + ReadableStream SSE
+ *
+ * STORY-050: Migrated from EventSource mocks to fetch + ReadableStream mocks
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import ChatSearch from '../ChatSearch';
 
 // --------------------------------------------------------------------------
-// Mock EventSource
+// Mock fetch + ReadableStream
 // --------------------------------------------------------------------------
 
-type MockESInstance = {
-  onmessage: ((event: MessageEvent) => void) | null;
-  onerror: ((event: Event) => void) | null;
-  onopen: ((event: Event) => void) | null;
-  close: ReturnType<typeof vi.fn>;
-  readyState: number;
-  url: string;
-};
+/** Helper to create a ReadableStream from SSE text chunks */
+function createSSEStream(chunks: string[]): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  let index = 0;
 
-let mockESInstances: MockESInstance[] = [];
+  return new ReadableStream({
+    pull(controller) {
+      if (index < chunks.length) {
+        controller.enqueue(encoder.encode(chunks[index]));
+        index++;
+      } else {
+        controller.close();
+      }
+    },
+  });
+}
 
-const MockEventSource = vi.fn().mockImplementation((url: string) => {
-  const instance: MockESInstance = {
-    onmessage: null,
-    onerror: null,
-    onopen: null,
-    close: vi.fn(),
-    readyState: 1,
-    url,
+/** Helper to create a mock Response with SSE stream */
+function createMockResponse(chunks: string[]): Response {
+  const stream = createSSEStream(chunks);
+  return new Response(stream, {
+    status: 200,
+    headers: { 'Content-Type': 'text/event-stream' },
+  });
+}
+
+/**
+ * Helper to create a controllable SSE stream.
+ * Returns an object with push() to send chunks and close() to end.
+ */
+function createControllableStream(): {
+  response: Response;
+  push: (chunk: string) => void;
+  close: () => void;
+} {
+  const encoder = new TextEncoder();
+  let controller: ReadableStreamDefaultController<Uint8Array>;
+
+  const stream = new ReadableStream<Uint8Array>({
+    start(ctrl) {
+      controller = ctrl;
+    },
+  });
+
+  const response = new Response(stream, {
+    status: 200,
+    headers: { 'Content-Type': 'text/event-stream' },
+  });
+
+  return {
+    response,
+    push: (chunk: string) => controller.enqueue(encoder.encode(chunk)),
+    close: () => controller.close(),
   };
-  mockESInstances.push(instance);
-  return instance;
+}
+
+// Mock getAuthToken
+vi.mock('@/shared/api/sse', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/shared/api/sse')>();
+  return {
+    ...actual,
+    getAuthToken: vi.fn(() => 'mock-jwt-token'),
+  };
 });
-
-Object.defineProperty(MockEventSource, 'CONNECTING', { value: 0 });
-Object.defineProperty(MockEventSource, 'OPEN', { value: 1 });
-Object.defineProperty(MockEventSource, 'CLOSED', { value: 2 });
-
-vi.stubGlobal('EventSource', MockEventSource);
 
 // Mock scrollIntoView
 Element.prototype.scrollIntoView = vi.fn();
@@ -52,19 +89,7 @@ Element.prototype.scrollIntoView = vi.fn();
 // Helpers
 // --------------------------------------------------------------------------
 
-function getLatestES(): MockESInstance {
-  return mockESInstances[mockESInstances.length - 1];
-}
-
-function simulateMessage(data: string): void {
-  const es = getLatestES();
-  es.onmessage?.(new MessageEvent('message', { data }));
-}
-
-function simulateOpen(): void {
-  const es = getLatestES();
-  es.onopen?.(new Event('open'));
-}
+let fetchSpy: ReturnType<typeof vi.fn>;
 
 // --------------------------------------------------------------------------
 // Tests
@@ -73,12 +98,13 @@ function simulateOpen(): void {
 describe('ChatSearch', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    MockEventSource.mockClear();
-    mockESInstances = [];
+    fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   // ===== Rendering =====
@@ -120,6 +146,9 @@ describe('ChatSearch', () => {
 
   describe('streaming flow', () => {
     it('should display streaming indicator and cancel button when streaming', () => {
+      // Use a never-resolving fetch so we stay in streaming state
+      fetchSpy.mockReturnValue(new Promise(() => {}));
+
       render(<ChatSearch />);
 
       const input = screen.getByTestId('chat-input');
@@ -133,6 +162,8 @@ describe('ChatSearch', () => {
     });
 
     it('should show user message and assistant placeholder after submit', () => {
+      fetchSpy.mockReturnValue(new Promise(() => {}));
+
       render(<ChatSearch />);
 
       const input = screen.getByTestId('chat-input');
@@ -143,41 +174,53 @@ describe('ChatSearch', () => {
       expect(screen.getByText('Test question')).toBeInTheDocument();
     });
 
-    it('should stream tokens into the assistant message', () => {
+    it('should stream tokens into the assistant message', async () => {
+      const { response, push, close } = createControllableStream();
+      fetchSpy.mockResolvedValue(response);
+
       render(<ChatSearch />);
 
       const input = screen.getByTestId('chat-input');
       fireEvent.change(input, { target: { value: 'Hello?' } });
       fireEvent.click(screen.getByTestId('chat-submit'));
 
-      act(() => {
-        simulateOpen();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
       });
 
-      act(() => {
-        simulateMessage('This is ');
+      await act(async () => {
+        push('data: This is \n\n');
+        await vi.advanceTimersByTimeAsync(0);
       });
 
-      act(() => {
-        simulateMessage('the answer.');
+      await act(async () => {
+        push('data: the answer.\n\n');
+        await vi.advanceTimersByTimeAsync(0);
       });
 
       expect(screen.getByText('This is the answer.')).toBeInTheDocument();
+
+      // Cleanup
+      await act(async () => {
+        push('data: [DONE]\n\n');
+        await vi.advanceTimersByTimeAsync(0);
+      });
     });
 
-    it('should hide streaming indicator after [DONE]', () => {
+    it('should hide streaming indicator after [DONE]', async () => {
+      const mockResponse = createMockResponse([
+        'data: Answer\n\ndata: [DONE]\n\n',
+      ]);
+      fetchSpy.mockResolvedValue(mockResponse);
+
       render(<ChatSearch />);
 
       const input = screen.getByTestId('chat-input');
       fireEvent.change(input, { target: { value: 'Test' } });
       fireEvent.click(screen.getByTestId('chat-submit'));
 
-      act(() => {
-        simulateMessage('Answer');
-      });
-
-      act(() => {
-        simulateMessage('[DONE]');
+      await act(async () => {
+        await vi.runAllTimersAsync();
       });
 
       expect(
@@ -192,15 +235,23 @@ describe('ChatSearch', () => {
   // ===== Cancel =====
 
   describe('cancel stream', () => {
-    it('should cancel streaming when cancel button is clicked', () => {
+    it('should cancel streaming when cancel button is clicked', async () => {
+      const { response, push } = createControllableStream();
+      fetchSpy.mockResolvedValue(response);
+
       render(<ChatSearch />);
 
       const input = screen.getByTestId('chat-input');
       fireEvent.change(input, { target: { value: 'Test' } });
       fireEvent.click(screen.getByTestId('chat-submit'));
 
-      act(() => {
-        simulateMessage('Partial');
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+
+      await act(async () => {
+        push('data: Partial\n\n');
+        await vi.advanceTimersByTimeAsync(0);
       });
 
       // Click cancel
@@ -214,6 +265,8 @@ describe('ChatSearch', () => {
     });
 
     it('should have accessible cancel button', () => {
+      fetchSpy.mockReturnValue(new Promise(() => {}));
+
       render(<ChatSearch />);
 
       const input = screen.getByTestId('chat-input');
@@ -231,7 +284,9 @@ describe('ChatSearch', () => {
   // ===== Error Banner =====
 
   describe('error banner', () => {
-    it('should display error banner when error occurs', () => {
+    it('should display error banner when error occurs', async () => {
+      fetchSpy.mockRejectedValue(new TypeError('Failed to fetch'));
+
       render(<ChatSearch />);
 
       const input = screen.getByTestId('chat-input');
@@ -240,34 +295,33 @@ describe('ChatSearch', () => {
 
       // Exhaust retries to trigger error
       for (let i = 0; i < 3; i++) {
-        act(() => {
-          const es = getLatestES();
-          es.onerror?.(new Event('error'));
-          vi.advanceTimersByTime(10000);
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+          await vi.advanceTimersByTimeAsync(10000);
         });
       }
-      act(() => {
-        const es = getLatestES();
-        es.onerror?.(new Event('error'));
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
       });
 
       // Error banner should appear
       expect(screen.getByText('Dismiss')).toBeInTheDocument();
     });
 
-    it('should dismiss error banner when Dismiss is clicked', () => {
+    it('should dismiss error banner when Dismiss is clicked', async () => {
+      fetchSpy.mockRejectedValue(new TypeError('Failed to fetch'));
+
       render(<ChatSearch />);
 
       const input = screen.getByTestId('chat-input');
       fireEvent.change(input, { target: { value: 'Test' } });
       fireEvent.click(screen.getByTestId('chat-submit'));
 
-      // Trigger error
+      // Trigger error by exhausting retries
       for (let i = 0; i < 4; i++) {
-        act(() => {
-          const es = getLatestES();
-          es.onerror?.(new Event('error'));
-          vi.advanceTimersByTime(10000);
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+          await vi.advanceTimersByTimeAsync(10000);
         });
       }
 
@@ -283,13 +337,15 @@ describe('ChatSearch', () => {
 
   describe('keyboard support', () => {
     it('should submit on Enter key press', () => {
+      fetchSpy.mockReturnValue(new Promise(() => {}));
+
       render(<ChatSearch />);
 
       const input = screen.getByTestId('chat-input');
       fireEvent.change(input, { target: { value: 'Enter test' } });
       fireEvent.keyDown(input, { key: 'Enter' });
 
-      expect(MockEventSource).toHaveBeenCalledTimes(1);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
       expect(screen.getByText('Enter test')).toBeInTheDocument();
     });
 
@@ -300,7 +356,7 @@ describe('ChatSearch', () => {
       fireEvent.change(input, { target: { value: 'No submit' } });
       fireEvent.keyDown(input, { key: 'Enter', shiftKey: true });
 
-      expect(MockEventSource).not.toHaveBeenCalled();
+      expect(fetchSpy).not.toHaveBeenCalled();
     });
   });
 });

@@ -1,13 +1,18 @@
 /**
- * useSearchChat - Chat search custom hook (refactored for STORY-043)
+ * useSearchChat - Chat search custom hook (refactored for STORY-043, updated for STORY-050)
  *
  * Wraps useStreamingSearch to provide backwards-compatible API
  * for components that use the original useSearchChat interface.
  *
- * The original raw EventSource logic has been replaced by SSEClient
- * via useStreamingSearch, which provides:
+ * STORY-050: The underlying SSE transport has been migrated from
+ * EventSource (GET) to fetch + ReadableStream (POST) via SSEPostClient.
+ * This wrapper's interface remains unchanged for backwards compatibility.
+ *
+ * Features (via useStreamingSearch -> SSEPostClient):
+ * - POST-based SSE with conversation_history support
+ * - JWT Authorization header (not in URL)
  * - Automatic retry with exponential backoff
- * - Abort/cancel support
+ * - Abort/cancel support via AbortController
  * - Source citation delivery after [DONE]
  */
 import { useStreamingSearch } from './useStreamingSearch';

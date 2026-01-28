@@ -1,23 +1,43 @@
 /**
- * useStreamingSearch - Full SSE streaming lifecycle management hook
+ * useStreamingSearch - Full POST-based SSE streaming lifecycle management hook
  *
  * Provides complete chat search functionality with:
- * - SSEClient-based streaming with retry/reconnect
+ * - SSEPostClient-based streaming via fetch + ReadableStream (POST method)
+ * - Conversation history sent in POST body for multi-turn chat
+ * - JWT Authorization header included automatically
  * - Message state management (user + assistant messages)
- * - Stream cancellation via abort button
+ * - Stream cancellation via AbortController
  * - Source citations attached after stream completes
  * - Error state with dismissal
  * - Reconnection status feedback
  *
- * Implements STORY-043 Acceptance Criteria:
+ * STORY-050 Migration (EventSource -> fetch + ReadableStream):
+ * - Replaced EventSource (GET-only) with SSEPostClient (POST)
+ * - Query, conversation_history, top_k sent via POST body
+ * - Authorization header sent securely (not in URL)
+ * - AbortController replaces EventSource.close()
+ *
+ * Implements STORY-043 Acceptance Criteria (preserved):
  * - AC1: Token-by-token display
  * - AC2: Incremental token append
  * - AC3: Source citations after [DONE]
  * - AC4: Auto-reconnect with 3 retries + exponential backoff
  * - AC5: User cancel/abort support
+ *
+ * Implements STORY-050 Acceptance Criteria:
+ * - AC1: POST body with query, conversation_history, topK
+ * - AC2: Backwards-compatible with useSearchChat wrapper
+ * - AC3: Auto-reconnect with max 3 retries
+ * - AC4: Token streaming with [DONE] completion
+ * - AC5: EventSource code fully removed
  */
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { SSEClient, type SSESourceData } from '@/shared/api/sse';
+import {
+  SSEPostClient,
+  getAuthToken,
+  type SSESourceData,
+  type SSERequestBody,
+} from '@/shared/api/sse';
 import type { Message, Source } from '../types';
 
 /** Return type for the useStreamingSearch hook */
@@ -52,6 +72,21 @@ export interface ReconnectInfo {
   maxRetries: number;
 }
 
+/** Configuration options for the useStreamingSearch hook */
+export interface UseStreamingSearchOptions {
+  /** Base URL for the SSE search endpoint (default: '/api/v1/search/chat/stream') */
+  baseUrl?: string;
+  /** Number of top results to retrieve (default: 5) */
+  topK?: number;
+  /** Search filters */
+  filters?: {
+    documentType?: string;
+    projectName?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  };
+}
+
 /**
  * Converts SSESourceData to the Source type used by the UI.
  */
@@ -74,14 +109,39 @@ function createMessageId(role: 'user' | 'assistant'): string {
 }
 
 /**
- * Custom hook for managing SSE-based streaming chat search.
+ * Build conversation history from existing messages for multi-turn chat.
+ * Excludes the last user message (it's sent as the query).
+ */
+function buildConversationHistory(
+  messages: Message[]
+): Array<{ role: 'user' | 'assistant'; content: string }> {
+  return messages
+    .filter((msg) => msg.content && !msg.isStreaming)
+    .map((msg) => ({
+      role: msg.role,
+      content: msg.content,
+    }));
+}
+
+/**
+ * Custom hook for managing POST-based SSE streaming chat search.
  *
- * @param baseUrl - The base URL for SSE search endpoint (default: '/api/v1/search/stream')
+ * @param optionsOrBaseUrl - Configuration options or legacy baseUrl string
  * @returns Streaming search state and actions
  */
 export const useStreamingSearch = (
-  baseUrl: string = '/api/v1/search/stream'
+  optionsOrBaseUrl?: string | UseStreamingSearchOptions
 ): UseStreamingSearchReturn => {
+  // Handle both legacy string parameter and new options object
+  const options: UseStreamingSearchOptions =
+    typeof optionsOrBaseUrl === 'string'
+      ? { baseUrl: optionsOrBaseUrl }
+      : optionsOrBaseUrl ?? {};
+
+  const baseUrl = options.baseUrl ?? '/api/v1/search/chat/stream';
+  const topK = options.topK ?? 5;
+  const filters = options.filters;
+
   const [query, setQuery] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -91,12 +151,12 @@ export const useStreamingSearch = (
     null
   );
 
-  // Ref to hold the current SSEClient instance
-  const clientRef = useRef<SSEClient | null>(null);
+  // Ref to hold the current SSEPostClient instance
+  const clientRef = useRef<SSEPostClient | null>(null);
   // Ref to track the current assistant message ID during streaming
   const assistantIdRef = useRef<string | null>(null);
 
-  // Cleanup SSEClient on unmount
+  // Cleanup SSEPostClient on unmount
   useEffect(() => {
     return () => {
       if (clientRef.current) {
@@ -107,7 +167,7 @@ export const useStreamingSearch = (
   }, []);
 
   /**
-   * Send a message and start streaming the AI response.
+   * Send a message and start streaming the AI response via POST SSE.
    *
    * @param queryOverride - Optional query text (uses current query state if not provided)
    */
@@ -125,6 +185,9 @@ export const useStreamingSearch = (
         clientRef.current.abort();
         clientRef.current = null;
       }
+
+      // Build conversation history from existing messages
+      const conversationHistory = buildConversationHistory(messages);
 
       // Create user message
       const userMessage: Message = {
@@ -151,12 +214,30 @@ export const useStreamingSearch = (
       setIsStreaming(true);
       setIsConnecting(true);
 
-      // Build the SSE URL
-      const sseUrl = `${baseUrl}?query=${encodeURIComponent(text)}`;
+      // Build the POST request body
+      const requestBody: SSERequestBody = {
+        query: text,
+        conversation_history: conversationHistory,
+        top_k: topK,
+      };
 
-      // Create SSE client with full lifecycle callbacks
-      const client = new SSEClient(sseUrl, {
-        onToken: (token: string) => {
+      if (filters) {
+        requestBody.filters = filters;
+      }
+
+      // Build authorization headers
+      const headers: Record<string, string> = {};
+      const token = getAuthToken();
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      // Create SSEPostClient with full lifecycle callbacks
+      const client = new SSEPostClient(baseUrl, {
+        body: requestBody,
+        headers,
+
+        onToken: (tokenText: string) => {
           setIsConnecting(false);
           setReconnectInfo(null);
 
@@ -164,7 +245,7 @@ export const useStreamingSearch = (
           setMessages((prev) =>
             prev.map((msg) =>
               msg.id === assistantId
-                ? { ...msg, content: msg.content + token }
+                ? { ...msg, content: msg.content + tokenText }
                 : msg
             )
           );
@@ -228,7 +309,7 @@ export const useStreamingSearch = (
       clientRef.current = client;
       client.connect();
     },
-    [query, isStreaming, baseUrl]
+    [query, isStreaming, baseUrl, topK, filters, messages]
   );
 
   /**

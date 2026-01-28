@@ -3,6 +3,9 @@
  *
  * Provides chat search and keyword search components,
  * sub-components, hooks, and type definitions.
+ *
+ * STORY-050: SSE protocol migrated from EventSource (GET) to
+ * fetch + ReadableStream (POST) via SSEPostClient.
  */
 
 // Page-level components
@@ -35,5 +38,6 @@ export type {
 
 export type {
   UseStreamingSearchReturn,
+  UseStreamingSearchOptions,
   ReconnectInfo,
 } from './hooks/useStreamingSearch';

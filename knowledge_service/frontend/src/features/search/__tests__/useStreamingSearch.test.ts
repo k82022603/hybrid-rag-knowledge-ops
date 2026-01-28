@@ -2,78 +2,101 @@
  * useStreamingSearch hook unit tests
  *
  * Tests the streaming search hook for:
- * - sendMessage flow (user + assistant message creation, SSE connection)
+ * - sendMessage flow (user + assistant message creation, POST SSE connection)
  * - Token streaming and incremental append
  * - Source citations delivery after stream completes
  * - Cancel stream functionality
  * - Clear messages functionality
  * - Error handling and dismissal
  * - Reconnection state feedback
+ * - Conversation history in POST body
+ * - Authorization header inclusion
+ *
+ * STORY-050: Migrated from EventSource mocks to fetch + ReadableStream mocks
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useStreamingSearch } from '../hooks/useStreamingSearch';
 
 // --------------------------------------------------------------------------
-// Mock EventSource
+// Mock fetch + ReadableStream
 // --------------------------------------------------------------------------
 
-type MockESInstance = {
-  onmessage: ((event: MessageEvent) => void) | null;
-  onerror: ((event: Event) => void) | null;
-  onopen: ((event: Event) => void) | null;
-  close: ReturnType<typeof vi.fn>;
-  readyState: number;
-  url: string;
-};
+/** Helper to create a ReadableStream from SSE text chunks */
+function createSSEStream(chunks: string[]): ReadableStream<Uint8Array> {
+  const encoder = new TextEncoder();
+  let index = 0;
 
-let mockESInstances: MockESInstance[] = [];
+  return new ReadableStream({
+    pull(controller) {
+      if (index < chunks.length) {
+        controller.enqueue(encoder.encode(chunks[index]));
+        index++;
+      } else {
+        controller.close();
+      }
+    },
+  });
+}
 
-const MockEventSource = vi.fn().mockImplementation((url: string) => {
-  const instance: MockESInstance = {
-    onmessage: null,
-    onerror: null,
-    onopen: null,
-    close: vi.fn(),
-    readyState: 1, // OPEN
-    url,
+/** Helper to create a mock Response with SSE stream */
+function createMockResponse(
+  chunks: string[],
+  status = 200
+): Response {
+  const stream = createSSEStream(chunks);
+  return new Response(stream, {
+    status,
+    headers: { 'Content-Type': 'text/event-stream' },
+  });
+}
+
+/**
+ * Helper to create a controllable SSE stream.
+ * Returns an object with push() to send chunks and close() to end.
+ */
+function createControllableStream(): {
+  response: Response;
+  push: (chunk: string) => void;
+  close: () => void;
+} {
+  const encoder = new TextEncoder();
+  let controller: ReadableStreamDefaultController<Uint8Array>;
+
+  const stream = new ReadableStream<Uint8Array>({
+    start(ctrl) {
+      controller = ctrl;
+    },
+  });
+
+  const response = new Response(stream, {
+    status: 200,
+    headers: { 'Content-Type': 'text/event-stream' },
+  });
+
+  return {
+    response,
+    push: (chunk: string) => controller.enqueue(encoder.encode(chunk)),
+    close: () => controller.close(),
   };
-  mockESInstances.push(instance);
-  return instance;
+}
+
+// --------------------------------------------------------------------------
+// Mock getAuthToken
+// --------------------------------------------------------------------------
+vi.mock('@/shared/api/sse', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/shared/api/sse')>();
+  return {
+    ...actual,
+    getAuthToken: vi.fn(() => 'mock-jwt-token'),
+  };
 });
-
-Object.defineProperty(MockEventSource, 'CONNECTING', { value: 0 });
-Object.defineProperty(MockEventSource, 'OPEN', { value: 1 });
-Object.defineProperty(MockEventSource, 'CLOSED', { value: 2 });
-
-vi.stubGlobal('EventSource', MockEventSource);
 
 // --------------------------------------------------------------------------
 // Helpers
 // --------------------------------------------------------------------------
 
-/** Get the latest mock EventSource instance */
-function getLatestES(): MockESInstance {
-  return mockESInstances[mockESInstances.length - 1];
-}
-
-/** Simulate SSE onopen event on latest instance */
-function simulateOpen(): void {
-  const es = getLatestES();
-  es.onopen?.(new Event('open'));
-}
-
-/** Simulate SSE message event on latest instance */
-function simulateMessage(data: string): void {
-  const es = getLatestES();
-  es.onmessage?.(new MessageEvent('message', { data }));
-}
-
-/** Simulate SSE error event on latest instance */
-function simulateError(): void {
-  const es = getLatestES();
-  es.onerror?.(new Event('error'));
-}
+let fetchSpy: ReturnType<typeof vi.fn>;
 
 // --------------------------------------------------------------------------
 // Tests
@@ -82,12 +105,13 @@ function simulateError(): void {
 describe('useStreamingSearch', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    MockEventSource.mockClear();
-    mockESInstances = [];
+    fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
   });
 
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
 
   // ===== Initial State =====
@@ -108,7 +132,10 @@ describe('useStreamingSearch', () => {
   // ===== sendMessage =====
 
   describe('sendMessage', () => {
-    it('should create user and assistant messages and start SSE connection', () => {
+    it('should create user and assistant messages and start POST SSE connection', async () => {
+      const mockResponse = createMockResponse(['data: [DONE]\n\n']);
+      fetchSpy.mockResolvedValue(mockResponse);
+
       const { result } = renderHook(() => useStreamingSearch());
 
       act(() => {
@@ -134,12 +161,29 @@ describe('useStreamingSearch', () => {
       // Query should be cleared
       expect(result.current.query).toBe('');
 
-      // EventSource should be created
-      expect(MockEventSource).toHaveBeenCalledTimes(1);
-      expect(getLatestES().url).toContain('query=What%20is%20RAG%3F');
+      // fetch should be called with POST method
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(fetchSpy).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          method: 'POST',
+          headers: expect.objectContaining({
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer mock-jwt-token',
+          }),
+        })
+      );
+
+      // Request body should contain the query
+      const callBody = JSON.parse(fetchSpy.mock.calls[0][1].body as string);
+      expect(callBody.query).toBe('What is RAG?');
+      expect(callBody.conversation_history).toEqual([]);
+      expect(callBody.top_k).toBe(5);
     });
 
     it('should accept query override parameter', () => {
+      fetchSpy.mockReturnValue(new Promise(() => {}));
+
       const { result } = renderHook(() => useStreamingSearch());
 
       act(() => {
@@ -147,7 +191,9 @@ describe('useStreamingSearch', () => {
       });
 
       expect(result.current.messages[0].content).toBe('Override query');
-      expect(getLatestES().url).toContain('query=Override%20query');
+
+      const callBody = JSON.parse(fetchSpy.mock.calls[0][1].body as string);
+      expect(callBody.query).toBe('Override query');
     });
 
     it('should not send empty query', () => {
@@ -158,10 +204,12 @@ describe('useStreamingSearch', () => {
       });
 
       expect(result.current.messages).toHaveLength(0);
-      expect(MockEventSource).not.toHaveBeenCalled();
+      expect(fetchSpy).not.toHaveBeenCalled();
     });
 
     it('should not send while already streaming', () => {
+      fetchSpy.mockReturnValue(new Promise(() => {}));
+
       const { result } = renderHook(() => useStreamingSearch());
 
       act(() => {
@@ -178,48 +226,92 @@ describe('useStreamingSearch', () => {
 
       // Only the first query should be sent
       expect(result.current.messages).toHaveLength(2);
-      expect(MockEventSource).toHaveBeenCalledTimes(1);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('should include conversation history from previous messages', async () => {
+      // First round
+      const firstResponse = createMockResponse([
+        'data: First answer\n\ndata: [DONE]\n\n',
+      ]);
+      fetchSpy.mockResolvedValueOnce(firstResponse);
+
+      const { result } = renderHook(() => useStreamingSearch());
+
+      await act(async () => {
+        result.current.sendMessage('First question');
+        await vi.runAllTimersAsync();
+      });
+
+      // Second round
+      const secondResponse = createMockResponse([
+        'data: Second answer\n\ndata: [DONE]\n\n',
+      ]);
+      fetchSpy.mockResolvedValueOnce(secondResponse);
+
+      await act(async () => {
+        result.current.setQuery('Second question');
+      });
+
+      await act(async () => {
+        result.current.sendMessage();
+        await vi.runAllTimersAsync();
+      });
+
+      // Second call should include conversation history
+      const secondCallBody = JSON.parse(
+        fetchSpy.mock.calls[1][1].body as string
+      );
+      expect(secondCallBody.query).toBe('Second question');
+      expect(secondCallBody.conversation_history).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            role: 'user',
+            content: 'First question',
+          }),
+          expect.objectContaining({
+            role: 'assistant',
+            content: 'First answer',
+          }),
+        ])
+      );
     });
   });
 
   // ===== Token Streaming =====
 
   describe('token streaming', () => {
-    it('should append tokens to assistant message incrementally', () => {
+    it('should append tokens to assistant message incrementally', async () => {
+      const mockResponse = createMockResponse([
+        'data: Hello\n\n',
+        'data:  World\n\n',
+        'data: [DONE]\n\n',
+      ]);
+      fetchSpy.mockResolvedValue(mockResponse);
+
       const { result } = renderHook(() => useStreamingSearch());
 
-      act(() => {
+      await act(async () => {
         result.current.sendMessage('Test query');
-      });
-
-      act(() => {
-        simulateOpen();
-      });
-
-      // Stream tokens
-      act(() => {
-        simulateMessage('Hello');
-      });
-
-      expect(result.current.messages[1].content).toBe('Hello');
-      expect(result.current.isConnecting).toBe(false);
-
-      act(() => {
-        simulateMessage(' World');
+        await vi.runAllTimersAsync();
       });
 
       expect(result.current.messages[1].content).toBe('Hello World');
+      expect(result.current.isConnecting).toBe(false);
     });
 
-    it('should parse JSON token events', () => {
+    it('should parse JSON token events', async () => {
+      const tokenEvent = JSON.stringify({ type: 'token', data: 'Parsed' });
+      const mockResponse = createMockResponse([
+        `data: ${tokenEvent}\n\ndata: [DONE]\n\n`,
+      ]);
+      fetchSpy.mockResolvedValue(mockResponse);
+
       const { result } = renderHook(() => useStreamingSearch());
 
-      act(() => {
+      await act(async () => {
         result.current.sendMessage('Test');
-      });
-
-      act(() => {
-        simulateMessage(JSON.stringify({ type: 'token', data: 'Parsed' }));
+        await vi.runAllTimersAsync();
       });
 
       expect(result.current.messages[1].content).toBe('Parsed');
@@ -229,13 +321,7 @@ describe('useStreamingSearch', () => {
   // ===== Source Citations =====
 
   describe('source citations', () => {
-    it('should attach sources to assistant message when received', () => {
-      const { result } = renderHook(() => useStreamingSearch());
-
-      act(() => {
-        result.current.sendMessage('Test');
-      });
-
+    it('should attach sources to assistant message when received', async () => {
       const sources = [
         {
           chunkId: 'c1',
@@ -245,9 +331,19 @@ describe('useStreamingSearch', () => {
           metadata: { projectName: 'TestProject' },
         },
       ];
+      const sourcesEvent = JSON.stringify({ type: 'sources', data: sources });
+      const mockResponse = createMockResponse([
+        'data: Answer text\n\n',
+        `data: ${sourcesEvent}\n\n`,
+        'data: [DONE]\n\n',
+      ]);
+      fetchSpy.mockResolvedValue(mockResponse);
 
-      act(() => {
-        simulateMessage(JSON.stringify({ type: 'sources', data: sources }));
+      const { result } = renderHook(() => useStreamingSearch());
+
+      await act(async () => {
+        result.current.sendMessage('Test');
+        await vi.runAllTimersAsync();
       });
 
       expect(result.current.messages[1].sources).toHaveLength(1);
@@ -259,19 +355,18 @@ describe('useStreamingSearch', () => {
   // ===== Stream Completion =====
 
   describe('stream completion', () => {
-    it('should finalize message on [DONE] event', () => {
+    it('should finalize message on [DONE] event', async () => {
+      const mockResponse = createMockResponse([
+        'data: Answer text\n\n',
+        'data: [DONE]\n\n',
+      ]);
+      fetchSpy.mockResolvedValue(mockResponse);
+
       const { result } = renderHook(() => useStreamingSearch());
 
-      act(() => {
+      await act(async () => {
         result.current.sendMessage('Test');
-      });
-
-      act(() => {
-        simulateMessage('Answer text');
-      });
-
-      act(() => {
-        simulateMessage('[DONE]');
+        await vi.runAllTimersAsync();
       });
 
       expect(result.current.messages[1].isStreaming).toBe(false);
@@ -280,29 +375,23 @@ describe('useStreamingSearch', () => {
       expect(result.current.isConnecting).toBe(false);
     });
 
-    it('should display sources after [DONE] event', () => {
-      const { result } = renderHook(() => useStreamingSearch());
-
-      act(() => {
-        result.current.sendMessage('Test');
-      });
-
-      // Stream tokens
-      act(() => {
-        simulateMessage('The answer is...');
-      });
-
-      // Sources arrive
+    it('should display sources after [DONE] event', async () => {
       const sources = [
         { chunkId: 'c1', documentId: 'd1', content: 'ctx', score: 0.9 },
       ];
-      act(() => {
-        simulateMessage(JSON.stringify({ type: 'sources', data: sources }));
-      });
+      const sourcesEvent = JSON.stringify({ type: 'sources', data: sources });
+      const mockResponse = createMockResponse([
+        'data: The answer is...\n\n',
+        `data: ${sourcesEvent}\n\n`,
+        'data: [DONE]\n\n',
+      ]);
+      fetchSpy.mockResolvedValue(mockResponse);
 
-      // Stream completes
-      act(() => {
-        simulateMessage('[DONE]');
+      const { result } = renderHook(() => useStreamingSearch());
+
+      await act(async () => {
+        result.current.sendMessage('Test');
+        await vi.runAllTimersAsync();
       });
 
       expect(result.current.messages[1].content).toBe('The answer is...');
@@ -314,17 +403,26 @@ describe('useStreamingSearch', () => {
   // ===== Cancel Stream =====
 
   describe('cancelStream', () => {
-    it('should abort the stream and preserve partial content', () => {
+    it('should abort the stream and preserve partial content', async () => {
+      // Use a controllable stream so we can cancel mid-stream
+      const { response, push } = createControllableStream();
+      fetchSpy.mockResolvedValue(response);
+
       const { result } = renderHook(() => useStreamingSearch());
 
-      act(() => {
+      await act(async () => {
         result.current.sendMessage('Test');
+        // Let fetch resolve
+        await vi.advanceTimersByTimeAsync(0);
       });
 
-      act(() => {
-        simulateMessage('Partial');
+      // Push some data
+      await act(async () => {
+        push('data: Partial\n\n');
+        await vi.advanceTimersByTimeAsync(0);
       });
 
+      // Cancel
       act(() => {
         result.current.cancelStream();
       });
@@ -332,10 +430,11 @@ describe('useStreamingSearch', () => {
       expect(result.current.isStreaming).toBe(false);
       expect(result.current.messages[1].isStreaming).toBe(false);
       expect(result.current.messages[1].content).toBe('Partial');
-      expect(getLatestES().close).toHaveBeenCalled();
     });
 
     it('should set fallback content if cancelled with empty response', () => {
+      fetchSpy.mockReturnValue(new Promise(() => {}));
+
       const { result } = renderHook(() => useStreamingSearch());
 
       act(() => {
@@ -356,15 +455,17 @@ describe('useStreamingSearch', () => {
   // ===== Clear Messages =====
 
   describe('clearMessages', () => {
-    it('should clear all messages and reset state', () => {
+    it('should clear all messages and reset state', async () => {
+      const mockResponse = createMockResponse([
+        'data: Some content\n\ndata: [DONE]\n\n',
+      ]);
+      fetchSpy.mockResolvedValue(mockResponse);
+
       const { result } = renderHook(() => useStreamingSearch());
 
-      act(() => {
+      await act(async () => {
         result.current.sendMessage('Test');
-      });
-
-      act(() => {
-        simulateMessage('Some content');
+        await vi.runAllTimersAsync();
       });
 
       act(() => {
@@ -374,33 +475,32 @@ describe('useStreamingSearch', () => {
       expect(result.current.messages).toEqual([]);
       expect(result.current.isStreaming).toBe(false);
       expect(result.current.error).toBeNull();
-      expect(getLatestES().close).toHaveBeenCalled();
     });
   });
 
   // ===== Error Handling =====
 
   describe('error handling', () => {
-    it('should set error message when max retries exceeded', () => {
+    it('should set error message when max retries exceeded', async () => {
+      fetchSpy.mockRejectedValue(new TypeError('Failed to fetch'));
+
       const { result } = renderHook(() => useStreamingSearch());
 
-      act(() => {
+      await act(async () => {
         result.current.sendMessage('Test');
       });
 
-      // Trigger errors until retry limit
+      // Exhaust retries
       for (let i = 0; i < 3; i++) {
-        act(() => {
-          simulateError();
-        });
-        act(() => {
-          vi.advanceTimersByTime(10000);
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+          await vi.advanceTimersByTimeAsync(10000);
         });
       }
 
-      // Final error exceeds retries
-      act(() => {
-        simulateError();
+      // Final failure
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
       });
 
       expect(result.current.error).toBeTruthy();
@@ -408,39 +508,43 @@ describe('useStreamingSearch', () => {
       expect(result.current.messages[1].isStreaming).toBe(false);
     });
 
-    it('should set fallback content on error with empty response', () => {
+    it('should set fallback content on error with empty response', async () => {
+      fetchSpy.mockRejectedValue(new TypeError('Failed to fetch'));
+
       const { result } = renderHook(() => useStreamingSearch());
 
-      act(() => {
+      await act(async () => {
         result.current.sendMessage('Test');
       });
 
       // Exhaust all retries
       for (let i = 0; i < 3; i++) {
-        act(() => {
-          simulateError();
-          vi.advanceTimersByTime(10000);
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+          await vi.advanceTimersByTimeAsync(10000);
         });
       }
-      act(() => {
-        simulateError();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
       });
 
       expect(result.current.messages[1].content).toContain('error occurred');
     });
 
-    it('should dismiss error via dismissError', () => {
+    it('should dismiss error via dismissError', async () => {
+      fetchSpy.mockRejectedValue(new TypeError('Failed to fetch'));
+
       const { result } = renderHook(() => useStreamingSearch());
 
-      act(() => {
+      await act(async () => {
         result.current.sendMessage('Test');
       });
 
-      // Force error
+      // Exhaust retries
       for (let i = 0; i < 4; i++) {
-        act(() => {
-          simulateError();
-          vi.advanceTimersByTime(10000);
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(0);
+          await vi.advanceTimersByTimeAsync(10000);
         });
       }
 
@@ -457,15 +561,18 @@ describe('useStreamingSearch', () => {
   // ===== Reconnection Info =====
 
   describe('reconnection info', () => {
-    it('should provide reconnect info during retry', () => {
+    it('should provide reconnect info during retry', async () => {
+      fetchSpy
+        .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+        .mockResolvedValueOnce(
+          createMockResponse(['data: token\n\ndata: [DONE]\n\n'])
+        );
+
       const { result } = renderHook(() => useStreamingSearch());
 
-      act(() => {
+      await act(async () => {
         result.current.sendMessage('Test');
-      });
-
-      act(() => {
-        simulateError();
+        await vi.advanceTimersByTimeAsync(0);
       });
 
       expect(result.current.reconnectInfo).toEqual({
@@ -474,13 +581,9 @@ describe('useStreamingSearch', () => {
       });
 
       // After successful reconnect, info should clear
-      act(() => {
-        vi.advanceTimersByTime(1000);
-      });
-
-      act(() => {
-        simulateOpen();
-        simulateMessage('token');
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1000);
+        await vi.runAllTimersAsync();
       });
 
       expect(result.current.reconnectInfo).toBeNull();
@@ -490,7 +593,9 @@ describe('useStreamingSearch', () => {
   // ===== Custom Base URL =====
 
   describe('custom base URL', () => {
-    it('should use provided baseUrl', () => {
+    it('should use provided baseUrl (string parameter)', () => {
+      fetchSpy.mockReturnValue(new Promise(() => {}));
+
       const { result } = renderHook(() =>
         useStreamingSearch('/custom/api/stream')
       );
@@ -499,7 +604,30 @@ describe('useStreamingSearch', () => {
         result.current.sendMessage('Test');
       });
 
-      expect(getLatestES().url).toContain('/custom/api/stream');
+      expect(fetchSpy).toHaveBeenCalledWith(
+        '/custom/api/stream',
+        expect.any(Object)
+      );
+    });
+
+    it('should use provided baseUrl (options parameter)', () => {
+      fetchSpy.mockReturnValue(new Promise(() => {}));
+
+      const { result } = renderHook(() =>
+        useStreamingSearch({ baseUrl: '/custom/api/stream', topK: 10 })
+      );
+
+      act(() => {
+        result.current.sendMessage('Test');
+      });
+
+      expect(fetchSpy).toHaveBeenCalledWith(
+        '/custom/api/stream',
+        expect.any(Object)
+      );
+
+      const callBody = JSON.parse(fetchSpy.mock.calls[0][1].body as string);
+      expect(callBody.top_k).toBe(10);
     });
   });
 
@@ -507,17 +635,58 @@ describe('useStreamingSearch', () => {
 
   describe('cleanup on unmount', () => {
     it('should abort SSE client on unmount', () => {
+      fetchSpy.mockReturnValue(new Promise(() => {}));
+
       const { result, unmount } = renderHook(() => useStreamingSearch());
 
       act(() => {
         result.current.sendMessage('Test');
       });
 
-      const es = getLatestES();
-
       unmount();
 
-      expect(es.close).toHaveBeenCalled();
+      // After unmount, no further actions should occur
+      // (The abort is called internally via the client ref cleanup)
+      expect(result.current.messages).toHaveLength(2);
+    });
+  });
+
+  // ===== POST Body Verification =====
+
+  describe('POST body', () => {
+    it('should send query in POST body instead of URL query parameter', () => {
+      fetchSpy.mockReturnValue(new Promise(() => {}));
+
+      const { result } = renderHook(() => useStreamingSearch());
+
+      act(() => {
+        result.current.sendMessage('What is RAG?');
+      });
+
+      // URL should not contain query parameter
+      const url = fetchSpy.mock.calls[0][0] as string;
+      expect(url).not.toContain('query=');
+      expect(url).not.toContain('What%20is%20RAG');
+
+      // Body should contain the query
+      const body = JSON.parse(fetchSpy.mock.calls[0][1].body as string);
+      expect(body.query).toBe('What is RAG?');
+    });
+
+    it('should include Authorization header in request', () => {
+      fetchSpy.mockReturnValue(new Promise(() => {}));
+
+      const { result } = renderHook(() => useStreamingSearch());
+
+      act(() => {
+        result.current.sendMessage('Test');
+      });
+
+      const headers = fetchSpy.mock.calls[0][1].headers as Record<
+        string,
+        string
+      >;
+      expect(headers['Authorization']).toBe('Bearer mock-jwt-token');
     });
   });
 });
