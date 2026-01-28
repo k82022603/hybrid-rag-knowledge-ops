@@ -59,7 +59,7 @@ Sprint 03 완료 항목 (모두 충족):
 
 | Priority | ID | Jira | 제목 | Points | Assignee | Status |
 |----------|-----|------|------|--------|----------|--------|
-| P1 | STORY-054 | SCRUM-44 | 서비스 간 통합 테스트 (Contract Test) | 5 | QA | To Do |
+| P1 | STORY-054 | SCRUM-44 | 서비스 간 통합 테스트 (Contract Test) | 5 | QA | **In Progress** |
 | P1 | STORY-055 | SCRUM-45 | 보안 테스트 (XSS, SQL Injection, Auth) | 3 | QA | To Do |
 | P1 | STORY-056 | SCRUM-46 | Frontend ErrorBoundary + 성능 최적화 | 3 | Frontend | To Do |
 | P1 | STORY-057 | SCRUM-47 | Generator 대화이력 전달 + 진정한 스트리밍 | 5 | RAG | To Do |
@@ -75,7 +75,7 @@ Sprint 03 완료 항목 (모두 충족):
 | P2 | STORY-060 | SCRUM-50 | Planner 전략 유효화 + 검색 캐싱 | 3 | RAG | To Do |
 | P2 | STORY-061 | SCRUM-51 | 파이프라인 타임아웃 + Circuit Breaker | 3 | RAG | To Do |
 | P2 | STORY-062 | SCRUM-52 | 접근성 (WCAG 2.1 AA) 보완 | 2 | Frontend | To Do |
-| P2 | STORY-063 | SCRUM-53 | Docling 라이브러리 Docker 이미지 포함 및 테스트 활성화 | 3 | Infra, ETL | To Do |
+| P2 | STORY-063 | SCRUM-53 | Docling 라이브러리 Docker 이미지 포함 및 테스트 활성화 | 3 | Infra, ETL | **In Review** |
 
 **소계**: 16 pts (5 Stories)
 

@@ -2,6 +2,14 @@
 # AI Service Stub for Hybrid RAG Knowledge Platform
 # SCRUM-19: Stub Dockerfile - Health endpoint only (Python HTTP Server)
 # =============================================================================
+#
+# NOTE (STORY-063): This stub Dockerfile is DEPRECATED.
+# The production Dockerfile is now at: knowledge_service/Dockerfile
+# docker-compose.yml references ../../knowledge_service/Dockerfile directly.
+#
+# This stub remains available for quick testing without full dependencies:
+#   docker build -f infrastructure/docker/ai-service/Dockerfile -t ai-service-stub .
+# =============================================================================
 
 FROM python:3.11-alpine
 
@@ -17,6 +25,7 @@ RUN cat > /app/server.py << 'EOF'
 """
 AI Service Stub Server
 SCRUM-19: Minimal health endpoint for Docker Compose testing
+DEPRECATED by STORY-063: Use knowledge_service/Dockerfile for production
 """
 
 import json
