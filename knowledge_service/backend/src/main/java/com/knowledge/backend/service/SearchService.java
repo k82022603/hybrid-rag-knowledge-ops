@@ -2,9 +2,13 @@ package com.knowledge.backend.service;
 
 import com.knowledge.backend.api.dto.SearchResponse;
 import com.knowledge.backend.api.dto.search.ChatSearchRequest;
+import com.knowledge.backend.api.dto.search.SearchFeedbackResponse;
 import com.knowledge.backend.api.dto.search.SearchHistoryResponse;
+import com.knowledge.backend.api.dto.search.SearchSuggestionResponse;
 import com.knowledge.backend.client.AIServiceClient;
+import com.knowledge.backend.domain.entity.SearchFeedback;
 import com.knowledge.backend.domain.entity.SearchHistory;
+import com.knowledge.backend.domain.repository.SearchFeedbackRepository;
 import com.knowledge.backend.domain.repository.SearchHistoryRepository;
 import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.github.resilience4j.retry.annotation.Retry;
@@ -46,6 +50,7 @@ public class SearchService {
 
     private final AIServiceClient aiServiceClient;
     private final SearchHistoryRepository searchHistoryRepository;
+    private final SearchFeedbackRepository searchFeedbackRepository;
 
     /**
      * Perform hybrid search (Vector + Graph)
@@ -240,6 +245,74 @@ public class SearchService {
             log.warn("Invalid user ID format for search history: {}", userId);
             return Flux.empty();
         }
+    }
+
+    /**
+     * Get search suggestions based on popular queries
+     *
+     * <p>Returns popular search queries matching the prefix.
+     * If no prefix is provided, returns overall popular queries.
+     *
+     * @param prefix partial query text for prefix matching (optional)
+     * @param limit max number of suggestions
+     * @return flux of search suggestions
+     */
+    public Flux<SearchSuggestionResponse> getSearchSuggestions(String prefix, int limit) {
+        log.debug("Getting search suggestions - prefix: {}, limit: {}", prefix, limit);
+
+        if (prefix != null && !prefix.isBlank()) {
+            return searchHistoryRepository.findRecent(limit * 5)
+                    .filter(h -> h.getQueryText() != null
+                            && h.getQueryText().toLowerCase().contains(prefix.toLowerCase()))
+                    .distinct()
+                    .take(limit)
+                    .map(h -> SearchSuggestionResponse.builder()
+                            .suggestion(h.getQueryText())
+                            .frequency(1L)
+                            .build());
+        }
+
+        return searchHistoryRepository.findPopularQueries(limit)
+                .map(h -> SearchSuggestionResponse.builder()
+                        .suggestion(h.getQueryText())
+                        .frequency(h.getResultCount() != null ? h.getResultCount().longValue() : 1L)
+                        .build());
+    }
+
+    /**
+     * Submit search feedback
+     *
+     * @param userId user UUID
+     * @param searchId search history ID (optional)
+     * @param documentId document ID (optional)
+     * @param rating feedback rating (1-5)
+     * @param feedbackType type of feedback
+     * @param comment optional comment
+     * @return Mono of SearchFeedbackResponse
+     */
+    public Mono<SearchFeedbackResponse> submitFeedback(
+            UUID userId,
+            UUID searchId,
+            UUID documentId,
+            Integer rating,
+            String feedbackType,
+            String comment
+    ) {
+        log.info("Submitting search feedback: user={}, rating={}, type={}", userId, rating, feedbackType);
+
+        SearchFeedback feedback = SearchFeedback.builder()
+                .userId(userId)
+                .searchId(searchId)
+                .documentId(documentId)
+                .rating(rating)
+                .feedbackType(feedbackType != null ? feedbackType : "rating")
+                .comment(comment)
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        return searchFeedbackRepository.save(feedback)
+                .doOnSuccess(saved -> log.info("Search feedback saved: id={}", saved.getId()))
+                .map(SearchFeedbackResponse::from);
     }
 
     /**

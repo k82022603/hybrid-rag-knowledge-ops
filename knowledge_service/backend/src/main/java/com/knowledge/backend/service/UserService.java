@@ -1,18 +1,25 @@
 package com.knowledge.backend.service;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import com.knowledge.backend.api.dto.user.NotificationSettingResponse;
+import com.knowledge.backend.api.dto.user.UserActivityResponse;
 import com.knowledge.backend.api.dto.user.UserProfileResponse;
+import com.knowledge.backend.domain.entity.UserNotificationSetting;
+import com.knowledge.backend.domain.repository.AuditLogRepository;
 import com.knowledge.backend.domain.repository.KnowledgeUserRepository;
+import com.knowledge.backend.domain.repository.UserNotificationSettingRepository;
 import com.knowledge.backend.exception.BadRequestException;
 import com.knowledge.backend.exception.ResourceNotFoundException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
@@ -27,6 +34,8 @@ import reactor.core.publisher.Mono;
 public class UserService {
 
     private final KnowledgeUserRepository knowledgeUserRepository;
+    private final AuditLogRepository auditLogRepository;
+    private final UserNotificationSettingRepository notificationSettingRepository;
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     /**
@@ -109,5 +118,92 @@ public class UserService {
                 })
                 .doOnSuccess(u -> log.info("Password changed for user: {}", u.getId()))
                 .then();
+    }
+
+    // ========================================================================
+    // Activity Operations
+    // ========================================================================
+
+    /**
+     * Get user activities from audit logs
+     *
+     * @param userId the user UUID
+     * @param limit max results
+     * @return Flux of UserActivityResponse
+     */
+    public Flux<UserActivityResponse> getUserActivities(UUID userId, int limit) {
+        log.debug("Getting activities for user: {}, limit: {}", userId, limit);
+
+        return auditLogRepository.findByUserId(userId, limit)
+                .map(auditLog -> UserActivityResponse.builder()
+                        .id(auditLog.getId())
+                        .action(auditLog.getAction())
+                        .resourceType(auditLog.getResourceType())
+                        .resourceId(auditLog.getResourceId())
+                        .description(auditLog.getAction() + " on " + auditLog.getResourceType())
+                        .createdAt(auditLog.getCreatedAt())
+                        .build());
+    }
+
+    // ========================================================================
+    // Notification Settings Operations
+    // ========================================================================
+
+    /**
+     * Get user notification settings
+     *
+     * @param userId the user UUID
+     * @return Mono of NotificationSettingResponse
+     */
+    public Mono<NotificationSettingResponse> getNotificationSettings(UUID userId) {
+        log.debug("Getting notification settings for user: {}", userId);
+
+        return notificationSettingRepository.findByUserId(userId)
+                .map(NotificationSettingResponse::from);
+    }
+
+    /**
+     * Update user notification settings
+     *
+     * @param userId              the user UUID
+     * @param emailEnabled        email notifications enabled
+     * @param searchAlertEnabled  search alert notifications enabled
+     * @param documentUpdateEnabled document update notifications enabled
+     * @param systemNoticeEnabled system notice notifications enabled
+     * @return Mono of updated NotificationSettingResponse
+     */
+    public Mono<NotificationSettingResponse> updateNotificationSettings(
+            UUID userId,
+            Boolean emailEnabled,
+            Boolean searchAlertEnabled,
+            Boolean documentUpdateEnabled,
+            Boolean systemNoticeEnabled
+    ) {
+        log.info("Updating notification settings for user: {}", userId);
+
+        return notificationSettingRepository.findByUserId(userId)
+                .switchIfEmpty(Mono.defer(() -> {
+                    // Create default settings if not exists
+                    UserNotificationSetting newSetting = UserNotificationSetting.builder()
+                            .userId(userId)
+                            .emailEnabled(true)
+                            .searchAlertEnabled(false)
+                            .documentUpdateEnabled(true)
+                            .systemNoticeEnabled(true)
+                            .createdAt(LocalDateTime.now())
+                            .updatedAt(LocalDateTime.now())
+                            .build();
+                    return notificationSettingRepository.save(newSetting);
+                }))
+                .flatMap(setting -> {
+                    if (emailEnabled != null) setting.setEmailEnabled(emailEnabled);
+                    if (searchAlertEnabled != null) setting.setSearchAlertEnabled(searchAlertEnabled);
+                    if (documentUpdateEnabled != null) setting.setDocumentUpdateEnabled(documentUpdateEnabled);
+                    if (systemNoticeEnabled != null) setting.setSystemNoticeEnabled(systemNoticeEnabled);
+                    setting.setUpdatedAt(LocalDateTime.now());
+                    return notificationSettingRepository.save(setting);
+                })
+                .doOnSuccess(s -> log.info("Notification settings updated for user: {}", userId))
+                .map(NotificationSettingResponse::from);
     }
 }

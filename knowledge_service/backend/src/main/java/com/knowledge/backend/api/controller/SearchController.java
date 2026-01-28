@@ -1,15 +1,22 @@
 package com.knowledge.backend.api.controller;
 
+import java.util.UUID;
+
 import com.knowledge.backend.api.dto.SearchRequest;
 import com.knowledge.backend.api.dto.SearchResponse;
 import com.knowledge.backend.api.dto.search.ChatSearchRequest;
+import com.knowledge.backend.api.dto.search.SearchFeedbackRequest;
+import com.knowledge.backend.api.dto.search.SearchFeedbackResponse;
 import com.knowledge.backend.api.dto.search.SearchHistoryResponse;
+import com.knowledge.backend.api.dto.search.SearchSuggestionResponse;
 import com.knowledge.backend.security.JwtUser;
 import com.knowledge.backend.service.SearchService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -208,5 +215,65 @@ public class SearchController {
         }
 
         return searchService.getSearchHistory(userId);
+    }
+
+    /**
+     * Search suggestions / autocomplete endpoint
+     *
+     * <p>Returns search suggestions based on popular and recent queries.
+     *
+     * @param q partial query text for prefix matching
+     * @param limit max results (default 10)
+     * @return list of search suggestions
+     */
+    @GetMapping("/suggestions")
+    @PreAuthorize("hasAnyRole('USER', 'VIEWER', 'DEVELOPER', 'ADMIN')")
+    public Flux<SearchSuggestionResponse> getSearchSuggestions(
+        @RequestParam(required = false) String q,
+        @RequestParam(defaultValue = "10") int limit
+    ) {
+        log.info("Search suggestions request - q: {}, limit: {}", q, limit);
+        return searchService.getSearchSuggestions(q, limit);
+    }
+
+    /**
+     * Search feedback endpoint
+     *
+     * <p>Allows users to submit feedback (rating, comments) on search results.
+     *
+     * @param request feedback data
+     * @param user authenticated JWT user
+     * @return created feedback response
+     */
+    @PostMapping("/feedback")
+    @PreAuthorize("hasAnyRole('USER', 'DEVELOPER', 'ADMIN')")
+    public Mono<ResponseEntity<SearchFeedbackResponse>> submitFeedback(
+        @Valid @RequestBody SearchFeedbackRequest request,
+        @AuthenticationPrincipal JwtUser user
+    ) {
+        String userId = user != null ? user.id() : null;
+        log.info("Search feedback from user: {} - rating: {}, type: {}",
+            user != null ? user.username() : "anonymous",
+            request.getRating(), request.getFeedbackType());
+
+        if (userId == null) {
+            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
+        }
+
+        UUID userUuid;
+        try {
+            userUuid = UUID.fromString(userId);
+        } catch (IllegalArgumentException e) {
+            return Mono.just(ResponseEntity.badRequest().build());
+        }
+
+        return searchService.submitFeedback(
+                userUuid,
+                request.getSearchId(),
+                request.getDocumentId(),
+                request.getRating(),
+                request.getFeedbackType(),
+                request.getComment()
+        ).map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response));
     }
 }

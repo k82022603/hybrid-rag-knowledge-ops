@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
+import com.knowledge.backend.domain.entity.Chunk;
 import com.knowledge.backend.domain.repository.ChunkRepository;
 import com.knowledge.backend.domain.repository.DocumentRepository;
 import com.knowledge.backend.exception.ResourceNotFoundException;
@@ -92,6 +93,91 @@ public class ExportService {
                         })
                 )
                 .doOnSuccess(bytes -> log.info("Excel export completed for document: {}, size: {} bytes",
+                        documentId, bytes.length));
+    }
+
+    /**
+     * Export search results as CSV format
+     *
+     * <p>Currently exports recent documents matching the query.
+     * Future versions will integrate with AI Service for full search results.
+     *
+     * @param query      search query text
+     * @param format     export format (csv)
+     * @param maxResults maximum number of results
+     * @return Mono of byte array (CSV content)
+     */
+    public Mono<byte[]> exportSearchResults(String query, String format, int maxResults) {
+        log.info("Exporting search results: query={}, format={}, max={}", query, format, maxResults);
+
+        return documentRepository.searchByKeyword(query)
+                .take(maxResults)
+                .collectList()
+                .map(docs -> {
+                    StringBuilder csv = new StringBuilder();
+                    csv.append("id,title,document_type,processing_status,created_at\n");
+
+                    for (var doc : docs) {
+                        csv.append(doc.getId()).append(",");
+                        csv.append(escapeCSV(doc.getTitle())).append(",");
+                        csv.append(escapeCSV(doc.getDocumentType())).append(",");
+                        csv.append(escapeCSV(doc.getProcessingStatus())).append(",");
+                        csv.append(doc.getCreatedAt()).append("\n");
+                    }
+
+                    return csv.toString().getBytes(StandardCharsets.UTF_8);
+                })
+                .doOnSuccess(bytes -> log.info("Search export completed: query={}, size={} bytes",
+                        query, bytes.length));
+    }
+
+    /**
+     * Export document content as text or markdown
+     *
+     * @param documentId the document UUID
+     * @param format     output format (txt or md)
+     * @return Mono of byte array
+     */
+    public Mono<byte[]> exportDocumentContent(UUID documentId, String format) {
+        log.info("Exporting document content: id={}, format={}", documentId, format);
+
+        return documentRepository.findById(documentId)
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Document", documentId)))
+                .flatMap(doc ->
+                    chunkRepository.findByDocumentIdOrderByChunkIndex(documentId)
+                        .map(Chunk::getContent)
+                        .collectList()
+                        .map(chunks -> {
+                            StringBuilder sb = new StringBuilder();
+
+                            if ("md".equalsIgnoreCase(format)) {
+                                sb.append("# ").append(doc.getTitle()).append("\n\n");
+                                sb.append("**Type**: ").append(doc.getDocumentType()).append("\n");
+                                sb.append("**Status**: ").append(doc.getProcessingStatus()).append("\n");
+                                sb.append("**Created**: ").append(doc.getCreatedAt()).append("\n\n");
+                                sb.append("---\n\n");
+
+                                for (int i = 0; i < chunks.size(); i++) {
+                                    sb.append("## Section ").append(i + 1).append("\n\n");
+                                    sb.append(chunks.get(i)).append("\n\n");
+                                }
+                            } else {
+                                sb.append("Document: ").append(doc.getTitle()).append("\n");
+                                sb.append("Type: ").append(doc.getDocumentType()).append("\n");
+                                sb.append("Status: ").append(doc.getProcessingStatus()).append("\n");
+                                sb.append("Created: ").append(doc.getCreatedAt()).append("\n");
+                                sb.append("---\n\n");
+
+                                for (int i = 0; i < chunks.size(); i++) {
+                                    sb.append("[Section ").append(i + 1).append("]\n");
+                                    sb.append(chunks.get(i)).append("\n\n");
+                                }
+                            }
+
+                            return sb.toString().getBytes(StandardCharsets.UTF_8);
+                        })
+                )
+                .doOnSuccess(bytes -> log.info("Document content export completed: id={}, size={} bytes",
                         documentId, bytes.length));
     }
 

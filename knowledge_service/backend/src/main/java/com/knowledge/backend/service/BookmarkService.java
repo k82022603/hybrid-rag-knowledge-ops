@@ -82,6 +82,30 @@ public class BookmarkService {
     }
 
     /**
+     * Update bookmark comment
+     *
+     * @param bookmarkId the bookmark UUID
+     * @param userId     the user UUID (for ownership verification)
+     * @param comment    new comment text
+     * @return Mono of BookmarkResponse
+     */
+    public Mono<BookmarkResponse> updateBookmark(UUID bookmarkId, UUID userId, String comment) {
+        log.info("Updating bookmark: id={}, user={}", bookmarkId, userId);
+
+        return searchFeedbackRepository.findById(bookmarkId)
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Bookmark", bookmarkId)))
+                .flatMap(feedback -> {
+                    if (!userId.equals(feedback.getUserId())) {
+                        return Mono.error(new BadRequestException("Cannot update another user's bookmark"));
+                    }
+                    feedback.setComment(comment);
+                    return searchFeedbackRepository.save(feedback);
+                })
+                .doOnSuccess(b -> log.info("Bookmark updated: id={}", b.getId()))
+                .map(BookmarkResponse::from);
+    }
+
+    /**
      * Delete a bookmark by ID
      *
      * @param bookmarkId the bookmark UUID

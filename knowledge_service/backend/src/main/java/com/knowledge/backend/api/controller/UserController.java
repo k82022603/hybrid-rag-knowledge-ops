@@ -11,9 +11,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.knowledge.backend.api.dto.user.NotificationSettingResponse;
+import com.knowledge.backend.api.dto.user.NotificationSettingUpdateRequest;
 import com.knowledge.backend.api.dto.user.PasswordChangeRequest;
+import com.knowledge.backend.api.dto.user.UserActivityResponse;
 import com.knowledge.backend.api.dto.user.UserProfileResponse;
 import com.knowledge.backend.api.dto.user.UserUpdateRequest;
 import com.knowledge.backend.security.JwtUser;
@@ -22,6 +26,7 @@ import com.knowledge.backend.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
@@ -128,6 +133,88 @@ public class UserController {
     }
 
     /**
+     * Get current user activities
+     *
+     * @param principal authenticated user
+     * @param limit max results (default 20)
+     * @return Flux of UserActivityResponse
+     */
+    @GetMapping("/me/activities")
+    @PreAuthorize("hasAnyRole('USER', 'DEVELOPER', 'ADMIN')")
+    public Flux<UserActivityResponse> getMyActivities(
+            @AuthenticationPrincipal Object principal,
+            @RequestParam(defaultValue = "20") int limit
+    ) {
+        if (principal instanceof JwtUser user) {
+            log.info("GET /users/me/activities - user: {}", user.email());
+
+            UUID userId = extractUserId(principal);
+            if (userId != null) {
+                return userService.getUserActivities(userId, limit);
+            }
+        }
+
+        log.warn("GET /users/me/activities - unauthenticated request");
+        return Flux.empty();
+    }
+
+    /**
+     * Get current user notification settings
+     *
+     * @param principal authenticated user
+     * @return Mono of NotificationSettingResponse
+     */
+    @GetMapping("/me/notifications")
+    @PreAuthorize("hasAnyRole('USER', 'DEVELOPER', 'ADMIN')")
+    public Mono<ResponseEntity<NotificationSettingResponse>> getMyNotifications(
+            @AuthenticationPrincipal Object principal
+    ) {
+        if (principal instanceof JwtUser user) {
+            log.info("GET /users/me/notifications - user: {}", user.email());
+
+            UUID userId = extractUserId(principal);
+            if (userId != null) {
+                return userService.getNotificationSettings(userId)
+                        .map(ResponseEntity::ok)
+                        .defaultIfEmpty(ResponseEntity.ok(NotificationSettingResponse.defaultSettings()));
+            }
+        }
+
+        return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
+    }
+
+    /**
+     * Update current user notification settings
+     *
+     * @param request notification setting update data
+     * @param principal authenticated user
+     * @return Mono of updated NotificationSettingResponse
+     */
+    @PutMapping("/me/notifications")
+    @PreAuthorize("hasAnyRole('USER', 'DEVELOPER', 'ADMIN')")
+    public Mono<ResponseEntity<NotificationSettingResponse>> updateMyNotifications(
+            @Valid @RequestBody NotificationSettingUpdateRequest request,
+            @AuthenticationPrincipal Object principal
+    ) {
+        if (principal instanceof JwtUser user) {
+            log.info("PUT /users/me/notifications - user: {}", user.email());
+
+            UUID userId = extractUserId(principal);
+            if (userId != null) {
+                return userService.updateNotificationSettings(
+                        userId,
+                        request.getEmailEnabled(),
+                        request.getSearchAlertEnabled(),
+                        request.getDocumentUpdateEnabled(),
+                        request.getSystemNoticeEnabled()
+                ).map(ResponseEntity::ok);
+            }
+        }
+
+        return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
+    }
+
+    /**
      * Get user by ID (admin only)
      *
      * @param id the user UUID
@@ -140,5 +227,23 @@ public class UserController {
 
         return userService.getUserById(id)
                 .map(ResponseEntity::ok);
+    }
+
+    /**
+     * Extract user UUID from authentication principal
+     *
+     * @param principal the authentication principal
+     * @return user UUID or null
+     */
+    private UUID extractUserId(Object principal) {
+        if (principal instanceof JwtUser user) {
+            try {
+                return UUID.fromString(user.id());
+            } catch (IllegalArgumentException e) {
+                log.debug("User ID is not a UUID: {}", user.id());
+                return null;
+            }
+        }
+        return null;
     }
 }

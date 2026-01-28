@@ -13,11 +13,14 @@ import org.springframework.stereotype.Service;
 import com.knowledge.backend.api.dto.knowledge.CategoryResponse;
 import com.knowledge.backend.api.dto.knowledge.ChunkResponse;
 import com.knowledge.backend.api.dto.knowledge.DocumentResponse;
+import com.knowledge.backend.api.dto.knowledge.DocumentStatusResponse;
+import com.knowledge.backend.api.dto.knowledge.ProjectResponse;
 import com.knowledge.backend.domain.entity.Category;
 import com.knowledge.backend.domain.entity.Document;
 import com.knowledge.backend.domain.repository.CategoryRepository;
 import com.knowledge.backend.domain.repository.ChunkRepository;
 import com.knowledge.backend.domain.repository.DocumentRepository;
+import com.knowledge.backend.domain.repository.ProjectRepository;
 import com.knowledge.backend.exception.ResourceNotFoundException;
 
 import lombok.RequiredArgsConstructor;
@@ -39,6 +42,7 @@ public class KnowledgeService {
     private final DocumentRepository documentRepository;
     private final ChunkRepository chunkRepository;
     private final CategoryRepository categoryRepository;
+    private final ProjectRepository projectRepository;
 
     // ========================================================================
     // Document Operations
@@ -214,6 +218,40 @@ public class KnowledgeService {
      */
     public Mono<Long> countDocuments() {
         return documentRepository.countTotal();
+    }
+
+    // ========================================================================
+    // Category Operations
+    // ========================================================================
+
+    /**
+     * Get document processing status
+     *
+     * @param documentId the document UUID
+     * @return Mono of DocumentStatusResponse
+     */
+    public Mono<DocumentStatusResponse> getDocumentStatus(UUID documentId) {
+        log.debug("Getting document status: {}", documentId);
+
+        return documentRepository.findById(documentId)
+                .switchIfEmpty(Mono.error(new ResourceNotFoundException("Document", documentId)))
+                .map(DocumentStatusResponse::from);
+    }
+
+    // ========================================================================
+    // Project Operations
+    // ========================================================================
+
+    /**
+     * Get all projects
+     *
+     * @return Flux of ProjectResponse
+     */
+    public Flux<ProjectResponse> getProjects() {
+        log.debug("Getting all projects");
+
+        return projectRepository.findAll()
+                .map(ProjectResponse::from);
     }
 
     // ========================================================================

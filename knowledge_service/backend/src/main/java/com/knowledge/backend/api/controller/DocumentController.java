@@ -10,18 +10,16 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.knowledge.backend.api.dto.knowledge.CategoryResponse;
 import com.knowledge.backend.api.dto.knowledge.ChunkResponse;
 import com.knowledge.backend.api.dto.knowledge.DocumentCreateRequest;
 import com.knowledge.backend.api.dto.knowledge.DocumentResponse;
 import com.knowledge.backend.api.dto.knowledge.DocumentStatusResponse;
-import com.knowledge.backend.api.dto.knowledge.DocumentUpdateRequest;
+import com.knowledge.backend.api.dto.knowledge.CategoryResponse;
 import com.knowledge.backend.api.dto.knowledge.ProjectResponse;
 import com.knowledge.backend.security.JwtUser;
 import com.knowledge.backend.service.KnowledgeService;
@@ -33,66 +31,33 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 /**
- * Knowledge API Controller
+ * Document API Controller (Legacy path: /api/v1/documents)
  *
- * <p>Handles document CRUD, chunk retrieval, and category management.
+ * <p>Provides backward-compatible access to document APIs using the /api/v1/documents path.
+ * The canonical path is /api/v1/knowledge/documents via KnowledgeController.
  *
  * <p>Endpoints:
  * <ul>
- *   <li>GET    /api/v1/knowledge/documents          - List documents (paged)</li>
- *   <li>GET    /api/v1/knowledge/documents/{id}     - Get document detail</li>
- *   <li>POST   /api/v1/knowledge/documents          - Create document</li>
- *   <li>PUT    /api/v1/knowledge/documents/{id}     - Update document</li>
- *   <li>DELETE /api/v1/knowledge/documents/{id}     - Soft delete document</li>
- *   <li>GET    /api/v1/knowledge/documents/{id}/chunks - Get document chunks</li>
- *   <li>GET    /api/v1/knowledge/categories         - Get category tree</li>
+ *   <li>POST   /api/v1/documents          - Upload/create document</li>
+ *   <li>GET    /api/v1/documents          - List documents</li>
+ *   <li>GET    /api/v1/documents/{id}     - Get document detail</li>
+ *   <li>DELETE /api/v1/documents/{id}     - Delete document</li>
+ *   <li>GET    /api/v1/documents/{id}/status - Processing status</li>
+ *   <li>GET    /api/v1/documents/{id}/chunks - Document chunks</li>
+ *   <li>GET    /api/v1/categories         - Category list</li>
+ *   <li>GET    /api/v1/projects           - Project list</li>
  * </ul>
  */
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/knowledge")
+@RequestMapping("/api/v1")
 @RequiredArgsConstructor
-public class KnowledgeController {
+public class DocumentController {
 
     private final KnowledgeService knowledgeService;
 
     /**
-     * Get paginated document list
-     *
-     * @param page    page number (default 0)
-     * @param size    page size (default 20)
-     * @param type    optional document type filter
-     * @param keyword optional keyword search
-     * @return Flux of DocumentResponse
-     */
-    @GetMapping("/documents")
-    @PreAuthorize("hasAnyRole('USER', 'VIEWER', 'DEVELOPER', 'ADMIN')")
-    public Flux<DocumentResponse> getDocuments(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) String type,
-            @RequestParam(required = false) String keyword
-    ) {
-        log.info("GET /knowledge/documents - page={}, size={}, type={}, keyword={}", page, size, type, keyword);
-        return knowledgeService.getDocuments(page, size, type, keyword);
-    }
-
-    /**
-     * Get document by ID
-     *
-     * @param id the document UUID
-     * @return Mono of DocumentResponse
-     */
-    @GetMapping("/documents/{id}")
-    @PreAuthorize("hasAnyRole('USER', 'VIEWER', 'DEVELOPER', 'ADMIN')")
-    public Mono<ResponseEntity<DocumentResponse>> getDocument(@PathVariable UUID id) {
-        log.info("GET /knowledge/documents/{}", id);
-        return knowledgeService.getDocument(id)
-                .map(ResponseEntity::ok);
-    }
-
-    /**
-     * Create a new document (metadata)
+     * Upload / create a new document
      *
      * @param request document creation data
      * @param principal authenticated user
@@ -104,7 +69,7 @@ public class KnowledgeController {
             @Valid @RequestBody DocumentCreateRequest request,
             @AuthenticationPrincipal Object principal
     ) {
-        log.info("POST /knowledge/documents - title={}", request.getTitle());
+        log.info("POST /documents - title={}", request.getTitle());
 
         UUID uploadedBy = extractUserId(principal);
 
@@ -124,57 +89,52 @@ public class KnowledgeController {
     }
 
     /**
-     * Update an existing document
+     * Get paginated document list
      *
-     * @param id      the document UUID
-     * @param request document update data
-     * @return Mono of updated DocumentResponse
+     * @param page    page number (default 0)
+     * @param size    page size (default 20)
+     * @param type    optional document type filter
+     * @param keyword optional keyword search
+     * @return Flux of DocumentResponse
      */
-    @PutMapping("/documents/{id}")
-    @PreAuthorize("hasAnyRole('USER', 'DEVELOPER', 'ADMIN')")
-    public Mono<ResponseEntity<DocumentResponse>> updateDocument(
-            @PathVariable UUID id,
-            @Valid @RequestBody DocumentUpdateRequest request
+    @GetMapping("/documents")
+    @PreAuthorize("hasAnyRole('USER', 'VIEWER', 'DEVELOPER', 'ADMIN')")
+    public Flux<DocumentResponse> getDocuments(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String keyword
     ) {
-        log.info("PUT /knowledge/documents/{}", id);
-
-        return knowledgeService.updateDocument(
-                id,
-                request.getTitle(),
-                request.getDocumentType(),
-                request.getProjectId(),
-                request.getAuthorId(),
-                request.getValidStartDate(),
-                request.getValidEndDate()
-        ).map(ResponseEntity::ok);
+        log.info("GET /documents - page={}, size={}, type={}, keyword={}", page, size, type, keyword);
+        return knowledgeService.getDocuments(page, size, type, keyword);
     }
 
     /**
-     * Soft delete a document
+     * Get document by ID
      *
      * @param id the document UUID
-     * @return empty response with 204 No Content
+     * @return Mono of DocumentResponse
+     */
+    @GetMapping("/documents/{id}")
+    @PreAuthorize("hasAnyRole('USER', 'VIEWER', 'DEVELOPER', 'ADMIN')")
+    public Mono<ResponseEntity<DocumentResponse>> getDocument(@PathVariable UUID id) {
+        log.info("GET /documents/{}", id);
+        return knowledgeService.getDocument(id)
+                .map(ResponseEntity::ok);
+    }
+
+    /**
+     * Delete a document (soft delete)
+     *
+     * @param id the document UUID
+     * @return empty response with 204
      */
     @DeleteMapping("/documents/{id}")
     @PreAuthorize("hasAnyRole('DEVELOPER', 'ADMIN')")
     public Mono<ResponseEntity<Void>> deleteDocument(@PathVariable UUID id) {
-        log.info("DELETE /knowledge/documents/{}", id);
-
+        log.info("DELETE /documents/{}", id);
         return knowledgeService.deleteDocument(id)
                 .then(Mono.just(ResponseEntity.noContent().<Void>build()));
-    }
-
-    /**
-     * Get chunks for a document
-     *
-     * @param id the document UUID
-     * @return Flux of ChunkResponse
-     */
-    @GetMapping("/documents/{id}/chunks")
-    @PreAuthorize("hasAnyRole('USER', 'VIEWER', 'DEVELOPER', 'ADMIN')")
-    public Flux<ChunkResponse> getDocumentChunks(@PathVariable UUID id) {
-        log.info("GET /knowledge/documents/{}/chunks", id);
-        return knowledgeService.getDocumentChunks(id);
     }
 
     /**
@@ -186,20 +146,33 @@ public class KnowledgeController {
     @GetMapping("/documents/{id}/status")
     @PreAuthorize("hasAnyRole('USER', 'VIEWER', 'DEVELOPER', 'ADMIN')")
     public Mono<ResponseEntity<DocumentStatusResponse>> getDocumentStatus(@PathVariable UUID id) {
-        log.info("GET /knowledge/documents/{}/status", id);
+        log.info("GET /documents/{}/status", id);
         return knowledgeService.getDocumentStatus(id)
                 .map(ResponseEntity::ok);
     }
 
     /**
-     * Get category tree
+     * Get document chunks
      *
-     * @return Flux of CategoryResponse with nested children
+     * @param id the document UUID
+     * @return Flux of ChunkResponse
+     */
+    @GetMapping("/documents/{id}/chunks")
+    @PreAuthorize("hasAnyRole('USER', 'VIEWER', 'DEVELOPER', 'ADMIN')")
+    public Flux<ChunkResponse> getDocumentChunks(@PathVariable UUID id) {
+        log.info("GET /documents/{}/chunks", id);
+        return knowledgeService.getDocumentChunks(id);
+    }
+
+    /**
+     * Get all categories
+     *
+     * @return Flux of CategoryResponse
      */
     @GetMapping("/categories")
     @PreAuthorize("hasAnyRole('USER', 'VIEWER', 'DEVELOPER', 'ADMIN')")
     public Flux<CategoryResponse> getCategories() {
-        log.info("GET /knowledge/categories");
+        log.info("GET /categories");
         return knowledgeService.getCategoryTree();
     }
 
@@ -211,7 +184,7 @@ public class KnowledgeController {
     @GetMapping("/projects")
     @PreAuthorize("hasAnyRole('USER', 'VIEWER', 'DEVELOPER', 'ADMIN')")
     public Flux<ProjectResponse> getProjects() {
-        log.info("GET /knowledge/projects");
+        log.info("GET /projects");
         return knowledgeService.getProjects();
     }
 
