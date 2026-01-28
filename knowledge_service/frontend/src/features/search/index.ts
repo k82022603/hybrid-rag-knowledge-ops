@@ -15,10 +15,12 @@ export { default as MessageBubble } from './components/MessageBubble';
 export { default as ChatInput } from './components/ChatInput';
 export { default as SourceCitation } from './components/SourceCitation';
 export { default as SearchResultCard } from './components/SearchResultCard';
+export { default as StreamingIndicator } from './components/StreamingIndicator';
 
 // Hooks
 export { useSearchChat } from './hooks/useSearchChat';
 export { useKeywordSearch } from './hooks/useKeywordSearch';
+export { useStreamingSearch } from './hooks/useStreamingSearch';
 
 // Types
 export type {
@@ -30,3 +32,8 @@ export type {
   KeywordSearchResponse,
   SearchMode,
 } from './types';
+
+export type {
+  UseStreamingSearchReturn,
+  ReconnectInfo,
+} from './hooks/useStreamingSearch';

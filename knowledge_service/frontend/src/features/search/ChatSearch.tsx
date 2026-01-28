@@ -8,14 +8,25 @@
  * - AC4: Loading indicator during search
  * - AC5: Auto-scroll + manual scroll support
  *
- * Composed of: MessageList, ChatInput, SourceCitation (via MessageBubble)
- * Uses: useSearchChat hook for state management
+ * Implements STORY-043 Acceptance Criteria:
+ * - AC1: Token-by-token streaming display
+ * - AC2: Incremental token append
+ * - AC3: Source citations after [DONE]
+ * - AC4: Auto-reconnect with 3 retries + exponential backoff
+ * - AC5: User cancel/abort support
+ *
+ * Composed of: MessageList, ChatInput, StreamingIndicator, SourceCitation (via MessageBubble)
+ * Uses: useStreamingSearch hook for SSE lifecycle management
  */
 import React from 'react';
-import { ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import {
+  ExclamationTriangleIcon,
+  StopIcon,
+} from '@heroicons/react/24/outline';
 import MessageList from './components/MessageList';
 import ChatInput from './components/ChatInput';
-import { useSearchChat } from './hooks/useSearchChat';
+import StreamingIndicator from './components/StreamingIndicator';
+import { useStreamingSearch } from './hooks/useStreamingSearch';
 
 /**
  * ChatSearch page component (/search/chat)
@@ -25,12 +36,15 @@ const ChatSearch: React.FC = () => {
     query,
     setQuery,
     messages,
-    isLoading,
+    isStreaming,
+    isConnecting,
     error,
-    handleSubmit,
-    handleClear,
+    reconnectInfo,
+    sendMessage,
+    cancelStream,
+    clearMessages,
     dismissError,
-  } = useSearchChat();
+  } = useStreamingSearch();
 
   return (
     <div
@@ -45,6 +59,26 @@ const ChatSearch: React.FC = () => {
           setQuery(suggestion);
         }}
       />
+
+      {/* Streaming Indicator + Cancel Button */}
+      {isStreaming && (
+        <div className="flex items-center justify-between border-t border-gray-100 dark:border-gray-700/50">
+          <StreamingIndicator
+            isStreaming={isStreaming}
+            isConnecting={isConnecting}
+            reconnectInfo={reconnectInfo}
+          />
+          <button
+            onClick={cancelStream}
+            className="flex items-center gap-1.5 mr-4 px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-error-600 dark:hover:text-error-400 hover:bg-error-50 dark:hover:bg-error-900/20 rounded-lg transition-colors"
+            aria-label="Cancel streaming response"
+            data-testid="cancel-stream-button"
+          >
+            <StopIcon className="h-3.5 w-3.5" />
+            <span>Cancel</span>
+          </button>
+        </div>
+      )}
 
       {/* Error Banner */}
       {error && (
@@ -66,9 +100,9 @@ const ChatSearch: React.FC = () => {
       <ChatInput
         value={query}
         onChange={setQuery}
-        onSubmit={handleSubmit}
-        onClear={handleClear}
-        isLoading={isLoading}
+        onSubmit={() => sendMessage()}
+        onClear={clearMessages}
+        isLoading={isStreaming}
         showClear={messages.length > 0}
       />
     </div>
