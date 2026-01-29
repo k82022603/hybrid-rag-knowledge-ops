@@ -1,134 +1,175 @@
-# Sprint 05: RAG Performance Test
+# Sprint 05: 품질 완성 + 프로덕션 준비
 
 ## 스프린트 정보
 
 | 항목 | 값 |
 |------|-----|
-| **기간** | 2026-03-17 ~ 2026-03-28 (2주) |
-| **Velocity (계획)** | 26 pts |
+| **기간** | 2026-01-30 ~ 2026-02-07 (1주) |
+| **Velocity (계획)** | 26 pts (7 Stories) |
 | **Velocity (실제)** | - |
 | **Status** | planned |
-| **Jira Sprint ID** | 39 |
+| **Jira Sprint ID** | - |
+| **근거** | Sprint 04 미완료 이월 + Known Issues 해결 |
 
 ---
 
 ## 스프린트 목표
 
-> **RAG 품질 평가 + 성능 최적화 + 보안 테스트**
+> **프로덕션 준비도 75% → 90% 달성 + 품질 게이트 완성**
 
 핵심 목표:
-1. Ragas 프레임워크 기반 RAG 품질 평가
-2. 검색 품질 메트릭 측정 (Precision, Recall, MRR, NDCG)
-3. k6 성능 부하 테스트 실행
-4. 병목 구간 식별 및 최적화
-5. OWASP 보안 취약점 스캔
+1. RAG 품질 측정 체계 확립 (RAGAS 통합)
+2. Frontend 테스트 커버리지 확장 (25% → 60%)
+3. 파이프라인 안정성 강화 (타임아웃, Circuit Breaker)
+4. Docker E2E 100% 달성 (Keycloak realm 설정)
+5. 접근성 WCAG 2.1 AA 준수
 
 ---
 
-## 선행 조건
+## Sprint 04 이월 항목
 
-Sprint 4 완료 항목 (필수):
-- [ ] E2E 통합 테스트 시나리오 (STORY-046)
-- [ ] Playwright E2E 테스트 (STORY-047)
-- [ ] Prometheus 메트릭 수집 (STORY-050)
-- [ ] Grafana 대시보드 구성 (STORY-051)
-- [ ] Loki 로그 집계 (STORY-052)
-- [ ] Jaeger 분산 트레이싱 (STORY-053)
-- [ ] 알림 규칙 설정 (STORY-054)
+| Story | SP | 담당 | 이월 사유 |
+|-------|:--:|------|----------|
+| STORY-058 | 5 | RAG | Sprint 04 범위 초과 |
+| STORY-059 | 5 | Frontend | Sprint 04 범위 초과 |
+| STORY-060 | 3 | RAG | Sprint 04 범위 초과 |
+| STORY-061 | 3 | RAG | Sprint 04 범위 초과 |
+| STORY-062 | 2 | Frontend | Sprint 04 범위 초과 |
+
+**이월 합계**: 18 SP
 
 ---
 
 ## 백로그
 
-### Epic 005: RAG Quality & Performance (26 pts)
+### P0 - Critical (Day 1-2)
 
 | Priority | ID | Jira | 제목 | Points | Assignee | Status |
 |----------|-----|------|------|--------|----------|--------|
-| P0 | STORY-060 | SCRUM-61 | Ragas 평가 파이프라인 | 5 | QA, MLRag | To Do |
-| P0 | STORY-061 | SCRUM-62 | 검색 품질 평가 (IR Metrics) | 5 | QA | To Do |
-| P0 | STORY-062 | SCRUM-63 | 성능 부하 테스트 (k6) | 5 | QA, DevOps | To Do |
-| P0 | STORY-063 | SCRUM-64 | 최적화 및 튜닝 | 5 | MLRag, Backend | To Do |
-| P1 | STORY-064 | SCRUM-65 | 보안 취약점 스캔 | 3 | QA, DevOps | To Do |
-| P1 | STORY-065 | SCRUM-66 | 품질 게이트 자동화 | 3 | DevOps | To Do |
+| P0 | STORY-064 | SCRUM-64 | Keycloak Realm 설정 (Docker E2E 100%) | 3 | Infra | To Do |
+| P0 | STORY-058 | SCRUM-48 | RAGAS 평가 프레임워크 통합 | 5 | RAG | To Do |
 
-### Stretch (여유 시 추가)
+**소계**: 8 pts (2 Stories)
 
-| ID | 제목 | Points |
-|----|------|--------|
-| - | A/B 테스트 프레임워크 | 5 |
-| - | 자동 하이퍼파라미터 튜닝 | 5 |
-| - | 성능 회귀 테스트 자동화 | 3 |
+### P1 - High (Day 3-4)
+
+| Priority | ID | Jira | 제목 | Points | Assignee | Status |
+|----------|-----|------|------|--------|----------|--------|
+| P1 | STORY-061 | SCRUM-51 | 파이프라인 타임아웃 + Circuit Breaker | 3 | RAG | To Do |
+| P1 | STORY-059 | SCRUM-49 | Frontend 테스트 커버리지 확장 (25%→60%) | 5 | Frontend | To Do |
+| P1 | STORY-060 | SCRUM-50 | Planner 전략 유효화 + 검색 캐싱 | 3 | RAG | To Do |
+
+**소계**: 11 pts (3 Stories)
+
+### P2 - Medium (Day 5)
+
+| Priority | ID | Jira | 제목 | Points | Assignee | Status |
+|----------|-----|------|------|--------|----------|--------|
+| P2 | STORY-062 | SCRUM-52 | 접근성 WCAG 2.1 AA 보완 | 2 | Frontend | To Do |
+| P2 | STORY-063 | SCRUM-53 | Docling Docker 이미지 최적화 (8.5GB→?) | 5 | Infra/ETL | To Do |
+
+**소계**: 7 pts (2 Stories)
 
 ---
 
-## 기술 의존성 (사전 준비)
+## 신규 Story
 
-### 테스트 데이터
-- [ ] Q&A 데이터셋 100개 이상 준비
-- [ ] Ground Truth 어노테이션
-- [ ] 테스트 쿼리 컬렉션
+### STORY-064: Keycloak Realm 설정
 
-### 도구
-- [ ] Ragas 라이브러리 설치
-- [ ] k6 성능 테스트 도구
-- [ ] Trivy 컨테이너 스캔
-- [ ] OWASP ZAP 웹 스캔
+**목적**: Docker E2E 17건 실패 해결 (401 Unauthorized)
+
+**Acceptance Criteria**:
+- [ ] \`knowledge-platform\` realm 자동 생성
+- [ ] 테스트 사용자 계정 등록 (testuser/password)
+- [ ] realm-export.json 작성 및 Docker Compose 연동
+- [ ] Docker E2E 98/98 (100%) 달성
+
+**담당**: Infra
+**SP**: 3
 
 ---
 
 ## 일일 계획
 
-### Week 1
+### Day 1 (2026-01-30)
 
-#### Day 1 (03-17, Mon)
-- [ ] 스프린트 킥오프 미팅
-- [ ] 테스트 데이터셋 최종 검토
-- [ ] STORY-060 착수: Ragas 환경 설정
+| 시간 | 작업 | 담당 |
+|------|------|------|
+| 09:00 | Sprint 05 킥오프 미팅 | PM |
+| 09:30 | STORY-064 착수: Keycloak realm 설계 | Infra |
+| 10:00 | STORY-058 착수: ragas 패키지 연동 | RAG |
+| 14:00 | STORY-064: realm-export.json 작성 | Infra |
+| 16:00 | Docker E2E 재검증 | QA |
 
-#### Day 2 (03-18, Tue)
-- [ ] STORY-060: RAG 파이프라인 실행
-- [ ] STORY-060: Ragas 메트릭 수집
+### Day 2 (2026-01-31)
 
-#### Day 3 (03-19, Wed)
-- [ ] STORY-060: 품질 리포트 생성
-- [ ] STORY-061 착수: IR 메트릭 구현
+| 시간 | 작업 | 담당 |
+|------|------|------|
+| 09:00 | 스탠드업 미팅 | PM |
+| 09:30 | STORY-064 완료: Docker E2E 100% 확인 | Infra/QA |
+| 10:00 | STORY-058: faithfulness/relevancy 메트릭 구현 | RAG |
+| 14:00 | STORY-058: Ground truth 데이터셋 생성 | RAG |
+| 16:00 | P0 완료 확인 | PM |
 
-#### Day 4 (03-20, Thu)
-- [ ] STORY-060 완료
-- [ ] STORY-061: Precision, Recall 측정
-- [ ] STORY-061: MRR, NDCG 측정
+### Day 3 (2026-02-03)
 
-#### Day 5 (03-21, Fri)
-- [ ] STORY-061 완료
-- [ ] STORY-062 착수: k6 시나리오 작성
-- [ ] Week 1 리뷰
+| 시간 | 작업 | 담당 |
+|------|------|------|
+| 09:00 | 스탠드업 미팅 | PM |
+| 09:30 | STORY-058 완료: 평가 보고서 생성 | RAG |
+| 10:00 | STORY-061 착수: timeout 설정 | RAG |
+| 14:00 | STORY-059 착수: Frontend 테스트 확장 | Frontend |
+| 16:00 | STORY-061: Circuit Breaker 구현 | RAG |
 
-### Week 2
+### Day 4 (2026-02-04)
 
-#### Day 6 (03-24, Mon)
-- [ ] STORY-062: 부하 테스트 실행
-- [ ] STORY-062: 성능 리포트 분석
+| 시간 | 작업 | 담당 |
+|------|------|------|
+| 09:00 | 스탠드업 미팅 | PM |
+| 09:30 | STORY-061 완료: 장애 시나리오 테스트 | RAG/QA |
+| 10:00 | STORY-059: 컴포넌트 테스트 작성 | Frontend |
+| 14:00 | STORY-060 착수: 캐싱 전략 구현 | RAG |
+| 16:00 | STORY-059 완료: 커버리지 60% 달성 | Frontend |
 
-#### Day 7 (03-25, Tue)
-- [ ] STORY-062 완료
-- [ ] STORY-063 착수: 병목 구간 식별
-- [ ] STORY-063: 캐싱 전략 적용
+### Day 5 (2026-02-05)
 
-#### Day 8 (03-26, Wed)
-- [ ] STORY-063: 쿼리 최적화
-- [ ] STORY-063: 인덱스 튜닝
-- [ ] STORY-064 착수: Trivy 스캔
+| 시간 | 작업 | 담당 |
+|------|------|------|
+| 09:00 | 스탠드업 미팅 | PM |
+| 09:30 | STORY-060 완료: 캐시 히트율 검증 | RAG |
+| 10:00 | STORY-062 착수: 접근성 감사 | Frontend |
+| 14:00 | STORY-063 착수: Docling 이미지 최적화 | Infra/ETL |
+| 16:00 | Sprint 리뷰 준비 | PM |
 
-#### Day 9 (03-27, Thu)
-- [ ] STORY-063: 재측정 및 검증
-- [ ] STORY-064: OWASP ZAP 스캔
-- [ ] STORY-065 착수: CI 품질 게이트
+### Day 6 (2026-02-06) - Buffer
 
-#### Day 10 (03-28, Fri)
-- [ ] STORY-063, 064, 065 완료
-- [ ] 전체 품질 리포트 작성
-- [ ] 스프린트 리뷰 & 회고
-- [ ] Sprint 6 계획 준비
+| 시간 | 작업 | 담당 |
+|------|------|------|
+| 09:00 | P2 잔여 작업 완료 | All |
+| 14:00 | 통합 테스트 | QA |
+| 16:00 | Sprint 리뷰 & 회고 | PM |
+
+---
+
+## 기술 의존성
+
+### Keycloak Realm 설정
+- [ ] realm-export.json 템플릿 작성
+- [ ] Docker Compose 볼륨 마운트 설정
+- [ ] 테스트 사용자 자격증명 환경변수화
+
+### RAGAS 통합
+- [x] ragas 패키지 설치 확인 (pyproject.toml)
+- [ ] Ground truth QA 쌍 30개+ 준비
+- [ ] OpenAI API 키 설정 (RAGAS 평가용)
+
+### Circuit Breaker
+- [ ] resilience4j 또는 tenacity 선정
+- [ ] 장애 시나리오 정의 (타임아웃, 연결 실패)
+
+### Frontend 테스트
+- [ ] Testing Library + Vitest 설정 확인
+- [ ] MSW 모킹 패턴 표준화
 
 ---
 
@@ -136,154 +177,80 @@ Sprint 4 완료 항목 (필수):
 
 각 Story 완료 기준:
 - [ ] 모든 Acceptance Criteria 충족
-- [ ] 테스트 리포트 작성
-- [ ] 코드 리뷰 완료
-- [ ] 품질 기준 충족
-- [ ] 기술 부채 없음
+- [ ] 단위 테스트 작성 (커버리지 80%+)
+- [ ] 코드 리뷰 완료 (TechLead)
+- [ ] 기존 테스트 회귀 없음 (CI 통과)
+- [ ] 문서 업데이트
+- [ ] Jira 상태 Done 전환
+- [ ] Slack 완료 알림
 
 ---
 
-## 리스크 및 블로커
+## 리스크 및 대응
 
 | 유형 | 설명 | 영향 | 대응 | 상태 |
 |------|------|------|------|------|
-| Risk | 품질 기준 미달 | High | 튜닝 iteration | Open |
-| Risk | 테스트 데이터 품질 | High | 전문가 검토 | Open |
-| Risk | 성능 병목 해결 어려움 | Medium | 아키텍처 변경 검토 | Open |
-| Blocker | Sprint 4 미완료 시 | Critical | Sprint 4 우선 | Monitoring |
-
----
-
-## 산출물
-
-### 평가 코드
-```
-ai-service/src/
-├── evaluation/
-│   ├── ragas_eval.py               # STORY-060
-│   ├── ir_metrics.py               # STORY-061
-│   └── test_datasets/
-│       ├── qa_dataset.json
-│       └── ground_truth.json
-```
-
-### 성능 테스트
-```
-tests/performance/
-├── k6/
-│   ├── load-test.js                # STORY-062
-│   ├── stress-test.js
-│   └── spike-test.js
-└── reports/
-    └── performance-report.html
-```
-
-### 보안 스캔
-```
-tests/security/
-├── trivy/
-│   └── scan-results.json           # STORY-064
-├── owasp-zap/
-│   └── scan-report.html
-└── dependency-check/
-    └── report.html
-```
-
-### CI/CD
-```
-.gitlab-ci.yml  # 또는 .github/workflows/
-├── quality-gate.yml                # STORY-065
-│   ├── ragas-check
-│   ├── performance-check
-│   └── security-check
-```
-
-### 리포트
-- [ ] Ragas 품질 리포트
-- [ ] IR 메트릭 리포트
-- [ ] 성능 테스트 리포트
-- [ ] 보안 스캔 리포트
-- [ ] 최적화 전후 비교 리포트
-
----
-
-## 품질 게이트 기준
-
-### RAG 품질 (Ragas)
-| 메트릭 | 목표 | 게이트 |
-|--------|------|--------|
-| Faithfulness | >= 0.9 | PASS/FAIL |
-| Answer Relevancy | >= 0.85 | PASS/FAIL |
-| Context Precision | >= 0.8 | PASS/FAIL |
-| Context Recall | >= 0.75 | PASS/FAIL |
-
-### 검색 품질 (IR Metrics)
-| 메트릭 | 목표 | 게이트 |
-|--------|------|--------|
-| Precision@5 | >= 0.8 | PASS/FAIL |
-| Recall@10 | >= 0.85 | PASS/FAIL |
-| MRR | >= 0.7 | PASS/FAIL |
-| NDCG@10 | >= 0.8 | PASS/FAIL |
-
-### 성능 (k6)
-| 메트릭 | 목표 | 게이트 |
-|--------|------|--------|
-| P50 Latency | < 1초 | PASS/FAIL |
-| P95 Latency | < 3초 | PASS/FAIL |
-| P99 Latency | < 5초 | PASS/FAIL |
-| Error Rate | < 1% | PASS/FAIL |
-| Throughput | >= 50 QPS | PASS/FAIL |
-
-### 보안 (Trivy, OWASP ZAP)
-| 항목 | 목표 | 게이트 |
-|------|------|--------|
-| Critical 취약점 | 0개 | PASS/FAIL |
-| High 취약점 | <= 5개 | PASS/FAIL |
-| OWASP Top 10 | 통과 | PASS/FAIL |
+| Risk | Keycloak realm 설정 복잡성 | High | 기존 realm-export 참조 | Open |
+| Risk | RAGAS 점수 목표 미달 | Medium | 프롬프트 튜닝 | Open |
+| Risk | Frontend 커버리지 60% 미달 | Medium | 핵심 컴포넌트 집중 | Open |
+| Risk | Docling 이미지 최적화 한계 | Low | Multi-stage 빌드 | Open |
 
 ---
 
 ## 메트릭 목표
 
-| 메트릭 | 목표 | 측정 방법 |
-|--------|------|-----------|
-| Ragas Faithfulness | >= 0.9 | Ragas |
-| P95 Latency | < 3초 | k6 |
-| Critical 취약점 | 0개 | Trivy |
-| 품질 게이트 통과 | 100% | CI/CD |
+| 메트릭 | 현재 | 목표 | 측정 방법 |
+|--------|------|------|-----------|
+| 프로덕션 준비도 | 75% | 90% | 팀 리뷰 |
+| Docker E2E | 82.7% | 100% | pytest |
+| Contract Tests | 121 | 121+ | pytest |
+| Frontend 커버리지 | 25% | 60%+ | vitest |
+| RAGAS Faithfulness | - | ≥ 0.7 | ragas |
+| RAGAS Relevancy | - | ≥ 0.7 | ragas |
 
 ---
 
-## 스프린트 리뷰
+## 산출물
 
-### 완료된 항목
-- (스프린트 종료 후 작성)
+### AI Service
+\`\`\`
+ai_service/src/
+├── evaluation/
+│   ├── ragas_evaluator.py        # STORY-058
+│   └── ground_truth/             # STORY-058
+│       └── qa_pairs.json
+├── services/
+│   └── cache_service.py          # STORY-060
+└── utils/
+    └── circuit_breaker.py        # STORY-061
+\`\`\`
 
-### 미완료 항목
-- (스프린트 종료 후 작성)
+### Frontend
+\`\`\`
+frontend/src/
+├── __tests__/
+│   ├── components/               # STORY-059
+│   └── hooks/                    # STORY-059
+└── accessibility/
+    └── a11y-report.md            # STORY-062
+\`\`\`
 
-### 데모 노트
-- (스프린트 종료 후 작성)
-
----
-
-## 회고 (Retrospective)
-
-### Keep (계속할 것)
--
-
-### Problem (문제점)
--
-
-### Try (시도할 것)
--
+### Infrastructure
+\`\`\`
+infrastructure/
+├── docker/
+│   └── keycloak/
+│       └── realm-export.json     # STORY-064
+└── docling/
+    └── Dockerfile.optimized      # STORY-063
+\`\`\`
 
 ---
 
 ## 참고 자료
 
-- [EPIC-005: RAG Quality & Performance](../epics/EPIC-005-rag-quality-performance.md)
-- [스프린트 실행 계획서](../../docs/02_스프린트_실행_계획서.md)
-- [테스트 계획서](../../knowledge_service/docs/04_testing/unit_integration_test_plan.md)
-- [Ragas 공식 문서](https://docs.ragas.io/)
-- [k6 성능 테스트](https://k6.io/docs/)
+- [Sprint 04 작업일지](../../work_logs/daily_logs/2026/01-January/2026-01-29.md)
+- [Sprint 04 세션로그](../../work_logs/session_logs/2026/01-January/2026-01-29_sprint04_day5_parallel.md)
+- [ADR-001 직렬화 전략](../../knowledge_service/docs/02_design/adr/ADR-001-serialization-strategy.md)
+- [ADR-002 검색 API 인증](../../knowledge_service/docs/02_design/adr/ADR-002-search-api-authentication.md)
+- [ADR-003 Auth 보안](../../knowledge_service/docs/02_design/adr/ADR-003-auth-endpoint-security.md)
