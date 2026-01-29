@@ -6,7 +6,7 @@
 |------|-----|
 | **Jira ID** | SCRUM-53 |
 | **Epic** | EPIC-001 |
-| **Status** | In Review |
+| **Status** | Done |
 | **Priority** | Medium |
 | **Story Points** | 3 |
 | **Assignee** | Infra (Primary), ETL (Secondary) |

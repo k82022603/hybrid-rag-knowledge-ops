@@ -47,7 +47,7 @@
 | Priority | ID | Jira | 제목 | Points | Assignee | Status |
 |----------|-----|------|------|--------|----------|--------|
 | P0 | STORY-064 | SCRUM-64 | Keycloak Realm 설정 (Docker E2E 100%) | 3 | Infra | To Do |
-| P0 | STORY-058 | SCRUM-48 | RAGAS 평가 프레임워크 통합 | 5 | RAG | To Do |
+| P0 | STORY-058 | SCRUM-48 | RAGAS 평가 프레임워크 통합 | 5 | RAG | **Done** |
 
 **소계**: 8 pts (2 Stories)
 
@@ -55,9 +55,9 @@
 
 | Priority | ID | Jira | 제목 | Points | Assignee | Status |
 |----------|-----|------|------|--------|----------|--------|
-| P1 | STORY-061 | SCRUM-51 | 파이프라인 타임아웃 + Circuit Breaker | 3 | RAG | To Do |
-| P1 | STORY-059 | SCRUM-49 | Frontend 테스트 커버리지 확장 (25%→60%) | 5 | Frontend | To Do |
-| P1 | STORY-060 | SCRUM-50 | Planner 전략 유효화 + 검색 캐싱 | 3 | RAG | To Do |
+| P1 | STORY-061 | SCRUM-51 | 파이프라인 타임아웃 + Circuit Breaker | 3 | RAG | **Done** |
+| P1 | STORY-059 | SCRUM-49 | Frontend 테스트 커버리지 확장 (25%→60%) | 5 | Frontend | **Done** |
+| P1 | STORY-060 | SCRUM-50 | Planner 전략 유효화 + 검색 캐싱 | 3 | RAG | **Done** |
 
 **소계**: 11 pts (3 Stories)
 
@@ -65,8 +65,8 @@
 
 | Priority | ID | Jira | 제목 | Points | Assignee | Status |
 |----------|-----|------|------|--------|----------|--------|
-| P2 | STORY-062 | SCRUM-52 | 접근성 WCAG 2.1 AA 보완 | 2 | Frontend | To Do |
-| P2 | STORY-063 | SCRUM-53 | Docling Docker 이미지 최적화 (8.5GB→?) | 5 | Infra/ETL | To Do |
+| P2 | STORY-062 | SCRUM-52 | 접근성 WCAG 2.1 AA 보완 | 2 | Frontend | **Done** |
+| P2 | STORY-063 | SCRUM-53 | Docling Docker 이미지 최적화 (8.5GB→?) | 5 | Infra/ETL | **Done** |
 
 **소계**: 7 pts (2 Stories)
 

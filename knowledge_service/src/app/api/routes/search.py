@@ -65,6 +65,7 @@ class SearchResponse(BaseModel):
     total: int = Field(description="총 결과 수")
     search_type: str = Field(default="hybrid", description="검색 유형")
     latency_ms: Optional[float] = Field(default=None, description="검색 소요 시간 (ms)")
+    from_cache: bool = Field(default=False, description="캐시 히트 여부 (STORY-060)")
 
 
 class ChatRequest(BaseModel):
@@ -203,6 +204,7 @@ async def hybrid_search(
             total=result.get("total", 0),
             search_type="hybrid",
             latency_ms=result.get("latency_ms"),
+            from_cache=result.get("from_cache", False),
         )
 
     except Exception as e:

@@ -34,8 +34,9 @@ COPY pyproject.toml poetry.lock* ./
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir poetry==1.8.5
 
-# Export requirements from poetry (without dev dependencies)
-RUN poetry export -f requirements.txt --without-hashes --without dev -o requirements.txt
+# Regenerate poetry.lock if it's inconsistent, then export requirements
+RUN poetry lock --no-update 2>/dev/null || poetry lock && \
+    poetry export -f requirements.txt --without-hashes --without dev -o requirements.txt
 
 # Install PyTorch CPU-only first (before other deps to leverage caching)
 # This avoids downloading the ~2GB CUDA-enabled PyTorch
@@ -49,8 +50,8 @@ RUN pip install --no-cache-dir \
     --extra-index-url https://download.pytorch.org/whl/cpu \
     -r requirements.txt
 
-# Verify Docling installation
-RUN python -c "import docling; print(f'Docling {docling.__version__} installed successfully')"
+# Verify Docling installation (use pip show since docling has no __version__ attribute)
+RUN pip show docling && python -c "import docling; print('Docling imported successfully')"
 
 # ---------------------------------------------------------------------------
 # Stage 2: Runtime - Lean production image
