@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
 import MainLayout from '@/components/common/MainLayout';
+import { ErrorBoundary } from '@/components/common';
 import DashboardPage from '@/pages/DashboardPage';
 import SearchPage from '@/pages/SearchPage';
 import KnowledgePage from '@/pages/KnowledgePage';
@@ -15,8 +16,9 @@ import { ChatSearch, KeywordSearch } from '@/features/search';
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <Routes>
         {/* Public routes */}
         <Route path="/login" element={<LoginPage />} />
 
@@ -63,7 +65,8 @@ function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>
-    </BrowserRouter>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }
 
