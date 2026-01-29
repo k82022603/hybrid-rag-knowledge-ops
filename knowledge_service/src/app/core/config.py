@@ -65,6 +65,11 @@ class Settings(BaseSettings):
         default=86400 * 7, description="임베딩 캐시 TTL (초, 기본 7일)"
     )
 
+    # Search Cache 설정 (STORY-060)
+    search_cache_enabled: bool = Field(default=True, description="검색 캐시 활성화 여부")
+    search_cache_ttl: int = Field(default=3600, description="검색 캐시 TTL (초, 기본 1시간)")
+    search_cache_max_size: int = Field(default=1000, description="검색 캐시 최대 엔트리 수")
+
     # PostgreSQL 설정
     postgres_host: str = Field(default="localhost", description="PostgreSQL 호스트")
     postgres_port: int = Field(default=5432, description="PostgreSQL 포트")

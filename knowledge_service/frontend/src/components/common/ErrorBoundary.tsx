@@ -57,6 +57,8 @@ const DefaultFallback: React.FC<FallbackProps & { showDetails?: boolean; errorIn
 
   return (
     <div
+      role="alert"
+      aria-live="assertive"
       className="min-h-[400px] flex items-center justify-center p-8"
       data-testid="error-boundary-fallback"
     >

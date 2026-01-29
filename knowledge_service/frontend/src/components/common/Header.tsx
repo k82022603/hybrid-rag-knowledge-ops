@@ -20,9 +20,11 @@ import { authService } from '@/services';
 
 interface HeaderProps {
   onMenuClick: () => void;
+  /** Indicates if sidebar is currently expanded */
+  isSidebarOpen?: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
+const Header: React.FC<HeaderProps> = ({ onMenuClick, isSidebarOpen = true }) => {
   const { user, logout: keycloakLogout, isAuthenticated, authMethod } = useAuth();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -58,26 +60,35 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm">
+    <header
+      role="banner"
+      className="fixed top-0 left-0 right-0 z-50 h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm"
+    >
       <div className="h-full px-4 flex items-center justify-between">
         {/* Left section: Menu button and Logo */}
         <div className="flex items-center">
           <button
             type="button"
             onClick={onMenuClick}
-            className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
-            aria-label="Toggle sidebar"
+            className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+            aria-label={isSidebarOpen ? 'Close sidebar navigation' : 'Open sidebar navigation'}
+            aria-expanded={isSidebarOpen}
+            data-testid="sidebar-toggle"
           >
-            <Bars3Icon className="h-6 w-6" />
+            <Bars3Icon className="h-6 w-6" aria-hidden="true" />
           </button>
 
           <div className="ml-4 flex items-center">
-            <div className="flex-shrink-0 w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
+            <div
+              className="flex-shrink-0 w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center"
+              aria-hidden="true"
+            >
               <svg
                 className="w-5 h-5 text-white"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
+                aria-hidden="true"
               >
                 <path
                   strokeLinecap="round"
@@ -90,6 +101,8 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
             <h1 className="ml-3 text-xl font-semibold text-gray-900 dark:text-white hidden sm:block">
               Knowledge Portal
             </h1>
+            {/* Screen reader only - full app name */}
+            <span className="sr-only">Knowledge Portal - Enterprise Knowledge Search System</span>
           </div>
         </div>
 
@@ -97,9 +110,16 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
         <div className="flex items-center gap-4">
           {isAuthenticated && user && (
             <Menu as="div" className="relative">
-              <MenuButton className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500">
+              <MenuButton
+                className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                aria-label={`User menu for ${user.name || user.username}`}
+                data-testid="user-menu-button"
+              >
                 {/* User Avatar */}
-                <div className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center text-white text-sm font-medium">
+                <div
+                  className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center text-white text-sm font-medium"
+                  aria-hidden="true"
+                >
                   {getUserInitials()}
                 </div>
                 {/* User Info (hidden on mobile) */}
@@ -122,7 +142,10 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
                 leaveFrom="transform opacity-100 scale-100"
                 leaveTo="transform opacity-0 scale-95"
               >
-                <MenuItems className="absolute right-0 mt-2 w-56 origin-top-right rounded-lg bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none divide-y divide-gray-100 dark:divide-gray-700">
+                <MenuItems
+                  className="absolute right-0 mt-2 w-56 origin-top-right rounded-lg bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none divide-y divide-gray-100 dark:divide-gray-700"
+                  aria-label="User account options"
+                >
                   {/* User Info Section */}
                   <div className="px-4 py-3">
                     <p className="text-sm font-medium text-gray-900 dark:text-white">
@@ -149,17 +172,17 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
                   </div>
 
                   {/* Menu Items */}
-                  <div className="py-1">
+                  <div className="py-1" role="group" aria-label="Account navigation">
                     <MenuItem>
                       {({ focus }) => (
                         <button
                           onClick={() => navigate('/profile')}
                           className={`${
                             focus ? 'bg-gray-100 dark:bg-gray-700' : ''
-                          } flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200`}
+                          } flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 focus:outline-none`}
                         >
-                          <UserIcon className="mr-3 h-5 w-5 text-gray-400" />
-                          Profile
+                          <UserIcon className="mr-3 h-5 w-5 text-gray-400" aria-hidden="true" />
+                          <span>Profile</span>
                         </button>
                       )}
                     </MenuItem>
@@ -169,27 +192,27 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
                           onClick={() => navigate('/admin')}
                           className={`${
                             focus ? 'bg-gray-100 dark:bg-gray-700' : ''
-                          } flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200`}
+                          } flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 focus:outline-none`}
                         >
-                          <Cog6ToothIcon className="mr-3 h-5 w-5 text-gray-400" />
-                          Settings
+                          <Cog6ToothIcon className="mr-3 h-5 w-5 text-gray-400" aria-hidden="true" />
+                          <span>Settings</span>
                         </button>
                       )}
                     </MenuItem>
                   </div>
 
                   {/* Logout */}
-                  <div className="py-1">
+                  <div className="py-1" role="group" aria-label="Sign out">
                     <MenuItem>
                       {({ focus }) => (
                         <button
                           onClick={handleLogout}
                           className={`${
                             focus ? 'bg-gray-100 dark:bg-gray-700' : ''
-                          } flex items-center w-full px-4 py-2 text-sm text-error-600 dark:text-error-400`}
+                          } flex items-center w-full px-4 py-2 text-sm text-error-600 dark:text-error-400 focus:outline-none`}
                         >
-                          <ArrowRightStartOnRectangleIcon className="mr-3 h-5 w-5" />
-                          Sign out
+                          <ArrowRightStartOnRectangleIcon className="mr-3 h-5 w-5" aria-hidden="true" />
+                          <span>Sign out</span>
                         </button>
                       )}
                     </MenuItem>
@@ -203,7 +226,8 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick }) => {
           {!isAuthenticated && (
             <a
               href="/login"
-              className="btn-primary btn-sm"
+              className="btn-primary btn-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+              data-testid="sign-in-link"
             >
               Sign in
             </a>

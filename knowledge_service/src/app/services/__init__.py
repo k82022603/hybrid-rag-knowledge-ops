@@ -10,6 +10,8 @@
 - embedding: BGE-M3 임베딩 서비스 (Dense + Sparse)
 - rrf_fusion: RRF (Reciprocal Rank Fusion) 알고리즘
 - conversation_history: 대화 이력 관리 서비스 (STORY-057)
+- cache_service: 검색 결과 캐싱 서비스 (STORY-060)
+- document_parser: 최적화된 문서 파싱 서비스 (STORY-063)
 """
 
 from app.services.llm_service import LLMService
@@ -38,6 +40,23 @@ from app.services.conversation_history import (
     ConversationTurn,
     get_conversation_history_service,
     reset_conversation_history_service,
+)
+from app.services.cache_service import (
+    CacheBackend,
+    CacheStats,
+    InMemoryLRUCache,
+    RedisCacheBackend,
+    SearchCacheService,
+    get_cache_service,
+    reset_cache_service,
+)
+from app.services.document_parser import (
+    DocumentCache,
+    OptimizedDocumentParser,
+    ParserConfig,
+    ParseStats,
+    get_optimized_parser,
+    reset_parser_instance,
 )
 
 __all__ = [
@@ -75,4 +94,19 @@ __all__ = [
     "ConversationTurn",
     "get_conversation_history_service",
     "reset_conversation_history_service",
+    # Cache Service (STORY-060)
+    "CacheBackend",
+    "CacheStats",
+    "InMemoryLRUCache",
+    "RedisCacheBackend",
+    "SearchCacheService",
+    "get_cache_service",
+    "reset_cache_service",
+    # Document Parser (STORY-063)
+    "DocumentCache",
+    "OptimizedDocumentParser",
+    "ParserConfig",
+    "ParseStats",
+    "get_optimized_parser",
+    "reset_parser_instance",
 ]

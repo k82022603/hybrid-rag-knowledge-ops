@@ -6,15 +6,24 @@ Adapter 패턴으로 DeepSeek LLM 호출을 래핑
 - 타임아웃 핸들링 (60초)
 - 에러 변환 (HTTP 상태 코드 매핑)
 - 재시도 로직 (tenacity)
+- Circuit Breaker 패턴 적용 (STORY-061)
 - LangGraph 워크플로우에서 사용
 
 STORY-051: RAG 파이프라인 통합 (Day 2)
+STORY-061: Circuit Breaker 패턴 구현
 """
 
 import asyncio
 import time
 from typing import Any, Dict, List, Optional
 
+from app.core.circuit_breaker import (
+    CircuitBreaker,
+    CircuitBreakerConfig,
+    CircuitBreakerOpenError,
+    CircuitState,
+    get_circuit_breaker_registry,
+)
 from app.core.config import settings
 from app.core.exceptions import (
     KnowledgeServiceError,
@@ -26,6 +35,18 @@ from app.core.logging import get_logger
 from app.services.llm_service import LLMService, get_llm_service
 
 logger = get_logger(__name__)
+
+# ---------------------------------------------------------------------------
+# Circuit Breaker 설정
+# ---------------------------------------------------------------------------
+
+# LLM Service용 Circuit Breaker 설정
+LLM_CIRCUIT_BREAKER_CONFIG = CircuitBreakerConfig(
+    failure_threshold=5,  # 5회 연속 실패 시 OPEN
+    recovery_timeout=30,  # 30초 후 HALF_OPEN
+    half_open_max_calls=3,  # HALF_OPEN에서 3회 테스트
+    success_threshold=2,  # 2회 성공 시 CLOSED
+)
 
 
 # ---------------------------------------------------------------------------
@@ -203,6 +224,8 @@ class LLMAdapter:
         - 비동기 generate() 인터페이스
         - 타임아웃 핸들링 (asyncio.wait_for)
         - 에러 변환 (LLM 예외 -> HTTP 상태 코드)
+        - Circuit Breaker 패턴 (STORY-061)
+        - Fallback 전략 지원
         - 시스템 프롬프트 관리
 
     Usage:
@@ -213,11 +236,19 @@ class LLMAdapter:
         )
     """
 
+    # 기본 Fallback 메시지
+    DEFAULT_FALLBACK_MESSAGE = (
+        "죄송합니다. 현재 AI 서비스가 일시적으로 응답하지 않습니다. "
+        "잠시 후 다시 시도해주세요."
+    )
+
     def __init__(
         self,
         llm_service: Optional[LLMService] = None,
         system_prompt: Optional[str] = None,
         timeout_seconds: Optional[int] = None,
+        circuit_breaker: Optional[CircuitBreaker] = None,
+        enable_circuit_breaker: bool = True,
     ):
         """
         초기화
@@ -226,10 +257,14 @@ class LLMAdapter:
             llm_service: LLMService 인스턴스 (None이면 싱글톤 사용)
             system_prompt: 시스템 프롬프트 (None이면 기본 프롬프트)
             timeout_seconds: 타임아웃 (None이면 settings.llm_timeout)
+            circuit_breaker: 커스텀 Circuit Breaker (None이면 자동 생성)
+            enable_circuit_breaker: Circuit Breaker 사용 여부 (기본: True)
         """
         self._llm_service = llm_service
         self._system_prompt = system_prompt or self._default_system_prompt()
         self._timeout = timeout_seconds or settings.llm_timeout
+        self._circuit_breaker = circuit_breaker
+        self._enable_circuit_breaker = enable_circuit_breaker
 
     @property
     def llm_service(self) -> LLMService:
@@ -237,6 +272,25 @@ class LLMAdapter:
         if self._llm_service is None:
             self._llm_service = get_llm_service()
         return self._llm_service
+
+    async def _get_circuit_breaker(self) -> Optional[CircuitBreaker]:
+        """Circuit Breaker 지연 초기화"""
+        if not self._enable_circuit_breaker:
+            return None
+
+        if self._circuit_breaker is None:
+            registry = get_circuit_breaker_registry()
+            self._circuit_breaker = await registry.get_or_create(
+                name="llm-service",
+                config=LLM_CIRCUIT_BREAKER_CONFIG,
+            )
+        return self._circuit_breaker
+
+    def get_circuit_breaker_state(self) -> Optional[CircuitState]:
+        """현재 Circuit Breaker 상태 반환"""
+        if self._circuit_breaker:
+            return self._circuit_breaker.state
+        return None
 
     @staticmethod
     def _default_system_prompt() -> str:
@@ -259,28 +313,31 @@ class LLMAdapter:
         prompt: str,
         context: str = "",
         use_reasoner: bool = False,
+        use_fallback: bool = True,
         **kwargs: Any,
     ) -> str:
         """
-        LLM 답변 생성
+        LLM 답변 생성 (Circuit Breaker 적용)
 
         컨텍스트와 프롬프트를 조합하여 LLM 호출을 수행합니다.
-        타임아웃 및 에러 변환을 포함합니다.
+        Circuit Breaker를 통해 장애 시 빠른 실패 및 fallback을 제공합니다.
 
         Args:
             prompt: 사용자 질문 또는 프롬프트
             context: 검색된 컨텍스트 문자열
             use_reasoner: Reasoner 모델 사용 여부
+            use_fallback: Circuit Breaker OPEN 시 fallback 사용 여부
             **kwargs: 추가 파라미터 (temperature 등)
 
         Returns:
-            생성된 답변 문자열
+            생성된 답변 문자열 또는 fallback 메시지
 
         Raises:
             ServiceTimeoutError: 타임아웃 (504)
             ServiceRateLimitError: Rate Limit 초과 (429)
             ServiceConnectionError: 연결 실패 (502)
             ServiceValidationError: 입력 검증 실패 (400)
+            CircuitBreakerOpenError: Circuit Breaker가 열림 (503)
         """
         # 입력 검증
         if not prompt or not prompt.strip():
@@ -291,18 +348,25 @@ class LLMAdapter:
 
         start_time = time.monotonic()
 
+        # Circuit Breaker 가져오기
+        circuit_breaker = await self._get_circuit_breaker()
+
         logger.info(
             "LLM Adapter generate - Prompt length: %d, Context length: %d, "
-            "Reasoner: %s, Timeout: %ds",
-            len(prompt), len(context), use_reasoner, self._timeout,
+            "Reasoner: %s, Timeout: %ds, CircuitBreaker: %s",
+            len(prompt),
+            len(context),
+            use_reasoner,
+            self._timeout,
+            circuit_breaker.state.value if circuit_breaker else "disabled",
         )
 
         # 메시지 구성
         messages = self._build_messages(prompt=prompt, context=context)
 
-        try:
-            # 타임아웃 래핑
-            answer = await asyncio.wait_for(
+        # 실제 LLM 호출 함수
+        async def _llm_call() -> str:
+            return await asyncio.wait_for(
                 self.llm_service.generate_with_messages(
                     messages=messages,
                     use_reasoner=use_reasoner,
@@ -310,21 +374,49 @@ class LLMAdapter:
                 timeout=self._timeout,
             )
 
+        # Fallback 함수
+        async def _fallback(*args: Any, **kwargs: Any) -> str:
+            logger.warning(
+                "LLM Adapter using fallback due to Circuit Breaker OPEN"
+            )
+            return self.DEFAULT_FALLBACK_MESSAGE
+
+        try:
+            if circuit_breaker:
+                # Circuit Breaker를 통한 호출
+                answer = await circuit_breaker.call(
+                    _llm_call,
+                    fallback=_fallback if use_fallback else None,
+                )
+            else:
+                # Circuit Breaker 비활성화 시 직접 호출
+                answer = await _llm_call()
+
             latency_ms = (time.monotonic() - start_time) * 1000
 
             logger.info(
                 "LLM Adapter generate complete - "
                 "Answer length: %d, Latency: %.1fms",
-                len(answer), latency_ms,
+                len(answer),
+                latency_ms,
             )
 
             return answer
+
+        except CircuitBreakerOpenError:
+            latency_ms = (time.monotonic() - start_time) * 1000
+            logger.warning(
+                "LLM Adapter Circuit Breaker OPEN after %.1fms",
+                latency_ms,
+            )
+            raise
 
         except asyncio.TimeoutError:
             latency_ms = (time.monotonic() - start_time) * 1000
             logger.error(
                 "LLM Adapter timeout after %.1fms (limit: %ds)",
-                latency_ms, self._timeout,
+                latency_ms,
+                self._timeout,
             )
             raise ServiceTimeoutError(
                 service_name="LLM (DeepSeek)",
@@ -334,7 +426,9 @@ class LLMAdapter:
         except (LLMTimeoutError, LLMRateLimitError, LLMError) as e:
             latency_ms = (time.monotonic() - start_time) * 1000
             logger.error(
-                "LLM Adapter error after %.1fms: %s", latency_ms, e,
+                "LLM Adapter error after %.1fms: %s",
+                latency_ms,
+                e,
             )
             raise translate_llm_error(e)
 
@@ -342,7 +436,8 @@ class LLMAdapter:
             latency_ms = (time.monotonic() - start_time) * 1000
             logger.exception(
                 "LLM Adapter unexpected error after %.1fms: %s",
-                latency_ms, e,
+                latency_ms,
+                e,
             )
             raise translate_llm_error(e)
 
@@ -350,15 +445,17 @@ class LLMAdapter:
         self,
         messages: List[Dict[str, str]],
         use_reasoner: bool = False,
+        use_fallback: bool = True,
     ) -> str:
         """
-        메시지 기반 LLM 답변 생성
+        메시지 기반 LLM 답변 생성 (Circuit Breaker 적용)
 
         사전 구성된 메시지 목록으로 LLM 호출을 수행합니다.
 
         Args:
             messages: 메시지 목록 [{"role": "...", "content": "..."}]
             use_reasoner: Reasoner 모델 사용 여부
+            use_fallback: Circuit Breaker OPEN 시 fallback 사용 여부
 
         Returns:
             생성된 답변 문자열
@@ -367,11 +464,16 @@ class LLMAdapter:
             ServiceTimeoutError: 타임아웃 (504)
             ServiceRateLimitError: Rate Limit 초과 (429)
             ServiceConnectionError: 연결 실패 (502)
+            CircuitBreakerOpenError: Circuit Breaker가 열림 (503)
         """
         start_time = time.monotonic()
 
-        try:
-            answer = await asyncio.wait_for(
+        # Circuit Breaker 가져오기
+        circuit_breaker = await self._get_circuit_breaker()
+
+        # 실제 LLM 호출 함수
+        async def _llm_call() -> str:
+            return await asyncio.wait_for(
                 self.llm_service.generate_with_messages(
                     messages=messages,
                     use_reasoner=use_reasoner,
@@ -379,13 +481,30 @@ class LLMAdapter:
                 timeout=self._timeout,
             )
 
+        # Fallback 함수
+        async def _fallback(*args: Any, **kwargs: Any) -> str:
+            return self.DEFAULT_FALLBACK_MESSAGE
+
+        try:
+            if circuit_breaker:
+                answer = await circuit_breaker.call(
+                    _llm_call,
+                    fallback=_fallback if use_fallback else None,
+                )
+            else:
+                answer = await _llm_call()
+
             latency_ms = (time.monotonic() - start_time) * 1000
             logger.info(
                 "LLM Adapter message-based generate - "
                 "Answer length: %d, Latency: %.1fms",
-                len(answer), latency_ms,
+                len(answer),
+                latency_ms,
             )
             return answer
+
+        except CircuitBreakerOpenError:
+            raise
 
         except asyncio.TimeoutError:
             raise ServiceTimeoutError(

@@ -27,6 +27,7 @@ import MessageList from './components/MessageList';
 import ChatInput from './components/ChatInput';
 import StreamingIndicator from './components/StreamingIndicator';
 import { useStreamingSearch } from './hooks/useStreamingSearch';
+import { LiveRegion } from '@/components/common';
 
 /**
  * ChatSearch page component (/search/chat)
@@ -46,12 +47,33 @@ const ChatSearch: React.FC = () => {
     dismissError,
   } = useStreamingSearch();
 
+  // Generate status message for screen readers
+  const getStatusMessage = () => {
+    if (isConnecting) return 'Connecting to search service...';
+    if (isStreaming) return 'Generating response...';
+    if (error) return `Error: ${error}`;
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage.role === 'assistant') {
+        return 'Response complete';
+      }
+    }
+    return '';
+  };
+
   return (
     <div
       className="flex flex-col bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden"
       style={{ height: 'calc(100vh - 280px)', minHeight: '400px' }}
       data-testid="chat-search"
+      role="region"
+      aria-label="Chat search interface"
     >
+      {/* Screen reader announcements for search status */}
+      <LiveRegion
+        message={getStatusMessage()}
+        politeness={error ? 'assertive' : 'polite'}
+      />
       {/* Messages Area */}
       <MessageList
         messages={messages}
@@ -82,14 +104,19 @@ const ChatSearch: React.FC = () => {
 
       {/* Error Banner */}
       {error && (
-        <div className="px-4 py-2 bg-error-50 dark:bg-error-900/20 border-t border-error-200 dark:border-error-800 flex items-center gap-2">
-          <ExclamationTriangleIcon className="h-4 w-4 text-error-500 flex-shrink-0" />
+        <div
+          className="px-4 py-2 bg-error-50 dark:bg-error-900/20 border-t border-error-200 dark:border-error-800 flex items-center gap-2"
+          role="alert"
+          aria-live="assertive"
+        >
+          <ExclamationTriangleIcon className="h-4 w-4 text-error-500 flex-shrink-0" aria-hidden="true" />
           <span className="text-xs text-error-700 dark:text-error-300">
             {error}
           </span>
           <button
             onClick={dismissError}
-            className="ml-auto text-xs text-error-500 hover:text-error-700 font-medium"
+            className="ml-auto text-xs text-error-500 hover:text-error-700 font-medium focus:outline-none focus:ring-2 focus:ring-error-500 rounded px-1"
+            aria-label="Dismiss error message"
           >
             Dismiss
           </button>

@@ -11,6 +11,10 @@ import type { SearchResultItem } from '../types';
 export interface SearchResultCardProps {
   /** The search result to display */
   result: SearchResultItem;
+  /** Optional index of this result (1-based) for accessibility */
+  resultIndex?: number;
+  /** Optional total number of results for accessibility */
+  totalResults?: number;
 }
 
 /**
@@ -29,13 +33,21 @@ const getScoreColor = (score: number): string => {
 /**
  * SearchResultCard component for keyword search results.
  */
-const SearchResultCard: React.FC<SearchResultCardProps> = ({ result }) => {
+const SearchResultCard: React.FC<SearchResultCardProps> = ({
+  result,
+  resultIndex,
+  totalResults,
+}) => {
+  const ariaLabel = resultIndex && totalResults
+    ? `Result ${resultIndex} of ${totalResults}: ${result.metadata?.projectName || 'Document'}, relevance ${(result.score * 100).toFixed(0)} percent`
+    : `Search result: ${result.metadata?.projectName || 'Document'}`;
+
   return (
-    <div
-      className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:shadow-soft transition-shadow"
+    <article
+      className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 hover:shadow-soft transition-shadow focus-within:ring-2 focus-within:ring-primary-500"
       data-testid={`search-result-${result.chunkId}`}
-      role="article"
-      aria-label={`Search result: ${result.metadata?.projectName || 'Document'}`}
+      aria-label={ariaLabel}
+      tabIndex={0}
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-3 mb-2">
@@ -87,7 +99,7 @@ const SearchResultCard: React.FC<SearchResultCardProps> = ({ result }) => {
           {result.metadata.summary}
         </p>
       )}
-    </div>
+    </article>
   );
 };
 

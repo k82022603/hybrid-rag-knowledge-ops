@@ -7,6 +7,7 @@ Hybrid 검색 (Dense + Sparse + Graph) 통합 서비스
 - Neo4j Graph Search
 - RRF (Reciprocal Rank Fusion) 융합
 - 검색 필터링 및 이력 관리
+- 검색 결과 캐싱 (STORY-060)
 """
 
 import asyncio
@@ -22,6 +23,25 @@ from app.core.logging import get_logger
 from app.rag.embedder import get_embedder
 
 logger = get_logger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Cache Integration (STORY-060)
+# ---------------------------------------------------------------------------
+
+def _get_cache_service():
+    """캐시 서비스 lazy import (순환 참조 방지)"""
+    if not settings.search_cache_enabled:
+        return None
+    try:
+        from app.services.cache_service import get_cache_service
+        return get_cache_service(
+            ttl=settings.search_cache_ttl,
+            max_size=settings.search_cache_max_size,
+        )
+    except Exception as e:
+        logger.warning(f"Cache service unavailable: {e}")
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -155,6 +175,7 @@ class SearchService:
         self,
         es_client: Optional[Any] = None,
         neo4j_driver: Optional[Any] = None,
+        cache_enabled: bool = True,
     ):
         """
         초기화
@@ -162,11 +183,14 @@ class SearchService:
         Args:
             es_client: Elasticsearch 클라이언트 (None이면 연결 없이 동작)
             neo4j_driver: Neo4j 드라이버 (None이면 연결 없이 동작)
+            cache_enabled: 캐시 활성화 여부 (STORY-060)
         """
         self.es_client = es_client
         self.neo4j_driver = neo4j_driver
         self.history_store = SearchHistoryStore()
         self._embedder = get_embedder()
+        self._cache_enabled = cache_enabled and settings.search_cache_enabled
+        self._cache = _get_cache_service() if self._cache_enabled else None
 
     # ------------------------------------------------------------------
     # Public API
@@ -178,6 +202,7 @@ class SearchService:
         filters: Optional[Dict[str, Any]] = None,
         top_k: int = 10,
         user_id: Optional[str] = None,
+        use_cache: bool = True,
     ) -> Dict[str, Any]:
         """
         Hybrid 검색 수행
@@ -185,11 +210,14 @@ class SearchService:
         Vector Search, Keyword Search, Graph Search를 병렬로 실행하고
         RRF 알고리즘으로 결과를 융합합니다.
 
+        STORY-060: 캐싱 적용으로 반복 쿼리 성능 향상
+
         Args:
             query: 검색 질의
             filters: 필터 조건 딕셔너리
             top_k: 반환할 결과 수
             user_id: 사용자 ID (이력 기록용)
+            use_cache: 캐시 사용 여부 (기본 True)
 
         Returns:
             검색 결과 딕셔너리
@@ -198,6 +226,7 @@ class SearchService:
                 "total": int,
                 "search_type": "hybrid",
                 "latency_ms": float,
+                "from_cache": bool,
                 "debug": { ... }
             }
 
@@ -206,13 +235,64 @@ class SearchService:
         """
         start_time = time.monotonic()
         search_filters = SearchFilters.from_dict(filters)
+        from_cache = False
 
         logger.info(
             f"Hybrid search - Query: '{query[:80]}...', "
-            f"top_k={top_k}, has_filters={filters is not None}"
+            f"top_k={top_k}, has_filters={filters is not None}, cache={use_cache and self._cache is not None}"
         )
 
         try:
+            # STORY-060: 캐시 조회
+            cache_key = None
+            if use_cache and self._cache is not None:
+                cache_key = self._cache.get_cache_key(
+                    query=query,
+                    filters=filters,
+                    top_k=top_k,
+                    search_type="hybrid",
+                )
+                cached_result = await self._cache.get(cache_key)
+                if cached_result is not None:
+                    # 캐시 히트 - SearchResult 객체로 복원
+                    cached_results_data = cached_result.get("results", [])
+                    results = [
+                        SearchResult(
+                            chunk_id=r.get("chunk_id", ""),
+                            document_id=r.get("document_id", ""),
+                            content=r.get("content", ""),
+                            score=r.get("score", 0.0),
+                            source=r.get("source", "cached"),
+                            metadata=r.get("metadata", {}),
+                        )
+                        for r in cached_results_data
+                    ]
+                    latency_ms = (time.monotonic() - start_time) * 1000
+
+                    # 검색 이력 기록 (캐시 히트)
+                    self.history_store.record(
+                        query=query,
+                        search_type="hybrid_cached",
+                        result_count=len(results),
+                        latency_ms=latency_ms,
+                        user_id=user_id,
+                    )
+
+                    logger.info(
+                        f"Hybrid search CACHE HIT - "
+                        f"Results: {len(results)}, "
+                        f"Latency: {latency_ms:.1f}ms"
+                    )
+
+                    return {
+                        "results": results,
+                        "total": len(results),
+                        "search_type": "hybrid",
+                        "latency_ms": round(latency_ms, 2),
+                        "from_cache": True,
+                        "debug": cached_result.get("debug", {}),
+                    }
+
             # 1. 병렬 검색 실행 (Vector + Keyword + Graph)
             vector_task = self.semantic_search(
                 query=query, filters=filters, top_k=top_k * 2
@@ -263,6 +343,36 @@ class SearchService:
 
             latency_ms = (time.monotonic() - start_time) * 1000
 
+            debug_info = {
+                "vector_count": len(vector_results),
+                "keyword_count": len(keyword_results),
+                "graph_count": len(graph_results),
+                "fused_count": len(fused_results),
+            }
+
+            # STORY-060: 캐시 저장
+            if cache_key is not None and self._cache is not None:
+                # SearchResult 객체를 직렬화 가능한 딕셔너리로 변환
+                serializable_results = [
+                    {
+                        "chunk_id": r.chunk_id,
+                        "document_id": r.document_id,
+                        "content": r.content,
+                        "score": r.score,
+                        "source": r.source,
+                        "metadata": r.metadata,
+                    }
+                    for r in final_results
+                ]
+                await self._cache.set(
+                    key=cache_key,
+                    value={
+                        "results": serializable_results,
+                        "total": len(final_results),
+                        "debug": debug_info,
+                    },
+                )
+
             # 4. 검색 이력 기록
             self.history_store.record(
                 query=query,
@@ -286,12 +396,8 @@ class SearchService:
                 "total": len(final_results),
                 "search_type": "hybrid",
                 "latency_ms": round(latency_ms, 2),
-                "debug": {
-                    "vector_count": len(vector_results),
-                    "keyword_count": len(keyword_results),
-                    "graph_count": len(graph_results),
-                    "fused_count": len(fused_results),
-                },
+                "from_cache": False,
+                "debug": debug_info,
             }
 
         except Exception as e:

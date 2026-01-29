@@ -107,27 +107,32 @@ const Sidebar: React.FC<SidebarProps> = ({ open, width, onClose }) => {
 
       {/* Sidebar */}
       <aside
+        id="sidebar-navigation"
+        aria-label="Main navigation sidebar"
+        aria-hidden={!open}
         className={`fixed top-16 left-0 z-40 h-[calc(100vh-4rem)] bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-transform duration-300 ease-in-out ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
         style={{ width: `${width}px` }}
+        data-testid="sidebar"
       >
         {/* Mobile close button */}
         <div className="flex items-center justify-between p-4 md:hidden">
-          <span className="text-lg font-semibold text-gray-900 dark:text-white">
+          <span className="text-lg font-semibold text-gray-900 dark:text-white" id="sidebar-title">
             Menu
           </span>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700"
+            className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
             aria-label="Close sidebar"
+            data-testid="sidebar-close"
           >
-            <XMarkIcon className="h-5 w-5" />
+            <XMarkIcon className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
 
         {/* Navigation */}
-        <nav className="p-4 space-y-1">
+        <nav className="p-4 space-y-1" aria-label="Main menu">
           {filteredMenuItems.map((item) => {
             const isActive =
               location.pathname === item.path ||
@@ -135,15 +140,18 @@ const Sidebar: React.FC<SidebarProps> = ({ open, width, onClose }) => {
             return (
               <React.Fragment key={item.path}>
                 {item.dividerBefore && (
-                  <div className="my-2 border-t border-gray-200 dark:border-gray-700" />
+                  <div className="my-2 border-t border-gray-200 dark:border-gray-700" role="separator" aria-hidden="true" />
                 )}
                 <button
                   onClick={() => handleNavigation(item.path)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  aria-current={isActive ? 'page' : undefined}
+                  aria-label={isActive ? `${item.text} (current page)` : item.text}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
                     isActive
                       ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/50 dark:text-primary-300'
                       : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
                   }`}
+                  data-testid={`nav-${item.path.replace('/', '')}`}
                 >
                   <span
                     className={
@@ -151,12 +159,13 @@ const Sidebar: React.FC<SidebarProps> = ({ open, width, onClose }) => {
                         ? 'text-primary-600 dark:text-primary-400'
                         : 'text-gray-400 dark:text-gray-500'
                     }
+                    aria-hidden="true"
                   >
                     {item.icon}
                   </span>
-                  {item.text}
+                  <span>{item.text}</span>
                   {isActive && (
-                    <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-600 dark:bg-primary-400" />
+                    <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-600 dark:bg-primary-400" aria-hidden="true" />
                   )}
                 </button>
               </React.Fragment>

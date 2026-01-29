@@ -3,17 +3,25 @@
  *
  * Tailwind CSS 기반
  * 상단 헤더, 좌측 사이드바, 메인 콘텐츠 영역으로 구성
+ *
+ * Accessibility Features (WCAG 2.1 AA):
+ * - Skip link for keyboard navigation
+ * - Proper landmark roles (header, nav, main)
+ * - Focus management for sidebar toggle
+ * - Keyboard-accessible navigation
  */
-import React, { useState, useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
 
 import Header from './Header';
 import Sidebar from './Sidebar';
+import SkipLink from './SkipLink';
 
 const DRAWER_WIDTH = 256; // 16rem = 256px
 
 const MainLayout: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const location = useLocation();
 
   // 반응형 사이드바 처리
   useEffect(() => {
@@ -33,29 +41,60 @@ const MainLayout: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const handleSidebarToggle = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
+  // Focus main content on route change for screen readers
+  useEffect(() => {
+    const mainContent = document.getElementById('main-content');
+    if (mainContent) {
+      // Use a small delay to ensure the new content is rendered
+      const timeoutId = setTimeout(() => {
+        mainContent.focus({ preventScroll: true });
+      }, 100);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [location.pathname]);
 
-  const handleSidebarClose = () => {
+  const handleSidebarToggle = useCallback(() => {
+    setSidebarOpen((prev) => !prev);
+  }, []);
+
+  const handleSidebarClose = useCallback(() => {
     setSidebarOpen(false);
-  };
+  }, []);
+
+  // Handle Escape key to close sidebar on mobile
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && sidebarOpen && window.innerWidth < 768) {
+        setSidebarOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [sidebarOpen]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Header */}
-      <Header onMenuClick={handleSidebarToggle} />
+      {/* Skip Link for keyboard navigation - WCAG 2.4.1 */}
+      <SkipLink targetId="main-content" />
 
-      {/* Sidebar */}
+      {/* Header with role="banner" */}
+      <Header onMenuClick={handleSidebarToggle} isSidebarOpen={sidebarOpen} />
+
+      {/* Sidebar with navigation role */}
       <Sidebar
         open={sidebarOpen}
         width={DRAWER_WIDTH}
         onClose={handleSidebarClose}
       />
 
-      {/* Main content */}
+      {/* Main content area with proper landmark */}
       <main
-        className={`min-h-screen pt-16 transition-all duration-300 ease-in-out ${
+        id="main-content"
+        role="main"
+        aria-label="Main content"
+        tabIndex={-1}
+        className={`min-h-screen pt-16 transition-all duration-300 ease-in-out focus:outline-none ${
           sidebarOpen ? 'md:ml-64' : 'ml-0'
         }`}
       >

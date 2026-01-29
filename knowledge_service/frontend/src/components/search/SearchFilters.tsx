@@ -58,24 +58,27 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ filters, onFilterChange }
 
   return (
     <div
+      role="search"
+      aria-label="Search filters"
       className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4"
       data-testid="search-filters"
     >
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-medium text-gray-900 dark:text-white">Filters</h3>
+        <h3 id="filters-heading" className="text-sm font-medium text-gray-900 dark:text-white">Filters</h3>
         {hasFilters && (
           <button
             onClick={handleClear}
-            className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+            className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-md px-1"
             aria-label="Clear all filters"
+            data-testid="clear-all-filters"
           >
-            <XMarkIcon className="h-3.5 w-3.5" />
-            Clear all
+            <XMarkIcon className="h-3.5 w-3.5" aria-hidden="true" />
+            <span>Clear all</span>
           </button>
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3" role="group" aria-labelledby="filters-heading">
         {/* Document Type */}
         <div>
           <label
@@ -157,52 +160,68 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ filters, onFilterChange }
 
       {/* Active filter chips */}
       {hasFilters && (
-        <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+        <div
+          className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-700"
+          role="list"
+          aria-label="Active filters"
+        >
           {filters.documentType && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200">
-              Type: {filters.documentType}
+            <span
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200"
+              role="listitem"
+            >
+              <span>Type: {filters.documentType}</span>
               <button
                 onClick={() => handleChange('documentType', '')}
-                className="ml-0.5 hover:text-primary-600"
-                aria-label="Remove document type filter"
+                className="ml-0.5 hover:text-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-full"
+                aria-label={`Remove document type filter: ${filters.documentType}`}
               >
-                <XMarkIcon className="h-3 w-3" />
+                <XMarkIcon className="h-3 w-3" aria-hidden="true" />
               </button>
             </span>
           )}
           {filters.projectName && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200">
-              Project: {filters.projectName}
+            <span
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200"
+              role="listitem"
+            >
+              <span>Project: {filters.projectName}</span>
               <button
                 onClick={() => handleChange('projectName', '')}
-                className="ml-0.5 hover:text-primary-600"
-                aria-label="Remove project filter"
+                className="ml-0.5 hover:text-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-full"
+                aria-label={`Remove project filter: ${filters.projectName}`}
               >
-                <XMarkIcon className="h-3 w-3" />
+                <XMarkIcon className="h-3 w-3" aria-hidden="true" />
               </button>
             </span>
           )}
           {filters.dateFrom && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200">
-              From: {filters.dateFrom}
+            <span
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200"
+              role="listitem"
+            >
+              <span>From: {filters.dateFrom}</span>
               <button
                 onClick={() => handleChange('dateFrom', '')}
-                className="ml-0.5 hover:text-primary-600"
-                aria-label="Remove from date filter"
+                className="ml-0.5 hover:text-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-full"
+                aria-label={`Remove from date filter: ${filters.dateFrom}`}
               >
-                <XMarkIcon className="h-3 w-3" />
+                <XMarkIcon className="h-3 w-3" aria-hidden="true" />
               </button>
             </span>
           )}
           {filters.dateTo && (
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200">
-              To: {filters.dateTo}
+            <span
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200"
+              role="listitem"
+            >
+              <span>To: {filters.dateTo}</span>
               <button
                 onClick={() => handleChange('dateTo', '')}
-                className="ml-0.5 hover:text-primary-600"
-                aria-label="Remove to date filter"
+                className="ml-0.5 hover:text-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-full"
+                aria-label={`Remove to date filter: ${filters.dateTo}`}
               >
-                <XMarkIcon className="h-3 w-3" />
+                <XMarkIcon className="h-3 w-3" aria-hidden="true" />
               </button>
             </span>
           )}
