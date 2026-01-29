@@ -19,8 +19,9 @@ SSE Event Types (from conftest.py / sse_test_client.py / search.py):
 - end:   Stream termination
 - error: Error event with message
 
-Note: In the current implementation, /search/chat/stream does NOT
-enforce JWT authentication. Tests are aligned to current behavior.
+Authentication Policy (ADR-002):
+- SSE streaming endpoint /search/chat/stream requires JWT authentication
+- Tests must include Authorization header with valid Bearer token
 """
 
 import asyncio
@@ -132,7 +133,7 @@ class TestC001PostSSEConnection:
         auth_headers: Dict[str, str],
         sse_chat_body: Dict[str, Any],
     ):
-        """Step 2: POST /api/v1/search/chat/stream accepted."""
+        """Step 2: POST /api/v1/search/chat/stream accepted with auth."""
         response = client.post(
             f"{api_prefix}/search/chat/stream",
             json=sse_chat_body,
@@ -214,18 +215,15 @@ class TestC001PostSSEConnection:
                 )
 
     @pytest.mark.p0
-    def test_sse_accessible_without_authentication(
+    def test_sse_without_auth_returns_401(
         self,
         client: TestClient,
         api_prefix: str,
         sse_chat_body: Dict[str, Any],
     ):
-        """SSE endpoint is currently public (no auth enforcement).
+        """SSE endpoint requires JWT authentication (ADR-002).
 
-        Note: In the current AI Service implementation, the /search/chat/stream
-        endpoint does not enforce JWT authentication. This test validates the
-        current behavior. When auth middleware is added in the future, this
-        test should be updated to expect 401 without auth.
+        Without Authorization header, the endpoint should return 401.
         """
         response = client.post(
             f"{api_prefix}/search/chat/stream",
@@ -233,9 +231,8 @@ class TestC001PostSSEConnection:
             # No auth headers
         )
 
-        # Currently SSE does not enforce auth - returns 200 (streaming response)
-        assert response.status_code in [200, 400, 422, 500], (
-            f"SSE without auth returned unexpected status: {response.status_code}"
+        assert response.status_code == 401, (
+            f"SSE without auth should return 401, got {response.status_code}"
         )
 
 

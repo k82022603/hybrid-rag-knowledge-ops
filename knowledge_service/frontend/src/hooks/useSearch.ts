@@ -20,20 +20,20 @@ export const useSearch = () => {
     setIsStreaming(true);
     setStreamingContent('');
 
-    const eventSource = searchService.streamSearch(
-      searchQuery,
-      (data) => {
+    const client = searchService.streamSearch({
+      query: searchQuery,
+      onToken: (data: string) => {
         setStreamingContent((prev) => prev + data);
       },
-      (_error) => {
+      onError: (_error: Error) => {
         setIsStreaming(false);
       },
-      () => {
+      onComplete: () => {
         setIsStreaming(false);
-      }
-    );
+      },
+    });
 
-    return eventSource;
+    return client;
   }, []);
 
   return {

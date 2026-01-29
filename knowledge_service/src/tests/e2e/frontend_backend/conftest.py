@@ -21,6 +21,10 @@ Actual API Routes (discovered from source):
     - Docs:   /api/v1/documents
     - SSE event types: start, chunk, end, error
 
+Authentication Policy (ADR-002, ADR-003):
+    - All endpoints require JWT except: login, refresh, health
+    - Login response uses camelCase: accessToken, refreshToken
+
 Author: QA Agent
 Sprint: Sprint 04 Day 3
 """
@@ -99,6 +103,9 @@ JWT_SECRET = os.getenv(
 )
 JWT_ALGORITHM = DEFAULT_JWT_ALGORITHM
 
+# Global flag for AI Service availability
+AI_SERVICE_AVAILABLE = False
+
 
 def is_docker_mode() -> bool:
     """Check if running in Docker mode.
@@ -107,6 +114,11 @@ def is_docker_mode() -> bool:
         True if E2E_MODE environment variable is set to 'docker'.
     """
     return E2E_MODE == "docker"
+
+
+def is_ai_service_available() -> bool:
+    """Check if AI Service is available for SSE streaming tests."""
+    return AI_SERVICE_AVAILABLE
 
 
 # =============================================================================
@@ -118,21 +130,25 @@ def is_docker_mode() -> bool:
 def check_docker_services():
     """Verify Docker services are running when in Docker mode.
 
-    In Docker mode, checks health endpoints of Gateway, Backend, and AI Service.
-    Skips the entire test session if any required service is not reachable.
+    In Docker mode, checks health endpoints of Gateway and Backend (required).
+    AI Service is checked but marked as optional - its unavailability will
+    only skip SSE-related tests, not the entire session.
     In Mock mode, this fixture is a no-op.
     """
+    global AI_SERVICE_AVAILABLE
+
     if not is_docker_mode():
         return
 
     import httpx
 
-    services = [
+    # Required services - skip entire session if unavailable
+    required_services = [
         ("Gateway", f"{GATEWAY_URL}/actuator/health"),
         ("Backend", f"{BACKEND_URL}/actuator/health"),
-        ("AI Service", f"{AI_SERVICE_URL}/health"),
     ]
-    for name, url in services:
+
+    for name, url in required_services:
         try:
             resp = httpx.get(url, timeout=5.0)
             if resp.status_code != 200:
@@ -150,6 +166,38 @@ def check_docker_services():
                 f"Docker mode: {name} health check failed. "
                 f"URL: {url}, Error: {e}"
             )
+
+    # Optional service - AI Service (only for SSE streaming tests)
+    try:
+        resp = httpx.get(f"{AI_SERVICE_URL}/health", timeout=5.0)
+        if resp.status_code == 200:
+            AI_SERVICE_AVAILABLE = True
+            print(f"\n[INFO] AI Service available at {AI_SERVICE_URL}")
+        else:
+            AI_SERVICE_AVAILABLE = False
+            print(f"\n[WARN] AI Service not healthy (status={resp.status_code}). "
+                  f"SSE streaming tests will be skipped.")
+    except Exception as e:
+        AI_SERVICE_AVAILABLE = False
+        print(f"\n[WARN] AI Service not reachable at {AI_SERVICE_URL}. "
+              f"SSE streaming tests will be skipped. Error: {e}")
+
+
+# =============================================================================
+# SSE Test Skip Decorator
+# =============================================================================
+
+
+def skip_if_no_ai_service(func):
+    """Decorator to skip tests that require AI Service."""
+    import functools
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        if is_docker_mode() and not AI_SERVICE_AVAILABLE:
+            pytest.skip("AI Service not available - SSE streaming tests skipped")
+        return func(*args, **kwargs)
+    return wrapper
 
 
 # =============================================================================
@@ -201,6 +249,21 @@ async def async_client() -> AsyncIterator[AsyncClient]:
 
 
 # =============================================================================
+# AI Service Availability Fixture
+# =============================================================================
+
+
+@pytest.fixture
+def require_ai_service():
+    """Fixture that skips test if AI Service is not available.
+
+    Use this fixture in SSE streaming tests that require AI Service.
+    """
+    if is_docker_mode() and not AI_SERVICE_AVAILABLE:
+        pytest.skip("AI Service not available - test requires streaming capability")
+
+
+# =============================================================================
 # Authentication Fixtures
 # =============================================================================
 
@@ -212,6 +275,10 @@ def valid_token() -> str:
     Mock mode: Generates a self-signed JWT token locally.
     Docker mode: Authenticates against the Gateway login API to obtain a real token.
         Falls back to local generation if login fails.
+
+    Note: Login response uses camelCase field names per ADR-002:
+        - accessToken (not access_token)
+        - refreshToken (not refresh_token)
     """
     if is_docker_mode():
         import httpx
@@ -226,7 +293,8 @@ def valid_token() -> str:
                 timeout=10.0,
             )
             if resp.status_code == 200:
-                token = resp.json().get("access_token", "")
+                # Use camelCase field name per ADR-002
+                token = resp.json().get("accessToken", "")
                 if token:
                     return token
         except Exception:
@@ -264,7 +332,8 @@ def admin_token() -> str:
                 timeout=10.0,
             )
             if resp.status_code == 200:
-                token = resp.json().get("access_token", "")
+                # Use camelCase field name per ADR-002
+                token = resp.json().get("accessToken", "")
                 if token:
                     return token
         except Exception:
@@ -416,11 +485,16 @@ def large_query_1001_chars(large_query_1000_chars: str) -> str:
 
 @pytest.fixture
 def mock_login_response() -> Dict[str, Any]:
-    """Expected successful login response structure."""
+    """Expected successful login response structure.
+
+    Note: Uses camelCase field names per ADR-002:
+    - accessToken (not access_token)
+    - refreshToken (not refresh_token)
+    """
     return {
-        "access_token": "mock-access-token",
-        "refresh_token": "mock-refresh-token",
-        "token_type": "Bearer",
+        "accessToken": "mock-access-token",
+        "refreshToken": "mock-refresh-token",
+        "tokenType": "Bearer",
         "user": {
             "id": "user-001",
             "email": "test@example.com",
@@ -528,26 +602,35 @@ def sql_injection_payloads() -> List[str]:
 def protected_endpoints(api_prefix: str) -> List[Dict[str, str]]:
     """List of protected endpoints that require JWT authentication.
 
-    Note: In the current implementation, only auth-related endpoints
-    (me, logout) actually enforce JWT. Search and documents do not
-    have auth middleware yet. This fixture reflects what SHOULD be
-    protected in production.
+    Per ADR-002, all endpoints except login/refresh/health require JWT.
+    This includes search endpoints.
     """
     return [
         {"method": "GET", "path": f"{api_prefix}/auth/me"},
         {"method": "POST", "path": f"{api_prefix}/auth/logout"},
+        # Search endpoints now require auth per ADR-002
+        {"method": "POST", "path": f"{api_prefix}/search/hybrid"},
+        {"method": "POST", "path": f"{api_prefix}/search/semantic"},
+        {"method": "POST", "path": f"{api_prefix}/search/keyword"},
+        {"method": "POST", "path": f"{api_prefix}/search/chat/stream"},
     ]
 
 
 @pytest.fixture
 def public_endpoints(api_prefix: str) -> List[Dict[str, str]]:
-    """List of public endpoints that do not require authentication."""
+    """List of public endpoints that do not require authentication.
+
+    Per ADR-003, only these endpoints are public:
+    - POST /auth/login
+    - POST /auth/refresh
+    - GET /health
+
+    Note: Search endpoints are NOT public per ADR-002.
+    """
     return [
         {"method": "POST", "path": f"{api_prefix}/auth/login"},
         {"method": "POST", "path": f"{api_prefix}/auth/refresh"},
         {"method": "GET", "path": f"{api_prefix}/health"},
-        {"method": "POST", "path": f"{api_prefix}/search/hybrid"},
-        {"method": "POST", "path": f"{api_prefix}/search/chat/stream"},
     ]
 
 

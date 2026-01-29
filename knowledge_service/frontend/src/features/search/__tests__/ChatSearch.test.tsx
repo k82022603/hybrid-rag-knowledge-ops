@@ -175,7 +175,7 @@ describe('ChatSearch', () => {
     });
 
     it('should stream tokens into the assistant message', async () => {
-      const { response, push, close } = createControllableStream();
+      const { response, push } = createControllableStream();
       fetchSpy.mockResolvedValue(response);
 
       render(<ChatSearch />);

@@ -13,6 +13,12 @@ Actual API Routes:
 - Auth:      /api/v1/auth/login, /auth/logout, /auth/me, /auth/refresh
 - Protected: /api/v1/auth/me (requires JWT), /api/v1/auth/logout (requires JWT)
 
+Login Response Format (camelCase per ADR-002):
+- accessToken: JWT access token
+- refreshToken: JWT refresh token
+- tokenType: "Bearer"
+- user: { id, email, name, role }
+
 Related Stories: STORY-053 (Security Hardening), STORY-024 (Direct Login)
 Sprint: Sprint 04 Day 3
 Author: QA Agent
@@ -74,7 +80,12 @@ class TestA001NormalLogin:
         api_prefix: str,
         login_request_body: Dict[str, str],
     ):
-        """Step 1-3: Login with valid credentials returns access token."""
+        """Step 1-3: Login with valid credentials returns access token.
+
+        Note: Response uses camelCase field names per ADR-002:
+        - accessToken (not access_token)
+        - refreshToken (not refresh_token)
+        """
         response = client.post(
             f"{api_prefix}/auth/login",
             json=login_request_body,
@@ -85,8 +96,10 @@ class TestA001NormalLogin:
         )
 
         data = response.json()
-        assert "access_token" in data, "Response missing access_token"
-        assert len(data["access_token"]) > 0, "access_token is empty"
+        assert "accessToken" in data, (
+            f"Response missing accessToken. Keys: {list(data.keys())}"
+        )
+        assert len(data["accessToken"]) > 0, "accessToken is empty"
 
     @pytest.mark.p0
     def test_login_response_contains_user_info(
@@ -103,10 +116,10 @@ class TestA001NormalLogin:
 
         if response.status_code == 200:
             data = response.json()
-            # Check for user info (may be nested under "user" or flat)
-            assert "access_token" in data, "Missing access_token in login response"
+            # Check for accessToken (camelCase per ADR-002)
+            assert "accessToken" in data, "Missing accessToken in login response"
             # Token should be a valid JWT
-            token = data["access_token"]
+            token = data["accessToken"]
             decoded = decode_token(token, verify=False)
             assert "sub" in decoded, "Token missing 'sub' claim"
             assert "email" in decoded, "Token missing 'email' claim"
@@ -187,21 +200,26 @@ class TestA002TokenRefreshCycle:
         api_prefix: str,
         refresh_token: str,
     ):
-        """Step 5-6: Refresh endpoint returns new token pair."""
+        """Step 5-6: Refresh endpoint returns new token pair.
+
+        Note: Response uses camelCase field names per ADR-002:
+        - accessToken (not access_token)
+        - refreshToken (not refresh_token)
+        """
         response = client.post(
             f"{api_prefix}/auth/refresh",
-            json={"refresh_token": refresh_token},
+            json={"refreshToken": refresh_token},
         )
 
         # Refresh may return 200 with new tokens, or may not be implemented yet
         if response.status_code == 200:
             data = response.json()
-            # New access token should be present
+            # New access token should be present (camelCase)
             has_token = (
-                "access_token" in data
+                "accessToken" in data
                 or ("data" in data and "accessToken" in data.get("data", {}))
             )
-            assert has_token, "Refresh response should contain new access token"
+            assert has_token, "Refresh response should contain new accessToken"
 
     @pytest.mark.p0
     def test_retry_with_new_token_succeeds(

@@ -13,15 +13,14 @@ Actual API Routes:
 - /api/v1/search/hybrid  (POST, SearchRequest: query, top_k, filters)
 - /api/v1/search/semantic (POST)
 - /api/v1/search/keyword  (POST)
-- /api/v1/search/chat/stream (POST, no auth enforcement currently)
-- /api/v1/documents (GET, list documents - no auth currently)
+- /api/v1/search/chat/stream (POST, requires JWT per ADR-002)
+- /api/v1/documents (GET, list documents)
 - /api/v1/auth/me (GET, requires JWT)
 - /api/v1/auth/logout (POST, requires JWT)
 
-Note: In the current AI Service implementation, only /auth/me and
-/auth/logout enforce JWT authentication. Search and document endpoints
-do not have auth middleware yet. Tests are aligned to current behavior
-with comments indicating future expected behavior.
+Authentication Policy (ADR-002):
+- All Search API endpoints require JWT authentication
+- Only public endpoints: login, refresh, health
 
 Search API Response Format:
   {"query": "<echoed input>", "results": [...], "total": N, "search_type": "...", "latency_ms": ...}
@@ -478,18 +477,14 @@ class TestD003CSRFProtection:
     ):
         """Step 3: POST /api/v1/documents/upload without JWT returns error.
 
-        Note: In current implementation, documents endpoint does not enforce
-        JWT auth. This test validates that the endpoint at least returns a
-        valid HTTP response (400/422 for missing file, not 500).
-        Future: Should return 401 when auth middleware is added.
+        Per ADR-002, all API endpoints except login/refresh/health require JWT.
         """
         response = client.post(
             f"{api_prefix}/documents/upload",
             # No file data - should get validation error
         )
 
-        # Currently no auth on documents endpoint, so expect 422 (missing file)
-        # or 401/403 when auth is enforced
+        # Expect 401 (no auth) or 422 (missing file after auth)
         assert response.status_code in [401, 403, 405, 422], (
             f"State-changing endpoint without JWT should return 401/422, got {response.status_code}"
         )
@@ -667,49 +662,45 @@ class TestD005UnauthenticatedBlocking:
         )
 
     @pytest.mark.p0
-    def test_search_endpoints_accessible_without_auth(
+    def test_search_endpoints_require_auth(
         self,
         client: TestClient,
         api_prefix: str,
     ):
-        """Search endpoints are currently public (no auth middleware yet).
+        """Search endpoints require JWT authentication (ADR-002).
 
-        Note: In the current AI Service implementation, search endpoints
-        do not enforce JWT authentication. This test validates current
-        behavior. When auth middleware is added in the future, these
-        endpoints should return 401 without auth.
+        Per ADR-002, all Search API endpoints require JWT authentication.
+        Without Authorization header, they should return 401.
         """
         response = client.post(
             f"{api_prefix}/search/hybrid",
             json={"query": "test query", "top_k": 5},
+            # No auth headers
         )
 
-        # Currently search is public - should return 200 or 500 (service error)
-        # NOT 401 (no auth enforcement)
-        assert response.status_code in [200, 400, 422, 500], (
-            f"Search returned unexpected status: {response.status_code}"
+        assert response.status_code == 401, (
+            f"Search without auth should return 401, got {response.status_code}"
         )
 
     @pytest.mark.p0
-    def test_sse_stream_accessible_without_auth(
+    def test_sse_stream_requires_auth(
         self,
         client: TestClient,
         api_prefix: str,
     ):
-        """SSE stream endpoint is currently public (no auth middleware yet).
+        """SSE stream endpoint requires JWT authentication (ADR-002).
 
-        Note: In the current implementation, /search/chat/stream does not
-        enforce JWT authentication. This test validates current behavior.
-        When auth middleware is added, it should return 401 without auth.
+        Per ADR-002, /search/chat/stream requires JWT authentication.
+        Without Authorization header, it should return 401.
         """
         response = client.post(
             f"{api_prefix}/search/chat/stream",
             json={"query": "test", "top_k": 5},
+            # No auth headers
         )
 
-        # Currently SSE is public - should return 200 (streaming response)
-        assert response.status_code in [200, 400, 422, 500], (
-            f"SSE without auth returned unexpected status: {response.status_code}"
+        assert response.status_code == 401, (
+            f"SSE without auth should return 401, got {response.status_code}"
         )
 
     @pytest.mark.p0
@@ -740,7 +731,13 @@ class TestD005UnauthenticatedBlocking:
         client: TestClient,
         public_endpoints: List[Dict[str, str]],
     ):
-        """Step 3: Public endpoints accessible without JWT."""
+        """Step 3: Public endpoints accessible without JWT.
+
+        Per ADR-003, only these endpoints are public:
+        - POST /auth/login
+        - POST /auth/refresh
+        - GET /health
+        """
         for endpoint in public_endpoints:
             method = endpoint["method"]
             path = endpoint["path"]

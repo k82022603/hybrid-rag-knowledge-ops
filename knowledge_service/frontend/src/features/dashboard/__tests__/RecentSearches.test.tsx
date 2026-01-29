@@ -4,7 +4,7 @@
  * Tests for the recent search history display.
  * AC3: Display the 5 most recent search records.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import RecentSearches, { RecentSearchesSkeleton } from '../components/RecentSearches';

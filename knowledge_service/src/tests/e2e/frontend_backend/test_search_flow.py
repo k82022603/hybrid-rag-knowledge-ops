@@ -13,7 +13,10 @@ Actual API Routes:
 - /api/v1/search/hybrid  (POST, SearchRequest: query, top_k, filters)
 - /api/v1/search/semantic (POST, SemanticSearchRequest: query, top_k, filters)
 - /api/v1/search/keyword  (POST, SearchRequest: query, top_k, filters)
-- Note: No auth middleware on search endpoints currently
+
+Authentication Policy (ADR-002):
+- All Search API endpoints require JWT authentication
+- Tests must include Authorization header with valid Bearer token
 
 Related Stories: STORY-051 (RAG Pipeline Integration), STORY-053 (Input Validation)
 Sprint: Sprint 04 Day 3
@@ -64,12 +67,17 @@ class TestB001KeywordSearch:
         self,
         client: TestClient,
         api_prefix: str,
+        auth_headers: Dict[str, str],
         keyword_search_body: Dict[str, Any],
     ):
-        """Step 4: Search via POST /search/hybrid returns HTTP 200."""
+        """Step 4: Search via POST /search/hybrid returns HTTP 200.
+
+        Note: Per ADR-002, all Search APIs require JWT authentication.
+        """
         response = client.post(
             f"{api_prefix}/search/hybrid",
             json=keyword_search_body,
+            headers=auth_headers,
         )
 
         assert response.status_code == 200, (
@@ -81,12 +89,14 @@ class TestB001KeywordSearch:
         self,
         client: TestClient,
         api_prefix: str,
+        auth_headers: Dict[str, str],
         keyword_search_body: Dict[str, Any],
     ):
         """Step 5-6: Search results have expected structure."""
         response = client.post(
             f"{api_prefix}/search/hybrid",
             json=keyword_search_body,
+            headers=auth_headers,
         )
 
         if response.status_code == 200:
@@ -102,12 +112,14 @@ class TestB001KeywordSearch:
         self,
         client: TestClient,
         api_prefix: str,
+        auth_headers: Dict[str, str],
         keyword_search_body: Dict[str, Any],
     ):
         """Result items contain chunk_id, document_id, content, score."""
         response = client.post(
             f"{api_prefix}/search/hybrid",
             json=keyword_search_body,
+            headers=auth_headers,
         )
 
         if response.status_code == 200:
@@ -133,6 +145,7 @@ class TestB001KeywordSearch:
         self,
         client: TestClient,
         api_prefix: str,
+        auth_headers: Dict[str, str],
     ):
         """Korean text in query and results renders without encoding issues."""
         body = {
@@ -142,6 +155,7 @@ class TestB001KeywordSearch:
         response = client.post(
             f"{api_prefix}/search/hybrid",
             json=body,
+            headers=auth_headers,
         )
 
         if response.status_code == 200:
@@ -150,6 +164,24 @@ class TestB001KeywordSearch:
             assert "\ufffd" not in response_text, (
                 "Response contains UTF-8 replacement characters"
             )
+
+    @pytest.mark.p0
+    def test_search_without_auth_returns_401(
+        self,
+        client: TestClient,
+        api_prefix: str,
+        keyword_search_body: Dict[str, Any],
+    ):
+        """Search API without JWT returns 401 Unauthorized (ADR-002)."""
+        response = client.post(
+            f"{api_prefix}/search/hybrid",
+            json=keyword_search_body,
+            # No auth headers
+        )
+
+        assert response.status_code == 401, (
+            f"Search without auth should return 401, got {response.status_code}"
+        )
 
 
 # =============================================================================
@@ -166,12 +198,14 @@ class TestB002SemanticSearch:
         self,
         client: TestClient,
         api_prefix: str,
+        auth_headers: Dict[str, str],
         semantic_search_body: Dict[str, Any],
     ):
         """Semantic query processed successfully via /search/semantic."""
         response = client.post(
             f"{api_prefix}/search/semantic",
             json=semantic_search_body,
+            headers=auth_headers,
         )
 
         assert response.status_code == 200, (
@@ -183,12 +217,14 @@ class TestB002SemanticSearch:
         self,
         client: TestClient,
         api_prefix: str,
+        auth_headers: Dict[str, str],
         semantic_search_body: Dict[str, Any],
     ):
         """Semantic search response has SearchResponse structure."""
         response = client.post(
             f"{api_prefix}/search/semantic",
             json=semantic_search_body,
+            headers=auth_headers,
         )
 
         if response.status_code == 200:
@@ -204,6 +240,7 @@ class TestB002SemanticSearch:
         self,
         client: TestClient,
         api_prefix: str,
+        auth_headers: Dict[str, str],
         semantic_search_body: Dict[str, Any],
     ):
         """Response time < 5 seconds for single query."""
@@ -213,11 +250,30 @@ class TestB002SemanticSearch:
         response = client.post(
             f"{api_prefix}/search/semantic",
             json=semantic_search_body,
+            headers=auth_headers,
         )
         elapsed = time.time() - start
 
         assert elapsed < 5.0, (
             f"Semantic search took {elapsed:.2f}s, exceeds 5s threshold"
+        )
+
+    @pytest.mark.p0
+    def test_semantic_search_without_auth_returns_401(
+        self,
+        client: TestClient,
+        api_prefix: str,
+        semantic_search_body: Dict[str, Any],
+    ):
+        """Semantic search without JWT returns 401 (ADR-002)."""
+        response = client.post(
+            f"{api_prefix}/search/semantic",
+            json=semantic_search_body,
+            # No auth headers
+        )
+
+        assert response.status_code == 401, (
+            f"Semantic search without auth should return 401, got {response.status_code}"
         )
 
 
@@ -235,12 +291,14 @@ class TestB003HybridSearchRRF:
         self,
         client: TestClient,
         api_prefix: str,
+        auth_headers: Dict[str, str],
         hybrid_search_body: Dict[str, Any],
     ):
         """Hybrid search request routed and processed successfully."""
         response = client.post(
             f"{api_prefix}/search/hybrid",
             json=hybrid_search_body,
+            headers=auth_headers,
         )
 
         assert response.status_code == 200, (
@@ -252,12 +310,14 @@ class TestB003HybridSearchRRF:
         self,
         client: TestClient,
         api_prefix: str,
+        auth_headers: Dict[str, str],
         hybrid_search_body: Dict[str, Any],
     ):
         """Results are sorted by relevance score (descending)."""
         response = client.post(
             f"{api_prefix}/search/hybrid",
             json=hybrid_search_body,
+            headers=auth_headers,
         )
 
         if response.status_code == 200:
@@ -281,6 +341,7 @@ class TestB003HybridSearchRRF:
         self,
         client: TestClient,
         api_prefix: str,
+        auth_headers: Dict[str, str],
     ):
         """Search type 'hybrid' reflected in response."""
         body = {
@@ -290,6 +351,7 @@ class TestB003HybridSearchRRF:
         response = client.post(
             f"{api_prefix}/search/hybrid",
             json=body,
+            headers=auth_headers,
         )
 
         if response.status_code == 200:
@@ -314,12 +376,14 @@ class TestB004EmptySearch:
         self,
         client: TestClient,
         api_prefix: str,
+        auth_headers: Dict[str, str],
         empty_search_body: Dict[str, Any],
     ):
         """Step 3-4: Nonsensical query returns 200 (not 404 or 500)."""
         response = client.post(
             f"{api_prefix}/search/hybrid",
             json=empty_search_body,
+            headers=auth_headers,
         )
 
         assert response.status_code == 200, (
@@ -331,12 +395,14 @@ class TestB004EmptySearch:
         self,
         client: TestClient,
         api_prefix: str,
+        auth_headers: Dict[str, str],
         empty_search_body: Dict[str, Any],
     ):
         """Response body contains empty results array or fallback."""
         response = client.post(
             f"{api_prefix}/search/hybrid",
             json=empty_search_body,
+            headers=auth_headers,
         )
 
         if response.status_code == 200:
@@ -352,12 +418,14 @@ class TestB004EmptySearch:
         self,
         client: TestClient,
         api_prefix: str,
+        auth_headers: Dict[str, str],
     ):
         """Empty query string returns error or empty results (not crash)."""
         body = {"query": "", "top_k": 10}
         response = client.post(
             f"{api_prefix}/search/hybrid",
             json=body,
+            headers=auth_headers,
         )
 
         # Should be either 200 (empty results) or 400/422 (validation error)
@@ -380,6 +448,7 @@ class TestB005LargeQuery:
         self,
         client: TestClient,
         api_prefix: str,
+        auth_headers: Dict[str, str],
         large_query_1000_chars: str,
     ):
         """Step 1-3: 1000-char query is accepted and processed."""
@@ -394,6 +463,7 @@ class TestB005LargeQuery:
         response = client.post(
             f"{api_prefix}/search/hybrid",
             json=body,
+            headers=auth_headers,
         )
 
         assert response.status_code == 200, (
@@ -405,6 +475,7 @@ class TestB005LargeQuery:
         self,
         client: TestClient,
         api_prefix: str,
+        auth_headers: Dict[str, str],
         large_query_1001_chars: str,
     ):
         """Step 4-5: 1001-char query is rejected with validation error."""
@@ -419,6 +490,7 @@ class TestB005LargeQuery:
         response = client.post(
             f"{api_prefix}/search/hybrid",
             json=body,
+            headers=auth_headers,
         )
 
         # Should be 400 or 422 (validation error) for exceeding max length
@@ -431,6 +503,7 @@ class TestB005LargeQuery:
         self,
         client: TestClient,
         api_prefix: str,
+        auth_headers: Dict[str, str],
     ):
         """No server crash or timeout for boundary values."""
         boundary_lengths = [0, 1, 999, 1000, 1001, 2000]
@@ -444,6 +517,7 @@ class TestB005LargeQuery:
             response = client.post(
                 f"{api_prefix}/search/hybrid",
                 json=body,
+                headers=auth_headers,
             )
 
             # Should not crash (5xx indicates server error)
