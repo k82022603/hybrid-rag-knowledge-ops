@@ -12,6 +12,7 @@
 #   - 장애 보고서: INC-2026-01-25-001
 #
 # Created: 2026-01-25
+# Updated: 2026-01-29 - nginx bind mount -> build image 전환
 # Purpose: WSL2 파일시스템 권한 문제 해결
 
 services:
@@ -19,6 +20,7 @@ services:
   # APPLICATION LAYER - 권한 완화
   # ===========================================================================
 
+  # Nginx - WSL2 권한 완화 (설정은 Dockerfile에서 COPY됨, bind mount 불필요)
   nginx:
     user: ""
     read_only: false

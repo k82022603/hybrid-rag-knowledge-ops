@@ -91,27 +91,34 @@ public class AuthController {
     /**
      * Logout endpoint
      *
-     * <p>Invalidates refresh token and ends session
+     * <p>Invalidates refresh token and ends session.
+     * Requires authentication - unauthenticated requests return 401 Unauthorized.
      *
-     * @param user current authenticated user
+     * @param principal current authenticated user from JWT
      * @param request optional refresh token to invalidate
-     * @return empty response with 200 OK
+     * @return empty response with 200 OK, or 401 if not authenticated
      */
     @PostMapping("/logout")
     public Mono<ResponseEntity<Void>> logout(
             @AuthenticationPrincipal Object principal,
             @RequestBody(required = false) LogoutRequest request
     ) {
-        String refreshToken = request != null ? request.getRefreshToken() : null;
+        // Logout requires authentication
+        if (principal == null) {
+            log.warn("Unauthenticated logout request rejected");
+            return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
+        }
 
         if (principal instanceof JwtUser user) {
+            String refreshToken = request != null ? request.getRefreshToken() : null;
             log.info("Logout request for user: {}", user.id());
             return authService.logout(Long.parseLong(user.id()), refreshToken)
                     .then(Mono.just(ResponseEntity.ok().<Void>build()));
         }
 
-        log.info("Logout request (unauthenticated)");
-        return Mono.just(ResponseEntity.ok().build());
+        // Unknown principal type - reject
+        log.warn("Logout request with unknown principal type: {}", principal.getClass().getName());
+        return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
     }
 
     /**

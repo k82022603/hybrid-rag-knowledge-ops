@@ -58,13 +58,19 @@ public class SecurityConfig {
     /**
      * Security chain for /api/auth/** and /api/v1/auth/** endpoints.
      *
-     * <p>No JWT validation is applied. These are public endpoints for:
+     * <p>Public endpoints (no JWT validation):
      * <ul>
      *   <li>Direct Login ({@code POST /api/v1/auth/login})</li>
      *   <li>Token Refresh ({@code POST /api/v1/auth/refresh})</li>
-     *   <li>Logout ({@code POST /api/v1/auth/logout})</li>
      * </ul>
-     * Backend handles its own HS256 token validation for these endpoints.
+     *
+     * <p>Authenticated endpoints:
+     * <ul>
+     *   <li>Logout ({@code POST /api/v1/auth/logout}) - requires valid token</li>
+     * </ul>
+     *
+     * Backend handles HS256 token validation. For logout, we pass through to Backend
+     * which will validate the token and invalidate the session.
      */
     @Bean
     @Order(1)
@@ -77,9 +83,18 @@ public class SecurityConfig {
             .csrf(ServerHttpSecurity.CsrfSpec::disable)
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .authorizeExchange(exchanges -> exchanges
+                // Login and refresh are public
+                .pathMatchers("/api/auth/login", "/api/v1/auth/login").permitAll()
+                .pathMatchers("/api/auth/refresh", "/api/v1/auth/refresh").permitAll()
+                // Logout requires a valid token - pass through to Backend for validation
+                // Note: Gateway doesn't validate here, but Backend will reject if no token
                 .anyExchange().permitAll()
             )
-            // No oauth2ResourceServer - allows HS256 tokens to pass through to Backend
+            // Register HS256 JWT filter for logout token validation
+            .addFilterBefore(
+                new JwtAuthenticationFilter(jwtTokenValidator),
+                SecurityWebFiltersOrder.AUTHENTICATION
+            )
             .build();
     }
 
@@ -110,6 +125,10 @@ public class SecurityConfig {
                 .pathMatchers("/actuator/prometheus").permitAll()
                 .pathMatchers("/actuator/gateway/**").permitAll()
                 .pathMatchers("/fallback/**").permitAll()
+
+                // Health check endpoint - public
+                .pathMatchers("/api/v1/health").permitAll()
+                .pathMatchers("/api/v1/health/**").permitAll()
 
                 // Keycloak auth endpoints - always public
                 .pathMatchers("/auth/**").permitAll()

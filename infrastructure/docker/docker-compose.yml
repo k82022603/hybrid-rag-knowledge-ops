@@ -1,9 +1,9 @@
 # =============================================================================
 # Hybrid RAG Knowledge Platform - Docker Compose (18 Containers)
 # =============================================================================
-# Version: 1.1.1
+# Version: 1.2.0
 # Created: 2026-01-20
-# Updated: 2026-01-28 - Fix api-gateway healthcheck endpoint
+# Updated: 2026-01-29 - WSL2 nginx bind mount -> build image (named volume 불필요)
 # Description: Complete development environment with 18 containers
 # Security: read_only, no-new-privileges, cap_drop, non-root user
 # =============================================================================
@@ -72,8 +72,12 @@ services:
   # ---------------------------------------------------------------------------
   # 1. Nginx - Reverse Proxy & Load Balancer
   # ---------------------------------------------------------------------------
+  # WSL2 Fix: bind mount -> build image (설정 파일을 Dockerfile에서 COPY)
   nginx:
-    image: nginx:1.25-alpine
+    image: ${REGISTRY:-}knowledge-platform/nginx:${VERSION:-latest}
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
     container_name: kp-nginx
     restart: unless-stopped
     # Security settings
@@ -91,10 +95,8 @@ services:
     ports:
       - "${NGINX_HTTP_PORT:-80}:80"
       - "${NGINX_HTTPS_PORT:-443}:443"
+    # WSL2 Fix: bind mount 제거 - 설정은 Dockerfile에서 COPY됨
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/conf.d:/etc/nginx/conf.d:ro
-      - ./nginx/certs:/etc/nginx/certs:ro
       - nginx_tmp:/tmp
       - nginx_cache:/var/cache/nginx
     # tmpfs:  # WSL2

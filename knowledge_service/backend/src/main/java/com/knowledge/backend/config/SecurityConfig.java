@@ -56,9 +56,18 @@ public class SecurityConfig {
                 .pathMatchers("/actuator/info").permitAll()
                 .pathMatchers("/actuator/prometheus").permitAll()
 
-                // Auth endpoints - public (login, refresh, logout)
-                .pathMatchers("/api/auth/**").permitAll()
-                .pathMatchers("/api/v1/auth/**").permitAll()
+                // Health check endpoint - public
+                .pathMatchers("/api/v1/health").permitAll()
+                .pathMatchers("/api/v1/health/**").permitAll()
+
+                // Auth endpoints - login/refresh are public, logout requires auth
+                .pathMatchers("/api/auth/login").permitAll()
+                .pathMatchers("/api/auth/refresh").permitAll()
+                .pathMatchers("/api/v1/auth/login").permitAll()
+                .pathMatchers("/api/v1/auth/refresh").permitAll()
+                // Logout requires authentication
+                .pathMatchers("/api/auth/logout").authenticated()
+                .pathMatchers("/api/v1/auth/logout").authenticated()
 
                 // Admin endpoints - admin role required
                 .pathMatchers("/api/v1/admin/**").hasRole("ADMIN")
