@@ -9,6 +9,7 @@
 - entity_extraction: 엔티티/관계 추출 + Gleaning
 - embedding: BGE-M3 임베딩 서비스 (Dense + Sparse)
 - rrf_fusion: RRF (Reciprocal Rank Fusion) 알고리즘
+- conversation_history: 대화 이력 관리 서비스 (STORY-057)
 """
 
 from app.services.llm_service import LLMService
@@ -29,6 +30,14 @@ from app.services.rrf_fusion import (
     RRFFusionExplanation,
     get_rrf_fusion,
     reset_rrf_fusion,
+)
+from app.services.conversation_history import (
+    ConversationHistoryService,
+    ConversationSession,
+    ConversationStore,
+    ConversationTurn,
+    get_conversation_history_service,
+    reset_conversation_history_service,
 )
 
 __all__ = [
@@ -59,4 +68,11 @@ __all__ = [
     "RRFFusionExplanation",
     "get_rrf_fusion",
     "reset_rrf_fusion",
+    # Conversation History (STORY-057)
+    "ConversationHistoryService",
+    "ConversationSession",
+    "ConversationStore",
+    "ConversationTurn",
+    "get_conversation_history_service",
+    "reset_conversation_history_service",
 ]

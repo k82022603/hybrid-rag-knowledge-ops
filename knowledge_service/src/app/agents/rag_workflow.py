@@ -11,6 +11,7 @@ Pipeline:
     4. Generator Node: 컨텍스트 기반 답변 생성
 
 STORY-051: RAG 파이프라인 통합 (Day 2)
+STORY-057: 대화이력 + 스트리밍 구현
 """
 
 import time
@@ -52,6 +53,7 @@ class RAGWorkflowResponse:
         model: 사용된 LLM 모델
         pipeline_stages: 각 단계별 처리 정보
         error: 에러 메시지 (있는 경우)
+        conversation_id: 대화 세션 ID (STORY-057)
     """
 
     def __init__(
@@ -65,6 +67,7 @@ class RAGWorkflowResponse:
         model: str = "",
         pipeline_stages: Optional[Dict[str, Any]] = None,
         error: Optional[str] = None,
+        conversation_id: Optional[str] = None,
     ):
         self.answer = answer
         self.sources = sources or []
@@ -75,6 +78,7 @@ class RAGWorkflowResponse:
         self.model = model
         self.pipeline_stages = pipeline_stages or {}
         self.error = error
+        self.conversation_id = conversation_id
 
     def to_dict(self) -> Dict[str, Any]:
         """딕셔너리 변환"""
@@ -87,6 +91,7 @@ class RAGWorkflowResponse:
             "model": self.model,
             "pipeline_stages": self.pipeline_stages,
             "error": self.error,
+            "conversation_id": self.conversation_id,
         }
 
 
@@ -222,8 +227,10 @@ class RAGWorkflow:
         search_service: Optional[Any] = None,
         hybrid_retriever: Optional[Any] = None,
         llm_adapter: Optional[LLMAdapter] = None,
+        conversation_history_service: Optional[Any] = None,
         max_context_chunks: int = 10,
         max_context_length: int = 8000,
+        max_conversation_turns: int = 5,
     ):
         """
         초기화
@@ -232,14 +239,18 @@ class RAGWorkflow:
             search_service: SearchService 인스턴스
             hybrid_retriever: HybridRetriever 인스턴스 (우선 사용)
             llm_adapter: LLMAdapter 인스턴스 (None이면 싱글톤)
+            conversation_history_service: ConversationHistoryService 인스턴스 (STORY-057)
             max_context_chunks: 컨텍스트 최대 청크 수
             max_context_length: 컨텍스트 최대 문자 수
+            max_conversation_turns: 대화 이력 최대 턴 수 (STORY-057)
         """
         self._search_service = search_service
         self._hybrid_retriever = hybrid_retriever
         self._llm_adapter = llm_adapter
+        self._conversation_history_service = conversation_history_service
         self._max_context_chunks = max_context_chunks
         self._max_context_length = max_context_length
+        self._max_conversation_turns = max_conversation_turns
 
     @property
     def llm_adapter(self) -> LLMAdapter:
@@ -247,6 +258,16 @@ class RAGWorkflow:
         if self._llm_adapter is None:
             self._llm_adapter = get_llm_adapter()
         return self._llm_adapter
+
+    @property
+    def conversation_history_service(self) -> Any:
+        """ConversationHistoryService 지연 초기화 (STORY-057)"""
+        if self._conversation_history_service is None:
+            from app.services.conversation_history import (
+                get_conversation_history_service,
+            )
+            self._conversation_history_service = get_conversation_history_service()
+        return self._conversation_history_service
 
     # ------------------------------------------------------------------
     # Main entry point
@@ -260,6 +281,7 @@ class RAGWorkflow:
         user_id: Optional[str] = None,
         use_reasoner: bool = False,
         use_reranking: bool = True,
+        conversation_id: Optional[str] = None,
     ) -> RAGWorkflowResponse:
         """
         RAG 워크플로우 실행
@@ -273,6 +295,7 @@ class RAGWorkflow:
             user_id: 사용자 ID
             use_reasoner: Reasoner 모델 사용 여부
             use_reranking: Reranker 사용 여부
+            conversation_id: 대화 세션 ID (STORY-057)
 
         Returns:
             RAGWorkflowResponse
@@ -293,10 +316,23 @@ class RAGWorkflow:
         start_time = time.monotonic()
         pipeline_stages: Dict[str, Any] = {}
 
+        # 대화 이력 컨텍스트 조회 (STORY-057)
+        conversation_context = ""
+        if conversation_id:
+            conversation_context = self.conversation_history_service.get_conversation_context(
+                session_id=conversation_id,
+                max_turns=self._max_conversation_turns,
+            )
+            if conversation_context:
+                logger.debug(
+                    "Conversation context loaded - Session: %s, Length: %d",
+                    conversation_id, len(conversation_context),
+                )
+
         logger.info(
             "RAG Workflow started - Query: '%s', top_k=%d, "
-            "reasoner=%s, reranking=%s",
-            query[:80], top_k, use_reasoner, use_reranking,
+            "reasoner=%s, reranking=%s, conversation_id=%s",
+            query[:80], top_k, use_reasoner, use_reranking, conversation_id,
         )
 
         # ------------------------------------------------------------------
@@ -344,6 +380,7 @@ class RAGWorkflow:
                 query=query,
                 search_results=search_results,
                 use_reasoner=use_reasoner,
+                conversation_context=conversation_context,
             )
         except Exception as e:
             logger.error("Generation failed: %s", e)
@@ -371,6 +408,25 @@ class RAGWorkflow:
         sources = build_sources_from_results(selected_results)
         total_latency = (time.monotonic() - start_time) * 1000
 
+        # 대화 이력에 턴 추가 (STORY-057)
+        if conversation_id:
+            try:
+                self.conversation_history_service.add_turn(
+                    session_id=conversation_id,
+                    query=query,
+                    answer=answer,
+                    sources=sources,
+                    latency_ms=total_latency,
+                    metadata={"pipeline_stages": pipeline_stages},
+                )
+                logger.debug(
+                    "Conversation turn added - Session: %s", conversation_id,
+                )
+            except Exception as e:
+                logger.warning(
+                    "Failed to save conversation turn: %s", e,
+                )
+
         logger.info(
             "RAG Workflow complete - "
             "Answer length: %d, Sources: %d, "
@@ -387,6 +443,7 @@ class RAGWorkflow:
             latency_ms=total_latency,
             model=settings.deepseek_chat_model,
             pipeline_stages=pipeline_stages,
+            conversation_id=conversation_id,
         )
 
     # ------------------------------------------------------------------
@@ -465,6 +522,7 @@ class RAGWorkflow:
         query: str,
         search_results: List[SearchResult],
         use_reasoner: bool = False,
+        conversation_context: str = "",
     ) -> tuple:
         """
         Stage 3: 답변 합성
@@ -475,6 +533,7 @@ class RAGWorkflow:
             query: 사용자 질의
             search_results: (reranked) 검색 결과 목록
             use_reasoner: Reasoner 모델 사용 여부
+            conversation_context: 대화 이력 컨텍스트 (STORY-057)
 
         Returns:
             (answer, context, selected_results) 튜플
@@ -485,6 +544,11 @@ class RAGWorkflow:
             max_chunks=self._max_context_chunks,
             max_length=self._max_context_length,
         )
+
+        # 대화 이력 컨텍스트 통합 (STORY-057)
+        if conversation_context:
+            # 대화 이력을 검색 컨텍스트 앞에 추가
+            context = f"{conversation_context}\n\n---\n\n{context}" if context else conversation_context
 
         # 컨텍스트 없으면 폴백
         if not context.strip():
@@ -549,6 +613,7 @@ def get_rag_workflow(
     search_service: Optional[Any] = None,
     hybrid_retriever: Optional[Any] = None,
     llm_adapter: Optional[LLMAdapter] = None,
+    conversation_history_service: Optional[Any] = None,
 ) -> RAGWorkflow:
     """
     RAGWorkflow 인스턴스 반환 (싱글톤)
@@ -557,6 +622,7 @@ def get_rag_workflow(
         search_service: SearchService 인스턴스
         hybrid_retriever: HybridRetriever 인스턴스
         llm_adapter: LLMAdapter 인스턴스
+        conversation_history_service: ConversationHistoryService 인스턴스 (STORY-057)
 
     Returns:
         RAGWorkflow 싱글톤 인스턴스
@@ -567,6 +633,7 @@ def get_rag_workflow(
             search_service=search_service,
             hybrid_retriever=hybrid_retriever,
             llm_adapter=llm_adapter,
+            conversation_history_service=conversation_history_service,
         )
     return _workflow
 
