@@ -65,25 +65,31 @@ class LoginRequest(BaseModel):
 
 
 class TokenResponse(BaseModel):
-    """토큰 응답 모델"""
-    access_token: str = Field(description="JWT 액세스 토큰")
-    refresh_token: str = Field(description="리프레시 토큰")
-    token_type: str = Field(default="Bearer", description="토큰 타입")
-    expires_in: int = Field(description="액세스 토큰 만료 시간 (초)")
+    """토큰 응답 모델 (camelCase - ADR-001)"""
+    access_token: str = Field(description="JWT 액세스 토큰", serialization_alias="accessToken")
+    refresh_token: str = Field(description="리프레시 토큰", serialization_alias="refreshToken")
+    token_type: str = Field(default="Bearer", description="토큰 타입", serialization_alias="tokenType")
+    expires_in: int = Field(description="액세스 토큰 만료 시간 (초)", serialization_alias="expiresIn")
+
+    model_config = {"populate_by_name": True}
 
 
 class RefreshRequest(BaseModel):
-    """토큰 갱신 요청 모델"""
-    refresh_token: str = Field(description="리프레시 토큰")
+    """토큰 갱신 요청 모델 (camelCase - ADR-001)"""
+    refresh_token: str = Field(description="리프레시 토큰", alias="refreshToken")
+
+    model_config = {"populate_by_name": True}
 
 
 class UserResponse(BaseModel):
-    """사용자 정보 응답 모델"""
+    """사용자 정보 응답 모델 (camelCase - ADR-001)"""
     id: str = Field(description="사용자 ID")
     email: str = Field(description="이메일 주소")
     name: str = Field(description="사용자 이름")
     role: str = Field(description="사용자 역할")
-    created_at: str = Field(description="계정 생성일")
+    created_at: str = Field(description="계정 생성일", serialization_alias="createdAt")
+
+    model_config = {"populate_by_name": True}
 
 
 class LogoutResponse(BaseModel):

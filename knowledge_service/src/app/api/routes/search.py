@@ -13,10 +13,11 @@ STORY-051 Day 2: /chat 엔드포인트가 LangGraph RAGWorkflow를 사용
 
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from app.api.routes.auth import get_current_user
 from app.core.logging import get_logger
 from app.services.llm_adapter import (
     ServiceConnectionError,
@@ -142,7 +143,10 @@ def _translate_service_error(error: Exception) -> HTTPException:
     summary="Hybrid 검색",
     description="Vector + Keyword + Graph 결합 검색 수행 (RRF 융합)",
 )
-async def hybrid_search(request: SearchRequest) -> SearchResponse:
+async def hybrid_search(
+    request: SearchRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+) -> SearchResponse:
     """
     Hybrid 검색 수행
 
@@ -201,7 +205,10 @@ async def hybrid_search(request: SearchRequest) -> SearchResponse:
     summary="시맨틱 검색",
     description="BGE-M3 벡터 기반 시맨틱 검색 (Elasticsearch kNN)",
 )
-async def semantic_search(request: SemanticSearchRequest) -> SearchResponse:
+async def semantic_search(
+    request: SemanticSearchRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+) -> SearchResponse:
     """
     시맨틱 벡터 검색
 
@@ -259,7 +266,10 @@ async def semantic_search(request: SemanticSearchRequest) -> SearchResponse:
     summary="키워드 검색",
     description="BM25 기반 키워드 매칭 검색 (Elasticsearch)",
 )
-async def keyword_search(request: SearchRequest) -> SearchResponse:
+async def keyword_search(
+    request: SearchRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+) -> SearchResponse:
     """
     키워드 기반 BM25 검색
 
@@ -317,7 +327,10 @@ async def keyword_search(request: SearchRequest) -> SearchResponse:
     summary="대화형 검색 (LangGraph)",
     description="LangGraph RAG Workflow 기반 대화형 검색 (STORY-051)",
 )
-async def chat_search(request: ChatRequest) -> ChatResponse:
+async def chat_search(
+    request: ChatRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+) -> ChatResponse:
     """
     대화형 검색 (LangGraph RAG Workflow)
 
@@ -388,7 +401,10 @@ async def chat_search(request: ChatRequest) -> ChatResponse:
     summary="스트리밍 대화형 검색",
     description="SSE 스트리밍 방식의 대화형 검색",
 )
-async def chat_stream(request: ChatRequest) -> StreamingResponse:
+async def chat_stream(
+    request: ChatRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+) -> StreamingResponse:
     """
     스트리밍 대화형 검색
 
