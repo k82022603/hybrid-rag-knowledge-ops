@@ -2,9 +2,9 @@
 
 > Claude Code 세션 간 컨텍스트 유지를 위한 계획 문서
 >
-> **Last Updated**: 2026-01-28 (Day 3 마감)
-> **Current Phase**: Phase 3 구현 완료 → Sprint 04 Day 3 (보완 + 품질 강화, 52pts)
-> **Sprint 04**: 4/13 Story 완료 (18/52pts), 블로커 SCRUM-55~60 (Docker E2E 19건 실패)
+> **Last Updated**: 2026-01-29 (Sprint 04 완료)
+> **Current Phase**: Phase 3 구현 완료 → Sprint 04 완료 (보완 + 품질 강화, 52pts)
+> **Sprint 04**: 8/13 Story 완료 (39/52pts = 75%), 블로커 0건
 > **Frontend 전략 변경**: Tailwind + Antigravity + Stitch MCP 도입 결정 (2026-01-25)
 > **소스코드 리뷰**: 72.5/100 B+ (Gateway 65, Backend 72, AI Service 78, Frontend 75)
 
@@ -16,7 +16,7 @@
 [Phase 1: 기획]     ████████████████████ 100% ✅ 완료
 [Phase 2: 설계]     ████████████████████ 100% ✅ 완료 (91점 A등급 승인)
 [Phase 3: 구현]     ████████████████████ 100% ✅ Sprint 03 완료 (15 Story Done, 84/84 pts)
-[Phase 4: 테스트]   ██████████░░░░░░░░░░  50% 🔄 테스트 390+ (Unit) + 258 (E2E/Contract), Sprint 04 블로커 대응
+[Phase 4: 테스트]   ██████████████░░░░░░  70% 🔄 테스트 390+ (Unit) + 480+ (E2E/Contract/Security), Sprint 04 완료
 [Phase 5: 배포]     ░░░░░░░░░░░░░░░░░░░░   0%
 ```
 
@@ -279,10 +279,11 @@
 **Day 2 성과** (2026-01-28): 10 Story → Done (+60pts), 테스트 390+ TC, Wave 1-3 전체 완료
 **Sprint 03 최종**: 15/15 Story Done (84/84 pts = 100%), 품질등급 B+, 프로덕션 준비도 65%
 
-### Sprint 04 (진행 중) - Sprint 03 보완 + 품질 강화
+### Sprint 04 (완료) - Sprint 03 보완 + 품질 강화
 
 **목표**: Critical/High 이슈 해결 + 프로덕션 준비도 65% → 85%
 **총 포인트**: 52 pts (13 Stories)
+**최종 결과**: 8/13 Story 완료 (39/52 pts = 75%)
 
 | Story | SP | 담당 | 상태 | Jira |
 |-------|:--:|------|:----:|:----:|
@@ -290,10 +291,10 @@
 | STORY-051 RAG 파이프라인 통합 | 8 | RAG | **Done** | SCRUM-41 |
 | STORY-052 Reranker async 전환 | 2 | RAG | **Done** | SCRUM-42 |
 | STORY-053 보안 강화 | 3 | Backend | **Done** | SCRUM-43 |
-| STORY-054 통합 테스트 (Contract) | 5 | QA | **In Progress** (블로커) | SCRUM-44 |
-| STORY-055 보안 테스트 | 3 | QA | To Do | SCRUM-45 |
-| STORY-056 Frontend ErrorBoundary | 3 | Frontend | To Do | SCRUM-46 |
-| STORY-057 대화이력 + 스트리밍 | 5 | RAG | To Do | SCRUM-47 |
+| STORY-054 통합 테스트 (Contract) | 5 | QA | **Done** | SCRUM-44 |
+| STORY-055 보안 테스트 | 3 | QA | **Done** | SCRUM-45 |
+| STORY-056 Frontend ErrorBoundary | 3 | Frontend | **Done** | SCRUM-46 |
+| STORY-057 대화이력 + 스트리밍 | 5 | RAG | **Done** | SCRUM-47 |
 | STORY-058 RAGAS 평가 통합 | 5 | RAG | To Do | SCRUM-48 |
 | STORY-059 Frontend 테스트 커버리지 | 5 | Frontend | To Do | SCRUM-49 |
 | STORY-060 Planner 전략 + 캐싱 | 3 | RAG | To Do | SCRUM-50 |
@@ -324,6 +325,21 @@
 - 보안 정책 확정: 모든 데이터 API JWT 필수 (사용자 승인)
 - Mock 전수조사 보고서 (74파일 분석, 92% Mock 기반)
 - 긴급 회의 + 스탠드업 미팅 완료
+
+**Day 4 성과** (2026-01-29): 블로커 6건 전체 해결, 커밋 3건
+- SCRUM-57: LoginResponse @JsonProperty 추가 (14건 연쇄 해결)
+- SCRUM-56: logout 인증 강화, SCRUM-59: health permitAll
+- WSL2 nginx bind mount → Dockerfile COPY 전환
+- ADR-001~003 문서화 (직렬화, 검색 API 인증, Auth 보안)
+- E2E Mock 98/98 (100%) 달성
+
+**Day 5 성과** (2026-01-29): 4 Story 완료 (STORY-054~057 = 21pts), 커밋 4건
+- STORY-054: Contract 테스트 62→121 (95% 확장)
+- STORY-055: OWASP Top 10 보안 테스트 35/35 (신규)
+- STORY-056: ErrorBoundary 컴포넌트 31/31 테스트
+- STORY-057: 대화이력 + 스트리밍 36/36 테스트
+- Docker E2E 81/98 (82.7%) - Keycloak realm 이슈 (Known Issue)
+- **Sprint 04 총 커밋**: 22건
 
 ---
 
