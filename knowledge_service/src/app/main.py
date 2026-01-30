@@ -32,18 +32,67 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info(f"Environment: {settings.environment}")
     logger.info(f"Debug mode: {settings.debug}")
 
-    # TODO: 리소스 초기화
-    # - Elasticsearch 클라이언트 연결
-    # - Neo4j 드라이버 연결
-    # - BGE-M3 임베딩 모델 로딩
+    # 리소스 초기화
+    es_client = None
+    neo4j_driver = None
 
-    yield
+    try:
+        # Elasticsearch 클라이언트 연결
+        try:
+            from elasticsearch import AsyncElasticsearch
 
-    # Shutdown
-    logger.info("Shutting down application...")
+            es_client = AsyncElasticsearch(
+                hosts=[f"{settings.elasticsearch_host}:{settings.elasticsearch_port}"],
+            )
+            health = await es_client.cluster.health(timeout="5s")
+            logger.info(f"Elasticsearch connected: cluster={health.get('cluster_name')}, status={health.get('status')}")
+            app.state.es_client = es_client
+        except Exception as e:
+            logger.warning(f"Elasticsearch connection failed (non-critical): {e}")
+            app.state.es_client = None
 
-    # TODO: 리소스 정리
-    # - 연결 종료
+        # Neo4j 드라이버 연결
+        try:
+            from neo4j import AsyncGraphDatabase
+
+            neo4j_driver = AsyncGraphDatabase.driver(
+                settings.neo4j_uri,
+                auth=(settings.neo4j_user, settings.neo4j_password),
+            )
+            # 연결 테스트
+            async with neo4j_driver.session() as session:
+                result = await session.run("RETURN 1 AS ping")
+                await result.single()
+            logger.info(f"Neo4j connected: {settings.neo4j_uri}")
+            app.state.neo4j_driver = neo4j_driver
+        except Exception as e:
+            logger.warning(f"Neo4j connection failed (non-critical): {e}")
+            app.state.neo4j_driver = None
+
+        # EmbeddingService 초기화 (lazy load, 실제 로딩은 첫 요청 시)
+        logger.info("EmbeddingService will be initialized on first request")
+
+        yield
+
+    finally:
+        # Shutdown
+        logger.info("Shutting down application...")
+
+        # Elasticsearch 클라이언트 종료
+        if es_client is not None:
+            try:
+                await es_client.close()
+                logger.info("Elasticsearch client closed")
+            except Exception as e:
+                logger.warning(f"Error closing Elasticsearch client: {e}")
+
+        # Neo4j 드라이버 종료
+        if neo4j_driver is not None:
+            try:
+                await neo4j_driver.close()
+                logger.info("Neo4j driver closed")
+            except Exception as e:
+                logger.warning(f"Error closing Neo4j driver: {e}")
 
 
 def create_app() -> FastAPI:

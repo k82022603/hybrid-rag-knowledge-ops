@@ -9,7 +9,7 @@ from typing import Any, Dict, List
 from fastapi import APIRouter, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.rag.embedder import get_embedder
+from app.services.embedding import get_embedding_service
 from app.core.config import settings
 from app.core.logging import get_logger
 
@@ -70,11 +70,11 @@ async def embed_single(request: EmbedRequest) -> EmbedResponse:
     logger.info(f"Single embedding - Text length: {len(request.text)}")
 
     try:
-        embedder = get_embedder()
-        vector = await embedder.embed(request.text)
+        service = get_embedding_service()
+        vector = await service.aembed(request.text)
 
         return EmbedResponse(
-            embedding=vector.tolist(),
+            embedding=vector,
             dimension=len(vector),
         )
     except Exception as e:
@@ -107,12 +107,12 @@ async def embed_batch(request: EmbedBatchRequest) -> EmbedBatchResponse:
     logger.info(f"Batch embedding - Count: {len(request.texts)}")
 
     try:
-        embedder = get_embedder()
-        vectors = await embedder.embed_batch(request.texts)
+        service = get_embedding_service()
+        vectors = await service.aembed_batch(request.texts)
 
         return EmbedBatchResponse(
-            embeddings=[v.tolist() for v in vectors],
-            dimension=settings.embedding_dimension,
+            embeddings=vectors,
+            dimension=service.vector_dimension,
             count=len(vectors),
         )
     except Exception as e:

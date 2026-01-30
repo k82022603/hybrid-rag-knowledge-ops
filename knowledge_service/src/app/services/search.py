@@ -20,7 +20,7 @@ from app.agents.state import SearchResult
 from app.core.config import settings
 from app.core.exceptions import ElasticsearchError, Neo4jError, SearchError
 from app.core.logging import get_logger
-from app.rag.embedder import get_embedder
+from app.services.embedding import get_embedding_service
 
 logger = get_logger(__name__)
 
@@ -188,7 +188,7 @@ class SearchService:
         self.es_client = es_client
         self.neo4j_driver = neo4j_driver
         self.history_store = SearchHistoryStore()
-        self._embedder = get_embedder()
+        self._embedding_service = get_embedding_service()
         self._cache_enabled = cache_enabled and settings.search_cache_enabled
         self._cache = _get_cache_service() if self._cache_enabled else None
 
@@ -203,6 +203,8 @@ class SearchService:
         top_k: int = 10,
         user_id: Optional[str] = None,
         use_cache: bool = True,
+        use_graph: bool = True,
+        use_vector: bool = True,
     ) -> Dict[str, Any]:
         """
         Hybrid 검색 수행
@@ -218,6 +220,8 @@ class SearchService:
             top_k: 반환할 결과 수
             user_id: 사용자 ID (이력 기록용)
             use_cache: 캐시 사용 여부 (기본 True)
+            use_graph: Graph 검색 사용 여부 (기본 True)
+            use_vector: Vector 검색 사용 여부 (기본 True)
 
         Returns:
             검색 결과 딕셔너리
@@ -239,7 +243,9 @@ class SearchService:
 
         logger.info(
             f"Hybrid search - Query: '{query[:80]}...', "
-            f"top_k={top_k}, has_filters={filters is not None}, cache={use_cache and self._cache is not None}"
+            f"top_k={top_k}, has_filters={filters is not None}, "
+            f"use_vector={use_vector}, use_graph={use_graph}, "
+            f"cache={use_cache and self._cache is not None}"
         )
 
         try:
@@ -293,48 +299,74 @@ class SearchService:
                         "debug": cached_result.get("debug", {}),
                     }
 
-            # 1. 병렬 검색 실행 (Vector + Keyword + Graph)
-            vector_task = self.semantic_search(
+            # 1. 병렬 검색 실행 (조건부: Vector + Keyword + Graph)
+            tasks = []
+            task_names = []
+
+            # Vector/Semantic 검색 (use_vector=True 일 때)
+            if use_vector:
+                tasks.append(self.semantic_search(
+                    query=query, filters=filters, top_k=top_k * 2
+                ))
+                task_names.append("vector")
+
+            # Keyword 검색 (항상 실행 - BM25 기본)
+            tasks.append(self.keyword_search(
                 query=query, filters=filters, top_k=top_k * 2
-            )
-            keyword_task = self.keyword_search(
-                query=query, filters=filters, top_k=top_k * 2
-            )
-            graph_task = self._graph_search(
-                query=query, top_k=top_k * 2
-            )
+            ))
+            task_names.append("keyword")
 
-            vector_result, keyword_result, graph_result = await asyncio.gather(
-                vector_task, keyword_task, graph_task,
-                return_exceptions=True,
-            )
+            # Graph 검색 (use_graph=True 일 때)
+            if use_graph:
+                tasks.append(self._graph_search(
+                    query=query, top_k=top_k * 2
+                ))
+                task_names.append("graph")
 
-            # 예외 처리 - 부분 실패 허용
-            vector_results = (
-                vector_result.get("results", [])
-                if isinstance(vector_result, dict)
-                else []
-            )
-            keyword_results = (
-                keyword_result.get("results", [])
-                if isinstance(keyword_result, dict)
-                else []
-            )
-            graph_results = (
-                graph_result if isinstance(graph_result, list) else []
-            )
+            results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            if isinstance(vector_result, Exception):
-                logger.warning(f"Vector search failed: {vector_result}")
-            if isinstance(keyword_result, Exception):
-                logger.warning(f"Keyword search failed: {keyword_result}")
-            if isinstance(graph_result, Exception):
-                logger.warning(f"Graph search failed: {graph_result}")
+            # 결과 매핑
+            vector_results: List[SearchResult] = []
+            keyword_results: List[SearchResult] = []
+            graph_results: List[SearchResult] = []
 
-            # 2. RRF 융합
+            for i, task_name in enumerate(task_names):
+                result = results[i]
+                if task_name == "vector":
+                    if isinstance(result, dict):
+                        vector_results = result.get("results", [])
+                    elif isinstance(result, Exception):
+                        logger.warning(f"Vector search failed: {result}")
+                elif task_name == "keyword":
+                    if isinstance(result, dict):
+                        keyword_results = result.get("results", [])
+                    elif isinstance(result, Exception):
+                        logger.warning(f"Keyword search failed: {result}")
+                elif task_name == "graph":
+                    if isinstance(result, list):
+                        graph_results = result
+                    elif isinstance(result, Exception):
+                        logger.warning(f"Graph search failed: {result}")
+
+            # 2. RRF 융합 (활성화된 소스만)
+            result_lists = []
+            source_names = []
+
+            if use_vector and vector_results:
+                result_lists.append(vector_results)
+                source_names.append("vector")
+
+            if keyword_results:
+                result_lists.append(keyword_results)
+                source_names.append("keyword")
+
+            if use_graph and graph_results:
+                result_lists.append(graph_results)
+                source_names.append("graph")
+
             fused_results = self._rrf_fusion(
-                result_lists=[vector_results, keyword_results, graph_results],
-                source_names=["vector", "keyword", "graph"],
+                result_lists=result_lists,
+                source_names=source_names,
                 k=settings.rrf_k,
             )
 
@@ -439,7 +471,7 @@ class SearchService:
 
         try:
             # 1. 쿼리 임베딩 생성
-            query_vector = await self._embedder.embed(query)
+            query_vector = await self._embedding_service.aembed(query)
 
             results: List[SearchResult] = []
 
@@ -447,7 +479,7 @@ class SearchService:
                 # 2. Elasticsearch kNN 검색
                 knn_query: Dict[str, Any] = {
                     "field": "embedding",
-                    "query_vector": query_vector.tolist(),
+                    "query_vector": query_vector,  # EmbeddingService returns List[float]
                     "k": top_k,
                     "num_candidates": top_k * 10,
                 }

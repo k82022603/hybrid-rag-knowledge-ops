@@ -175,7 +175,7 @@ class TestRRFFusion:
 
     def setup_method(self):
         """테스트 설정"""
-        with patch("app.services.search.get_embedder"):
+        with patch("app.services.search.get_embedding_service"):
             self.service = SearchService()
 
     def test_empty_results(self):
@@ -317,7 +317,7 @@ class TestSearchServiceNoExternalDeps:
 
     def setup_method(self):
         """테스트 설정 - ES/Neo4j 없는 환경"""
-        with patch("app.services.search.get_embedder"):
+        with patch("app.services.search.get_embedding_service"):
             self.service = SearchService(es_client=None, neo4j_driver=None)
 
     @pytest.mark.asyncio
@@ -402,7 +402,7 @@ class TestESResultParsing:
 
     def setup_method(self):
         """테스트 설정"""
-        with patch("app.services.search.get_embedder"):
+        with patch("app.services.search.get_embedding_service"):
             self.service = SearchService()
 
     def test_parse_empty_response(self):

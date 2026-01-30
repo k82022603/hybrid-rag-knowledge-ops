@@ -45,6 +45,10 @@ class SearchRequest(BaseModel):
     query: str = Field(min_length=1, max_length=1000, description="검색 질의")
     top_k: int = Field(default=10, ge=1, le=100, description="반환할 결과 수")
     filters: Optional[Dict[str, Any]] = Field(default=None, description="필터 조건")
+    useGraph: bool = Field(default=True, description="Graph 검색 사용 여부")
+    useVector: bool = Field(default=True, description="Vector 검색 사용 여부")
+
+    model_config = {"populate_by_name": True}
 
 
 class SearchResult(BaseModel):
@@ -179,7 +183,10 @@ async def hybrid_search(
     Returns:
         RRF 융합된 검색 결과 목록
     """
-    logger.info(f"Hybrid search - Query: {request.query[:50]}...")
+    logger.info(
+        f"Hybrid search - Query: {request.query[:50]}..., "
+        f"useGraph={request.useGraph}, useVector={request.useVector}"
+    )
 
     try:
         service = get_search_service()
@@ -187,6 +194,8 @@ async def hybrid_search(
             query=request.query,
             filters=request.filters,
             top_k=request.top_k,
+            use_graph=request.useGraph,
+            use_vector=request.useVector,
         )
 
         return SearchResponse(

@@ -101,14 +101,93 @@ async def readiness() -> ReadinessResponse:
         "llm_api_key_set": settings.deepseek_api_key is not None,
     }
 
-    # TODO: 실제 DB 연결 체크 추가
-    # checks["elasticsearch"] = await _check_elasticsearch()
-    # checks["neo4j"] = await _check_neo4j()
+    # 실제 DB 연결 체크
+    checks["elasticsearch"] = await _check_elasticsearch()
+    checks["neo4j"] = await _check_neo4j()
+    checks["postgresql"] = await _check_postgresql()
 
     return ReadinessResponse(
         ready=all(checks.values()),
         checks=checks,
     )
+
+
+async def _check_elasticsearch() -> bool:
+    """
+    Elasticsearch 연결 상태 체크
+
+    Returns:
+        연결 성공 여부
+    """
+    try:
+        from elasticsearch import AsyncElasticsearch
+
+        es = AsyncElasticsearch(
+            hosts=[f"{settings.elasticsearch_host}:{settings.elasticsearch_port}"],
+            request_timeout=5,
+        )
+        try:
+            health = await es.cluster.health(timeout="3s")
+            return health.get("status") in ("green", "yellow")
+        finally:
+            await es.close()
+    except Exception as e:
+        logger.warning(f"Elasticsearch health check failed: {e}")
+        return False
+
+
+async def _check_neo4j() -> bool:
+    """
+    Neo4j 연결 상태 체크
+
+    Returns:
+        연결 성공 여부
+    """
+    try:
+        from neo4j import AsyncGraphDatabase
+
+        driver = AsyncGraphDatabase.driver(
+            settings.neo4j_uri,
+            auth=(settings.neo4j_user, settings.neo4j_password),
+        )
+        try:
+            async with driver.session() as session:
+                result = await session.run("RETURN 1 AS ping")
+                record = await result.single()
+                return record is not None and record["ping"] == 1
+        finally:
+            await driver.close()
+    except Exception as e:
+        logger.warning(f"Neo4j health check failed: {e}")
+        return False
+
+
+async def _check_postgresql() -> bool:
+    """
+    PostgreSQL 연결 상태 체크
+
+    Returns:
+        연결 성공 여부
+    """
+    try:
+        import asyncpg
+
+        conn = await asyncpg.connect(
+            host=settings.postgres_host,
+            port=settings.postgres_port,
+            user=settings.postgres_user,
+            password=settings.postgres_password,
+            database=settings.postgres_db,
+            timeout=5,
+        )
+        try:
+            result = await conn.fetchval("SELECT 1")
+            return result == 1
+        finally:
+            await conn.close()
+    except Exception as e:
+        logger.warning(f"PostgreSQL health check failed: {e}")
+        return False
 
 
 async def _check_dependencies() -> Dict[str, str]:
@@ -125,15 +204,15 @@ async def _check_dependencies() -> Dict[str, str]:
         "healthy" if settings.deepseek_api_key else "unhealthy"
     )
 
-    # TODO: 실제 연결 체크 구현
-    # Elasticsearch
-    results["elasticsearch"] = "unknown"  # 연결 미구현
+    # 실제 연결 체크
+    es_ok = await _check_elasticsearch()
+    results["elasticsearch"] = "healthy" if es_ok else "unhealthy"
 
-    # Neo4j
-    results["neo4j"] = "unknown"  # 연결 미구현
+    neo4j_ok = await _check_neo4j()
+    results["neo4j"] = "healthy" if neo4j_ok else "unhealthy"
 
-    # PostgreSQL
-    results["postgresql"] = "unknown"  # 연결 미구현
+    pg_ok = await _check_postgresql()
+    results["postgresql"] = "healthy" if pg_ok else "unhealthy"
 
     return results
 
