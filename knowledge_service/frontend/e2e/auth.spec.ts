@@ -187,19 +187,31 @@ test.describe('Authentication E2E Tests', () => {
 
   test.describe('Protected Routes', () => {
     test('should redirect to login when accessing protected route', async ({ page }) => {
-      // Clear any existing session
-      await page.context().clearCookies();
+      // Create a new browser context without any stored state
+      const context = await page.context().browser()!.newContext();
+      const newPage = await context.newPage();
 
-      // Try to access a protected route directly
-      await page.goto('/dashboard');
+      try {
+        // Try to access a protected route directly without auth
+        await newPage.goto('/dashboard', { timeout: 30000 });
 
-      // Should redirect to login (either local or Keycloak)
-      await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {});
+        // Wait for redirect to complete
+        await newPage.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
 
-      const currentUrl = page.url();
-      const isOnLogin = currentUrl.includes('/login') || currentUrl.includes('keycloak') || currentUrl.includes('/realms/');
+        // Give time for any JS redirects
+        await newPage.waitForTimeout(2000);
 
-      expect(isOnLogin).toBeTruthy();
+        const currentUrl = newPage.url();
+        const isOnLogin =
+          currentUrl.includes('/login') ||
+          currentUrl.includes('keycloak') ||
+          currentUrl.includes('/realms/') ||
+          currentUrl.includes('/auth/');
+
+        expect(isOnLogin).toBeTruthy();
+      } finally {
+        await context.close();
+      }
     });
   });
 

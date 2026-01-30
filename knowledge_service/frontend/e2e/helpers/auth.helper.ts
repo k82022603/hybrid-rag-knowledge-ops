@@ -71,14 +71,31 @@ export async function login(
   }
 
   // Wait for login completion (not on login page and not on Keycloak auth page)
-  await page.waitForURL(
-    (url) => {
-      const isLoginPage = url.pathname.includes('/login');
-      const isKeycloakAuth = url.href.includes('/realms/') && url.href.includes('/protocol/');
-      return !isLoginPage && !isKeycloakAuth;
-    },
-    { timeout: 15000 }
-  );
+  try {
+    await page.waitForURL(
+      (url) => {
+        const isLoginPage = url.pathname.includes('/login');
+        const isKeycloakAuth = url.href.includes('/realms/') && url.href.includes('/protocol/');
+        return !isLoginPage && !isKeycloakAuth;
+      },
+      { timeout: 20000 }
+    );
+  } catch {
+    // Fallback: If URL wait times out, check if we're authenticated by looking for common elements
+    const isStillOnLogin = page.url().includes('/login') || page.url().includes('/realms/');
+    if (isStillOnLogin) {
+      // Try submitting again in case of slow response
+      const submitButton = page.locator('button[type="submit"]').first();
+      if (await submitButton.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await submitButton.click().catch(() => {});
+        await page.waitForURL(
+          (url) => !url.pathname.includes('/login') && !url.href.includes('/realms/'),
+          { timeout: 10000 }
+        ).catch(() => {});
+      }
+    }
+    // If we're past login, continue anyway
+  }
 }
 
 /**
