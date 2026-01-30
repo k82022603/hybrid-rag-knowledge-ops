@@ -12,17 +12,7 @@
  * Uses real API calls in Docker environment.
  */
 import { test, expect, type Page } from '@playwright/test';
-
-/**
- * Helper: Login as test user
- */
-async function loginAsUser(page: Page) {
-  await page.goto('/login');
-  await page.locator('input[type="email"], input[name="email"]').fill('test@example.com');
-  await page.locator('input[type="password"], input[name="password"]').fill('password123');
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 10000 });
-}
+import { loginAsUser } from './helpers/auth.helper';
 
 /**
  * Helper: Navigate to search page and switch to keyword tab
@@ -63,8 +53,8 @@ test.describe('Search Workflow E2E Tests', () => {
       await page.goto('/search');
       await expect(page.locator('[data-testid="search-page"]')).toBeVisible({ timeout: 10000 });
 
-      // Verify page heading
-      await expect(page.locator('h1')).toContainText('Search');
+      // Verify page heading (use getByRole to avoid strict mode violation)
+      await expect(page.getByRole('heading', { name: 'Search', exact: true })).toBeVisible();
 
       // Verify both tabs are visible
       await expect(page.locator('button[role="tab"]:has-text("Chat Search")')).toBeVisible();

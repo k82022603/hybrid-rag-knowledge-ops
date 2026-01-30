@@ -12,17 +12,7 @@
  * Uses real API calls with SSE streaming in Docker environment.
  */
 import { test, expect, type Page } from '@playwright/test';
-
-/**
- * Helper: Login as test user
- */
-async function loginAsUser(page: Page) {
-  await page.goto('/login');
-  await page.locator('input[type="email"], input[name="email"]').fill('test@example.com');
-  await page.locator('input[type="password"], input[name="password"]').fill('password123');
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 10000 });
-}
+import { loginAsUser } from './helpers/auth.helper';
 
 /**
  * Helper: Navigate to search page with Chat Search active

@@ -10,29 +10,7 @@
  * Test scope: compile/render/basic-click level only (NOT functional tests)
  */
 import { test, expect, type Page } from '@playwright/test';
-
-/**
- * Helper: Login as admin user
- * Admin user has access to all pages including /admin and /upload
- */
-async function loginAsAdmin(page: Page) {
-  await page.goto('/login');
-  await page.locator('input[type="email"], input[name="email"]').fill('admin@example.com');
-  await page.locator('input[type="password"], input[name="password"]').fill('admin123');
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 10000 });
-}
-
-/**
- * Helper: Login as regular user
- */
-async function loginAsUser(page: Page) {
-  await page.goto('/login');
-  await page.locator('input[type="email"], input[name="email"]').fill('test@example.com');
-  await page.locator('input[type="password"], input[name="password"]').fill('password123');
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 10000 });
-}
+import { loginAsAdmin, loginAsUser } from './helpers/auth.helper';
 
 /**
  * Helper: Collect console errors during page load
@@ -62,8 +40,8 @@ test.describe('BookmarkPage Smoke Tests', () => {
     // Verify page renders with testid
     await expect(page.locator('[data-testid="bookmark-page"]')).toBeVisible({ timeout: 10000 });
 
-    // Verify page heading
-    await expect(page.locator('h1')).toContainText('Bookmarks');
+    // Verify page heading (use .last() to avoid strict mode violation with header h1)
+    await expect(page.getByRole('heading', { name: 'Bookmarks', level: 1 })).toBeVisible();
 
     // No critical console errors (ignore API/network errors which are expected without backend)
     const criticalErrors = consoleErrors.filter(
@@ -146,8 +124,8 @@ test.describe('ProfilePage Smoke Tests', () => {
     // Verify page renders with testid
     await expect(page.locator('[data-testid="profile-page"]')).toBeVisible({ timeout: 10000 });
 
-    // Verify page heading
-    await expect(page.locator('h1')).toContainText('Profile');
+    // Verify page heading (use getByRole to avoid strict mode violation)
+    await expect(page.getByRole('heading', { name: 'Profile', level: 1 })).toBeVisible();
   });
 
   test('should display 4 tab navigation buttons', async ({ page }) => {
@@ -249,8 +227,8 @@ test.describe('AdminPage Smoke Tests', () => {
     // Verify page renders with testid
     await expect(page.locator('[data-testid="admin-page"]')).toBeVisible({ timeout: 10000 });
 
-    // Verify page heading
-    await expect(page.locator('h1')).toContainText('Administration');
+    // Verify page heading (use getByRole to avoid strict mode violation)
+    await expect(page.getByRole('heading', { name: 'Administration', level: 1 })).toBeVisible();
   });
 
   test('should display 4 tab navigation buttons', async ({ page }) => {
@@ -359,8 +337,8 @@ test.describe('DocumentUploadPage Smoke Tests', () => {
     // Verify page renders with testid
     await expect(page.locator('[data-testid="upload-page"]')).toBeVisible({ timeout: 10000 });
 
-    // Verify page heading
-    await expect(page.locator('h1')).toContainText('Upload Documents');
+    // Verify page heading (use getByRole to avoid strict mode violation)
+    await expect(page.getByRole('heading', { name: 'Upload Documents', level: 1 })).toBeVisible();
   });
 
   test('should display drag-and-drop zone', async ({ page }) => {

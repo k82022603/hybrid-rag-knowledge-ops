@@ -10,29 +10,8 @@
  *
  * Uses real API calls in Docker environment.
  */
-import { test, expect, type Page } from '@playwright/test';
-
-/**
- * Helper: Login as test user
- */
-async function loginAsUser(page: Page) {
-  await page.goto('/login');
-  await page.locator('input[type="email"], input[name="email"]').fill('test@example.com');
-  await page.locator('input[type="password"], input[name="password"]').fill('password123');
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 10000 });
-}
-
-/**
- * Helper: Login as admin user
- */
-async function loginAsAdmin(page: Page) {
-  await page.goto('/login');
-  await page.locator('input[type="email"], input[name="email"]').fill('admin@example.com');
-  await page.locator('input[type="password"], input[name="password"]').fill('admin123');
-  await page.locator('button[type="submit"]').click();
-  await page.waitForURL((url) => !url.pathname.includes('/login'), { timeout: 10000 });
-}
+import { test, expect } from '@playwright/test';
+import { loginAsUser, loginAsAdmin } from './helpers/auth.helper';
 
 // ============================================================================
 // Dashboard Tests
@@ -214,7 +193,7 @@ test.describe('Dashboard E2E Tests', () => {
       await expect(page.locator('[data-testid="dashboard-page"]')).toBeVisible({ timeout: 10000 });
 
       // Recent searches heading should be visible
-      await expect(page.locator('text=Recent Searches')).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Recent Searches' })).toBeVisible();
     });
 
     test('should show empty state when no recent searches', async ({ page }) => {
@@ -226,7 +205,7 @@ test.describe('Dashboard E2E Tests', () => {
       await expect(page.locator('[data-testid="dashboard-page"]')).toBeVisible({ timeout: 10000 });
 
       // Should show empty state message or no search items
-      const recentSearches = page.locator('text=Recent Searches');
+      const recentSearches = page.getByRole('heading', { name: 'Recent Searches' });
       await expect(recentSearches).toBeVisible();
     });
 
