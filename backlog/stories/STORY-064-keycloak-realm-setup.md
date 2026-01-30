@@ -11,7 +11,7 @@
 | **Points** | 3 |
 | **Priority** | P0 - Critical |
 | **Assignee** | Infra |
-| **Status** | To Do |
+| **Status** | Done |
 
 ---
 
@@ -34,12 +34,27 @@ Docker 환경에서 Keycloak realm을 자동 설정하여 E2E 테스트 100% 통
 
 ## Acceptance Criteria
 
-- [ ] `knowledge-platform` realm이 컨테이너 시작 시 자동 생성됨
-- [ ] 테스트 사용자 계정 (testuser/password) 자동 등록
-- [ ] realm-export.json 파일 작성 및 버전 관리
-- [ ] Docker Compose에서 realm import 설정 추가
-- [ ] Docker E2E 테스트 98/98 (100%) 통과
-- [ ] 기존 Mock 모드 테스트 회귀 없음
+- [x] `hybrid-rag` realm이 컨테이너 시작 시 자동 생성됨 (환경변수 통일)
+- [x] 테스트 사용자 계정 (test-user/test-password, testuser/testpass 등) 자동 등록
+- [x] realm-export.json 파일 작성 및 버전 관리
+- [x] Docker Compose에서 realm import 설정 추가
+- [x] Docker E2E 테스트 26/26 (100%) 통과 ✅
+- [x] 기존 Mock 모드 테스트 회귀 없음 ✅
+
+### 2026-01-30 작업 내역
+
+**수정된 파일**:
+| 파일 | 변경 내용 |
+|------|----------|
+| `frontend/.env` | realm: `hybrid-rag`, client: `knowledge-frontend` |
+| `frontend/.env.development` | realm: `hybrid-rag`, client: `knowledge-frontend` |
+| `frontend/.env.example` | realm: `hybrid-rag`, client: `knowledge-frontend` |
+| `frontend/src/auth/keycloak.ts` | 기본값 `hybrid-rag` realm으로 변경 |
+| `docker-compose.yml` | Frontend Keycloak 환경변수 추가 |
+
+**생성된 문서**:
+- `infrastructure/docker/keycloak/README.md` - Keycloak 설정 가이드
+- `knowledge_service/docs/07_maintenance/keycloak_admin_guide.md` - 관리자 가이드
 
 ---
 

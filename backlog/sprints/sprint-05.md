@@ -46,7 +46,7 @@
 
 | Priority | ID | Jira | 제목 | Points | Assignee | Status |
 |----------|-----|------|------|--------|----------|--------|
-| P0 | STORY-064 | SCRUM-64 | Keycloak Realm 설정 (Docker E2E 100%) | 3 | Infra | To Do |
+| P0 | STORY-064 | SCRUM-64 | Keycloak Realm 설정 (Docker E2E 100%) | 3 | Infra | **Done** |
 | P0 | STORY-058 | SCRUM-48 | RAGAS 평가 프레임워크 통합 | 5 | RAG | **Done** |
 
 **소계**: 8 pts (2 Stories)
