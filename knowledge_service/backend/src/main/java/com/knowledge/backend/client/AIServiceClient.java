@@ -2,6 +2,8 @@ package com.knowledge.backend.client;
 
 import com.knowledge.backend.api.dto.SearchRequest;
 import com.knowledge.backend.api.dto.SearchResponse;
+import com.knowledge.backend.api.dto.graph.ExpertSearchRequest;
+import com.knowledge.backend.api.dto.graph.ExpertSearchResponse;
 import com.knowledge.backend.api.dto.search.ChatSearchRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +27,7 @@ import java.util.List;
  *   <li>POST /api/v1/search/hybrid - Hybrid search (Vector + Graph)</li>
  *   <li>POST /api/v1/search/chat - Chat-based conversational search</li>
  *   <li>POST /api/v1/search/chat/stream - SSE streaming search (JSON body)</li>
+ *   <li>POST /api/v1/graph/experts - Expert search by topic</li>
  * </ul>
  */
 @Component
@@ -150,5 +153,38 @@ public class AIServiceClient {
                 .doOnComplete(() -> log.debug("AI Service stream search completed for query: {}", query))
                 .doOnError(error ->
                         log.error("AI Service stream search failed: {}", error.getMessage()));
+    }
+
+    /**
+     * Search for experts by topic via AI Service
+     *
+     * <p>Queries the Knowledge Graph for experts with expertise in the specified topic.
+     *
+     * @param topic the topic to search for experts
+     * @param limit maximum number of experts to return
+     * @param userId user ID for access control
+     * @return expert search response from AI Service
+     */
+    public Mono<ExpertSearchResponse> findExperts(String topic, Integer limit, String userId) {
+        log.debug("Calling AI Service expert search - topic: {}, limit: {}, userId: {}",
+                topic, limit, userId);
+
+        ExpertSearchRequest aiRequest = ExpertSearchRequest.builder()
+                .topic(topic)
+                .limit(limit != null ? limit : 10)
+                .build();
+
+        return aiServiceWebClient.post()
+                .uri("/api/v1/graph/experts")
+                .bodyValue(aiRequest)
+                .retrieve()
+                .bodyToMono(ExpertSearchResponse.class)
+                .doOnSuccess(response ->
+                        log.debug("AI Service expert search returned {} experts", response.getTotalCount()))
+                .doOnError(WebClientResponseException.class, error ->
+                        log.error("AI Service expert search error - status: {}, body: {}",
+                                error.getStatusCode(), error.getResponseBodyAsString()))
+                .doOnError(error ->
+                        log.error("AI Service expert search failed: {}", error.getMessage()));
     }
 }

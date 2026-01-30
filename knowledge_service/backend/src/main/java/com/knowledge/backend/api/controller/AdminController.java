@@ -36,7 +36,7 @@ import reactor.core.publisher.Mono;
  * <p>Endpoints:
  * <ul>
  *   <li>GET  /api/v1/admin/users              - List users</li>
- *   <li>PUT  /api/v1/admin/users/{id}/role    - Update user role</li>
+ *   <li>PUT  /api/v1/admin/users/{id}/roles   - Update user role (RESTful plural)</li>
  *   <li>PUT  /api/v1/admin/users/{id}/status  - Update user status</li>
  *   <li>GET  /api/v1/admin/system             - Get system config</li>
  *   <li>PUT  /api/v1/admin/system             - Update system config</li>
@@ -75,12 +75,12 @@ public class AdminController {
      * @param request role update data
      * @return Mono of updated UserProfileResponse
      */
-    @PutMapping("/users/{id}/role")
-    public Mono<ResponseEntity<UserProfileResponse>> updateUserRole(
+    @PutMapping("/users/{id}/roles")
+    public Mono<ResponseEntity<UserProfileResponse>> updateUserRoles(
             @PathVariable UUID id,
             @Valid @RequestBody RoleUpdateRequest request
     ) {
-        log.info("PUT /admin/users/{}/role - role={}", id, request.getRole());
+        log.info("PUT /admin/users/{}/roles - role={}", id, request.getRole());
 
         return adminService.updateUserRole(id, request.getRole())
                 .map(ResponseEntity::ok);
