@@ -247,18 +247,22 @@ class TestRRFFusion:
 
     def test_rrf_k_parameter(self):
         """RRF k 파라미터 영향"""
-        results = [
+        # 각 호출에 별도의 결과 목록 생성 (RRF가 객체를 직접 수정하므로)
+        results_k1 = [
+            make_search_result(f"chunk_{i}") for i in range(5)
+        ]
+        results_k1000 = [
             make_search_result(f"chunk_{i}") for i in range(5)
         ]
 
         # k=1: 상위 순위와 하위 순위 차이가 큼
         fused_k1 = self.service._rrf_fusion(
-            result_lists=[results],
+            result_lists=[results_k1],
             k=1,
         )
         # k=1000: 순위 간 차이가 작음
         fused_k1000 = self.service._rrf_fusion(
-            result_lists=[results],
+            result_lists=[results_k1000],
             k=1000,
         )
 
@@ -317,7 +321,12 @@ class TestSearchServiceNoExternalDeps:
 
     def setup_method(self):
         """테스트 설정 - ES/Neo4j 없는 환경"""
-        with patch("app.services.search.get_embedding_service"):
+        mock_embedding_service = MagicMock()
+        # aembed는 비동기 메서드이므로 AsyncMock 사용
+        mock_embedding_service.aembed = AsyncMock(return_value=[0.1] * 1024)
+        mock_embedding_service.aembed_batch = AsyncMock(return_value=[[0.1] * 1024])
+
+        with patch("app.services.search.get_embedding_service", return_value=mock_embedding_service):
             self.service = SearchService(es_client=None, neo4j_driver=None)
 
     @pytest.mark.asyncio
