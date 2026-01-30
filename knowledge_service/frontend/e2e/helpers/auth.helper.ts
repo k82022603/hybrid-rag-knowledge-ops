@@ -5,19 +5,58 @@
  */
 import { type Page } from '@playwright/test';
 
+// Configuration - can be overridden via environment variables
+const KEYCLOAK_PORT = process.env.KEYCLOAK_PORT || '8180';
+const KEYCLOAK_INDICATORS = ['keycloak', '/realms/', KEYCLOAK_PORT];
+
+/**
+ * Check if URL indicates Keycloak environment
+ */
+function isKeycloakUrl(url: string): boolean {
+  return KEYCLOAK_INDICATORS.some(indicator => url.includes(indicator));
+}
+
+/**
+ * Detect environment and get credentials
+ */
+interface Credentials {
+  username: string;
+  password: string;
+}
+
+const CREDENTIALS = {
+  admin: {
+    keycloak: { username: 'test-admin', password: 'admin123' },
+    local: { username: 'admin@example.com', password: 'admin123' },
+  },
+  user: {
+    keycloak: { username: 'test-user', password: 'test-password' },
+    local: { username: 'test@example.com', password: 'password123' },
+  },
+};
+
 /**
  * Universal login function that works with both local and Keycloak forms
+ * @param page - Playwright page object
+ * @param username - Username or email
+ * @param password - Password
+ * @param skipNavigation - Skip navigation to /login (use when already on login page)
  */
-export async function login(page: Page, username: string, password: string): Promise<void> {
-  await page.goto('/login');
+export async function login(
+  page: Page,
+  username: string,
+  password: string,
+  skipNavigation = false
+): Promise<void> {
+  if (!skipNavigation) {
+    await page.goto('/login');
+  }
 
   // Wait for potential Keycloak redirect
   await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
 
   const currentUrl = page.url();
-  const isKeycloak = currentUrl.includes('8180') ||
-                     currentUrl.includes('keycloak') ||
-                     currentUrl.includes('/realms/');
+  const isKeycloak = isKeycloakUrl(currentUrl);
 
   if (isKeycloak) {
     // Keycloak login form
@@ -43,20 +82,28 @@ export async function login(page: Page, username: string, password: string): Pro
 }
 
 /**
+ * Check if current environment uses Keycloak
+ */
+export async function isKeycloakEnvironment(page: Page): Promise<boolean> {
+  await page.goto('/login');
+  await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
+  return isKeycloakUrl(page.url());
+}
+
+/**
  * Login as admin user
  * Credentials: test-admin / admin123 (Keycloak) or admin@example.com / admin123 (Mock)
  */
 export async function loginAsAdmin(page: Page): Promise<void> {
+  // Navigate once and detect environment
   await page.goto('/login');
   await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
 
-  const isKeycloak = page.url().includes('8180') || page.url().includes('keycloak');
+  const isKeycloak = isKeycloakUrl(page.url());
+  const creds = isKeycloak ? CREDENTIALS.admin.keycloak : CREDENTIALS.admin.local;
 
-  if (isKeycloak) {
-    await login(page, 'test-admin', 'admin123');
-  } else {
-    await login(page, 'admin@example.com', 'admin123');
-  }
+  // Login with skipNavigation=true since we're already on login page
+  await login(page, creds.username, creds.password, true);
 }
 
 /**
@@ -64,25 +111,15 @@ export async function loginAsAdmin(page: Page): Promise<void> {
  * Credentials: test-user / test-password (Keycloak) or test@example.com / password123 (Mock)
  */
 export async function loginAsUser(page: Page): Promise<void> {
+  // Navigate once and detect environment
   await page.goto('/login');
   await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
 
-  const isKeycloak = page.url().includes('8180') || page.url().includes('keycloak');
+  const isKeycloak = isKeycloakUrl(page.url());
+  const creds = isKeycloak ? CREDENTIALS.user.keycloak : CREDENTIALS.user.local;
 
-  if (isKeycloak) {
-    await login(page, 'test-user', 'test-password');
-  } else {
-    await login(page, 'test@example.com', 'password123');
-  }
-}
-
-/**
- * Check if current environment uses Keycloak
- */
-export async function isKeycloakEnvironment(page: Page): Promise<boolean> {
-  await page.goto('/login');
-  await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {});
-  return page.url().includes('8180') || page.url().includes('keycloak');
+  // Login with skipNavigation=true since we're already on login page
+  await login(page, creds.username, creds.password, true);
 }
 
 /**
@@ -90,7 +127,10 @@ export async function isKeycloakEnvironment(page: Page): Promise<boolean> {
  */
 export async function logout(page: Page): Promise<void> {
   // Try clicking logout button if visible
-  const logoutButton = page.locator('button:has-text("Logout"), button:has-text("로그아웃"), [data-testid="logout-button"]');
+  const logoutButton = page.locator(
+    'button:has-text("Logout"), button:has-text("로그아웃"), [data-testid="logout-button"]'
+  );
+
   if (await logoutButton.isVisible({ timeout: 2000 }).catch(() => false)) {
     await logoutButton.click();
   } else {
@@ -99,6 +139,8 @@ export async function logout(page: Page): Promise<void> {
   }
 
   // Wait for redirect to login
-  await page.waitForURL((url) => url.pathname.includes('/login') || url.href.includes('keycloak'),
-    { timeout: 10000 }).catch(() => {});
+  await page.waitForURL(
+    (url) => url.pathname.includes('/login') || isKeycloakUrl(url.href),
+    { timeout: 10000 }
+  ).catch(() => {});
 }
