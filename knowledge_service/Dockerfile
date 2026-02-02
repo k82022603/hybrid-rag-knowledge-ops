@@ -30,9 +30,9 @@ WORKDIR /build
 # Copy dependency files first (Docker layer caching)
 COPY pyproject.toml poetry.lock* ./
 
-# Install pip and poetry
+# Install pip and poetry with export plugin
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir poetry==1.8.5
+    pip install --no-cache-dir poetry==2.1.1 poetry-plugin-export
 
 # Regenerate poetry.lock if it's inconsistent, then export requirements
 RUN poetry lock --no-update 2>/dev/null || poetry lock && \
@@ -49,6 +49,11 @@ RUN pip install --no-cache-dir \
 RUN pip install --no-cache-dir \
     --extra-index-url https://download.pytorch.org/whl/cpu \
     -r requirements.txt
+
+# Install additional required packages explicitly
+# - email-validator: required for pydantic[email] EmailStr validation
+# - python-multipart: required for FastAPI file upload (form data)
+RUN pip install --no-cache-dir email-validator python-multipart
 
 # Verify Docling installation (use pip show since docling has no __version__ attribute)
 RUN pip show docling && python -c "import docling; print('Docling imported successfully')"
