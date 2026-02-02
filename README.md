@@ -2,12 +2,12 @@
 
 🧠 Graph RAG 기반 지능형 지식 검색 시스템 + Antigravity 협업 공간
 
-**프로젝트 버전**: 4.2
-**마지막 업데이트**: 2026-01-29
+**프로젝트 버전**: 4.3
+**마지막 업데이트**: 2026-02-02
 **설계서 상태**: ✅ 설계 완료 (Phase 2 - 100%, 91점 A등급 승인)
-**구현 진행**: ✅ Sprint 04 완료 (13/13 Story Done) → Sprint 05 Day 1 (6/9 Story Done)
+**구현 진행**: ✅ Sprint 05 완료 (7/7 Story Done, 100%) - Backend API 12개, RAG P0 완료
 **CI/CD**: ✅ GitHub Actions 8개 워크플로우 정상 운영
-**테스트**: E2E API 92% | E2E UI 84.6% | 접근성 59 Tests Pass
+**테스트**: Unit 626/627 (99.8%) | E2E API 92% | E2E UI 84.6%
 
 ## 📋 개요
 
@@ -107,7 +107,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 | 문서 | 설명 |
 |------|------|
-| [CLAUDE.md](./CLAUDE.md) | Claude Code 프로젝트 규칙 v2.19 |
+| [CLAUDE.md](./CLAUDE.md) | Claude Code 프로젝트 규칙 v2.20 |
 | [PLAN.md](./PLAN.md) | 프로젝트 전체 계획 및 AI 에이전트 협업 구조 |
 | [통합 설계서](./knowledge_service/docs/02_design/integrated_detailed_design.md) | 전체 시스템 통합 설계 |
 
@@ -134,16 +134,38 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 | # | 작업 | 설명 | 상태 |
 |:-:|------|------|:----:|
-| 1 | **RAG 파이프라인 구현** | LangGraph + DeepSeek 통합 | 🔜 |
-| 2 | **통합 테스트 실행** | E2E 테스트 70%+ 달성 | 🔜 |
-| 3 | **Search API 구현** | Elasticsearch + Neo4j 하이브리드 검색 | 🔜 |
+| 1 | **Docker E2E 테스트 100%** | Keycloak realm 설정 완료 | 🔜 |
+| 2 | **프로덕션 환경 검증** | 전체 통합 테스트 | 🔜 |
 
 ### 🟡 P1 - 중요
 
 | # | 작업 | 설명 | 상태 |
 |:-:|------|------|:----:|
-| 4 | **Knowledge Graph Query** | Neo4j 그래프 쿼리 API | ⏳ |
-| 5 | **Frontend 검색 UI** | 검색 인터페이스 구현 | ⏳ |
+| 3 | **RAGAS 실제 LLM 평가** | DeepSeek API 키 설정 필요 | ⏳ |
+| 4 | **성능 최적화** | 캐싱 및 Circuit Breaker 검증 | ⏳ |
+
+### ✅ 완료된 작업 (2026-01-30 Sprint 05)
+
+| # | 문서/작업 | 설명 |
+|:-:|------|------|
+| ✅ | **Backend API 12개 완전 구현** | P0/P1/P3 작업 완료 |
+| ✅ | **RAG P0 완료** | Graph API + VIPAgent-EntityExtractionService 연결 |
+| ✅ | **P1/P2 RAG 서비스 개선** | useGraph/useVector, Health DB체크, Lifespan 구현 |
+| ✅ | **테스트 626/627 통과** | 99.8% 단위 테스트 통과율 |
+| ✅ | **DeepSeek API 연동 가이드** | docs/07_maintenance에 추가 |
+| ✅ | **WSL2 환경 가이드** | Python 환경 트러블슈팅 문서화 |
+
+### ✅ 완료된 작업 (2026-01-29 Sprint 04~05)
+
+| # | 문서/작업 | 설명 |
+|:-:|------|------|
+| ✅ | **블로커 6건 전체 해결** | SCRUM-55~60 완료 |
+| ✅ | **Contract 테스트 확장** | 62 → 121 (95% 확장) |
+| ✅ | **OWASP Top 10 보안 테스트** | 35/35 (100%) |
+| ✅ | **ErrorBoundary 구현** | 전역 에러 캐치 + 로깅 |
+| ✅ | **대화이력 + 스트리밍** | LRU 캐시 기반 세션 관리 |
+| ✅ | **ADR 문서화** | ADR-001~003 (직렬화, 인증, 보안) |
+| ✅ | **Sprint 05 6개 Story** | RAGAS, 캐싱, Circuit Breaker, 접근성 등 |
 
 ### ✅ 완료된 작업 (2026-01-26 야간)
 
@@ -319,3 +341,4 @@ AI 에이전트가 사용할 수 있는 도구 가이드:
 *테스트 계획서 및 개발자 에이전트 가이드 추가: 2026-01-17*
 *백로그 관리 시스템, 9개 Agent 정의, ALM 가이드 추가: 2026-01-18*
 *인프라 비용 86% 절감 (K8s 13대 → Docker Compose 1~2대)*
+*Sprint 05 완료 (7/7 Story, 99.8% 테스트): 2026-01-30*

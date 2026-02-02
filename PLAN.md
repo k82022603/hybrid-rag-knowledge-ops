@@ -2,9 +2,9 @@
 
 > Claude Code 세션 간 컨텍스트 유지를 위한 계획 문서
 >
-> **Last Updated**: 2026-01-30 (Sprint 05 Day 2)
-> **Current Phase**: Phase 3 구현 완료 → Sprint 05 완료 (품질 완성 + 프로덕션 준비)
-> **Sprint 05**: 7/7 Story 완료 (100%), Backend API 12개 구현, RAG P0 완료
+> **Last Updated**: 2026-02-02 (Sprint 05 완료)
+> **Current Phase**: Phase 3 구현 완료 → Phase 4 테스트 80%
+> **Sprint 05**: 7/7 Story 완료 (100%), Backend API 12개 구현, RAG P0 완료, 테스트 626/627 (99.8%)
 > **Frontend 전략 변경**: Tailwind + Antigravity + Stitch MCP 도입 결정 (2026-01-25)
 > **소스코드 리뷰**: 72.5/100 B+ (Gateway 65, Backend 72, AI Service 78, Frontend 75)
 
@@ -885,6 +885,45 @@ CI/CD Pipeline (GitHub Actions)
 ---
 
 ## Session Notes
+
+### 2026-01-30 (Sprint 05 완료 - 품질 완성)
+
+- **P1/P2 구현 완료** (4개 항목):
+  - SearchRequest useGraph/useVector 필드 추가
+  - 레거시 embedder.py 삭제 + EmbeddingService 마이그레이션
+  - Health 엔드포인트 실제 DB 연결 체크
+  - Lifespan 리소스 초기화/정리 구현
+- **테스트 수정**: RRF 객체 공유 문제, AsyncMock 적용
+- **최종 테스트 결과**: 626/627 (99.8%) - Passed: 626, Skipped: 1, Failed: 0
+- **문서 작성**:
+  - DeepSeek API 연동 가이드 (`docs/07_maintenance/deepseek_api_integration_guide.md`)
+  - WSL2 환경 트러블슈팅 (`docs/07_maintenance/wsl2_python_environment_guide.md`)
+- **WSL2 환경 문제 해결**: pyarrow/torch Windows wheel 호환성 → Linux wheel 재설치
+- **보안 이슈 대응**: API 키 실수 노출 → git amend + force push로 히스토리 수정
+- **커밋**: 7건 (`5114295`, `b8bed23`, `a303c92`, `68fa6e4`, `62ded91`, `f9a05bf`, `443d77a`)
+
+### 2026-01-29 (Sprint 04 Day 4~5 + Sprint 05 Day 1)
+
+**Day 4 (블로커 전면 해결)**:
+- **SCRUM-57**: LoginResponse @JsonProperty 추가 (14건 연쇄 해결)
+- **SCRUM-56**: logout 인증 강화
+- **SCRUM-59**: health permitAll
+- **WSL2 nginx**: bind mount → Dockerfile COPY 전환
+- **ADR 문서화**: ADR-001~003 (직렬화, 검색 API 인증, Auth 보안)
+- **E2E Mock**: 98/98 (100%) 달성
+
+**Day 5 (병렬 Story 완료)**:
+- **STORY-054**: Contract 테스트 62 → 121 (95% 확장)
+- **STORY-055**: OWASP Top 10 보안 테스트 35/35
+- **STORY-056**: ErrorBoundary 컴포넌트 31/31
+- **STORY-057**: 대화이력 + 스트리밍 36/36
+- **Docker E2E**: 81/98 (82.7%) - Keycloak realm 이슈
+
+**Sprint 05 Day 1 (오후)**:
+- **Sprint 05 시작**: 품질 완성 + 프로덕션 준비
+- **6개 Story 완료**: STORY-058~063 (RAGAS, 캐싱, Circuit Breaker, 접근성 등)
+- **E2E 테스트**: API 92%, UI 84.6%, 접근성 59 tests
+- **Sprint 04 총 커밋**: 22건
 
 ### 2026-01-28 (Sprint 04 Day 1~3 - 킥오프 → 구현 → 블로커 발견)
 
