@@ -886,6 +886,20 @@ CI/CD Pipeline (GitHub Actions)
 
 ## Session Notes
 
+### 2026-02-02 (E2E 테스트 + AI Service 복구)
+
+- **QA E2E 테스트 실행**: 192개 테스트 중 95개 통과 (49.5%)
+  - 실패 원인: Backend API 서버(8080) 미실행
+  - UI/접근성 테스트는 정상 통과
+  - Backend 실행 시 80-90% 통과 예상
+- **kp-ai-service 빌드/재가동**:
+  - 원인: `email-validator`, `python-multipart` 패키지 누락
+  - 조치: Dockerfile 수정, Poetry 2.1.1 업그레이드
+  - 결과: 컨테이너 정상 가동
+- **병렬 에이전트 실행**: QA + Infra 동시 작업 성공
+- **커밋**: 3건 (`58ed639`, `3272a4d`, `4b8602f`)
+- **추가 조치 필요**: ES/PostgreSQL 연결 확인, Docker health check 경로 수정
+
 ### 2026-01-30 (Sprint 05 완료 - 품질 완성)
 
 - **P1/P2 구현 완료** (4개 항목):

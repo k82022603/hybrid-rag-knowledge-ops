@@ -7,7 +7,7 @@
 **설계서 상태**: ✅ 설계 완료 (Phase 2 - 100%, 91점 A등급 승인)
 **구현 진행**: ✅ Sprint 05 완료 (7/7 Story Done, 100%) - Backend API 12개, RAG P0 완료
 **CI/CD**: ✅ GitHub Actions 8개 워크플로우 정상 운영
-**테스트**: Unit 626/627 (99.8%) | E2E API 92% | E2E UI 84.6%
+**테스트**: Unit 626/627 (99.8%) | E2E 95/192 (49.5%※) | ※Backend 미실행 시
 
 ## 📋 개요
 
