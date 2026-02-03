@@ -387,9 +387,9 @@ test.describe('Chat Search E2E Tests', () => {
     test('should be keyboard navigable', async ({ page }) => {
       await goToChatSearch(page);
 
-      // Focus on chat input
+      // Focus on chat input using click (more reliable than programmatic focus)
       const chatInput = page.locator('[data-testid="chat-input"]');
-      await chatInput.focus();
+      await chatInput.click();
       await expect(chatInput).toBeFocused();
 
       // Fill input so submit button becomes enabled
