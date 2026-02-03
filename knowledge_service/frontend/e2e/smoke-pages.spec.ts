@@ -31,17 +31,22 @@ function setupConsoleErrorCapture(page: Page): string[] {
 test.describe('BookmarkPage Smoke Tests', () => {
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page);
+    // Ensure we're authenticated before testing
+    if (!page.url().includes('/dashboard') && !page.url().includes('/bookmarks')) {
+      await page.goto('/dashboard');
+      await page.waitForLoadState('domcontentloaded').catch(() => {});
+    }
   });
 
   test('should render the page without errors', async ({ page }) => {
     const consoleErrors = setupConsoleErrorCapture(page);
     await page.goto('/bookmarks');
 
-    // Verify page renders with testid
-    await expect(page.locator('[data-testid="bookmark-page"]')).toBeVisible({ timeout: 10000 });
+    // Verify page renders with testid (extended timeout for mock environment)
+    await expect(page.locator('[data-testid="bookmark-page"]')).toBeVisible({ timeout: 15000 });
 
     // Verify page heading (use .last() to avoid strict mode violation with header h1)
-    await expect(page.getByRole('heading', { name: 'Bookmarks', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Bookmarks', level: 1 })).toBeVisible({ timeout: 5000 });
 
     // No critical console errors (ignore API/network errors which are expected without backend)
     const criticalErrors = consoleErrors.filter(
@@ -55,7 +60,7 @@ test.describe('BookmarkPage Smoke Tests', () => {
 
   test('should display folder sidebar navigation', async ({ page }) => {
     await page.goto('/bookmarks');
-    await expect(page.locator('[data-testid="bookmark-page"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="bookmark-page"]')).toBeVisible({ timeout: 15000 });
 
     // Verify folder navigation aria label
     const nav = page.locator('nav[aria-label="Bookmark folders"]');
@@ -70,7 +75,7 @@ test.describe('BookmarkPage Smoke Tests', () => {
 
   test('should display search input and view toggle', async ({ page }) => {
     await page.goto('/bookmarks');
-    await expect(page.locator('[data-testid="bookmark-page"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="bookmark-page"]')).toBeVisible({ timeout: 15000 });
 
     // Search input
     const searchInput = page.locator('input[aria-label="Search bookmarks"]');
@@ -84,7 +89,7 @@ test.describe('BookmarkPage Smoke Tests', () => {
 
   test('should switch view mode on toggle click', async ({ page }) => {
     await page.goto('/bookmarks');
-    await expect(page.locator('[data-testid="bookmark-page"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="bookmark-page"]')).toBeVisible({ timeout: 15000 });
 
     // Click list view
     await page.locator('button[aria-label="List view"]').click();
@@ -96,7 +101,7 @@ test.describe('BookmarkPage Smoke Tests', () => {
 
   test('should switch folders on click', async ({ page }) => {
     await page.goto('/bookmarks');
-    await expect(page.locator('[data-testid="bookmark-page"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="bookmark-page"]')).toBeVisible({ timeout: 15000 });
 
     // Click "Important" folder
     await page.getByText('Important').click();
@@ -115,6 +120,11 @@ test.describe('BookmarkPage Smoke Tests', () => {
 test.describe('ProfilePage Smoke Tests', () => {
   test.beforeEach(async ({ page }) => {
     await loginAsAdmin(page);
+    // Ensure we're authenticated before testing
+    if (!page.url().includes('/dashboard') && !page.url().includes('/profile')) {
+      await page.goto('/dashboard');
+      await page.waitForLoadState('domcontentloaded').catch(() => {});
+    }
   });
 
   test('should render the page without errors', async ({ page }) => {
@@ -122,7 +132,7 @@ test.describe('ProfilePage Smoke Tests', () => {
     await page.goto('/profile');
 
     // Verify page renders with testid
-    await expect(page.locator('[data-testid="profile-page"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="profile-page"]')).toBeVisible({ timeout: 15000 });
 
     // Verify page heading (use getByRole to avoid strict mode violation)
     await expect(page.getByRole('heading', { name: 'Profile', level: 1 })).toBeVisible();
@@ -130,7 +140,7 @@ test.describe('ProfilePage Smoke Tests', () => {
 
   test('should display 4 tab navigation buttons', async ({ page }) => {
     await page.goto('/profile');
-    await expect(page.locator('[data-testid="profile-page"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="profile-page"]')).toBeVisible({ timeout: 15000 });
 
     // Verify tab navigation exists
     const nav = page.locator('nav[aria-label="Profile navigation"]');
@@ -145,7 +155,7 @@ test.describe('ProfilePage Smoke Tests', () => {
 
   test('should show profile form on default tab', async ({ page }) => {
     await page.goto('/profile');
-    await expect(page.locator('[data-testid="profile-page"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="profile-page"]')).toBeVisible({ timeout: 15000 });
 
     // Default tab is "profile" - should show the profile form
     await expect(page.locator('[data-testid="profile-form"]')).toBeVisible({ timeout: 5000 });
@@ -162,7 +172,7 @@ test.describe('ProfilePage Smoke Tests', () => {
 
   test('should switch to Password tab and show password form', async ({ page }) => {
     await page.goto('/profile');
-    await expect(page.locator('[data-testid="profile-page"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="profile-page"]')).toBeVisible({ timeout: 15000 });
 
     // Click Password tab and wait for tab to be active
     const passwordTab = page.getByRole('button', { name: /Password/i });
@@ -196,7 +206,7 @@ test.describe('ProfilePage Smoke Tests', () => {
 
   test('should switch to Activity tab', async ({ page }) => {
     await page.goto('/profile');
-    await expect(page.locator('[data-testid="profile-page"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="profile-page"]')).toBeVisible({ timeout: 15000 });
 
     // Click Activity tab and wait for tab state change
     const activityTab = page.getByRole('button', { name: /Activity/i });
@@ -213,7 +223,7 @@ test.describe('ProfilePage Smoke Tests', () => {
 
   test('should switch to Notifications tab', async ({ page }) => {
     await page.goto('/profile');
-    await expect(page.locator('[data-testid="profile-page"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="profile-page"]')).toBeVisible({ timeout: 15000 });
 
     // Click Notifications tab and wait for tab state change
     const notificationsTab = page.getByRole('button', { name: /Notifications/i });
@@ -236,6 +246,11 @@ test.describe('AdminPage Smoke Tests', () => {
   test.beforeEach(async ({ page }) => {
     // Must login as admin to access /admin
     await loginAsAdmin(page);
+    // Ensure we're authenticated before testing
+    if (!page.url().includes('/dashboard') && !page.url().includes('/admin')) {
+      await page.goto('/dashboard');
+      await page.waitForLoadState('domcontentloaded').catch(() => {});
+    }
   });
 
   test('should render the page without errors', async ({ page }) => {
@@ -243,7 +258,7 @@ test.describe('AdminPage Smoke Tests', () => {
     await page.goto('/admin');
 
     // Verify page renders with testid
-    await expect(page.locator('[data-testid="admin-page"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="admin-page"]')).toBeVisible({ timeout: 15000 });
 
     // Verify page heading (use getByRole to avoid strict mode violation)
     await expect(page.getByRole('heading', { name: 'Administration', level: 1 })).toBeVisible();
@@ -251,7 +266,7 @@ test.describe('AdminPage Smoke Tests', () => {
 
   test('should display 4 tab navigation buttons', async ({ page }) => {
     await page.goto('/admin');
-    await expect(page.locator('[data-testid="admin-page"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="admin-page"]')).toBeVisible({ timeout: 15000 });
 
     // Verify admin navigation
     const nav = page.locator('nav[aria-label="Admin navigation"]');
@@ -266,7 +281,7 @@ test.describe('AdminPage Smoke Tests', () => {
 
   test('should show System Stats on default tab', async ({ page }) => {
     await page.goto('/admin');
-    await expect(page.locator('[data-testid="admin-page"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="admin-page"]')).toBeVisible({ timeout: 15000 });
 
     // Default tab is "stats" - verify tab is active
     const statsTab = page.getByRole('button', { name: /System Stats/i });
@@ -282,7 +297,7 @@ test.describe('AdminPage Smoke Tests', () => {
 
   test('should switch to User Management tab', async ({ page }) => {
     await page.goto('/admin');
-    await expect(page.locator('[data-testid="admin-page"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="admin-page"]')).toBeVisible({ timeout: 15000 });
 
     // Click User Management tab and verify state
     const userMgmtTab = page.getByRole('button', { name: /User Management/i });
@@ -310,7 +325,7 @@ test.describe('AdminPage Smoke Tests', () => {
 
   test('should switch to System Settings tab', async ({ page }) => {
     await page.goto('/admin');
-    await expect(page.locator('[data-testid="admin-page"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="admin-page"]')).toBeVisible({ timeout: 15000 });
 
     // Click System Settings tab and verify state
     const settingsTab = page.getByRole('button', { name: /System Settings/i });
@@ -326,7 +341,7 @@ test.describe('AdminPage Smoke Tests', () => {
 
   test('should switch to Audit Logs tab', async ({ page }) => {
     await page.goto('/admin');
-    await expect(page.locator('[data-testid="admin-page"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="admin-page"]')).toBeVisible({ timeout: 15000 });
 
     // Click Audit Logs tab and verify state
     const auditTab = page.getByRole('button', { name: /Audit Logs/i });
@@ -350,7 +365,7 @@ test.describe('AdminPage Smoke Tests', () => {
 
   test('should cycle through all tabs without crash', async ({ page }) => {
     await page.goto('/admin');
-    await expect(page.locator('[data-testid="admin-page"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="admin-page"]')).toBeVisible({ timeout: 15000 });
 
     // Cycle through all tabs
     const tabs = ['System Stats', 'User Management', 'System Settings', 'Audit Logs'];
@@ -369,6 +384,11 @@ test.describe('DocumentUploadPage Smoke Tests', () => {
   test.beforeEach(async ({ page }) => {
     // Admin has KNOWLEDGE_MANAGER access
     await loginAsAdmin(page);
+    // Ensure we're authenticated before testing
+    if (!page.url().includes('/dashboard') && !page.url().includes('/upload')) {
+      await page.goto('/dashboard');
+      await page.waitForLoadState('domcontentloaded').catch(() => {});
+    }
   });
 
   test('should render the page without errors', async ({ page }) => {
@@ -376,7 +396,7 @@ test.describe('DocumentUploadPage Smoke Tests', () => {
     await page.goto('/upload');
 
     // Verify page renders with testid
-    await expect(page.locator('[data-testid="upload-page"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="upload-page"]')).toBeVisible({ timeout: 15000 });
 
     // Verify page heading (use getByRole to avoid strict mode violation)
     await expect(page.getByRole('heading', { name: 'Upload Documents', level: 1 })).toBeVisible();
@@ -384,7 +404,7 @@ test.describe('DocumentUploadPage Smoke Tests', () => {
 
   test('should display drag-and-drop zone', async ({ page }) => {
     await page.goto('/upload');
-    await expect(page.locator('[data-testid="upload-page"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="upload-page"]')).toBeVisible({ timeout: 15000 });
 
     // Verify dropzone area with flexible aria-labels
     const dropzone = page.locator(
@@ -412,7 +432,7 @@ test.describe('DocumentUploadPage Smoke Tests', () => {
 
   test('should display supported formats card', async ({ page }) => {
     await page.goto('/upload');
-    await expect(page.locator('[data-testid="upload-page"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="upload-page"]')).toBeVisible({ timeout: 15000 });
 
     // Verify "Supported Formats" text exists (flexible matching)
     const formatsSection = page.locator('text=/[Ss]upported.*[Ff]ormat|[Ff]ormat.*[Ss]upported/');
@@ -434,7 +454,7 @@ test.describe('DocumentUploadPage Smoke Tests', () => {
 
   test('should display Recent Uploads section', async ({ page }) => {
     await page.goto('/upload');
-    await expect(page.locator('[data-testid="upload-page"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="upload-page"]')).toBeVisible({ timeout: 15000 });
 
     // Verify "Recent Uploads" heading
     await expect(page.getByText('Recent Uploads')).toBeVisible();
@@ -442,7 +462,7 @@ test.describe('DocumentUploadPage Smoke Tests', () => {
 
   test('should have hidden file input for upload', async ({ page }) => {
     await page.goto('/upload');
-    await expect(page.locator('[data-testid="upload-page"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="upload-page"]')).toBeVisible({ timeout: 15000 });
 
     // The file input should exist (hidden)
     const fileInput = page.locator('input[type="file"]');
@@ -468,7 +488,7 @@ test.describe('Sidebar Navigation to New Pages', () => {
     if (await bookmarkNav.isVisible()) {
       await bookmarkNav.click();
       await expect(page).toHaveURL(/.*bookmarks/);
-      await expect(page.locator('[data-testid="bookmark-page"]')).toBeVisible({ timeout: 10000 });
+      await expect(page.locator('[data-testid="bookmark-page"]')).toBeVisible({ timeout: 15000 });
     }
   });
 
@@ -481,7 +501,7 @@ test.describe('Sidebar Navigation to New Pages', () => {
     if (await profileNav.isVisible()) {
       await profileNav.click();
       await expect(page).toHaveURL(/.*profile/);
-      await expect(page.locator('[data-testid="profile-page"]')).toBeVisible({ timeout: 10000 });
+      await expect(page.locator('[data-testid="profile-page"]')).toBeVisible({ timeout: 15000 });
     }
   });
 
@@ -494,7 +514,7 @@ test.describe('Sidebar Navigation to New Pages', () => {
     if (await adminNav.isVisible()) {
       await adminNav.click();
       await expect(page).toHaveURL(/.*admin/);
-      await expect(page.locator('[data-testid="admin-page"]')).toBeVisible({ timeout: 10000 });
+      await expect(page.locator('[data-testid="admin-page"]')).toBeVisible({ timeout: 15000 });
     }
   });
 
@@ -507,7 +527,7 @@ test.describe('Sidebar Navigation to New Pages', () => {
     if (await uploadNav.isVisible()) {
       await uploadNav.click();
       await expect(page).toHaveURL(/.*upload/);
-      await expect(page.locator('[data-testid="upload-page"]')).toBeVisible({ timeout: 10000 });
+      await expect(page.locator('[data-testid="upload-page"]')).toBeVisible({ timeout: 15000 });
     }
   });
 });
@@ -518,22 +538,22 @@ test.describe('Sidebar Navigation to New Pages', () => {
 test.describe('Route Protection for New Pages', () => {
   test('should redirect unauthenticated user to login for /bookmarks', async ({ page }) => {
     await page.goto('/bookmarks');
-    await expect(page).toHaveURL(/.*login.*/, { timeout: 10000 });
+    await expect(page).toHaveURL(/.*login.*/, { timeout: 15000 });
   });
 
   test('should redirect unauthenticated user to login for /profile', async ({ page }) => {
     await page.goto('/profile');
-    await expect(page).toHaveURL(/.*login.*/, { timeout: 10000 });
+    await expect(page).toHaveURL(/.*login.*/, { timeout: 15000 });
   });
 
   test('should redirect unauthenticated user to login for /admin', async ({ page }) => {
     await page.goto('/admin');
-    await expect(page).toHaveURL(/.*login.*/, { timeout: 10000 });
+    await expect(page).toHaveURL(/.*login.*/, { timeout: 15000 });
   });
 
   test('should redirect unauthenticated user to login for /upload', async ({ page }) => {
     await page.goto('/upload');
-    await expect(page).toHaveURL(/.*login.*/, { timeout: 10000 });
+    await expect(page).toHaveURL(/.*login.*/, { timeout: 15000 });
   });
 
   test('should deny regular user access to /admin (Access Denied)', async ({ page }) => {

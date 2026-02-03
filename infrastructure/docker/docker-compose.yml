@@ -315,12 +315,23 @@ services:
     environment:
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
       - DEEPSEEK_BASE_URL=${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
-      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      # Elasticsearch settings (individual fields for config.py)
+      - ELASTICSEARCH_HOST=elasticsearch
+      - ELASTICSEARCH_PORT=9200
+      # Neo4j settings
       - NEO4J_URI=bolt://neo4j:7687
       - NEO4J_USER=${NEO4J_USER:-neo4j}
       - NEO4J_PASSWORD=${NEO4J_PASSWORD}
-      - REDIS_URL=redis://redis:6379
-      - POSTGRESQL_URL=postgresql://${DB_USERNAME:-knowledge}:${DB_PASSWORD}@postgresql:5432/${DB_NAME:-knowledge}
+      # Redis settings
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      # PostgreSQL settings (individual fields for config.py)
+      - POSTGRES_HOST=postgresql
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=${DB_USERNAME:-knowledge}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+      - POSTGRES_DB=${DB_NAME:-knowledge}
+      # MinIO settings
       - MINIO_URL=http://minio:9000
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
@@ -334,7 +345,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8000/health"]
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8000/api/v1/health"]
       interval: 30s
       timeout: 10s
       retries: 3

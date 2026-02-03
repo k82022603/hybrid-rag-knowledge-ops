@@ -123,7 +123,7 @@ async def _check_elasticsearch() -> bool:
         from elasticsearch import AsyncElasticsearch
 
         es = AsyncElasticsearch(
-            hosts=[f"{settings.elasticsearch_host}:{settings.elasticsearch_port}"],
+            hosts=[f"http://{settings.elasticsearch_host}:{settings.elasticsearch_port}"],
             request_timeout=5,
         )
         try:

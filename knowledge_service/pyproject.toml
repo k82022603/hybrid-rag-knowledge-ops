@@ -20,11 +20,12 @@ langchain-openai = "^1.1.7"
 # Web Framework
 fastapi = "^0.115.0"
 uvicorn = {version = "^0.24.0", extras = ["standard"]}
-pydantic = "^2.5.0"
+pydantic = {version = "^2.5.0", extras = ["email"]}
 pydantic-settings = "^2.1.0"
 
 # Database Clients
-psycopg2-binary = "^2.9.0"  # PostgreSQL
+psycopg2-binary = "^2.9.0"  # PostgreSQL (sync)
+asyncpg = "^0.29.0"         # PostgreSQL (async)
 neo4j = "^5.26.0"            # Neo4j 5.26 LTS
 elasticsearch = "^8.12.0"    # Elasticsearch 8.x
 
@@ -45,9 +46,9 @@ scikit-learn = "^1.3.0"
 # Data Processing
 pandas = "^2.1.0"
 docling = "^2.60.0"           # Document parsing (PDF, PPTX, DOCX)
-python-docx = "^0.8.11"
+python-docx = "^1.1.2"       # Updated to match docling requirement
 pypdf = "^5.0.0"
-python-pptx = "^0.6.21"
+python-pptx = "^1.0.2"       # Updated to match docling requirement
 
 # Utilities
 python-dotenv = "^1.0.0"

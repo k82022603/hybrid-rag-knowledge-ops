@@ -42,7 +42,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             from elasticsearch import AsyncElasticsearch
 
             es_client = AsyncElasticsearch(
-                hosts=[f"{settings.elasticsearch_host}:{settings.elasticsearch_port}"],
+                hosts=[f"http://{settings.elasticsearch_host}:{settings.elasticsearch_port}"],
             )
             health = await es_client.cluster.health(timeout="5s")
             logger.info(f"Elasticsearch connected: cluster={health.get('cluster_name')}, status={health.get('status')}")

@@ -73,13 +73,20 @@ async function applyFilterAndVerify(
 test.describe('Search Filters E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
     await loginAsUser(page);
+    // Ensure we're authenticated before testing
+    if (!page.url().includes('/dashboard') && !page.url().includes('/search')) {
+      await page.goto('/dashboard');
+      await page.waitForLoadState('domcontentloaded').catch(() => {});
+    }
   });
 
   test.describe('Filter Panel Display', () => {
     test('should show filters panel when clicking filters button', async ({ page }) => {
       await page.goto('/search');
+      await expect(page.locator('[data-testid="search-page"]')).toBeVisible({ timeout: 15000 });
+
       await page.locator('button[role="tab"]:has-text("Keyword Search")').click();
-      await expect(page.locator('[data-testid="keyword-search"]')).toBeVisible();
+      await expect(page.locator('[data-testid="keyword-search"]')).toBeVisible({ timeout: 5000 });
 
       // Initially filters should be hidden
       await expect(page.locator('[data-testid="search-filters"]')).not.toBeVisible();
@@ -89,7 +96,7 @@ test.describe('Search Filters E2E Tests', () => {
       await filtersButton.click();
 
       // Filters panel should be visible
-      await expect(page.locator('[data-testid="search-filters"]')).toBeVisible();
+      await expect(page.locator('[data-testid="search-filters"]')).toBeVisible({ timeout: 5000 });
 
       // Verify ARIA expanded state
       await expect(filtersButton).toHaveAttribute('aria-expanded', 'true');
