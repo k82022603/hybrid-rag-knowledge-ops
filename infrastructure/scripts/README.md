@@ -1,6 +1,6 @@
 # Infrastructure Scripts
 
-백업, 복원, 롤백, 배포, 유지보수, 시크릿 관리를 위한 인프라 스크립트 모음입니다.
+백업, 복원, 롤백, 배포, 유지보수, 시크릿 관리, 성능 테스트를 위한 인프라 스크립트 모음입니다.
 
 ## 스크립트 목록
 
@@ -10,11 +10,234 @@
 | `pre-deploy-check.sh` | 배포 전 사전 검증 스크립트 | 2026-02-04 |
 | `post-deploy-verify.sh` | 배포 후 검증 스크립트 | 2026-02-04 |
 | `blue-green-deploy.sh` | Blue-Green 무중단 배포 스크립트 | 2026-02-04 |
+| `staging-validation.sh` | Staging 환경 종합 검증 스크립트 (STORY-080) | 2026-02-04 |
+| `performance-test.sh` | 성능 테스트 실행 스크립트 (STORY-081) | 2026-02-04 |
 | `backup.sh` | PostgreSQL, Elasticsearch, Neo4j, MinIO 자동 백업 |  |
 | `restore.sh` | 백업 데이터 복원 |  |
 | `rollback.sh` | 애플리케이션/데이터베이스 롤백 |  |
 | `validate-secrets.sh` | 시크릿 검증 및 생성 (STORY-076) |  |
 | `backup.cron.example` | Crontab 설정 예시 |  |
+
+---
+
+## performance-test.sh - 성능 테스트 스크립트 (NEW)
+
+### 개요
+
+프로덕션 배포 전 성능 기준선을 설정하고 부하 테스트를 수행하는 스크립트입니다.
+STORY-081: Performance Baseline Testing 구현의 일환으로 작성되었습니다.
+
+k6 또는 Locust를 사용하여 부하 테스트를 수행합니다.
+
+### 성능 목표
+
+| Metric | Target | Acceptable |
+|--------|--------|------------|
+| API Response (P50) | < 500ms | < 1s |
+| API Response (P95) | < 2s | < 3s |
+| Search Latency (P95) | < 3s | < 5s |
+| Throughput | > 100 req/s | > 50 req/s |
+| Error Rate | < 0.1% | < 1% |
+
+### 사용법
+
+```bash
+# 빠른 스모크 테스트 (10 VUs, 1분)
+./performance-test.sh --quick
+
+# 기본 부하 테스트 (k6, 100 VUs, 5분)
+./performance-test.sh
+
+# 전체 테스트 스위트 (Smoke -> Load -> Stress -> Spike)
+./performance-test.sh --full
+
+# Locust 사용 (Python 기반)
+./performance-test.sh --tool locust --vus 50
+
+# 커스텀 설정
+./performance-test.sh \
+    --tool k6 \
+    --vus 100 \
+    --duration 10m \
+    --url http://localhost:8000
+
+# Locust Web UI 모드
+./performance-test.sh --tool locust --web
+
+# 도움말
+./performance-test.sh --help
+```
+
+### 옵션
+
+| 옵션 | 설명 | 기본값 |
+|------|------|--------|
+| `-t, --tool` | 테스트 도구 (k6/locust) | k6 |
+| `-u, --url` | 서비스 URL | http://localhost:8000 |
+| `-v, --vus` | 가상 사용자 수 | 100 |
+| `-d, --duration` | 테스트 기간 | 5m |
+| `-r, --spawn-rate` | 사용자 생성 속도 (Locust) | 10 |
+| `--auth-token` | Bearer 토큰 | - |
+| `--quick` | 빠른 스모크 테스트 | - |
+| `--full` | 전체 테스트 스위트 | - |
+| `--web` | Locust Web UI 모드 | - |
+
+### 테스트 시나리오
+
+#### 1. Smoke Test (--quick)
+- 1-10 VUs, 30초-1분
+- 시스템 기본 기능 확인
+
+#### 2. Load Test (default)
+- 50-100 VUs, 10분
+- 일반 운영 조건 시뮬레이션
+- 기준선 측정
+
+#### 3. Stress Test (--full 포함)
+- 150 VUs, 6분
+- 시스템 한계점 탐색
+
+#### 4. Spike Test (--full 포함)
+- 200 VUs 갑자기 증가
+- 트래픽 급증 대응 확인
+
+### 결과 출력
+
+테스트 결과는 다음 위치에 저장됩니다:
+
+```
+knowledge_service/docs/results/performance/
+  k6_results_YYYYMMDD_HHMMSS.json
+  k6_summary_YYYYMMDD_HHMMSS.json
+  locust_report_YYYYMMDD_HHMMSS.html
+  locust_YYYYMMDD_HHMMSS_stats.csv
+```
+
+### 사전 요구사항
+
+```bash
+# k6 설치
+# macOS
+brew install k6
+
+# Ubuntu/Debian
+sudo apt-get update && sudo apt-get install k6
+
+# Windows
+choco install k6
+
+# Locust 설치
+pip install -r ../performance/requirements.txt
+```
+
+### 관련 문서
+
+- [Performance Baseline Report](../../knowledge_service/docs/04_testing/performance_baseline_report.md)
+- [Performance Testing Suite README](../performance/README.md)
+- [k6 Load Test Script](../performance/k6-load-test.js)
+- [Locust Test File](../performance/locustfile.py)
+
+---
+
+## staging-validation.sh - Staging 환경 종합 검증 (NEW)
+
+### 개요
+
+프로덕션 배포 전 Staging 환경에서 모든 검증 항목을 자동으로 수행하는 스크립트입니다.
+STORY-080: Staging Environment Validation 구현의 일환으로 작성되었습니다.
+
+### 검증 항목
+
+| Category | Test Count | Target |
+|----------|------------|--------|
+| Infrastructure | 20+ | All Pass |
+| Unit Tests | 627 | 100% |
+| Integration Tests | 121 | 100% |
+| E2E Tests | 192 | 100% |
+| Security Tests | 35 | 100% |
+| API Contract | 10+ | All Pass |
+| Data Flow | 6 | Complete |
+
+### 사용법
+
+```bash
+# 전체 검증 (권장)
+./staging-validation.sh --full
+
+# 빠른 스모크 테스트 (컨테이너 + 헬스체크만)
+./staging-validation.sh --smoke
+
+# 특정 카테고리만 실행
+./staging-validation.sh --category unit
+./staging-validation.sh --category integration
+./staging-validation.sh --category e2e
+./staging-validation.sh --category security
+./staging-validation.sh --category contract
+./staging-validation.sh --category dataflow
+
+# 데이터 플로우 검증만
+./staging-validation.sh --data-flow
+
+# 도움말
+./staging-validation.sh --help
+```
+
+### 검증 순서
+
+```
+[1] Pre-validation    - Docker, 환경 파일, 디렉토리 확인
+[2] Container checks  - 18개 컨테이너 상태 확인
+[3] Health checks     - 서비스 헬스 엔드포인트 확인
+[4] Unit tests        - Backend, AI Service, Frontend 단위 테스트
+[5] Integration tests - DB, API 통합 테스트
+[6] E2E tests         - Playwright E2E 테스트
+[7] Security tests    - 보안 취약점 검사
+[8] Contract tests    - API 계약 검증
+[9] Data flow         - 문서 업로드 -> 검색 전체 흐름 검증
+```
+
+### 출력 예시
+
+```
+=============================================================================
+Hybrid RAG Knowledge Platform - Staging Environment Validation
+=============================================================================
+Mode:        --full
+Timestamp:   2026-02-04 10:30:00
+Project:     /path/to/hybrid-rag-knowledge-ops
+=============================================================================
+
+=== Pre-Validation Checks ===
+[PASS] [INFRA] Docker daemon is running
+[PASS] [INFRA] Docker Compose is available
+[PASS] [INFRA] Staging environment file exists
+
+=== Container Health Checks ===
+[PASS] [CONTAINER] kp-nginx is running (health: healthy)
+[PASS] [CONTAINER] kp-backend is running (health: healthy)
+...
+
+=============================================================================
+VALIDATION SUMMARY
+=============================================================================
+Total Tests:  85
+Passed:       82
+Failed:       0
+Skipped:      3
+=============================================================================
+VALIDATION PASSED
+```
+
+### 보고서 생성
+
+Full validation 실행 시 자동으로 보고서가 생성됩니다:
+- 위치: `knowledge_service/docs/results/staging_validation/`
+- 형식: `validation_YYYYMMDD_HHMMSS.md`
+
+### 관련 문서
+
+- [Staging Validation Checklist](../../knowledge_service/docs/04_testing/staging_validation_checklist.md)
+- [Staging Validation Report Template](../../knowledge_service/docs/04_testing/staging_validation_report_template.md)
 
 ---
 
@@ -417,6 +640,14 @@ sudo chmod 644 /etc/cron.d/knowledge-platform-backup
 +----------------------------------------------------------+
 |           OPERATIONS QUICK REFERENCE                      |
 +----------------------------------------------------------+
+| PERFORMANCE TEST (BEFORE PRODUCTION):                     |
+|   ./performance-test.sh --quick                           |
+|   ./performance-test.sh --full                            |
+|                                                           |
+| STAGING VALIDATION (BEFORE PRODUCTION):                   |
+|   ./staging-validation.sh --full                          |
+|   ./staging-validation.sh --smoke                         |
+|                                                           |
 | DEPLOY STAGING:                                           |
 |   ./deploy.sh staging                                     |
 |                                                           |
@@ -488,6 +719,12 @@ sudo chmod 644 /etc/cron.d/knowledge-platform-backup
    - 컨테이너 로그 확인: `docker logs kp-backend`
    - 포트 바인딩 확인: `docker port kp-backend`
 
+6. **k6 설치되지 않음**
+   ```
+   ERROR: k6 is not installed
+   ```
+   - k6 설치: `brew install k6` (macOS) 또는 `apt install k6` (Ubuntu)
+
 ### 로그 확인
 
 ```bash
@@ -500,6 +737,12 @@ tail -100 /path/to/project/logs/rollbacks/rollback_*.log
 # Blue-Green 로그 확인
 tail -100 /path/to/project/logs/blue-green/blue-green_*.log
 
+# Staging Validation 보고서 확인
+ls -la knowledge_service/docs/results/staging_validation/
+
+# Performance Test 결과 확인
+ls -la knowledge_service/docs/results/performance/
+
 # 컨테이너 로그 확인
 docker logs --tail 100 kp-backend
 docker logs --tail 100 kp-ai-service
@@ -509,6 +752,10 @@ docker logs --tail 100 kp-ai-service
 
 ## 참고
 
+- [Performance Baseline Report](../../knowledge_service/docs/04_testing/performance_baseline_report.md)
+- [Performance Testing Suite](../performance/README.md)
+- [Staging Validation Checklist](../../knowledge_service/docs/04_testing/staging_validation_checklist.md)
+- [Staging Validation Report Template](../../knowledge_service/docs/04_testing/staging_validation_report_template.md)
 - [배포 계획](../../knowledge_service/docs/06_deployment/deployment_plan.md)
 - [롤백 절차 가이드](../../knowledge_service/docs/06_deployment/rollback_procedure.md)
 - [시크릿 관리 가이드](../../knowledge_service/docs/06_deployment/secrets_management_guide.md)

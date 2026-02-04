@@ -1,0 +1,595 @@
+# =============================================================================
+# Prometheus Alert Rules - Knowledge Platform Production Monitoring
+# =============================================================================
+# Version: 2.0.0
+# Created: 2026-02-04
+# Description: Comprehensive alerting rules for production environment
+# Categories: Container, Resource, Application, Database, AI Service, SLA
+# =============================================================================
+
+groups:
+  # ===========================================================================
+  # 1. CONTAINER HEALTH ALERTS (Critical)
+  # ===========================================================================
+  - name: container-health
+    interval: 15s
+    rules:
+      # Container down - Immediate alert
+      - alert: ContainerDown
+        expr: up == 0
+        for: 30s
+        labels:
+          severity: critical
+          category: availability
+          team: devops
+        annotations:
+          summary: "Container {{ $labels.job }} is down"
+          description: "Container {{ $labels.job }} ({{ $labels.instance }}) has been down for more than 30 seconds. Immediate action required."
+          runbook_url: "https://wiki.company.com/runbook/container-down"
+
+      # Critical service down (backend, ai-service, postgresql, elasticsearch)
+      - alert: CriticalServiceDown
+        expr: up{job=~"backend|ai-service|postgresql|elasticsearch"} == 0
+        for: 15s
+        labels:
+          severity: critical
+          category: availability
+          team: devops
+          page: "true"
+        annotations:
+          summary: "CRITICAL: {{ $labels.job }} service is down"
+          description: "Critical service {{ $labels.job }} is unreachable. This affects core platform functionality."
+
+      # Container restarting frequently
+      - alert: ContainerHighRestartCount
+        expr: increase(container_restart_count[1h]) > 3
+        for: 5m
+        labels:
+          severity: warning
+          category: stability
+          team: devops
+        annotations:
+          summary: "Container {{ $labels.name }} is restarting frequently"
+          description: "Container {{ $labels.name }} has restarted {{ $value | printf \"%.0f\" }} times in the last hour. Investigate crash cause."
+
+  # ===========================================================================
+  # 2. RESOURCE USAGE ALERTS
+  # ===========================================================================
+  - name: resource-usage
+    interval: 30s
+    rules:
+      # High CPU usage
+      - alert: HighCpuUsage
+        expr: (rate(process_cpu_seconds_total[5m]) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          category: resource
+          team: devops
+        annotations:
+          summary: "High CPU usage on {{ $labels.job }}"
+          description: "CPU usage is above 80% for {{ $labels.job }}. Current: {{ $value | printf \"%.1f\" }}%"
+
+      # Critical CPU usage (95%+)
+      - alert: CriticalCpuUsage
+        expr: (rate(process_cpu_seconds_total[5m]) * 100) > 95
+        for: 3m
+        labels:
+          severity: critical
+          category: resource
+          team: devops
+        annotations:
+          summary: "Critical CPU usage on {{ $labels.job }}"
+          description: "CPU usage is above 95% for {{ $labels.job }}. Service may become unresponsive."
+
+      # High memory usage (85%+)
+      - alert: HighMemoryUsage
+        expr: (process_resident_memory_bytes / (1024 * 1024 * 1024)) > 6
+        for: 5m
+        labels:
+          severity: warning
+          category: resource
+          team: devops
+        annotations:
+          summary: "High memory usage on {{ $labels.job }}"
+          description: "Memory usage is above 6GB for {{ $labels.job }}. Current: {{ $value | printf \"%.2f\" }}GB"
+
+      # Critical memory usage (approaching container limit)
+      - alert: CriticalMemoryUsage
+        expr: (container_memory_usage_bytes / container_spec_memory_limit_bytes) > 0.90
+        for: 2m
+        labels:
+          severity: critical
+          category: resource
+          team: devops
+        annotations:
+          summary: "Container {{ $labels.name }} is running out of memory"
+          description: "Container memory usage is at {{ $value | printf \"%.1f\" }}% of limit. OOM kill imminent."
+
+      # Low disk space (< 15%)
+      - alert: LowDiskSpace
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.15
+        for: 5m
+        labels:
+          severity: warning
+          category: resource
+          team: devops
+        annotations:
+          summary: "Low disk space on {{ $labels.instance }}"
+          description: "Disk space is below 15% on {{ $labels.mountpoint }}. Available: {{ $value | humanize1024 }}%"
+
+      # Critical disk space (< 5%)
+      - alert: CriticalDiskSpace
+        expr: (node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) < 0.05
+        for: 2m
+        labels:
+          severity: critical
+          category: resource
+          team: devops
+          page: "true"
+        annotations:
+          summary: "CRITICAL: Disk space almost full on {{ $labels.instance }}"
+          description: "Disk space is below 5% on {{ $labels.mountpoint }}. Immediate cleanup required."
+
+  # ===========================================================================
+  # 3. APPLICATION HEALTH ALERTS
+  # ===========================================================================
+  - name: application-health
+    interval: 30s
+    rules:
+      # High error rate (> 5% for 5min)
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) by (job)
+            /
+            sum(rate(http_server_requests_seconds_count[5m])) by (job)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          category: availability
+          team: backend
+        annotations:
+          summary: "High error rate on {{ $labels.job }}"
+          description: "Error rate is above 5% for {{ $labels.job }}. Current: {{ $value | printf \"%.2f\" }}% (5xx responses)"
+
+      # Warning error rate (> 1%)
+      - alert: ElevatedErrorRate
+        expr: |
+          (
+            sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m])) by (job)
+            /
+            sum(rate(http_server_requests_seconds_count[5m])) by (job)
+          ) > 0.01
+        for: 10m
+        labels:
+          severity: warning
+          category: availability
+          team: backend
+        annotations:
+          summary: "Elevated error rate on {{ $labels.job }}"
+          description: "Error rate is above 1% for {{ $labels.job }}. Current: {{ $value | printf \"%.2f\" }}%"
+
+      # High latency P95 (> 5s for 5min)
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(http_server_requests_seconds_bucket[5m])) > 5
+        for: 5m
+        labels:
+          severity: critical
+          category: performance
+          team: backend
+        annotations:
+          summary: "High latency on {{ $labels.job }}"
+          description: "P95 latency is above 5 seconds for {{ $labels.job }}. Current: {{ $value | printf \"%.2f\" }}s"
+
+      # Warning latency P95 (> 2s)
+      - alert: ElevatedLatency
+        expr: histogram_quantile(0.95, rate(http_server_requests_seconds_bucket[5m])) > 2
+        for: 10m
+        labels:
+          severity: warning
+          category: performance
+          team: backend
+        annotations:
+          summary: "Elevated latency on {{ $labels.job }}"
+          description: "P95 latency is above 2 seconds for {{ $labels.job }}. Current: {{ $value | printf \"%.2f\" }}s"
+
+      # Low request throughput (possible service issue)
+      - alert: LowThroughput
+        expr: sum(rate(http_server_requests_seconds_count[5m])) by (job) < 0.01
+        for: 15m
+        labels:
+          severity: info
+          category: performance
+          team: backend
+        annotations:
+          summary: "Very low request throughput on {{ $labels.job }}"
+          description: "Request throughput is below 0.01 req/s for {{ $labels.job }}. Service may be isolated or experiencing issues."
+
+      # Circuit Breaker OPEN state
+      - alert: CircuitBreakerOpen
+        expr: resilience4j_circuitbreaker_state{name="aiService"} == 1
+        for: 1m
+        labels:
+          severity: critical
+          category: availability
+          team: backend
+        annotations:
+          summary: "Circuit Breaker OPEN - AI Service degraded"
+          description: "AI Service Circuit Breaker is OPEN. Fallback responses are being served. Check AI Service health."
+
+      # Circuit Breaker HALF_OPEN (recovery in progress)
+      - alert: CircuitBreakerHalfOpen
+        expr: resilience4j_circuitbreaker_state{name="aiService"} == 2
+        for: 3m
+        labels:
+          severity: warning
+          category: availability
+          team: backend
+        annotations:
+          summary: "Circuit Breaker HALF_OPEN - Recovery in progress"
+          description: "AI Service Circuit Breaker is in HALF_OPEN state. Recovery attempts ongoing."
+
+  # ===========================================================================
+  # 4. DATABASE HEALTH ALERTS
+  # ===========================================================================
+  - name: database-health
+    interval: 30s
+    rules:
+      # PostgreSQL connection pool exhaustion
+      - alert: PostgreSQLHighConnections
+        expr: pg_stat_activity_count > 180
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+          team: database
+        annotations:
+          summary: "PostgreSQL connection count high"
+          description: "PostgreSQL has {{ $value | printf \"%.0f\" }} active connections (limit: 200). Connection pool may be exhausted soon."
+
+      # PostgreSQL down
+      - alert: PostgreSQLDown
+        expr: up{job="postgresql"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          category: database
+          team: database
+          page: "true"
+        annotations:
+          summary: "PostgreSQL is down"
+          description: "PostgreSQL database is unreachable. All write operations will fail."
+
+      # Elasticsearch cluster health RED
+      - alert: ElasticsearchClusterRed
+        expr: elasticsearch_cluster_health_status{color="red"} == 1
+        for: 1m
+        labels:
+          severity: critical
+          category: database
+          team: database
+          page: "true"
+        annotations:
+          summary: "Elasticsearch cluster is RED"
+          description: "Elasticsearch cluster health is RED. Data loss may be occurring. Immediate attention required."
+
+      # Elasticsearch cluster health YELLOW
+      - alert: ElasticsearchClusterYellow
+        expr: elasticsearch_cluster_health_status{color="yellow"} == 1
+        for: 15m
+        labels:
+          severity: warning
+          category: database
+          team: database
+        annotations:
+          summary: "Elasticsearch cluster is YELLOW"
+          description: "Elasticsearch cluster health is YELLOW. Some replica shards are not allocated."
+
+      # Elasticsearch down
+      - alert: ElasticsearchDown
+        expr: up{job="elasticsearch"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          category: database
+          team: database
+          page: "true"
+        annotations:
+          summary: "Elasticsearch is down"
+          description: "Elasticsearch is unreachable. Vector search and text search will fail."
+
+      # Neo4j connection failure
+      - alert: Neo4jConnectionFailure
+        expr: up{job="neo4j"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: database
+          team: database
+        annotations:
+          summary: "Neo4j is unreachable"
+          description: "Cannot connect to Neo4j database. Graph queries will fail."
+
+      # Redis down
+      - alert: RedisDown
+        expr: up{job="redis"} == 0
+        for: 30s
+        labels:
+          severity: critical
+          category: database
+          team: database
+        annotations:
+          summary: "Redis is down"
+          description: "Redis cache is unreachable. Session management and caching will be affected."
+
+      # Redis high memory usage
+      - alert: RedisHighMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+          team: database
+        annotations:
+          summary: "Redis memory usage high"
+          description: "Redis memory usage is at {{ $value | printf \"%.1f\" }}% of max. Eviction may occur."
+
+  # ===========================================================================
+  # 5. AI SERVICE ALERTS
+  # ===========================================================================
+  - name: ai-service
+    interval: 30s
+    rules:
+      # AI service high latency (P95 > 30s)
+      - alert: AIServiceHighLatency
+        expr: histogram_quantile(0.95, rate(ai_request_duration_seconds_bucket[5m])) > 30
+        for: 5m
+        labels:
+          severity: warning
+          category: ai
+          team: ai
+        annotations:
+          summary: "AI Service response time is high"
+          description: "AI Service P95 latency is above 30 seconds. Current: {{ $value | printf \"%.1f\" }}s"
+
+      # AI service down
+      - alert: AIServiceDown
+        expr: up{job="ai-service"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: ai
+          team: ai
+          page: "true"
+        annotations:
+          summary: "AI Service is down"
+          description: "AI Service is unreachable. All RAG/search functionality will be degraded."
+
+      # DeepSeek API errors
+      - alert: DeepSeekAPIErrors
+        expr: rate(deepseek_api_errors_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          category: ai
+          team: ai
+        annotations:
+          summary: "DeepSeek API errors detected"
+          description: "DeepSeek API is returning errors at rate {{ $value | printf \"%.2f\" }}/s. LLM responses may be affected."
+
+      # LLM fallback rate high
+      - alert: LLMFallbackRateHigh
+        expr: |
+          sum(rate(ai_llm_fallback_total[5m])) /
+          sum(rate(ai_llm_request_duration_seconds_count[5m])) > 0.1
+        for: 10m
+        labels:
+          severity: warning
+          category: ai
+          team: ai
+        annotations:
+          summary: "High LLM fallback rate"
+          description: "LLM fallback rate is above 10%. Primary model may be experiencing issues."
+
+      # Embedding generation slow
+      - alert: EmbeddingGenerationSlow
+        expr: histogram_quantile(0.95, rate(ai_embedding_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          category: ai
+          team: ai
+        annotations:
+          summary: "Embedding generation is slow"
+          description: "P95 embedding generation time is above 1 second. Document processing will be delayed."
+
+      # Document processing backlog
+      - alert: DocumentProcessingBacklog
+        expr: ai_active_processing_jobs > 50
+        for: 10m
+        labels:
+          severity: warning
+          category: ai
+          team: ai
+        annotations:
+          summary: "Document processing backlog building"
+          description: "{{ $value | printf \"%.0f\" }} documents in processing queue. Consider scaling AI service."
+
+  # ===========================================================================
+  # 6. SLA/SLO ALERTS
+  # ===========================================================================
+  - name: sla-alerts
+    interval: 60s
+    rules:
+      # SLA violation - Availability below 99.9%
+      - alert: SLAViolation
+        expr: |
+          1 - (
+            sum(rate(http_server_requests_seconds_count{status=~"5.."}[5m]))
+            /
+            sum(rate(http_server_requests_seconds_count[5m]))
+          ) < 0.999
+        for: 5m
+        labels:
+          severity: critical
+          category: sla
+          team: devops
+          page: "true"
+        annotations:
+          summary: "SLA Violation - Availability below 99.9%"
+          description: "Current availability is {{ $value | humanizePercentage }}. Target: 99.9%. Immediate action required."
+
+      # Error budget consumption warning (50% consumed)
+      - alert: ErrorBudgetHalfConsumed
+        expr: |
+          (1 - (
+            sum(increase(http_server_requests_seconds_count{status=~"5.."}[7d]))
+            /
+            sum(increase(http_server_requests_seconds_count[7d]))
+          )) / 0.001 > 0.5
+        for: 1h
+        labels:
+          severity: warning
+          category: sla
+          team: devops
+        annotations:
+          summary: "Weekly error budget 50% consumed"
+          description: "More than 50% of weekly error budget has been consumed. Consider slowing deployments."
+
+      # Error budget critical (80% consumed)
+      - alert: ErrorBudgetCritical
+        expr: |
+          (1 - (
+            sum(increase(http_server_requests_seconds_count{status=~"5.."}[7d]))
+            /
+            sum(increase(http_server_requests_seconds_count[7d]))
+          )) / 0.001 > 0.8
+        for: 30m
+        labels:
+          severity: critical
+          category: sla
+          team: devops
+        annotations:
+          summary: "Weekly error budget 80% consumed"
+          description: "Error budget nearly exhausted. Freeze non-critical deployments."
+
+      # Latency SLO violation (P95 > 500ms)
+      - alert: LatencySLOViolation
+        expr: histogram_quantile(0.95, rate(http_server_requests_seconds_bucket{uri="/api/v1/search"}[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          category: sla
+          team: backend
+        annotations:
+          summary: "Search API latency SLO violation"
+          description: "Search API P95 latency {{ $value | printf \"%.2f\" }}s exceeds 500ms SLO target."
+
+  # ===========================================================================
+  # 7. SECURITY ALERTS
+  # ===========================================================================
+  - name: security-alerts
+    interval: 30s
+    rules:
+      # Authentication brute force detection
+      - alert: AuthenticationBruteForce
+        expr: sum(rate(security_events_total{event_type="AUTH_FAILURE"}[1m])) by (source_ip) > 10
+        for: 2m
+        labels:
+          severity: critical
+          category: security
+          team: security
+        annotations:
+          summary: "Possible brute force attack detected"
+          description: "More than 10 auth failures/min from {{ $labels.source_ip }}. May be brute force attack."
+
+      # Rate limit exceeded frequently
+      - alert: RateLimitExceeded
+        expr: sum(rate(http_server_requests_seconds_count{status="429"}[5m])) > 5
+        for: 5m
+        labels:
+          severity: warning
+          category: security
+          team: security
+        annotations:
+          summary: "Rate limit exceeded frequently"
+          description: "High rate of 429 responses ({{ $value | printf \"%.1f\" }}/s). Possible abuse or misconfiguration."
+
+      # Suspicious data export
+      - alert: LargeDataExport
+        expr: sum(rate(http_server_requests_seconds_count{uri=~"/api/v1/export.*", status="200"}[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          category: security
+          team: security
+        annotations:
+          summary: "Unusual data export activity"
+          description: "High rate of data export requests detected. Verify if authorized."
+
+  # ===========================================================================
+  # 8. OBSERVABILITY STACK ALERTS
+  # ===========================================================================
+  - name: observability-health
+    interval: 30s
+    rules:
+      # Prometheus target down
+      - alert: PrometheusTargetDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: warning
+          category: monitoring
+          team: devops
+        annotations:
+          summary: "Prometheus target {{ $labels.job }} is down"
+          description: "Unable to scrape metrics from {{ $labels.job }}. Monitoring coverage reduced."
+
+      # Loki down
+      - alert: LokiDown
+        expr: up{job="loki"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          category: monitoring
+          team: devops
+        annotations:
+          summary: "Loki is down"
+          description: "Log aggregation is unavailable. Log data may be lost."
+
+      # Jaeger down
+      - alert: JaegerDown
+        expr: up{job="jaeger"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          category: monitoring
+          team: devops
+        annotations:
+          summary: "Jaeger is down"
+          description: "Distributed tracing is unavailable. Troubleshooting capability reduced."
+
+      # Grafana down
+      - alert: GrafanaDown
+        expr: up{job="grafana"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          category: monitoring
+          team: devops
+        annotations:
+          summary: "Grafana is down"
+          description: "Grafana dashboards are unavailable. Manual metric checks required."
+
+      # AlertManager not receiving alerts (deadman switch)
+      - alert: AlertmanagerWatchdog
+        expr: vector(1)
+        for: 1m
+        labels:
+          severity: none
+          category: monitoring
+        annotations:
+          summary: "AlertManager watchdog"
+          description: "This is a watchdog alert. If you stop receiving this, AlertManager is down."

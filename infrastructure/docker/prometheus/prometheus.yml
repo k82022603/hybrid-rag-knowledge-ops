@@ -1,6 +1,10 @@
 # =============================================================================
 # Prometheus Configuration - Knowledge Platform Monitoring
 # =============================================================================
+# Version: 2.0.0
+# Updated: 2026-02-04
+# Description: Production-ready Prometheus config with AlertManager integration
+# =============================================================================
 
 global:
   scrape_interval: 15s
@@ -9,29 +13,53 @@ global:
     cluster: 'knowledge-platform'
     env: 'docker-compose'
 
-# Alertmanager configuration (optional)
-# alerting:
-#   alertmanagers:
-#     - static_configs:
-#         - targets:
-#           - alertmanager:9093
+# =============================================================================
+# ALERTMANAGER CONFIGURATION
+# =============================================================================
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+      timeout: 10s
+      api_version: v2
 
-# Rule files
+# =============================================================================
+# RULE FILES
+# =============================================================================
 rule_files:
   - /etc/prometheus/rules/*.yml
 
-# Scrape configurations
+# =============================================================================
+# SCRAPE CONFIGURATIONS
+# =============================================================================
 scrape_configs:
+  # ---------------------------------------------------------------------------
+  # Self-Monitoring
+  # ---------------------------------------------------------------------------
   # Prometheus self-monitoring
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']
         labels:
           service: 'prometheus'
+          layer: 'monitoring'
 
+  # AlertManager
+  - job_name: 'alertmanager'
+    static_configs:
+      - targets: ['alertmanager:9093']
+        labels:
+          service: 'alertmanager'
+          layer: 'monitoring'
+
+  # ---------------------------------------------------------------------------
+  # Application Layer
+  # ---------------------------------------------------------------------------
   # API Gateway (Spring Boot Actuator)
   - job_name: 'api-gateway'
     metrics_path: '/actuator/prometheus'
+    scrape_interval: 15s
     static_configs:
       - targets: ['api-gateway:8080']
         labels:
@@ -41,6 +69,7 @@ scrape_configs:
   # Backend Service (Spring Boot Actuator)
   - job_name: 'backend'
     metrics_path: '/actuator/prometheus'
+    scrape_interval: 15s
     static_configs:
       - targets: ['backend:8081']
         labels:
@@ -50,22 +79,41 @@ scrape_configs:
   # AI Service (FastAPI)
   - job_name: 'ai-service'
     metrics_path: '/metrics'
+    scrape_interval: 15s
     static_configs:
       - targets: ['ai-service:8000']
         labels:
           service: 'ai-service'
           layer: 'application'
 
+  # Frontend (nginx static server - basic metrics if available)
+  - job_name: 'frontend'
+    metrics_path: '/stub_status'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['frontend:80']
+        labels:
+          service: 'frontend'
+          layer: 'application'
+
+  # ---------------------------------------------------------------------------
+  # Auth Layer
+  # ---------------------------------------------------------------------------
   # Keycloak
   - job_name: 'keycloak'
     metrics_path: '/metrics'
+    scrape_interval: 30s
     static_configs:
       - targets: ['keycloak:8080']
         labels:
           service: 'keycloak'
           layer: 'auth'
 
+  # ---------------------------------------------------------------------------
+  # Database Layer
+  # ---------------------------------------------------------------------------
   # PostgreSQL (via postgres-exporter if available)
+  # Uncomment when postgres-exporter is added
   # - job_name: 'postgresql'
   #   static_configs:
   #     - targets: ['postgres-exporter:9187']
@@ -76,15 +124,26 @@ scrape_configs:
   # Elasticsearch
   - job_name: 'elasticsearch'
     metrics_path: '/_prometheus/metrics'
+    scrape_interval: 30s
+    scrape_timeout: 10s
     static_configs:
       - targets: ['elasticsearch:9200']
         labels:
           service: 'elasticsearch'
           layer: 'database'
-    # Alternative: Use elasticsearch-exporter
-    # - targets: ['elasticsearch-exporter:9114']
 
-  # Redis
+  # Neo4j
+  - job_name: 'neo4j'
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+    static_configs:
+      - targets: ['neo4j:2004']
+        labels:
+          service: 'neo4j'
+          layer: 'database'
+
+  # Redis (via redis-exporter if available)
+  # Uncomment when redis-exporter is added
   # - job_name: 'redis'
   #   static_configs:
   #     - targets: ['redis-exporter:9121']
@@ -92,23 +151,9 @@ scrape_configs:
   #         service: 'redis'
   #         layer: 'database'
 
-  # Neo4j
-  - job_name: 'neo4j'
-    metrics_path: '/metrics'
-    static_configs:
-      - targets: ['neo4j:2004']
-        labels:
-          service: 'neo4j'
-          layer: 'database'
-
-  # Nginx (via nginx-prometheus-exporter if available)
-  # - job_name: 'nginx'
-  #   static_configs:
-  #     - targets: ['nginx-exporter:9113']
-  #       labels:
-  #         service: 'nginx'
-  #         layer: 'proxy'
-
+  # ---------------------------------------------------------------------------
+  # Monitoring Layer
+  # ---------------------------------------------------------------------------
   # Loki
   - job_name: 'loki'
     static_configs:
@@ -124,3 +169,23 @@ scrape_configs:
         labels:
           service: 'jaeger'
           layer: 'monitoring'
+
+  # Grafana
+  - job_name: 'grafana'
+    static_configs:
+      - targets: ['grafana:3000']
+        labels:
+          service: 'grafana'
+          layer: 'monitoring'
+
+  # ---------------------------------------------------------------------------
+  # Proxy Layer
+  # ---------------------------------------------------------------------------
+  # Nginx (via nginx-prometheus-exporter if available)
+  # Uncomment when nginx-exporter is added
+  # - job_name: 'nginx'
+  #   static_configs:
+  #     - targets: ['nginx-exporter:9113']
+  #       labels:
+  #         service: 'nginx'
+  #         layer: 'proxy'

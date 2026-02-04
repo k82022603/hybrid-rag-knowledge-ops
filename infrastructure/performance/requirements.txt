@@ -1,0 +1,18 @@
+# Performance Testing Requirements
+# STORY-081: Performance Baseline Testing
+
+# Locust - Python Load Testing Framework
+locust>=2.20.0
+
+# For advanced test scenarios
+gevent>=23.9.0
+
+# For JSON/YAML handling
+pyyaml>=6.0
+
+# For report generation
+jinja2>=3.1.0
+
+# For metrics analysis
+pandas>=2.0.0
+numpy>=1.24.0
