@@ -1,0 +1,88 @@
+# ============================================================
+# Production Profile - Netty Log Optimization
+# SCRUM-62: Netty Channel Error 대응 (프로덕션 로그 최적화)
+# ============================================================
+
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  cloud:
+    gateway:
+      httpclient:
+        # 프로덕션: wiretap 비활성화 (보안 및 성능)
+        wiretap: false
+
+# ============================================================
+# Logging Configuration - Production Optimized
+# ============================================================
+# 원칙:
+# 1. 비즈니스 로직: INFO 이상
+# 2. 프레임워크: WARN 이상
+# 3. Netty/Reactor: ERROR 이상 (Channel 에러 노이즈 제거)
+# ============================================================
+logging:
+  level:
+    # Application Level
+    root: INFO
+    com.knowledge.gateway: INFO
+
+    # Spring Framework
+    org.springframework.cloud.gateway: WARN
+    org.springframework.cloud.gateway.filter: INFO
+    org.springframework.cloud.gateway.route: INFO
+    org.springframework.security: WARN
+
+    # ============================================================
+    # Netty & Reactor - Production Level (ERROR only)
+    # ============================================================
+    # 연결 관련 에러는 대부분 클라이언트 측 문제 (무시 가능)
+    # - Connection reset by peer
+    # - Premature close before response
+    # - Channel closed unexpectedly
+    # ============================================================
+    reactor.netty: WARN
+    reactor.netty.http.client: WARN
+    reactor.netty.http.server: WARN
+    io.netty: WARN
+    io.netty.channel: WARN
+    io.netty.handler: WARN
+
+    # 특정 노이즈 필터링 (Channel Operation 에러)
+    reactor.netty.channel.ChannelOperationsHandler: ERROR
+    reactor.netty.http.client.HttpClientOperations: ERROR
+    reactor.netty.resources.DefaultPooledConnectionProvider: ERROR
+
+    # Connection Pool 관련 (필요한 경우만 로깅)
+    reactor.netty.resources.PooledConnectionProvider: WARN
+
+    # ============================================================
+    # Resilience4j - 중요한 이벤트만 로깅
+    # ============================================================
+    io.github.resilience4j: INFO
+    io.github.resilience4j.circuitbreaker: INFO
+
+    # ============================================================
+    # Redis (Rate Limiter)
+    # ============================================================
+    org.springframework.data.redis: WARN
+    io.lettuce: WARN
+
+  # Pattern for production logs
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# ============================================================
+# Management Endpoints - Production Security
+# ============================================================
+management:
+  endpoint:
+    health:
+      show-details: when_authorized
+  endpoints:
+    web:
+      exposure:
+        # 프로덕션: 최소 엔드포인트만 노출
+        include: health,info,prometheus,metrics

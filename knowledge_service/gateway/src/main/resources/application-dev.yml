@@ -1,0 +1,84 @@
+# ============================================================
+# Development Profile - Enhanced Debugging
+# SCRUM-62: Netty Channel Error 대응 (개발/디버깅용)
+# ============================================================
+
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  cloud:
+    gateway:
+      httpclient:
+        # 개발: 필요시 wiretap 활성화 (HTTP 요청/응답 상세 로깅)
+        wiretap: false  # true로 변경하면 상세 와이어로그 활성화
+
+# ============================================================
+# Logging Configuration - Development (Enhanced Debug)
+# ============================================================
+# 개발 환경에서는 더 상세한 로그 필요
+# 단, Netty 채널 노이즈는 여전히 필터링
+# ============================================================
+logging:
+  level:
+    # Application Level - DEBUG for development
+    root: INFO
+    com.knowledge.gateway: DEBUG
+
+    # Spring Framework - DEBUG for request tracing
+    org.springframework.cloud.gateway: DEBUG
+    org.springframework.cloud.gateway.filter: DEBUG
+    org.springframework.cloud.gateway.route: DEBUG
+    org.springframework.cloud.gateway.handler: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.security.web: DEBUG
+
+    # ============================================================
+    # Netty & Reactor - Development Level
+    # ============================================================
+    # INFO: 연결 생성/해제 이벤트만 로깅
+    # DEBUG: 상세 와이어로그 (wiretap: true와 함께 사용)
+    # ============================================================
+    reactor.netty: INFO
+    reactor.netty.http.client: INFO
+    reactor.netty.http.server: INFO
+    io.netty: INFO
+    io.netty.channel: INFO
+
+    # Channel Operation 에러 - 개발에서도 WARN (노이즈 감소)
+    reactor.netty.channel.ChannelOperationsHandler: WARN
+    reactor.netty.http.client.HttpClientOperations: WARN
+
+    # Connection Pool - INFO for connection lifecycle
+    reactor.netty.resources.PooledConnectionProvider: INFO
+    reactor.netty.resources.DefaultPooledConnectionProvider: INFO
+
+    # ============================================================
+    # Resilience4j - 상세 로깅
+    # ============================================================
+    io.github.resilience4j: DEBUG
+    io.github.resilience4j.circuitbreaker: DEBUG
+
+    # ============================================================
+    # Redis (Rate Limiter) - 개발 시 상세 확인
+    # ============================================================
+    org.springframework.data.redis: DEBUG
+    io.lettuce: INFO
+
+  # Pattern for development logs (with more context)
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %highlight(%-5level) %cyan(%logger{36}) - %msg%n"
+
+# ============================================================
+# Management Endpoints - Development Full Access
+# ============================================================
+management:
+  endpoint:
+    health:
+      show-details: always
+  endpoints:
+    web:
+      exposure:
+        # 개발: 모든 엔드포인트 노출
+        include: health,info,prometheus,gateway,metrics,env,configprops

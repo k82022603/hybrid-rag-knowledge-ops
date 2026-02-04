@@ -358,20 +358,51 @@ resilience4j:
       ai-service-circuit-breaker:
         timeout-duration: 60s
 
+# ============================================================
 # Logging Configuration
-# SCRUM-62: Netty/Reactor 디버그 로그 추가 (에러 분석용)
+# SCRUM-62: Netty/Reactor 로그 최적화
+# ============================================================
+# 프로필별 로그 레벨:
+# - local (기본): 적절한 디버깅 + 노이즈 필터링
+# - dev: 상세 디버깅 (application-dev.yml)
+# - prod: 최소 로깅 (application-prod.yml)
+# ============================================================
 logging:
   level:
+    # Application Level
     root: INFO
     com.knowledge.gateway: DEBUG
+
+    # Spring Framework
     org.springframework.cloud.gateway: DEBUG
+    org.springframework.cloud.gateway.filter: INFO
     org.springframework.security: DEBUG
-    # Netty & Reactor 디버그 (연결 에러 분석용)
-    reactor.netty: DEBUG
-    reactor.netty.http.client: DEBUG
-    io.netty: DEBUG
-    # 연결 끊김 로그 레벨 조정 (노이즈 감소)
-    reactor.netty.channel.ChannelOperationsHandler: WARN
+
+    # ============================================================
+    # Netty & Reactor - Optimized for Local Development
+    # ============================================================
+    # INFO: 연결 이벤트만 로깅 (DEBUG 대신)
+    # Channel 에러 노이즈 필터링 적용
+    # ============================================================
+    reactor.netty: INFO
+    reactor.netty.http.client: INFO
+    reactor.netty.http.server: INFO
+    io.netty: WARN
+    io.netty.channel: WARN
+    io.netty.handler: WARN
+
+    # Channel Operation 에러 - 노이즈 감소 (WARN → ERROR)
+    # Connection reset, Premature close 등 무시
+    reactor.netty.channel.ChannelOperationsHandler: ERROR
+    reactor.netty.http.client.HttpClientOperations: ERROR
+
+    # Connection Pool - 연결 라이프사이클 모니터링
+    reactor.netty.resources.PooledConnectionProvider: INFO
+    reactor.netty.resources.DefaultPooledConnectionProvider: WARN
+
+    # Resilience4j
+    io.github.resilience4j: INFO
+    io.github.resilience4j.circuitbreaker: INFO
 
 ---
 # Docker Profile
@@ -603,15 +634,37 @@ spring:
 cors:
   allowed-origins: http://localhost,http://localhost:80,${FRONTEND_URL:http://localhost:3000}
 
-# SCRUM-62: Netty/Reactor 디버그 로그 추가 (Docker Profile)
+# ============================================================
+# SCRUM-62: Netty/Reactor 로그 최적화 (Docker Profile)
+# ============================================================
+# Docker 환경: 프로덕션에 가까운 로그 레벨 적용
+# ============================================================
 logging:
   level:
+    # Application Level
     root: INFO
-    com.knowledge.gateway: DEBUG
-    org.springframework.cloud.gateway: DEBUG
-    # Netty & Reactor 디버그 (연결 에러 분석용)
-    reactor.netty: DEBUG
-    reactor.netty.http.client: DEBUG
-    io.netty: DEBUG
-    # 연결 끊김 로그 레벨 조정 (노이즈 감소)
-    reactor.netty.channel.ChannelOperationsHandler: WARN
+    com.knowledge.gateway: INFO
+
+    # Spring Framework
+    org.springframework.cloud.gateway: WARN
+    org.springframework.cloud.gateway.filter: INFO
+    org.springframework.security: WARN
+
+    # Netty & Reactor - Production-like (노이즈 최소화)
+    reactor.netty: WARN
+    reactor.netty.http.client: WARN
+    reactor.netty.http.server: WARN
+    io.netty: WARN
+    io.netty.channel: ERROR
+    io.netty.handler: ERROR
+
+    # Channel Operation 에러 - ERROR only (노이즈 제거)
+    reactor.netty.channel.ChannelOperationsHandler: ERROR
+    reactor.netty.http.client.HttpClientOperations: ERROR
+    reactor.netty.resources.DefaultPooledConnectionProvider: ERROR
+
+    # Connection Pool
+    reactor.netty.resources.PooledConnectionProvider: WARN
+
+    # Resilience4j
+    io.github.resilience4j: INFO
