@@ -15,6 +15,8 @@ interface ImportMetaEnv {
   readonly VITE_APP_NAME: string;
   /** Application version */
   readonly VITE_APP_VERSION: string;
+  /** Development test accounts (format: email:password,email:password,...) */
+  readonly VITE_DEV_TEST_ACCOUNTS?: string;
 }
 
 interface ImportMeta {

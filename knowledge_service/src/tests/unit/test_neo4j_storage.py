@@ -68,6 +68,11 @@ Neo4jStorageService = _neo4j_module.Neo4jStorageService
 get_neo4j_storage_service = _neo4j_module.get_neo4j_storage_service
 reset_neo4j_storage_service = _neo4j_module.reset_neo4j_storage_service
 _get_neo4j_label = _neo4j_module._get_neo4j_label
+# 전략 패턴 관련 모듈
+EntityLabelStrategy = _neo4j_module.EntityLabelStrategy
+_get_label_strategy = _neo4j_module._get_label_strategy
+_LABEL_STRATEGIES = _neo4j_module._LABEL_STRATEGIES
+_DEFAULT_STRATEGY = _neo4j_module._DEFAULT_STRATEGY
 
 # 상태 모듈에서 Entity, Relationship 가져오기
 from app.agents.state import Entity, Relationship
@@ -530,6 +535,59 @@ class TestQuerySubgraph:
         cypher = mock_session.run.call_args[0][0]
         assert "3" in cypher
 
+    @pytest.mark.asyncio
+    async def test_query_subgraph_depth_validation_non_integer(self, service):
+        """depth가 정수가 아닐 경우 ValueError 발생 (Cypher 인젝션 방지)"""
+        mock_driver, _ = _make_mock_driver()
+        service._driver = mock_driver
+
+        with pytest.raises(ValueError) as exc_info:
+            await service.query_subgraph("Python", depth="3; DROP DATABASE")  # type: ignore
+
+        assert "must be an integer" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_query_subgraph_depth_clamped_to_max(self, service):
+        """depth가 최대값(5)을 초과할 경우 5로 제한"""
+        mock_driver, mock_session = _make_mock_driver()
+        mock_result = _make_mock_result(records=[], single_value=None)
+        mock_session.run = AsyncMock(return_value=mock_result)
+        service._driver = mock_driver
+
+        await service.query_subgraph("Python", depth=10)
+
+        # Cypher 쿼리에 최대값 5가 반영되었는지 확인
+        cypher = mock_session.run.call_args[0][0]
+        assert "[*1..5]" in cypher
+
+    @pytest.mark.asyncio
+    async def test_query_subgraph_depth_clamped_to_min(self, service):
+        """depth가 최소값(1) 미만일 경우 1로 제한"""
+        mock_driver, mock_session = _make_mock_driver()
+        mock_result = _make_mock_result(records=[], single_value=None)
+        mock_session.run = AsyncMock(return_value=mock_result)
+        service._driver = mock_driver
+
+        await service.query_subgraph("Python", depth=0)
+
+        # Cypher 쿼리에 최소값 1이 반영되었는지 확인
+        cypher = mock_session.run.call_args[0][0]
+        assert "[*1..1]" in cypher
+
+    @pytest.mark.asyncio
+    async def test_query_subgraph_depth_valid_range(self, service):
+        """depth가 유효 범위(1-5) 내에 있으면 그대로 사용"""
+        mock_driver, mock_session = _make_mock_driver()
+        mock_result = _make_mock_result(records=[], single_value=None)
+        mock_session.run = AsyncMock(return_value=mock_result)
+        service._driver = mock_driver
+
+        await service.query_subgraph("Python", depth=4)
+
+        # Cypher 쿼리에 지정한 depth가 반영되었는지 확인
+        cypher = mock_session.run.call_args[0][0]
+        assert "[*1..4]" in cypher
+
 
 # ---------------------------------------------------------------------------
 # Tests: get_entity_by_name
@@ -748,3 +806,155 @@ class TestNodeToDict:
         """변환 불가능한 노드"""
         result = Neo4jStorageService._node_to_dict(42)
         assert "_raw" in result
+
+
+# ---------------------------------------------------------------------------
+# EntityLabelStrategy 전략 패턴 테스트 (SCRUM-64 TECH-DEBT-001)
+# ---------------------------------------------------------------------------
+
+
+class TestEntityLabelStrategy:
+    """EntityLabelStrategy 전략 패턴 테스트
+
+    if/elif/else 체인을 딕셔너리 매핑으로 리팩토링한 결과 검증
+    """
+
+    def test_strategy_exists_for_all_labels(self):
+        """모든 주요 라벨에 전략이 정의되어 있는지 확인"""
+        assert "Person" in _LABEL_STRATEGIES
+        assert "Technology" in _LABEL_STRATEGIES
+        assert "Topic" in _LABEL_STRATEGIES
+        assert "Keyword" in _LABEL_STRATEGIES
+
+    def test_person_strategy_config(self):
+        """Person 전략 설정 검증"""
+        strategy = _get_label_strategy("Person")
+        assert strategy.merge_key == "name"
+        assert strategy.include_entity_type is True
+        assert strategy.include_slug is False
+
+    def test_technology_strategy_config(self):
+        """Technology 전략 설정 검증"""
+        strategy = _get_label_strategy("Technology")
+        assert strategy.merge_key == "name"
+        assert strategy.include_entity_type is False
+        assert strategy.include_slug is False
+
+    def test_topic_strategy_config(self):
+        """Topic 전략 설정 검증"""
+        strategy = _get_label_strategy("Topic")
+        assert strategy.merge_key == "name"
+        assert strategy.include_entity_type is False
+        assert strategy.include_slug is True
+
+    def test_keyword_strategy_config(self):
+        """Keyword 전략 설정 검증"""
+        strategy = _get_label_strategy("Keyword")
+        assert strategy.merge_key == "value"
+        assert strategy.include_entity_type is True
+        assert strategy.include_slug is False
+
+    def test_unknown_label_returns_default_strategy(self):
+        """알 수 없는 라벨은 기본 전략 반환"""
+        strategy = _get_label_strategy("UnknownLabel")
+        assert strategy == _DEFAULT_STRATEGY
+        assert strategy.merge_key == "value"
+        assert strategy.include_entity_type is True
+
+    def test_build_entity_data_person(self):
+        """Person 엔티티 데이터 생성 검증"""
+        strategy = _get_label_strategy("Person")
+        entity = Entity(
+            id="e1",
+            name="홍길동",
+            type="Person",
+            description="테스트 개발자",
+        )
+        data = strategy.build_entity_data(entity)
+
+        assert data["merge_val"] == "홍길동"
+        assert data["description"] == "테스트 개발자"
+        assert data["original_id"] == "e1"
+        assert data["entity_type"] == "Person"  # include_entity_type=True
+        assert "slug" not in data  # include_slug=False
+
+    def test_build_entity_data_topic(self):
+        """Topic 엔티티 데이터 생성 검증 (slug 포함)"""
+        strategy = _get_label_strategy("Topic")
+        entity = Entity(
+            id="e2",
+            name="Machine Learning",
+            type="Concept",
+            description="AI 기술",
+        )
+        data = strategy.build_entity_data(entity)
+
+        assert data["merge_val"] == "Machine Learning"
+        assert data["slug"] == "machine-learning"  # include_slug=True
+        assert "entity_type" not in data  # include_entity_type=False
+
+    def test_build_entity_data_technology(self):
+        """Technology 엔티티 데이터 생성 검증"""
+        strategy = _get_label_strategy("Technology")
+        entity = Entity(
+            id="e3",
+            name="Python",
+            type="Technology",
+            description="프로그래밍 언어",
+        )
+        data = strategy.build_entity_data(entity)
+
+        assert data["merge_val"] == "Python"
+        assert data["description"] == "프로그래밍 언어"
+        assert "entity_type" not in data  # include_entity_type=False
+        assert "slug" not in data  # include_slug=False
+
+    def test_build_cypher_person(self):
+        """Person Cypher 쿼리 생성 검증"""
+        strategy = _get_label_strategy("Person")
+        cypher = strategy.build_cypher("Person")
+
+        assert "MERGE (n:Person {name: ent.merge_val})" in cypher
+        assert "n.entity_type = ent.entity_type" in cypher
+        assert "n.description = ent.description" in cypher
+        assert "n.original_id = ent.original_id" in cypher
+        assert "n.updated_at = $now" in cypher
+
+    def test_build_cypher_topic(self):
+        """Topic Cypher 쿼리 생성 검증 (slug 포함)"""
+        strategy = _get_label_strategy("Topic")
+        cypher = strategy.build_cypher("Topic")
+
+        assert "MERGE (n:Topic {name: ent.merge_val})" in cypher
+        assert "n.slug = ent.slug" in cypher
+        assert "entity_type" not in cypher  # include_entity_type=False
+
+    def test_build_cypher_keyword(self):
+        """Keyword Cypher 쿼리 생성 검증 (value 필드)"""
+        strategy = _get_label_strategy("Keyword")
+        cypher = strategy.build_cypher("Keyword")
+
+        assert "MERGE (n:Keyword {value: ent.merge_val})" in cypher
+        assert "n.entity_type = ent.entity_type" in cypher
+
+    def test_default_strategy_for_new_label(self):
+        """새 라벨 추가 시 기본 전략으로 폴백"""
+        # 새로운 라벨 타입이 추가되더라도 기본 전략으로 동작
+        strategy = _get_label_strategy("NewCustomLabel")
+        assert strategy.merge_key == "value"
+
+        cypher = strategy.build_cypher("NewCustomLabel")
+        assert "MERGE (n:NewCustomLabel {value: ent.merge_val})" in cypher
+
+    def test_entity_data_with_none_description(self):
+        """description이 None인 경우 빈 문자열로 처리"""
+        strategy = _get_label_strategy("Technology")
+        entity = Entity(
+            id="e4",
+            name="Go",
+            type="Technology",
+            description=None,
+        )
+        data = strategy.build_entity_data(entity)
+
+        assert data["description"] == ""

@@ -10,6 +10,21 @@ spring:
   # Cloud Gateway Configuration
   cloud:
     gateway:
+      # ==============================================
+      # HttpClient Configuration (Connection Pool & Timeouts)
+      # SCRUM-62: Netty Channel Error 대응
+      # ==============================================
+      httpclient:
+        connect-timeout: 10000
+        response-timeout: 60s
+        pool:
+          type: elastic
+          max-connections: 500
+          acquire-timeout: 45000
+          max-idle-time: 20000
+          evict-in-background: 30s
+        wiretap: false  # 프로덕션에서는 false, 디버깅 시 true
+
       default-filters:
         - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
       globalcors:
@@ -344,12 +359,19 @@ resilience4j:
         timeout-duration: 60s
 
 # Logging Configuration
+# SCRUM-62: Netty/Reactor 디버그 로그 추가 (에러 분석용)
 logging:
   level:
     root: INFO
     com.knowledge.gateway: DEBUG
     org.springframework.cloud.gateway: DEBUG
     org.springframework.security: DEBUG
+    # Netty & Reactor 디버그 (연결 에러 분석용)
+    reactor.netty: DEBUG
+    reactor.netty.http.client: DEBUG
+    io.netty: DEBUG
+    # 연결 끊김 로그 레벨 조정 (노이즈 감소)
+    reactor.netty.channel.ChannelOperationsHandler: WARN
 
 ---
 # Docker Profile
@@ -360,6 +382,21 @@ spring:
 
   cloud:
     gateway:
+      # ==============================================
+      # HttpClient Configuration (Docker Profile)
+      # SCRUM-62: Netty Channel Error 대응
+      # ==============================================
+      httpclient:
+        connect-timeout: 10000
+        response-timeout: 60s
+        pool:
+          type: elastic
+          max-connections: 500
+          acquire-timeout: 45000
+          max-idle-time: 20000
+          evict-in-background: 30s
+        wiretap: false  # 프로덕션에서는 false
+
       globalcors:
         cors-configurations:
           '[/**]':
@@ -566,8 +603,15 @@ spring:
 cors:
   allowed-origins: http://localhost,http://localhost:80,${FRONTEND_URL:http://localhost:3000}
 
+# SCRUM-62: Netty/Reactor 디버그 로그 추가 (Docker Profile)
 logging:
   level:
     root: INFO
-    com.knowledge.gateway: INFO
-    org.springframework.cloud.gateway: INFO
+    com.knowledge.gateway: DEBUG
+    org.springframework.cloud.gateway: DEBUG
+    # Netty & Reactor 디버그 (연결 에러 분석용)
+    reactor.netty: DEBUG
+    reactor.netty.http.client: DEBUG
+    io.netty: DEBUG
+    # 연결 끊김 로그 레벨 조정 (노이즈 감소)
+    reactor.netty.channel.ChannelOperationsHandler: WARN

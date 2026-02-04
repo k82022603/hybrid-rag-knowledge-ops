@@ -3,7 +3,21 @@
  *
  * Keycloak 인스턴스 설정 및 초기화
  */
-import Keycloak from 'keycloak-js';
+import Keycloak, { KeycloakTokenParsed } from 'keycloak-js';
+
+/**
+ * 확장된 Keycloak 토큰 인터페이스
+ *
+ * Keycloak의 표준 토큰 필드 외에 커스텀 필드를 포함합니다.
+ * - department: 사용자 부서 정보
+ * - employee_id: 사번
+ */
+export interface ExtendedKeycloakTokenParsed extends KeycloakTokenParsed {
+  /** 사용자 부서 정보 */
+  department?: string;
+  /** 사번 */
+  employee_id?: string;
+}
 
 // Keycloak 설정
 const keycloakConfig = {
@@ -62,8 +76,8 @@ export const getToken = (): string | undefined => {
 };
 
 // 토큰 파싱 정보 가져오기
-export const getTokenParsed = (): Keycloak.KeycloakTokenParsed | undefined => {
-  return keycloak.tokenParsed;
+export const getTokenParsed = (): ExtendedKeycloakTokenParsed | undefined => {
+  return keycloak.tokenParsed as ExtendedKeycloakTokenParsed | undefined;
 };
 
 // 인증 여부 확인
@@ -81,9 +95,13 @@ export const hasResourceRole = (role: string, resource?: string): boolean => {
   return keycloak.hasResourceRole(role, resource);
 };
 
-// 사용자 정보 가져오기
+/**
+ * 사용자 정보 가져오기
+ *
+ * @returns 사용자 정보 객체 또는 null (토큰이 없는 경우)
+ */
 export const getUserInfo = () => {
-  const tokenParsed = keycloak.tokenParsed;
+  const tokenParsed = keycloak.tokenParsed as ExtendedKeycloakTokenParsed | undefined;
   if (!tokenParsed) return null;
 
   return {
@@ -93,8 +111,8 @@ export const getUserInfo = () => {
     name: tokenParsed.name || '',
     firstName: tokenParsed.given_name || '',
     lastName: tokenParsed.family_name || '',
-    department: (tokenParsed as any).department || '',
-    employeeId: (tokenParsed as any).employee_id || '',
+    department: tokenParsed.department || '',
+    employeeId: tokenParsed.employee_id || '',
     roles: tokenParsed.realm_access?.roles || [],
   };
 };

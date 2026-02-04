@@ -28,26 +28,8 @@ export interface AuthState {
 }
 
 // Keycloak 토큰 정보
-export interface KeycloakTokenParsed {
-  sub: string;
-  preferred_username: string;
-  email: string;
-  name?: string;
-  given_name?: string;
-  family_name?: string;
-  department?: string;
-  employee_id?: string;
-  realm_access?: {
-    roles: string[];
-  };
-  resource_access?: {
-    [key: string]: {
-      roles: string[];
-    };
-  };
-  exp?: number;
-  iat?: number;
-}
+// 참고: 타입 안전한 Keycloak 토큰 접근은 auth/keycloak.ts의 ExtendedKeycloakTokenParsed를 사용하세요.
+export type { ExtendedKeycloakTokenParsed } from '../auth/keycloak';
 
 // 페이지네이션 타입
 export interface Pagination {

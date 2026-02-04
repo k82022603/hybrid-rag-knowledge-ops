@@ -96,15 +96,19 @@ const LoginPage: React.FC = () => {
         </div>
 
         {/* Development Info */}
-        {import.meta.env.DEV && (
+        {import.meta.env.DEV && import.meta.env.VITE_DEV_TEST_ACCOUNTS && (
           <div className="mt-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
             <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-200 mb-2">
               Development Mode - Test Accounts
             </h3>
             <ul className="text-xs text-yellow-700 dark:text-yellow-300 space-y-1">
-              <li>Admin: admin@example.com / admin123!</li>
-              <li>Manager: manager@example.com / manager123!</li>
-              <li>User: user@example.com / user123!</li>
+              {(import.meta.env.VITE_DEV_TEST_ACCOUNTS as string).split(',').map((account, index) => {
+                const [email, password] = account.split(':');
+                const role = email.split('@')[0].charAt(0).toUpperCase() + email.split('@')[0].slice(1);
+                return (
+                  <li key={index}>{role}: {email} / {password}</li>
+                );
+              })}
             </ul>
           </div>
         )}

@@ -52,6 +52,124 @@ _ENTITY_TYPE_ID_FIELD_MAP: Dict[str, str] = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Entity Label Strategy Pattern
+# ---------------------------------------------------------------------------
+
+from dataclasses import dataclass
+from typing import Callable
+
+
+@dataclass
+class EntityLabelStrategy:
+    """엔티티 라벨별 저장 전략
+
+    각 Neo4j 라벨에 대한 저장 로직을 캡슐화합니다.
+
+    Attributes:
+        merge_key: MERGE 절에서 사용할 필드명 (name, value 등)
+        include_entity_type: entity_type 필드 포함 여부
+        include_slug: slug 필드 포함 여부 (Topic용)
+        extra_fields: 추가 SET 절 필드 목록
+    """
+
+    merge_key: str = "name"
+    include_entity_type: bool = False
+    include_slug: bool = False
+
+    def build_entity_data(self, entity: Any) -> Dict[str, Any]:
+        """엔티티를 Cypher 파라미터로 변환
+
+        Args:
+            entity: Entity 객체
+
+        Returns:
+            Cypher UNWIND에서 사용할 딕셔너리
+        """
+        data = {
+            "merge_val": entity.name,
+            "description": entity.description or "",
+            "original_id": entity.id,
+        }
+        if self.include_entity_type:
+            data["entity_type"] = entity.type
+        if self.include_slug:
+            data["slug"] = entity.name.lower().replace(" ", "-")
+        return data
+
+    def build_cypher(self, label: str) -> str:
+        """라벨에 맞는 Cypher 쿼리 생성
+
+        Args:
+            label: Neo4j 노드 라벨
+
+        Returns:
+            UNWIND + MERGE Cypher 쿼리 문자열
+        """
+        set_clauses = ["n.description = ent.description",
+                       "n.original_id = ent.original_id",
+                       "n.updated_at = $now"]
+
+        if self.include_entity_type:
+            set_clauses.insert(0, "n.entity_type = ent.entity_type")
+        if self.include_slug:
+            set_clauses.insert(0, "n.slug = ent.slug")
+
+        set_clause = ",\n                ".join(set_clauses)
+
+        return f"""
+            UNWIND $entities AS ent
+            MERGE (n:{label} {{{self.merge_key}: ent.merge_val}})
+            SET {set_clause}
+            RETURN count(n) AS cnt
+            """
+
+
+# 라벨별 저장 전략 매핑
+# 새로운 엔티티 타입 추가 시 이 딕셔너리에만 추가하면 됨
+_LABEL_STRATEGIES: Dict[str, EntityLabelStrategy] = {
+    "Person": EntityLabelStrategy(
+        merge_key="name",
+        include_entity_type=True,
+        include_slug=False,
+    ),
+    "Technology": EntityLabelStrategy(
+        merge_key="name",
+        include_entity_type=False,
+        include_slug=False,
+    ),
+    "Topic": EntityLabelStrategy(
+        merge_key="name",
+        include_entity_type=False,
+        include_slug=True,
+    ),
+    "Keyword": EntityLabelStrategy(
+        merge_key="value",
+        include_entity_type=True,
+        include_slug=False,
+    ),
+}
+
+# 기본 전략 (매핑에 없는 라벨용)
+_DEFAULT_STRATEGY = EntityLabelStrategy(
+    merge_key="value",
+    include_entity_type=True,
+    include_slug=False,
+)
+
+
+def _get_label_strategy(label: str) -> EntityLabelStrategy:
+    """라벨에 맞는 저장 전략 반환
+
+    Args:
+        label: Neo4j 노드 라벨
+
+    Returns:
+        해당 라벨의 EntityLabelStrategy
+    """
+    return _LABEL_STRATEGIES.get(label, _DEFAULT_STRATEGY)
+
+
 def _get_neo4j_label(entity_type: str) -> str:
     """엔티티 유형을 Neo4j 라벨로 매핑
 
@@ -260,83 +378,10 @@ class Neo4jStorageService:
         """
         now_iso = datetime.now(timezone.utc).isoformat()
 
-        # MERGE key 결정
-        if label == "Person":
-            merge_key = "name"
-            entity_data = [
-                {
-                    "merge_val": e.name,
-                    "entity_type": e.type,
-                    "description": e.description or "",
-                    "original_id": e.id,
-                }
-                for e in entities
-            ]
-            cypher = f"""
-            UNWIND $entities AS ent
-            MERGE (n:{label} {{name: ent.merge_val}})
-            SET n.entity_type = ent.entity_type,
-                n.description = ent.description,
-                n.original_id = ent.original_id,
-                n.updated_at = $now
-            RETURN count(n) AS cnt
-            """
-        elif label == "Technology":
-            entity_data = [
-                {
-                    "merge_val": e.name,
-                    "description": e.description or "",
-                    "original_id": e.id,
-                }
-                for e in entities
-            ]
-            cypher = f"""
-            UNWIND $entities AS ent
-            MERGE (n:{label} {{name: ent.merge_val}})
-            SET n.description = ent.description,
-                n.original_id = ent.original_id,
-                n.updated_at = $now
-            RETURN count(n) AS cnt
-            """
-        elif label == "Topic":
-            entity_data = [
-                {
-                    "merge_val": e.name,
-                    "slug": e.name.lower().replace(" ", "-"),
-                    "description": e.description or "",
-                    "original_id": e.id,
-                }
-                for e in entities
-            ]
-            cypher = f"""
-            UNWIND $entities AS ent
-            MERGE (n:{label} {{name: ent.merge_val}})
-            SET n.slug = ent.slug,
-                n.description = ent.description,
-                n.original_id = ent.original_id,
-                n.updated_at = $now
-            RETURN count(n) AS cnt
-            """
-        else:
-            # Keyword (fallback)
-            entity_data = [
-                {
-                    "merge_val": e.name,
-                    "entity_type": e.type,
-                    "description": e.description or "",
-                    "original_id": e.id,
-                }
-                for e in entities
-            ]
-            cypher = f"""
-            UNWIND $entities AS ent
-            MERGE (n:{label} {{value: ent.merge_val}})
-            SET n.entity_type = ent.entity_type,
-                n.description = ent.description,
-                n.original_id = ent.original_id,
-                n.updated_at = $now
-            RETURN count(n) AS cnt
-            """
+        # 전략 패턴으로 라벨별 저장 로직 처리
+        strategy = _get_label_strategy(label)
+        entity_data = [strategy.build_entity_data(e) for e in entities]
+        cypher = strategy.build_cypher(label)
 
         result = await session.run(
             cypher,
@@ -374,10 +419,9 @@ class Neo4jStorageService:
         """
         now_iso = datetime.now(timezone.utc).isoformat()
 
-        if label == "Keyword":
-            merge_field = "value"
-        else:
-            merge_field = "name"
+        # 전략 패턴에서 merge_key 가져오기
+        strategy = _get_label_strategy(label)
+        merge_field = strategy.merge_key
 
         entity_names = [e.name for e in entities]
 
@@ -463,8 +507,9 @@ class Neo4jStorageService:
                     label_groups.setdefault(key, []).append(rel)
 
                 for (src_label, tgt_label), rels in label_groups.items():
-                    src_field = "value" if src_label == "Keyword" else "name"
-                    tgt_field = "value" if tgt_label == "Keyword" else "name"
+                    # 전략 패턴에서 merge_key 가져오기
+                    src_field = _get_label_strategy(src_label).merge_key
+                    tgt_field = _get_label_strategy(tgt_label).merge_key
 
                     # UNWIND로 벌크 생성
                     cypher = f"""
@@ -675,6 +720,10 @@ class Neo4jStorageService:
     # Query operations
     # ------------------------------------------------------------------
 
+    # 보안: depth 파라미터 허용 범위 (Cypher 인젝션 방지)
+    _MIN_DEPTH = 1
+    _MAX_DEPTH = 5
+
     async def query_subgraph(
         self,
         entity_name: str,
@@ -685,7 +734,7 @@ class Neo4jStorageService:
 
         Args:
             entity_name: 중심 엔티티 이름
-            depth: 탐색 깊이 (기본 2)
+            depth: 탐색 깊이 (기본 2, 범위: 1-5)
             limit: 반환할 최대 노드 수
 
         Returns:
@@ -693,21 +742,46 @@ class Neo4jStorageService:
 
         Raises:
             Neo4jError: 조회 실패 시
+            ValueError: depth 값이 정수가 아닌 경우
         """
+        # ------------------------------------------------------------------
+        # 보안: depth 파라미터 검증 (Cypher 인젝션 방지)
+        # Neo4j 가변 길이 패턴 [*1..n]은 $param 형태의 파라미터 바인딩을
+        # 지원하지 않으므로, 문자열 포맷팅이 필요합니다.
+        # 안전성 확보를 위해 다음 검증을 수행합니다:
+        # 1. 정수형 타입 검증
+        # 2. 허용 범위 제한 (1-5)
+        # ------------------------------------------------------------------
+        if not isinstance(depth, int):
+            raise ValueError(f"depth must be an integer, got {type(depth).__name__}")
+
+        # 범위 제한: 1 <= depth <= 5 (성능 및 보안)
+        validated_depth = max(self._MIN_DEPTH, min(depth, self._MAX_DEPTH))
+        if validated_depth != depth:
+            logger.warning(
+                "depth value clamped: requested=%s, applied=%d (range: %d-%d)",
+                depth,
+                validated_depth,
+                self._MIN_DEPTH,
+                self._MAX_DEPTH,
+            )
+
         driver = self._ensure_driver()
 
         try:
             async with driver.session(database=self._database) as session:
                 # 가변 길이 패턴 매칭 (depth 제한)
-                cypher = """
+                # 주의: Neo4j 가변 길이 패턴 [*1..n]은 파라미터 바인딩 불가
+                # 보안: validated_depth는 위에서 정수형 및 범위(1-5) 검증 완료
+                cypher = f"""
                 MATCH (center)
                 WHERE center.name = $entity_name OR center.value = $entity_name
-                CALL {
+                CALL {{
                     WITH center
-                    MATCH path = (center)-[*1..""" + str(depth) + """]->(related)
+                    MATCH path = (center)-[*1..{validated_depth}]->(related)
                     RETURN related, relationships(path) AS rels
                     LIMIT $limit
-                }
+                }}
                 WITH center, collect(DISTINCT related) AS nodes,
                      collect(rels) AS all_rels
                 RETURN center,
