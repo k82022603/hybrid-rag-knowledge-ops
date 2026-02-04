@@ -7,6 +7,14 @@ spring:
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
 
+  # File Upload Configuration (2GB max)
+  codec:
+    max-in-memory-size: 2GB
+  webflux:
+    multipart:
+      max-file-size: 2GB
+      max-request-size: 2GB
+
   # R2DBC Configuration
   r2dbc:
     url: r2dbc:postgresql://${DATABASE_HOST:localhost}:${DATABASE_PORT:5432}/${DATABASE_NAME:knowledge}

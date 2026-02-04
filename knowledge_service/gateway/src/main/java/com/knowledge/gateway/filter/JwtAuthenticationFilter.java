@@ -110,11 +110,20 @@ public class JwtAuthenticationFilter implements WebFilter {
             UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(userId, null, authorities);
 
-            // Strip the Authorization header from the mutated request.
-            // This prevents the OAuth2 BearerTokenAuthenticationWebFilter from
-            // attempting to re-validate the HS256 token as RS256 (which would fail).
+            // Transform the request for downstream services:
+            // 1. Strip the original Authorization header to prevent OAuth2 re-validation
+            // 2. Add X-Auth-* headers with user information for backend services
+            // Backend trusts these headers when coming from the Gateway (internal network only)
+            String rolesString = String.join(",", roles);
             ServerHttpRequest mutatedRequest = request.mutate()
-                .headers(headers -> headers.remove(HttpHeaders.AUTHORIZATION))
+                .headers(headers -> {
+                    headers.remove(HttpHeaders.AUTHORIZATION);
+                    headers.set("X-Auth-User-Id", userId);
+                    headers.set("X-Auth-User-Email", email);
+                    headers.set("X-Auth-User-Name", username);
+                    headers.set("X-Auth-User-Roles", rolesString);
+                    headers.set("X-Auth-Method", "direct");  // Indicates direct login (not Keycloak)
+                })
                 .build();
             ServerWebExchange mutatedExchange = exchange.mutate()
                 .request(mutatedRequest)

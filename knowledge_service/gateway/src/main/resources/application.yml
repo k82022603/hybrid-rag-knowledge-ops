@@ -1,11 +1,21 @@
 server:
   port: 8080
+  # File Upload Configuration (2GB max)
+  max-http-request-header-size: 64KB
 
 spring:
   application:
     name: knowledge-gateway
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
+
+  # File Upload Configuration (2GB max)
+  codec:
+    max-in-memory-size: 2GB
+  webflux:
+    multipart:
+      max-file-size: 2GB
+      max-request-size: 2GB
 
   # Cloud Gateway Configuration
   cloud:

@@ -118,11 +118,58 @@ public class SecurityConfig {
     }
 
     /**
-     * Custom JWT Authentication WebFilter for self-issued tokens
+     * Custom JWT Authentication WebFilter for self-issued tokens and Gateway-forwarded auth.
+     *
+     * <p>Supports two authentication methods:
+     * <ol>
+     *   <li><strong>Direct JWT</strong>: Authorization header with Bearer token.
+     *       Used when client sends token directly to backend (bypass gateway).</li>
+     *   <li><strong>Gateway Forwarded</strong>: X-Auth-* headers set by Gateway.
+     *       Used when Gateway validates HS256 token and forwards user info.</li>
+     * </ol>
      */
     private WebFilter jwtAuthenticationFilter() {
         return (exchange, chain) -> {
-            String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+            HttpHeaders headers = exchange.getRequest().getHeaders();
+
+            // Method 1: Check for Gateway-forwarded authentication (X-Auth-* headers)
+            // This takes priority because Gateway already validated the token
+            String gatewayUserId = headers.getFirst("X-Auth-User-Id");
+            String gatewayEmail = headers.getFirst("X-Auth-User-Email");
+            String gatewayUsername = headers.getFirst("X-Auth-User-Name");
+            String gatewayRoles = headers.getFirst("X-Auth-User-Roles");
+            String authMethod = headers.getFirst("X-Auth-Method");
+
+            if (gatewayUserId != null && gatewayEmail != null && "direct".equals(authMethod)) {
+                // Gateway has already validated the token, trust the headers
+                Set<String> roles = gatewayRoles != null && !gatewayRoles.isEmpty()
+                    ? Set.of(gatewayRoles.split(","))
+                    : Set.of("USER");
+
+                List<SimpleGrantedAuthority> authorities = roles.stream()
+                    .map(role -> new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()))
+                    .collect(Collectors.toList());
+
+                JwtUser jwtUser = new JwtUser(
+                    gatewayUserId,
+                    gatewayUsername != null ? gatewayUsername : "unknown",
+                    gatewayEmail,
+                    null,
+                    null,
+                    roles,
+                    Set.of(),
+                    authorities
+                );
+
+                UsernamePasswordAuthenticationToken authToken =
+                    new UsernamePasswordAuthenticationToken(jwtUser, null, authorities);
+
+                return chain.filter(exchange)
+                    .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authToken));
+            }
+
+            // Method 2: Check for direct JWT in Authorization header
+            String authHeader = headers.getFirst(HttpHeaders.AUTHORIZATION);
 
             if (authHeader != null && authHeader.startsWith("Bearer ")) {
                 String token = authHeader.substring(7);
@@ -134,12 +181,10 @@ public class SecurityConfig {
                         String username = jwtTokenProvider.getUsernameFromToken(token);
                         Set<String> roles = jwtTokenProvider.getRolesFromToken(token);
 
-                        // Create authorities with ROLE_ prefix
                         List<SimpleGrantedAuthority> authorities = roles.stream()
                             .map(role -> new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()))
                             .collect(Collectors.toList());
 
-                        // Create JwtUser
                         JwtUser jwtUser = new JwtUser(
                             userId.toString(),
                             username,
@@ -151,7 +196,6 @@ public class SecurityConfig {
                             authorities
                         );
 
-                        // Create authentication token
                         UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(jwtUser, null, authorities);
 

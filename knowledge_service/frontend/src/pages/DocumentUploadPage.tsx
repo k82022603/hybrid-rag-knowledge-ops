@@ -33,7 +33,7 @@ const SUPPORTED_FORMATS = [
 ];
 
 const ACCEPTED_TYPES = SUPPORTED_FORMATS.map((f) => f.mime).join(',');
-const MAX_FILE_SIZE_MB = 50;
+const MAX_FILE_SIZE_MB = 2048; // 2GB
 const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 /**

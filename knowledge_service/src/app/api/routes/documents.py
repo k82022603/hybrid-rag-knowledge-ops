@@ -9,7 +9,7 @@ import math
 import re
 import unicodedata
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Form, HTTPException, Query, UploadFile, status
@@ -467,6 +467,172 @@ async def list_documents(
 
 
 # ============================================================================
+# Processing Endpoints
+# ============================================================================
+
+
+@router.post(
+    "/{document_id}/process",
+    summary="문서 처리 트리거",
+    description="업로드된 문서의 처리(파싱, 청킹, 임베딩, 저장)를 수동으로 트리거합니다",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def trigger_document_processing(document_id: UUID) -> Dict[str, Any]:
+    """
+    문서 처리 트리거 API
+
+    업로드된 문서의 자동 처리 파이프라인을 수동으로 시작합니다.
+    처리는 비동기로 진행되며, /status 엔드포인트로 진행 상황을 확인할 수 있습니다.
+
+    Args:
+        document_id: 문서 UUID
+
+    Returns:
+        처리 시작 응답 (status, message, status_url)
+
+    Raises:
+        HTTPException 404: 문서를 찾을 수 없음
+        HTTPException 409: 이미 처리 중이거나 완료됨
+    """
+    from app.services.document_processing_pipeline import (
+        DocumentProcessingPipeline,
+        ProcessingStatus,
+    )
+    import asyncio
+
+    doc_record = _document_store.get(document_id)
+
+    if doc_record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"문서를 찾을 수 없습니다: {document_id}",
+        )
+
+    current_status = doc_record.get("status")
+    status_value = current_status.value if hasattr(current_status, "value") else str(current_status)
+
+    # 이미 처리 중인 경우
+    if status_value in (ProcessingStatus.PROCESSING, ProcessingStatus.PARSING,
+                        ProcessingStatus.CHUNKING, ProcessingStatus.EMBEDDING,
+                        ProcessingStatus.STORING, ProcessingStatus.EXTRACTING):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"문서가 이미 처리 중입니다. 현재 상태: {status_value}",
+        )
+
+    # 이미 완료된 경우 (재처리 허용 가능하도록 주석 처리)
+    # if status_value == ProcessingStatus.COMPLETED:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_409_CONFLICT,
+    #         detail="문서 처리가 이미 완료되었습니다",
+    #     )
+
+    # 파이프라인 생성 및 비동기 처리 시작
+    pipeline = DocumentProcessingPipeline(
+        document_store=_document_store,
+        enable_neo4j=True,
+        enable_entity_extraction=True,
+    )
+
+    # 백그라운드에서 처리 시작
+    async def run_processing():
+        try:
+            result = await pipeline.process_document(document_id)
+            logger.info(
+                f"Document processing finished: {document_id}, "
+                f"success={result.success}, "
+                f"chunks={result.chunk_count}"
+            )
+        except Exception as e:
+            logger.exception(f"Background processing failed: {document_id}")
+
+    # 비동기 태스크로 실행
+    asyncio.create_task(run_processing())
+
+    logger.info(f"Document processing triggered: {document_id}")
+
+    return {
+        "document_id": str(document_id),
+        "status": "accepted",
+        "message": "문서 처리가 시작되었습니다",
+        "status_url": f"{settings.api_v1_prefix}/documents/{document_id}/status",
+    }
+
+
+@router.post(
+    "/process-pending",
+    summary="대기 문서 일괄 처리",
+    description="업로드 후 대기 중인 모든 문서를 일괄 처리합니다",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def process_pending_documents(
+    batch_size: int = Query(default=5, ge=1, le=20, description="한 번에 처리할 문서 수"),
+) -> Dict[str, Any]:
+    """
+    대기 중인 문서 일괄 처리 API
+
+    queued 또는 uploaded 상태의 문서들을 일괄 처리합니다.
+
+    Args:
+        batch_size: 한 번에 처리할 문서 수 (기본 5, 최대 20)
+
+    Returns:
+        처리 시작 응답 (count, status)
+    """
+    from app.services.document_processing_pipeline import (
+        DocumentProcessingPipeline,
+        ProcessingStatus,
+    )
+    import asyncio
+
+    # 대기 중인 문서 조회
+    pending_docs = [
+        doc for doc in _document_store.values()
+        if (hasattr(doc.get("status"), "value") and
+            doc.get("status").value in ("queued", "uploaded")) or
+           (doc.get("status") in ("queued", "uploaded"))
+    ][:batch_size]
+
+    if not pending_docs:
+        return {
+            "count": 0,
+            "status": "no_pending",
+            "message": "처리할 대기 문서가 없습니다",
+        }
+
+    # 파이프라인 생성
+    pipeline = DocumentProcessingPipeline(
+        document_store=_document_store,
+        enable_neo4j=True,
+        enable_entity_extraction=True,
+    )
+
+    # 백그라운드에서 일괄 처리
+    async def run_batch_processing():
+        for doc in pending_docs:
+            doc_id = doc.get("document_id")
+            if doc_id:
+                try:
+                    result = await pipeline.process_document(doc_id)
+                    logger.info(
+                        f"Batch processing result: {doc_id}, success={result.success}"
+                    )
+                except Exception as e:
+                    logger.exception(f"Batch processing failed for {doc_id}")
+
+    asyncio.create_task(run_batch_processing())
+
+    logger.info(f"Batch processing triggered for {len(pending_docs)} documents")
+
+    return {
+        "count": len(pending_docs),
+        "status": "accepted",
+        "message": f"{len(pending_docs)}개 문서 처리가 시작되었습니다",
+        "document_ids": [str(doc.get("document_id")) for doc in pending_docs],
+    }
+
+
+# ============================================================================
 # Internal helper (for testing)
 # ============================================================================
 
@@ -478,3 +644,13 @@ def _clear_document_store() -> None:
     WARNING: 테스트 환경에서만 사용하세요.
     """
     _document_store.clear()
+
+
+def _get_document_store() -> Dict[UUID, Dict[str, Any]]:
+    """
+    문서 저장소 참조 반환 (파이프라인 연동용)
+
+    Returns:
+        In-memory 문서 저장소 딕셔너리
+    """
+    return _document_store

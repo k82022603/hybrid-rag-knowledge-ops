@@ -1,6 +1,5 @@
 package com.knowledge.backend.api.controller;
 
-import java.time.Instant;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
@@ -27,6 +26,7 @@ import com.knowledge.backend.api.dto.knowledge.DocumentUploadResponse;
 import com.knowledge.backend.api.dto.knowledge.CategoryResponse;
 import com.knowledge.backend.api.dto.knowledge.ProjectResponse;
 import com.knowledge.backend.security.JwtUser;
+import com.knowledge.backend.service.DocumentUploadService;
 import com.knowledge.backend.service.KnowledgeService;
 
 import jakarta.validation.Valid;
@@ -61,6 +61,7 @@ import reactor.core.publisher.Mono;
 public class DocumentController {
 
     private final KnowledgeService knowledgeService;
+    private final DocumentUploadService documentUploadService;
 
     /**
      * Upload / create a new document
@@ -98,7 +99,9 @@ public class DocumentController {
      * Upload a file document (multipart/form-data)
      *
      * <p>Accepts file uploads via multipart/form-data. The file is stored
-     * and a document record is created with initial "uploaded" status.
+     * in MinIO and a document record is created in PostgreSQL with "uploaded" status.
+     *
+     * <p>Storage path: {year}/{month}/{documentId}/{filename}
      *
      * @param file the file to upload (required)
      * @param documentType document type (optional, defaults to file extension)
@@ -121,47 +124,15 @@ public class DocumentController {
 
         UUID uploadedBy = extractUserId(principal);
         UUID parsedProjectId = parseUuid(projectId);
-        String effectiveTitle = (title != null && !title.isBlank()) ? title : filename;
-        String effectiveType = (documentType != null && !documentType.isBlank())
-                ? documentType
-                : extractFileType(filename);
 
-        // Generate document ID
-        String documentId = UUID.randomUUID().toString();
-
-        // In a real implementation, you would:
-        // 1. Save the file to storage (S3, local filesystem, etc.)
-        // 2. Create a document record via KnowledgeService
-        // 3. Trigger async processing pipeline
-
-        // For now, return immediate response with "uploaded" status
-        DocumentUploadResponse response = DocumentUploadResponse.builder()
-                .documentId(documentId)
-                .filename(filename)
-                .status("uploaded")
-                .fileType(effectiveType)
-                .uploadedAt(Instant.now())
-                .message("File uploaded successfully. Processing will begin shortly.")
-                .build();
-
-        log.info("Document uploaded: id={}, filename={}, uploadedBy={}",
-                documentId, filename, uploadedBy);
-
-        return Mono.just(ResponseEntity.status(HttpStatus.CREATED).body(response));
-    }
-
-    /**
-     * Extract file type from filename extension
-     *
-     * @param filename the filename
-     * @return file type/extension or "unknown"
-     */
-    private String extractFileType(String filename) {
-        if (filename == null || !filename.contains(".")) {
-            return "unknown";
-        }
-        int lastDot = filename.lastIndexOf('.');
-        return filename.substring(lastDot + 1).toLowerCase();
+        // Delegate to DocumentUploadService for actual MinIO + PostgreSQL storage
+        return documentUploadService.uploadDocument(
+                file,
+                documentType,
+                title,
+                parsedProjectId,
+                uploadedBy
+        ).map(response -> ResponseEntity.status(HttpStatus.CREATED).body(response));
     }
 
     /**

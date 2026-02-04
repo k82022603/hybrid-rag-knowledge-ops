@@ -203,7 +203,11 @@ services:
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-hybrid-rag}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - JWT_SECRET=${JWT_SECRET}
       - JAVA_OPTS=-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
+      - LOGGING_LEVEL_COM_KNOWLEDGE_GATEWAY=DEBUG
+      - LOGGING_LEVEL_COM_KNOWLEDGE_GATEWAY_SECURITY=DEBUG
+      - LOGGING_LEVEL_COM_KNOWLEDGE_GATEWAY_FILTER=DEBUG
     depends_on:
       keycloak:
         condition: service_healthy

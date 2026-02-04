@@ -24,9 +24,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """
     애플리케이션 라이프사이클 관리
 
-    - startup: 리소스 초기화 (DB 연결, 모델 로딩 등)
+    - startup: 리소스 초기화 (DB 연결, 모델 로딩, 백그라운드 워커 등)
     - shutdown: 리소스 정리 (연결 종료 등)
     """
+    import os
+
     # Startup
     logger.info(f"Starting {settings.app_name} v{settings.app_version}")
     logger.info(f"Environment: {settings.environment}")
@@ -35,6 +37,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     # 리소스 초기화
     es_client = None
     neo4j_driver = None
+    background_worker = None
 
     try:
         # Elasticsearch 클라이언트 연결
@@ -72,11 +75,49 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         # EmbeddingService 초기화 (lazy load, 실제 로딩은 첫 요청 시)
         logger.info("EmbeddingService will be initialized on first request")
 
+        # 백그라운드 워커 시작 (환경변수로 제어)
+        enable_worker = os.getenv("ENABLE_BACKGROUND_WORKER", "false").lower() == "true"
+        if enable_worker:
+            try:
+                from app.api.routes.documents import _get_document_store
+                from app.services.background_worker import BackgroundWorker
+
+                worker_interval = float(os.getenv("WORKER_POLL_INTERVAL", "30.0"))
+                worker_batch_size = int(os.getenv("WORKER_BATCH_SIZE", "5"))
+
+                background_worker = BackgroundWorker(
+                    document_store=_get_document_store(),
+                    poll_interval=worker_interval,
+                    batch_size=worker_batch_size,
+                    enable_neo4j=(app.state.neo4j_driver is not None),
+                    enable_entity_extraction=True,
+                )
+                await background_worker.start()
+                app.state.background_worker = background_worker
+                logger.info(
+                    f"Background worker started: "
+                    f"interval={worker_interval}s, batch_size={worker_batch_size}"
+                )
+            except Exception as e:
+                logger.warning(f"Background worker start failed (non-critical): {e}")
+                app.state.background_worker = None
+        else:
+            logger.info("Background worker disabled (set ENABLE_BACKGROUND_WORKER=true to enable)")
+            app.state.background_worker = None
+
         yield
 
     finally:
         # Shutdown
         logger.info("Shutting down application...")
+
+        # 백그라운드 워커 중지
+        if background_worker is not None:
+            try:
+                await background_worker.stop()
+                logger.info("Background worker stopped")
+            except Exception as e:
+                logger.warning(f"Error stopping background worker: {e}")
 
         # Elasticsearch 클라이언트 종료
         if es_client is not None:
