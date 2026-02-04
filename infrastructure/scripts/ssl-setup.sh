@@ -2,8 +2,9 @@
 # =============================================================================
 # Hybrid RAG Knowledge Platform - SSL/TLS Setup Script (Let's Encrypt)
 # =============================================================================
-# Version: 1.0.0
+# Version: 1.1.0
 # Created: 2026-02-04
+# Updated: 2026-02-04 (R-001: DNS resolver environment variable support)
 # Description: Automated SSL/TLS certificate setup using Let's Encrypt
 # Usage: ./ssl-setup.sh --domain knowledge.company.com --email admin@company.com
 # =============================================================================
@@ -33,6 +34,11 @@ EMAIL=""
 STAGING=false
 FORCE_RENEW=false
 DRY_RUN=false
+
+# DNS Resolver: Configurable for corporate environments (R-001)
+# Default: Google Public DNS, can be overridden via environment variable
+# Example: DNS_RESOLVER="10.0.0.1 10.0.0.2" ./ssl-setup.sh --domain ...
+DNS_RESOLVER="${DNS_RESOLVER:-8.8.8.8 8.8.4.4}"
 
 # =============================================================================
 # UTILITY FUNCTIONS
@@ -312,8 +318,12 @@ enable_ssl_config() {
         return 1
     fi
 
-    # Copy template and replace domain placeholder
-    sed "s/\${DOMAIN}/${DOMAIN}/g" "$ssl_template" > "$ssl_config"
+    # Copy template and replace placeholders (DOMAIN and DNS_RESOLVER)
+    # R-001: Support configurable DNS resolver for corporate environments
+    log INFO "Using DNS resolver: ${DNS_RESOLVER}"
+    sed -e "s/\${DOMAIN}/${DOMAIN}/g" \
+        -e "s/\${DNS_RESOLVER}/${DNS_RESOLVER}/g" \
+        "$ssl_template" > "$ssl_config"
 
     log SUCCESS "SSL configuration enabled at ${ssl_config}"
 }
@@ -397,6 +407,11 @@ Optional Options:
     -w, --webroot           Use webroot method instead of standalone
     --no-auto-renew         Skip automatic renewal setup
 
+Environment Variables:
+    DNS_RESOLVER            DNS servers for OCSP stapling (default: "8.8.8.8 8.8.4.4")
+                            For corporate environments, set to internal DNS servers
+                            Example: DNS_RESOLVER="10.0.0.1 10.0.0.2"
+
 Examples:
     # Basic setup
     sudo ./ssl-setup.sh --domain knowledge.company.com --email admin@company.com
@@ -409,6 +424,9 @@ Examples:
 
     # Force renewal of existing certificate
     sudo ./ssl-setup.sh --domain knowledge.company.com --email admin@company.com --force
+
+    # Use corporate DNS servers (R-001)
+    DNS_RESOLVER="10.0.0.1 10.0.0.2" sudo ./ssl-setup.sh --domain knowledge.company.com --email admin@company.com
 
 EOF
 }
@@ -480,12 +498,13 @@ main() {
 
     # Display configuration
     echo "Configuration:"
-    echo "  Domain:      $DOMAIN"
-    echo "  Email:       $EMAIL"
-    echo "  Staging:     $STAGING"
-    echo "  Force:       $FORCE_RENEW"
-    echo "  Dry Run:     $DRY_RUN"
-    echo "  Method:      $(if $use_webroot; then echo 'webroot'; else echo 'standalone'; fi)"
+    echo "  Domain:       $DOMAIN"
+    echo "  Email:        $EMAIL"
+    echo "  Staging:      $STAGING"
+    echo "  Force:        $FORCE_RENEW"
+    echo "  Dry Run:      $DRY_RUN"
+    echo "  Method:       $(if $use_webroot; then echo 'webroot'; else echo 'standalone'; fi)"
+    echo "  DNS Resolver: $DNS_RESOLVER"
     echo ""
 
     # Check root privileges
@@ -544,6 +563,8 @@ main() {
     echo "  - ${NGINX_CERTS_DIR}/fullchain.pem"
     echo "  - ${NGINX_CERTS_DIR}/privkey.pem"
     echo "  - ${NGINX_CERTS_DIR}/chain.pem"
+    echo ""
+    echo "DNS Resolver configured: ${DNS_RESOLVER}"
     echo ""
     echo "============================================================================="
 }

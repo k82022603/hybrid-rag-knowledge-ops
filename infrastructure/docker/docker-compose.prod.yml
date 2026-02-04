@@ -1,9 +1,9 @@
 # =============================================================================
 # Hybrid RAG Knowledge Platform - Production Docker Compose Override
 # =============================================================================
-# Version: 1.1.0
+# Version: 1.2.0
 # Created: 2026-02-04
-# Updated: 2026-02-04 - Added SSL/TLS certificate volume mounts
+# Updated: 2026-02-04 - R-002: Neo4j Bolt port internal only (security hardening)
 # Description: Production environment overrides for security and performance
 # Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 # =============================================================================
@@ -322,9 +322,13 @@ services:
       - NEO4J_dbms_memory_heap_max__size=4G
       - NEO4J_dbms_memory_pagecache_size=2G
       - NEO4J_dbms_logs_query_enabled=OFF
-    # Remove browser port in production
-    ports:
-      - "${NEO4J_BOLT_PORT:-7687}:7687"
+    # R-002: Remove external Bolt port exposure in production (security hardening)
+    # Neo4j is accessible only via internal Docker network (database network)
+    # Internal services can connect via neo4j:7687
+    ports: []
+    expose:
+      - "7687"  # Bolt protocol - internal only
+      - "7474"  # HTTP - internal only (browser disabled)
     deploy:
       resources:
         limits:

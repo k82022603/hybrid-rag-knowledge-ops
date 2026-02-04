@@ -3,6 +3,7 @@
 # =============================================================================
 # Usage: Copy to ssl.conf and update ${DOMAIN} with actual domain
 # Required: SSL certificates in /etc/nginx/certs/
+# Environment: DNS_RESOLVER can be customized for corporate DNS servers
 # =============================================================================
 
 # Redirect HTTP to HTTPS
@@ -48,7 +49,7 @@ server {
     ssl_stapling on;
     ssl_stapling_verify on;
     ssl_trusted_certificate /etc/nginx/certs/chain.pem;
-    resolver 8.8.8.8 8.8.4.4 valid=300s;
+    resolver ${DNS_RESOLVER} valid=300s;
     resolver_timeout 5s;
 
     # ==========================================================================

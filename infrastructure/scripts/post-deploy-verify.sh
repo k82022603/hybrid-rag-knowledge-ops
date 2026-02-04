@@ -2,8 +2,9 @@
 # =============================================================================
 # Hybrid RAG Knowledge Platform - Post-Deployment Verification Script
 # =============================================================================
-# Version: 1.0.0
+# Version: 1.1.0
 # Created: 2026-02-04
+# Updated: 2026-02-04 (R-003: jq fallback support)
 # Description: Verifies deployment success with health checks and log analysis
 # Usage: ./post-deploy-verify.sh [staging|production]
 # =============================================================================
@@ -36,6 +37,12 @@ NC='\033[0m'
 PASSED=0
 FAILED=0
 WARNINGS=0
+
+# Check if jq is available
+JQ_AVAILABLE=false
+if command -v jq &> /dev/null; then
+    JQ_AVAILABLE=true
+fi
 
 # =============================================================================
 # UTILITY FUNCTIONS
@@ -80,11 +87,87 @@ send_slack() {
 }
 
 # =============================================================================
+# JSON PARSING FUNCTIONS (R-003: jq with grep fallback)
+# =============================================================================
+
+# Parse JSON field with jq (preferred) or grep fallback
+# Usage: json_get_field "$json_string" "field_name" "default_value"
+json_get_field() {
+    local json="$1"
+    local field="$2"
+    local default="${3:-unknown}"
+
+    if [[ "$JQ_AVAILABLE" == true ]]; then
+        # Use jq for reliable JSON parsing
+        echo "$json" | jq -r ".${field} // \"${default}\"" 2>/dev/null || echo "$default"
+    else
+        # Fallback to grep-based parsing (less reliable but functional)
+        local value
+        value=$(echo "$json" | grep -o "\"${field}\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" | head -1 | sed 's/.*:\s*"\([^"]*\)".*/\1/' 2>/dev/null)
+        if [[ -z "$value" ]]; then
+            # Try without quotes (for numbers, booleans)
+            value=$(echo "$json" | grep -o "\"${field}\"[[:space:]]*:[[:space:]]*[^,}]*" | head -1 | sed 's/.*:\s*\([^,}]*\).*/\1/' | tr -d ' "' 2>/dev/null)
+        fi
+        echo "${value:-$default}"
+    fi
+}
+
+# Parse nested JSON field
+# Usage: json_get_nested "$json_string" ".components.db.status" "default_value"
+json_get_nested() {
+    local json="$1"
+    local path="$2"
+    local default="${3:-unknown}"
+
+    if [[ "$JQ_AVAILABLE" == true ]]; then
+        echo "$json" | jq -r "${path} // \"${default}\"" 2>/dev/null || echo "$default"
+    else
+        # Fallback: only supports simple nested access
+        log_check INFO "Note: Complex JSON parsing limited without jq"
+        echo "$default"
+    fi
+}
+
+# Get array length from JSON
+# Usage: json_array_length "$json_string" ".data.items"
+json_array_length() {
+    local json="$1"
+    local path="${2:-.}"
+
+    if [[ "$JQ_AVAILABLE" == true ]]; then
+        echo "$json" | jq "${path} | length" 2>/dev/null || echo "0"
+    else
+        # Fallback: count array elements roughly
+        local count
+        count=$(echo "$json" | grep -o '\[' | wc -l)
+        echo "$count"
+    fi
+}
+
+# Get JSON keys
+# Usage: json_get_keys "$json_string" ".components"
+json_get_keys() {
+    local json="$1"
+    local path="${2:-.}"
+
+    if [[ "$JQ_AVAILABLE" == true ]]; then
+        echo "$json" | jq -r "${path} | keys[]" 2>/dev/null || echo ""
+    else
+        # Fallback: extract keys with grep (limited)
+        echo ""
+    fi
+}
+
+# =============================================================================
 # CONTAINER STATUS CHECKS
 # =============================================================================
 
 check_container_status() {
     log_check STEP "Checking container status..."
+
+    if [[ "$JQ_AVAILABLE" != true ]]; then
+        log_check WARN "jq not installed - using fallback parsing (install jq for better reliability)"
+    fi
 
     cd "$DOCKER_DIR"
 
@@ -103,9 +186,18 @@ check_container_status() {
     local unhealthy=0
 
     while IFS= read -r container; do
-        local name=$(echo "$container" | jq -r '.Name')
-        local state=$(echo "$container" | jq -r '.State')
-        local health=$(echo "$container" | jq -r '.Health // "N/A"')
+        local name state health
+
+        if [[ "$JQ_AVAILABLE" == true ]]; then
+            name=$(echo "$container" | jq -r '.Name')
+            state=$(echo "$container" | jq -r '.State')
+            health=$(echo "$container" | jq -r '.Health // "N/A"')
+        else
+            # Fallback parsing
+            name=$(json_get_field "$container" "Name" "unknown")
+            state=$(json_get_field "$container" "State" "unknown")
+            health=$(json_get_field "$container" "Health" "N/A")
+        fi
 
         if [[ "$state" == "running" ]]; then
             ((running++))
@@ -131,7 +223,7 @@ check_container_status() {
         if [[ "$health" == "unhealthy" ]]; then
             ((unhealthy++))
         fi
-    done <<< "$(echo "$containers" | jq -c '.')"
+    done <<< "$(if [[ "$JQ_AVAILABLE" == true ]]; then echo "$containers" | jq -c '.'; else echo "$containers"; fi)"
 
     echo ""
     log_check INFO "Summary: ${running} running, ${exited} exited, ${unhealthy} unhealthy"
@@ -159,24 +251,26 @@ check_backend_health() {
 
     if [[ "$http_code" == "200" ]]; then
         local status
-        status=$(echo "$body" | jq -r '.status // "UNKNOWN"' 2>/dev/null)
+        status=$(json_get_field "$body" "status" "UNKNOWN")
 
         if [[ "$status" == "UP" ]]; then
             log_check PASS "Backend: UP (HTTP ${http_code})"
 
-            # Check component health
-            local components
-            components=$(echo "$body" | jq -r '.components | keys[]' 2>/dev/null || echo "")
+            # Check component health (only with jq for complex parsing)
+            if [[ "$JQ_AVAILABLE" == true ]]; then
+                local components
+                components=$(echo "$body" | jq -r '.components | keys[]' 2>/dev/null || echo "")
 
-            for comp in $components; do
-                local comp_status
-                comp_status=$(echo "$body" | jq -r ".components.${comp}.status // \"UNKNOWN\"" 2>/dev/null)
-                if [[ "$comp_status" == "UP" ]]; then
-                    log_check INFO "  - ${comp}: UP"
-                else
-                    log_check WARN "  - ${comp}: ${comp_status}"
-                fi
-            done
+                for comp in $components; do
+                    local comp_status
+                    comp_status=$(echo "$body" | jq -r ".components.${comp}.status // \"UNKNOWN\"" 2>/dev/null)
+                    if [[ "$comp_status" == "UP" ]]; then
+                        log_check INFO "  - ${comp}: UP"
+                    else
+                        log_check WARN "  - ${comp}: ${comp_status}"
+                    fi
+                done
+            fi
         else
             log_check WARN "Backend: ${status}"
         fi
@@ -198,7 +292,7 @@ check_ai_service_health() {
 
     if [[ "$http_code" == "200" ]]; then
         local status
-        status=$(echo "$body" | jq -r '.status // "UNKNOWN"' 2>/dev/null)
+        status=$(json_get_field "$body" "status" "UNKNOWN")
 
         if [[ "$status" == "ok" || "$status" == "healthy" ]]; then
             log_check PASS "AI Service: ${status} (HTTP ${http_code})"
@@ -223,7 +317,7 @@ check_api_gateway_health() {
 
     if [[ "$http_code" == "200" ]]; then
         local status
-        status=$(echo "$body" | jq -r '.status // "UNKNOWN"' 2>/dev/null)
+        status=$(json_get_field "$body" "status" "UNKNOWN")
 
         if [[ "$status" == "UP" ]]; then
             log_check PASS "API Gateway: UP (HTTP ${http_code})"
@@ -291,10 +385,9 @@ check_elasticsearch_health() {
     body=$(echo "$response" | head -n -1)
 
     if [[ "$http_code" == "200" ]]; then
-        local status
-        status=$(echo "$body" | jq -r '.status // "UNKNOWN"' 2>/dev/null)
-        local nodes
-        nodes=$(echo "$body" | jq -r '.number_of_nodes // 0' 2>/dev/null)
+        local status nodes
+        status=$(json_get_field "$body" "status" "UNKNOWN")
+        nodes=$(json_get_field "$body" "number_of_nodes" "0")
 
         if [[ "$status" == "green" || "$status" == "yellow" ]]; then
             log_check PASS "Elasticsearch: ${status} (${nodes} node(s))"
@@ -303,8 +396,9 @@ check_elasticsearch_health() {
         fi
 
         # Check indices
-        local indices
-        indices=$(curl -s "http://localhost:9200/_cat/indices?format=json" 2>/dev/null | jq '. | length' 2>/dev/null || echo "0")
+        local indices_response indices
+        indices_response=$(curl -s "http://localhost:9200/_cat/indices?format=json" 2>/dev/null)
+        indices=$(json_array_length "$indices_response" ".")
         log_check INFO "  - Indices count: ${indices}"
     else
         log_check FAIL "Elasticsearch: Not responding (HTTP ${http_code})"
@@ -374,10 +468,12 @@ check_prometheus_health() {
     if [[ "$http_code" == "200" ]]; then
         log_check PASS "Prometheus: Healthy (HTTP ${http_code})"
 
-        # Check targets
-        local targets_up
-        targets_up=$(curl -s "http://localhost:9090/api/v1/targets" 2>/dev/null | jq '[.data.activeTargets[] | select(.health == "up")] | length' 2>/dev/null || echo "0")
-        log_check INFO "  - Active targets: ${targets_up}"
+        # Check targets (requires jq for reliable parsing)
+        if [[ "$JQ_AVAILABLE" == true ]]; then
+            local targets_up
+            targets_up=$(curl -s "http://localhost:9090/api/v1/targets" 2>/dev/null | jq '[.data.activeTargets[] | select(.health == "up")] | length' 2>/dev/null || echo "0")
+            log_check INFO "  - Active targets: ${targets_up}"
+        fi
     else
         log_check WARN "Prometheus: Not responding (HTTP ${http_code})"
     fi
@@ -533,6 +629,7 @@ main() {
     echo "============================================================================="
     echo "Environment: $ENVIRONMENT"
     echo "Timestamp:   $(date)"
+    echo "jq status:   $(if [[ "$JQ_AVAILABLE" == true ]]; then echo "Available"; else echo "Not installed (using fallback)"; fi)"
     echo "============================================================================="
     echo ""
 
@@ -627,6 +724,11 @@ This script verifies:
     - Resource usage
     - Internal connectivity
     - Basic API smoke tests
+
+JSON Parsing:
+    - Uses jq when available for reliable parsing
+    - Falls back to grep-based parsing if jq is not installed
+    - Install jq for best results: apt-get install jq
 
 Exit codes:
     0   All checks passed (or passed with warnings)
