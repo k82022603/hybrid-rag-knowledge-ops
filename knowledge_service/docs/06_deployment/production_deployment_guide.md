@@ -1,8 +1,9 @@
 # Production Deployment Guide
 
-**Version**: 1.0.0
+**Version**: 1.1.0
 **Created**: 2026-02-04
-**Status**: Draft
+**Updated**: 2026-02-04 - Enhanced SSL/TLS Setup Section (STORY-075)
+**Status**: Active
 
 ---
 
@@ -11,10 +12,10 @@
 | Item | Content |
 |------|---------|
 | Document | Production Deployment Guide |
-| Version | 1.0.0 |
+| Version | 1.1.0 |
 | Created | 2026-02-04 |
 | Author | Infra Agent |
-| Related Tickets | STORY-073 |
+| Related Tickets | STORY-073, STORY-075 |
 
 ---
 
@@ -64,6 +65,8 @@ This guide covers the deployment of the Hybrid RAG Knowledge Platform to a produ
 | `docker-compose.prod.yml` | Production overrides (security, limits) |
 | `.env.production` | Production environment variables |
 | `nginx/conf.d/ssl.conf.template` | SSL/TLS configuration template |
+| `scripts/ssl-setup.sh` | Let's Encrypt automation script |
+| `scripts/ssl-dev-setup.sh` | Development self-signed cert script |
 
 ---
 
@@ -90,6 +93,9 @@ docker compose version
 
 # OpenSSL (for generating secrets)
 openssl version
+
+# Certbot (for Let's Encrypt - optional, can be installed by script)
+certbot --version
 ```
 
 ### 2.3 Network Requirements
@@ -236,7 +242,53 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml restart nginx
 
 ## 5. SSL/TLS Setup
 
-### 5.1 Option A: Let's Encrypt (Recommended)
+### 5.1 Quick Start
+
+For most production deployments, use the automated Let's Encrypt script:
+
+```bash
+# Production SSL Setup (Let's Encrypt)
+cd infrastructure/scripts
+sudo ./ssl-setup.sh --domain knowledge.company.com --email admin@company.com
+```
+
+For development environments, use self-signed certificates:
+
+```bash
+# Development SSL Setup (Self-Signed)
+cd infrastructure/scripts
+./ssl-dev-setup.sh --domain localhost
+```
+
+### 5.2 Option A: Let's Encrypt (Recommended for Production)
+
+#### 5.2.1 Prerequisites
+
+- Domain pointing to server's public IP
+- Ports 80 and 443 open in firewall
+- Root/sudo access
+
+#### 5.2.2 Using the Automated Script
+
+```bash
+cd infrastructure/scripts
+
+# Basic usage
+sudo ./ssl-setup.sh --domain knowledge.company.com --email admin@company.com
+
+# Test with staging environment first (recommended)
+sudo ./ssl-setup.sh --domain knowledge.company.com --email admin@company.com --staging
+
+# Force renewal of existing certificate
+sudo ./ssl-setup.sh --domain knowledge.company.com --email admin@company.com --force
+
+# Dry run (test without obtaining certificate)
+sudo ./ssl-setup.sh --domain knowledge.company.com --email admin@company.com --dry-run
+```
+
+#### 5.2.3 Manual Let's Encrypt Setup
+
+If you prefer manual setup:
 
 ```bash
 # 1. Install Certbot
@@ -264,7 +316,9 @@ sed -i 's/\${DOMAIN}/knowledge.company.com/g' ./nginx/conf.d/ssl.conf
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d nginx
 ```
 
-### 5.2 Option B: Corporate Certificate
+### 5.3 Option B: Corporate Certificate
+
+For enterprise environments with existing PKI:
 
 ```bash
 # 1. Place certificates
@@ -272,20 +326,91 @@ cp /path/to/company-cert.pem ./nginx/certs/fullchain.pem
 cp /path/to/company-key.pem ./nginx/certs/privkey.pem
 cp /path/to/company-chain.pem ./nginx/certs/chain.pem
 
-# 2. Enable SSL config (same as above)
+# 2. Set secure permissions
+chmod 600 ./nginx/certs/privkey.pem
+chmod 644 ./nginx/certs/fullchain.pem ./nginx/certs/chain.pem
+
+# 3. Enable SSL config
 cp ./nginx/conf.d/ssl.conf.template ./nginx/conf.d/ssl.conf
 sed -i 's/\${DOMAIN}/knowledge.company.com/g' ./nginx/conf.d/ssl.conf
 
-# 3. Restart nginx
+# 4. Restart nginx
 docker compose -f docker-compose.yml -f docker-compose.prod.yml restart nginx
 ```
 
-### 5.3 Certificate Renewal (Let's Encrypt)
+### 5.4 Option C: Development Self-Signed Certificates
+
+For local development and testing only:
 
 ```bash
-# Add to crontab (runs twice daily)
-echo "0 0,12 * * * root certbot renew --quiet && docker compose -C /opt/knowledge-platform restart nginx" | sudo tee /etc/cron.d/certbot-renewal
+cd infrastructure/scripts
+
+# Basic usage (creates certs for localhost)
+./ssl-dev-setup.sh
+
+# Custom domain
+./ssl-dev-setup.sh --domain dev.local
+
+# Custom validity and organization
+./ssl-dev-setup.sh --domain localhost --days 730 --org "My Company"
 ```
+
+After running the script, follow the browser trust instructions displayed to avoid security warnings.
+
+### 5.5 Certificate Renewal
+
+#### 5.5.1 Automatic Renewal (Let's Encrypt)
+
+The `ssl-setup.sh` script automatically configures cron-based renewal. To verify:
+
+```bash
+# Check cron job
+cat /etc/cron.d/certbot-renewal-knowledge-platform
+
+# Expected output:
+# 0 0,12 * * * root certbot renew --quiet --deploy-hook "..."
+```
+
+#### 5.5.2 Manual Renewal
+
+```bash
+# Renew certificates
+sudo certbot renew
+
+# Copy to nginx directory
+sudo cp /etc/letsencrypt/live/knowledge.company.com/*.pem ./nginx/certs/
+
+# Reload nginx
+docker compose exec nginx nginx -s reload
+```
+
+### 5.6 Certificate Verification
+
+```bash
+# Check certificate details
+openssl x509 -in nginx/certs/fullchain.pem -noout -subject -issuer -dates
+
+# Test HTTPS connection
+openssl s_client -connect knowledge.company.com:443 -servername knowledge.company.com
+
+# Check expiration
+openssl x509 -in nginx/certs/fullchain.pem -noout -enddate
+
+# Verify certificate chain
+openssl verify -CAfile nginx/certs/chain.pem nginx/certs/fullchain.pem
+```
+
+### 5.7 SSL Configuration Reference
+
+The SSL configuration template (`ssl.conf.template`) includes:
+
+| Feature | Setting | Description |
+|---------|---------|-------------|
+| TLS Version | TLSv1.2, TLSv1.3 | Modern protocols only |
+| Cipher Suite | ECDHE-* | Strong ciphers with PFS |
+| HSTS | 2 years | Force HTTPS |
+| OCSP Stapling | Enabled | Faster cert validation |
+| Session Cache | 50MB | Performance optimization |
 
 ---
 
@@ -324,6 +449,9 @@ docker inspect kp-backend --format '{{json .HostConfig.SecurityOpt}}'
 
 # Verify network isolation
 docker network inspect kp-database | grep '"Internal": true'
+
+# Verify SSL configuration
+curl -vI https://knowledge.company.com 2>&1 | grep -E 'SSL|TLS|certificate'
 ```
 
 ---
@@ -355,6 +483,10 @@ curl -s http://localhost:9200/_cluster/health | jq -r '.status' | grep -E 'green
 # 4. Memory Usage
 echo -e "\n[4] Memory Usage"
 docker stats --no-stream --format "table {{.Name}}\t{{.MemUsage}}\t{{.MemPerc}}"
+
+# 5. SSL Certificate Status
+echo -e "\n[5] SSL Certificate Status"
+openssl x509 -in nginx/certs/fullchain.pem -noout -enddate 2>/dev/null || echo "No certificate found"
 
 echo -e "\n=== Health Check Complete ==="
 ```
@@ -413,8 +545,31 @@ docker compose start
 | Permission denied | `ls -la /data/*` | Fix ownership/permissions |
 | Out of memory | `docker stats` | Increase limits or add RAM |
 | SSL certificate error | `openssl s_client -connect domain:443` | Verify cert chain |
+| Cert renewal failed | Check certbot logs | Ensure port 80 is accessible |
 
-### 9.2 Log Locations
+### 9.2 SSL-Specific Troubleshooting
+
+```bash
+# Check if certificates exist
+ls -la nginx/certs/
+
+# Verify certificate is valid
+openssl x509 -in nginx/certs/fullchain.pem -text -noout | head -20
+
+# Check certificate chain
+openssl verify -CAfile nginx/certs/chain.pem nginx/certs/fullchain.pem
+
+# Test SSL connection
+openssl s_client -connect localhost:443 -servername localhost
+
+# Check Nginx SSL configuration
+docker exec kp-nginx nginx -t
+
+# View Nginx error logs for SSL issues
+docker exec kp-nginx tail -f /var/log/nginx/error.log | grep -i ssl
+```
+
+### 9.3 Log Locations
 
 ```bash
 # Application logs
@@ -425,11 +580,14 @@ docker compose logs -f ai-service
 docker compose exec nginx tail -f /var/log/nginx/access.log
 docker compose exec nginx tail -f /var/log/nginx/error.log
 
+# Certbot renewal logs
+cat /var/log/certbot-renewal.log
+
 # Aggregated logs (Loki + Grafana)
 # Access via: https://domain/grafana -> Explore -> Loki
 ```
 
-### 9.3 Emergency Procedures
+### 9.4 Emergency Procedures
 
 ```bash
 # Kill and restart all containers
@@ -455,6 +613,9 @@ docker volume prune -f
 | Backup Guide | `docs/07_maintenance/backup_restore_guide.md` |
 | Docker Compose Base | `infrastructure/docker/docker-compose.yml` |
 | Production Override | `infrastructure/docker/docker-compose.prod.yml` |
+| SSL Setup Script | `infrastructure/scripts/ssl-setup.sh` |
+| Dev SSL Script | `infrastructure/scripts/ssl-dev-setup.sh` |
+| SSL Conf Template | `infrastructure/docker/nginx/conf.d/ssl.conf.template` |
 
 ---
 

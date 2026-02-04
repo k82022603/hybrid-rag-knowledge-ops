@@ -1,8 +1,9 @@
 # =============================================================================
 # Hybrid RAG Knowledge Platform - Production Docker Compose Override
 # =============================================================================
-# Version: 1.0.0
+# Version: 1.1.0
 # Created: 2026-02-04
+# Updated: 2026-02-04 - Added SSL/TLS certificate volume mounts
 # Description: Production environment overrides for security and performance
 # Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
 # =============================================================================
@@ -13,6 +14,7 @@
 # - Internal network isolation
 # - Removed development ports
 # - Production logging configuration
+# - SSL/TLS certificate mounts
 
 services:
 
@@ -33,6 +35,13 @@ services:
       - SETGID
     tmpfs:
       - /var/run:mode=755
+    # SSL/TLS Certificate Volumes (Production)
+    volumes:
+      - ./nginx/certs/fullchain.pem:/etc/nginx/certs/fullchain.pem:ro
+      - ./nginx/certs/privkey.pem:/etc/nginx/certs/privkey.pem:ro
+      - ./nginx/certs/chain.pem:/etc/nginx/certs/chain.pem:ro
+      # Certbot ACME challenge webroot
+      - certbot_webroot:/var/www/certbot:ro
     # Production resource limits
     deploy:
       resources:
@@ -581,6 +590,13 @@ services:
       options:
         max-size: "50m"
         max-file: "5"
+
+# =============================================================================
+# VOLUME OVERRIDES - Production (SSL)
+# =============================================================================
+volumes:
+  certbot_webroot:
+    name: kp-certbot-webroot
 
 # =============================================================================
 # NETWORK OVERRIDES - Production

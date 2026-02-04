@@ -6,7 +6,7 @@
 |------|-------|
 | **Duration** | 2026-02-05 ~ 2026-02-11 (7 days) |
 | **Velocity (Planned)** | 31 pts (10 Stories) |
-| **Velocity (Actual)** | - pts (In Progress) |
+| **Velocity (Actual)** | 22 pts (6/10 Stories) |
 | **Status** | in_progress |
 | **Jira Sprint ID** | - |
 | **Objective** | Phase 5 Deployment Preparation & Production Readiness |
@@ -44,8 +44,8 @@ Key Objectives:
 
 | Priority | ID | Jira | Title | Points | Assignee | Status |
 |----------|-----|------|-------|--------|----------|--------|
-| P0 | STORY-073 | SCRUM-69 | Production Environment Configuration | 5 | Infra | To Do |
-| P0 | STORY-074 | SCRUM-70 | CI/CD Pipeline Setup (GitHub Actions) | 5 | DevOps | To Do |
+| P0 | STORY-073 | SCRUM-69 | Production Environment Configuration | 5 | Infra | **Done** |
+| P0 | STORY-074 | SCRUM-70 | CI/CD Pipeline Setup (GitHub Actions) | 5 | DevOps | **Done** |
 
 **Subtotal**: 10 pts (2 Stories)
 
@@ -53,12 +53,12 @@ Key Objectives:
 
 | Priority | ID | Jira | Title | Points | Assignee | Status |
 |----------|-----|------|-------|--------|----------|--------|
-| P1 | STORY-075 | SCRUM-71 | SSL/TLS Certificate Setup | 3 | Infra | To Do |
-| P1 | STORY-076 | SCRUM-72 | Secrets Management (Production) | 3 | DevOps | To Do |
-| P1 | STORY-077 | SCRUM-73 | Deployment Scripts Automation | 3 | DevOps | To Do |
-| P1 | STORY-078 | SCRUM-74 | Rollback Procedure & Testing | 3 | DevOps | To Do |
+| P1 | STORY-075 | SCRUM-71 | SSL/TLS Certificate Setup | 3 | Infra | **Done** |
+| P1 | STORY-076 | SCRUM-72 | Secrets Management (Production) | 3 | DevOps | **Done** |
+| P1 | STORY-077 | SCRUM-73 | Deployment Scripts Automation | 3 | DevOps | **Done** |
+| P1 | STORY-078 | SCRUM-74 | Rollback Procedure & Testing | 3 | DevOps | **Done** |
 
-**Subtotal**: 12 pts (4 Stories)
+**Subtotal**: 12 pts (4 Stories) ✅ Completed
 
 ### P2 - Medium (Day 5-7)
 
