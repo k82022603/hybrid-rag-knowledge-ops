@@ -1,0 +1,285 @@
+# infrastructure/docker/docker-compose.override.yml
+# 개발 환경용 설정 (메모리 경량화 + 권한 완화)
+# Created: 2026-01-21
+# Updated: 2026-01-29 - WSL2 nginx 볼륨 전략 수정 (bind mount 제거)
+#
+# 적용 방법: docker compose down && docker compose up -d
+# (override 파일은 자동으로 적용됨)
+
+services:
+  # ===========================================================================
+  # APPLICATION LAYER - 권한 완화
+  # ===========================================================================
+
+  # Nginx - WSL2 권한 완화 (설정은 Dockerfile에서 COPY됨)
+  nginx:
+    user: ""
+    read_only: false
+    tmpfs: []
+    cap_drop: []
+    security_opt: []
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+      - NET_BIND_SERVICE
+
+  # Frontend - nginx 권한 완화
+  frontend:
+    user: ""  # 기본 사용자 사용 (root)
+    read_only: false
+    tmpfs: []
+    cap_drop: []
+    security_opt: []  # 보안 옵션 제거
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+      - NET_BIND_SERVICE
+
+  # API Gateway - 권한 완화
+  api-gateway:
+    user: ""
+    read_only: false
+    tmpfs: []
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+
+  # Backend - 권한 완화
+  backend:
+    user: ""
+    read_only: false
+    tmpfs: []
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+
+  # AI Service - 권한 완화
+  ai-service:
+    user: ""
+    read_only: false
+    tmpfs: []
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+
+  # ===========================================================================
+  # AUTH LAYER - 권한 완화
+  # ===========================================================================
+
+  # Keycloak - tmpfs 권한 문제 해결
+  keycloak:
+    tmpfs: []
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+    environment:
+      - KC_DB=postgres
+      - KC_DB_URL=jdbc:postgresql://keycloak-db:5432/keycloak
+      - KC_DB_USERNAME=${KEYCLOAK_DB_USER:-keycloak}
+      - KC_DB_PASSWORD=${KEYCLOAK_DB_PASSWORD}
+      - KC_HOSTNAME=${KEYCLOAK_HOSTNAME:-localhost}
+      - KC_HOSTNAME_PORT=${KEYCLOAK_PORT:-8180}
+      - KC_HOSTNAME_STRICT=false
+      - KC_HOSTNAME_STRICT_HTTPS=false
+      - KC_HTTP_ENABLED=true
+      - KC_PROXY=edge
+      - KC_HEALTH_ENABLED=true
+      - KC_METRICS_ENABLED=true
+      - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN:-admin}
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
+      - JAVA_OPTS_APPEND=-Xms128m -Xmx384m
+    deploy:
+      resources:
+        limits:
+          memory: 640M
+        reservations:
+          memory: 320M
+
+  # Keycloak DB - 권한 완화
+  keycloak-db:
+    user: ""
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+
+  # ===========================================================================
+  # DATA LAYER - 메모리 경량화 + 권한 완화
+  # ===========================================================================
+
+  # PostgreSQL 경량화 (4GB -> 1GB)
+  postgresql:
+    user: ""
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+    command: >
+      postgres
+      -c shared_buffers=128MB
+      -c effective_cache_size=256MB
+      -c work_mem=4MB
+      -c maintenance_work_mem=64MB
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # Neo4j 경량화 (4GB -> 1GB)
+  neo4j:
+    user: ""
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+    environment:
+      - NEO4J_AUTH=${NEO4J_USER:-neo4j}/${NEO4J_PASSWORD}
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_apoc_export_file_enabled=true
+      - NEO4J_apoc_import_file_enabled=true
+      - NEO4J_apoc_import_file_use__neo4j__config=true
+      - NEO4J_dbms_security_procedures_unrestricted=apoc.*
+      - NEO4J_dbms_security_procedures_allowlist=apoc.*
+      - NEO4J_dbms_memory_heap_initial__size=256m
+      - NEO4J_dbms_memory_heap_max__size=512m
+      - NEO4J_dbms_memory_pagecache_size=256m
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # Elasticsearch 경량화 (4GB -> 1.5GB)
+  elasticsearch:
+    user: ""
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+    environment:
+      - node.name=kp-es01
+      - cluster.name=knowledge-platform-cluster
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+      - xpack.ml.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - bootstrap.memory_lock=true
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+        reservations:
+          memory: 768M
+
+  # Kibana - 권한 완화 + 경량화
+  kibana:
+    user: ""
+    read_only: false
+    tmpfs: []
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_NAME=kibana
+      - SERVER_HOST=0.0.0.0
+      - XPACK_SECURITY_ENABLED=false
+      - NODE_OPTIONS=--max-old-space-size=384
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+        reservations:
+          memory: 384M
+
+  # Redis - 권한 완화
+  redis:
+    user: ""
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+
+  # MinIO - 권한 완화
+  minio:
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+
+  # ===========================================================================
+  # OBSERVABILITY LAYER - 메모리 경량화 + 권한 완화
+  # ===========================================================================
+
+  # Prometheus 경량화 (512MB -> 256MB)
+  prometheus:
+    user: ""
+    read_only: false
+    tmpfs: []
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  # Grafana 경량화 (512MB -> 256MB)
+  grafana:
+    user: ""
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  # Loki 경량화 (512MB -> 256MB)
+  loki:
+    user: ""
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  # Jaeger 경량화 (512MB -> 256MB)
+  jaeger:
+    user: ""
+    tmpfs: []
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - SPAN_STORAGE_TYPE=memory
+      - MEMORY_MAX_TRACES=5000
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  # Promtail 경량화 (256MB -> 128MB)
+  promtail:
+    read_only: false
+    tmpfs: []
+    cap_drop: []
+    cap_add: []
+    security_opt: []
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M

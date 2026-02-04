@@ -7,7 +7,7 @@
 | **Duration** | 2026-02-05 ~ 2026-02-11 (7 days) |
 | **Velocity (Planned)** | 31 pts (10 Stories) |
 | **Velocity (Actual)** | - pts (In Progress) |
-| **Status** | To Do |
+| **Status** | in_progress |
 | **Jira Sprint ID** | - |
 | **Objective** | Phase 5 Deployment Preparation & Production Readiness |
 

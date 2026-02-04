@@ -37,22 +37,32 @@ env/
 *~
 .DS_Store
 
-# Environment variables
+# Environment variables (CRITICAL - never commit secrets)
 .env
 .env.local
 .env.*.local
+.env.production
+.env.staging
+.env.development
 .mcp.json
+
+# SSL Certificates (CRITICAL - never commit private keys)
+*.pem
+*.key
+*.crt
+!*.example.pem
+nginx/certs/
 
 # Logs
 *.log
 logs/
 
-# Storage (실제 DB 데이터)
+# Storage (actual DB data)
 storage/postgres-data/
 storage/neo4j-data/
 storage/elasticsearch-data/
 
-# Knowledge Data (운영 데이터 - 로컬 전용)
+# Knowledge Data (operational data - local only)
 knowledge_data/
 knowledge_service/data/
 
@@ -66,12 +76,12 @@ models/bge-m3-onnx/
 *.onnx
 *.bin
 
-# Results (개발 중 생성되는 파일)
+# Results (generated during development)
 hybrid-rag-knowledge-ops/results/search_logs/*.log
 hybrid-rag-knowledge-ops/results/metadata_exports/*.json
 hybrid-rag-knowledge-ops/results/cost_reports/*.csv
 
-# Node modules (프론트엔드 있을 경우)
+# Node modules (frontend)
 node_modules/
 npm-debug.log
 
@@ -84,13 +94,9 @@ bin/
 
 # Docker
 .dockerignore
-docker-compose.override.yml
 tmpclaude-*
-.mcp.json
 
-# Java/Gradle
-.gradle/
-bin/
-*.class
-*.jar
-!gradle-wrapper.jar
+# Backup files
+/backup/
+*.backup
+*.dump

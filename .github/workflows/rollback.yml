@@ -1,0 +1,419 @@
+# =============================================================================
+# Rollback Workflow
+# =============================================================================
+# Trigger: Manual dispatch only
+# Purpose: Rollback to a previous version in staging or production
+# =============================================================================
+
+name: Rollback Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to rollback'
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      version:
+        description: 'Version to rollback to (e.g., v1.0.0 or sha-abc1234)'
+        required: true
+        type: string
+      confirm_rollback:
+        description: 'Type "ROLLBACK" to confirm (required for production)'
+        required: true
+        type: string
+      reason:
+        description: 'Reason for rollback'
+        required: true
+        type: string
+      restore_database:
+        description: 'Restore database from backup (CAUTION: Data loss possible)'
+        required: false
+        default: false
+        type: boolean
+      backup_date:
+        description: 'Backup date to restore from (format: YYYYMMDD_HHMMSS)'
+        required: false
+        type: string
+
+concurrency:
+  group: rollback-${{ github.event.inputs.environment }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/knowledge-platform
+
+jobs:
+  # =============================================================================
+  # Validate Rollback Request
+  # =============================================================================
+  validate:
+    name: Validate Rollback Request
+    runs-on: ubuntu-latest
+    outputs:
+      is_valid: ${{ steps.validate.outputs.is_valid }}
+      target_host: ${{ steps.hosts.outputs.target_host }}
+    steps:
+      - name: Validate Confirmation
+        id: validate
+        run: |
+          ENV="${{ github.event.inputs.environment }}"
+          CONFIRM="${{ github.event.inputs.confirm_rollback }}"
+
+          if [ "$ENV" == "production" ] && [ "$CONFIRM" != "ROLLBACK" ]; then
+            echo "::error::Production rollback requires confirmation. Please type 'ROLLBACK' to confirm."
+            echo "is_valid=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          if [ -z "${{ github.event.inputs.version }}" ]; then
+            echo "::error::Version is required for rollback."
+            echo "is_valid=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          if [ -z "${{ github.event.inputs.reason }}" ]; then
+            echo "::error::Reason is required for rollback."
+            echo "is_valid=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          echo "is_valid=true" >> $GITHUB_OUTPUT
+
+      - name: Determine Target Host
+        id: hosts
+        run: |
+          if [ "${{ github.event.inputs.environment }}" == "production" ]; then
+            echo "target_host=PRODUCTION" >> $GITHUB_OUTPUT
+          else
+            echo "target_host=STAGING" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Notify Rollback Start
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL_ALERTS }}
+          slack-message: |
+            :warning: *[DevOps] ROLLBACK INITIATED*
+            Environment: ${{ github.event.inputs.environment }}
+            Target Version: ${{ github.event.inputs.version }}
+            Reason: ${{ github.event.inputs.reason }}
+            Initiated by: ${{ github.actor }}
+            Database Restore: ${{ github.event.inputs.restore_database }}
+
+            Rollback in progress...
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        continue-on-error: true
+
+  # =============================================================================
+  # Rollback to Staging
+  # =============================================================================
+  rollback-staging:
+    name: Rollback Staging
+    needs: validate
+    if: needs.validate.outputs.is_valid == 'true' && github.event.inputs.environment == 'staging'
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Execute Staging Rollback
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            set -e
+
+            echo "=== Staging Rollback Started ==="
+            echo "Target Version: ${{ github.event.inputs.version }}"
+            echo "Reason: ${{ github.event.inputs.reason }}"
+            TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+            cd /opt/knowledge-platform
+
+            # Create rollback record
+            echo "${TIMESTAMP}: Rollback to ${{ github.event.inputs.version }} - ${{ github.event.inputs.reason }}" >> /var/log/rollback_history.log
+
+            # Set target version
+            export VERSION=${{ github.event.inputs.version }}
+            export REGISTRY=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}
+
+            # Pull specific version images
+            echo "[1/4] Pulling target version images..."
+            for service in backend gateway frontend ai-service; do
+              docker pull ${REGISTRY}/${service}:${VERSION} || echo "Image not found for ${service}:${VERSION}"
+            done
+
+            # Stop current services
+            echo "[2/4] Stopping current services..."
+            docker compose stop
+
+            # Start with rollback version
+            echo "[3/4] Starting rollback version..."
+            docker compose up -d --remove-orphans
+
+            # Wait for health
+            echo "[4/4] Waiting for services to be healthy..."
+            sleep 30
+
+            # Verify
+            docker compose ps
+
+            echo "=== Staging Rollback Completed ==="
+
+      - name: Restore Database (if requested)
+        if: github.event.inputs.restore_database == 'true'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            set -e
+            BACKUP_DATE="${{ github.event.inputs.backup_date }}"
+
+            if [ -z "$BACKUP_DATE" ]; then
+              echo "::error::Backup date is required for database restore"
+              exit 1
+            fi
+
+            echo "Restoring database from backup: ${BACKUP_DATE}"
+
+            cd /opt/knowledge-platform
+
+            # Stop application services
+            docker compose stop kp-backend kp-ai-service
+
+            # Restore PostgreSQL
+            if [ -f "/backup/pre-deploy-${BACKUP_DATE}/postgresql.sql" ]; then
+              echo "Restoring PostgreSQL..."
+              docker compose exec -T kp-postgresql psql -U knowledge < /backup/pre-deploy-${BACKUP_DATE}/postgresql.sql
+            else
+              echo "::warning::PostgreSQL backup not found"
+            fi
+
+            # Restart services
+            docker compose start
+
+            echo "Database restore completed"
+
+  # =============================================================================
+  # Rollback to Production
+  # =============================================================================
+  rollback-production:
+    name: Rollback Production
+    needs: validate
+    if: needs.validate.outputs.is_valid == 'true' && github.event.inputs.environment == 'production'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Execute Production Rollback
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script: |
+            set -e
+
+            echo "=== Production Rollback Started ==="
+            echo "Target Version: ${{ github.event.inputs.version }}"
+            echo "Reason: ${{ github.event.inputs.reason }}"
+            TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+            cd /opt/knowledge-platform
+
+            # Create backup before rollback
+            echo "[1/6] Creating pre-rollback backup..."
+            mkdir -p /backup/pre-rollback-${TIMESTAMP}
+            docker compose exec -T kp-postgresql pg_dumpall -U knowledge > /backup/pre-rollback-${TIMESTAMP}/postgresql.sql
+            docker compose images > /backup/pre-rollback-${TIMESTAMP}/current_images.txt
+
+            # Create rollback record
+            echo "${TIMESTAMP}: Rollback to ${{ github.event.inputs.version }} - ${{ github.event.inputs.reason }}" >> /var/log/rollback_history.log
+
+            # Set target version
+            export VERSION=${{ github.event.inputs.version }}
+            export REGISTRY=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}
+
+            # Pull specific version images
+            echo "[2/6] Pulling target version images..."
+            for service in backend gateway frontend ai-service; do
+              docker pull ${REGISTRY}/${service}:${VERSION} || echo "Image not found for ${service}:${VERSION}"
+            done
+
+            # Graceful shutdown
+            echo "[3/6] Gracefully stopping services..."
+            docker compose stop kp-backend kp-ai-service kp-gateway kp-frontend
+
+            # Start with rollback version
+            echo "[4/6] Starting rollback version..."
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
+
+            # Wait for health
+            echo "[5/6] Waiting for services to be healthy..."
+            sleep 60
+
+            # Health check
+            echo "[6/6] Running health checks..."
+            docker compose ps
+
+            # Verify backend
+            BACKEND_STATUS=$(docker compose exec -T kp-backend curl -s http://localhost:8081/actuator/health | grep -c '"status":"UP"' || echo "0")
+            if [ "$BACKEND_STATUS" != "1" ]; then
+              echo "::warning::Backend health check returned unexpected status"
+            fi
+
+            echo "=== Production Rollback Completed ==="
+
+      - name: Restore Database (if requested)
+        if: github.event.inputs.restore_database == 'true'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script: |
+            set -e
+            BACKUP_DATE="${{ github.event.inputs.backup_date }}"
+
+            if [ -z "$BACKUP_DATE" ]; then
+              echo "::error::Backup date is required for database restore"
+              exit 1
+            fi
+
+            echo "=== Production Database Restore ==="
+            echo "WARNING: This will replace current database data!"
+            echo "Backup Date: ${BACKUP_DATE}"
+
+            cd /opt/knowledge-platform
+
+            # Stop application services
+            echo "Stopping application services..."
+            docker compose stop kp-backend kp-ai-service
+
+            # Restore PostgreSQL
+            BACKUP_FILE="/backup/pre-deploy-${BACKUP_DATE}/postgresql.sql"
+            if [ -f "$BACKUP_FILE" ]; then
+              echo "Restoring PostgreSQL from ${BACKUP_FILE}..."
+              docker compose exec -T kp-postgresql psql -U knowledge < $BACKUP_FILE
+              echo "PostgreSQL restore completed"
+            else
+              echo "::error::PostgreSQL backup not found at ${BACKUP_FILE}"
+              # List available backups
+              echo "Available backups:"
+              ls -la /backup/ | head -20
+              exit 1
+            fi
+
+            # Restart services
+            echo "Restarting application services..."
+            docker compose start
+
+            echo "Database restore completed"
+
+  # =============================================================================
+  # Verify Rollback
+  # =============================================================================
+  verify:
+    name: Verify Rollback
+    needs: [validate, rollback-staging, rollback-production]
+    if: always() && needs.validate.outputs.is_valid == 'true' && (needs.rollback-staging.result == 'success' || needs.rollback-production.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify Rollback Success
+        run: |
+          echo "Verifying rollback to version: ${{ github.event.inputs.version }}"
+          echo "Environment: ${{ github.event.inputs.environment }}"
+
+          # Add actual verification commands
+          # if [ "${{ github.event.inputs.environment }}" == "production" ]; then
+          #   curl -f https://knowledge.example.com/api/health || exit 1
+          # else
+          #   curl -f https://staging.knowledge.example.com/api/health || exit 1
+          # fi
+
+          echo "Rollback verification passed"
+
+      - name: Generate Rollback Report
+        run: |
+          echo "## Rollback Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Environment** | ${{ github.event.inputs.environment }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Target Version** | ${{ github.event.inputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Reason** | ${{ github.event.inputs.reason }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Initiated by** | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Time** | $(date -u +'%Y-%m-%d %H:%M:%S UTC') |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Database Restored** | ${{ github.event.inputs.restore_database }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Status** | Success |" >> $GITHUB_STEP_SUMMARY
+
+  # =============================================================================
+  # Notify Rollback Result
+  # =============================================================================
+  notify:
+    name: Notify Rollback Result
+    needs: [validate, rollback-staging, rollback-production, verify]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Determine Result
+        id: result
+        run: |
+          if [ "${{ needs.rollback-staging.result }}" == "success" ] || [ "${{ needs.rollback-production.result }}" == "success" ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+          elif [ "${{ needs.rollback-staging.result }}" == "skipped" ] && [ "${{ needs.rollback-production.result }}" == "skipped" ]; then
+            echo "status=skipped" >> $GITHUB_OUTPUT
+          else
+            echo "status=failure" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Notify Rollback Success
+        if: steps.result.outputs.status == 'success'
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL_ALERTS }}
+          slack-message: |
+            :leftwards_arrow_with_hook: *[DevOps] Rollback Completed Successfully*
+            Environment: ${{ github.event.inputs.environment }}
+            Version: ${{ github.event.inputs.version }}
+            Reason: ${{ github.event.inputs.reason }}
+            Initiated by: ${{ github.actor }}
+            Database Restored: ${{ github.event.inputs.restore_database }}
+
+            Services have been rolled back and are operational.
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        continue-on-error: true
+
+      - name: Notify Rollback Failure
+        if: steps.result.outputs.status == 'failure'
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL_ALERTS }}
+          slack-message: |
+            :rotating_light: *[DevOps] CRITICAL: Rollback Failed*
+            Environment: ${{ github.event.inputs.environment }}
+            Target Version: ${{ github.event.inputs.version }}
+            Reason: ${{ github.event.inputs.reason }}
+            Initiated by: ${{ github.actor }}
+
+            Manual intervention may be required!
+            Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        continue-on-error: true

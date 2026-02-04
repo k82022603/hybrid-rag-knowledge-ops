@@ -1,0 +1,97 @@
+# =============================================================================
+# Composite Action: Deployment Notification
+# =============================================================================
+# Purpose: Reusable action for sending deployment notifications to Slack
+# =============================================================================
+
+name: 'Deployment Notification'
+description: 'Send deployment notification to Slack'
+
+inputs:
+  status:
+    description: 'Deployment status (success, failure, started, rollback)'
+    required: true
+  environment:
+    description: 'Target environment'
+    required: true
+  version:
+    description: 'Deployed version'
+    required: true
+  channel_id:
+    description: 'Slack channel ID'
+    required: true
+  slack_token:
+    description: 'Slack bot token'
+    required: true
+  additional_info:
+    description: 'Additional information to include'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Prepare Message
+      id: message
+      shell: bash
+      run: |
+        STATUS="${{ inputs.status }}"
+        ENV="${{ inputs.environment }}"
+        VERSION="${{ inputs.version }}"
+        ACTOR="${{ github.actor }}"
+        REPO="${{ github.repository }}"
+        RUN_URL="${{ github.server_url }}/${REPO}/actions/runs/${{ github.run_id }}"
+
+        case "$STATUS" in
+          "success")
+            EMOJI=":white_check_mark:"
+            TITLE="Deployment Successful"
+            COLOR="good"
+            ;;
+          "failure")
+            EMOJI=":x:"
+            TITLE="Deployment Failed"
+            COLOR="danger"
+            ;;
+          "started")
+            EMOJI=":rocket:"
+            TITLE="Deployment Started"
+            COLOR="warning"
+            ;;
+          "rollback")
+            EMOJI=":leftwards_arrow_with_hook:"
+            TITLE="Rollback Completed"
+            COLOR="warning"
+            ;;
+          *)
+            EMOJI=":information_source:"
+            TITLE="Deployment Update"
+            COLOR="#808080"
+            ;;
+        esac
+
+        MESSAGE="${EMOJI} *[DevOps] ${TITLE}*
+        Environment: ${ENV}
+        Version: \`${VERSION}\`
+        Triggered by: ${ACTOR}"
+
+        if [ -n "${{ inputs.additional_info }}" ]; then
+          MESSAGE="${MESSAGE}
+        ${{ inputs.additional_info }}"
+        fi
+
+        MESSAGE="${MESSAGE}
+        Logs: ${RUN_URL}"
+
+        echo "message<<EOF" >> $GITHUB_OUTPUT
+        echo "$MESSAGE" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Send Slack Notification
+      uses: slackapi/slack-github-action@v1.25.0
+      with:
+        channel-id: ${{ inputs.channel_id }}
+        slack-message: ${{ steps.message.outputs.message }}
+      env:
+        SLACK_BOT_TOKEN: ${{ inputs.slack_token }}
+      continue-on-error: true

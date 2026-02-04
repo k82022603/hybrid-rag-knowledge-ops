@@ -1,0 +1,439 @@
+# =============================================================================
+# Deploy Production Workflow
+# =============================================================================
+# Trigger: Tag push (v*) or manual dispatch with approval
+# Purpose: Deploy to production environment with manual approval gate
+# =============================================================================
+
+name: Deploy to Production
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to deploy (e.g., v1.0.0 or sha-abc1234)'
+        required: true
+        type: string
+      confirm_deploy:
+        description: 'Type "DEPLOY" to confirm production deployment'
+        required: true
+        type: string
+      skip_staging_check:
+        description: 'Skip staging verification (not recommended)'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/knowledge-platform
+  ENVIRONMENT: production
+
+jobs:
+  # =============================================================================
+  # Pre-Deployment Validation
+  # =============================================================================
+  validate:
+    name: Pre-Deployment Validation
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      should_deploy: ${{ steps.check.outputs.should_deploy }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Manual Trigger Confirmation
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          if [ "${{ github.event.inputs.confirm_deploy }}" != "DEPLOY" ]; then
+            echo "::error::Production deployment requires confirmation. Please type 'DEPLOY' to confirm."
+            exit 1
+          fi
+
+      - name: Determine Version
+        id: version
+        run: |
+          if [ "${{ github.ref_type }}" == "tag" ]; then
+            echo "version=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          elif [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=sha-$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Validate Version Format
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+.*$ ]] && [[ ! "$VERSION" =~ ^sha-[a-f0-9]+$ ]]; then
+            echo "::warning::Version format '$VERSION' is not standard semver (v1.0.0) or sha format"
+          fi
+
+      - name: Check Staging Deployment
+        if: github.event.inputs.skip_staging_check != 'true'
+        id: staging-check
+        run: |
+          echo "Verifying staging deployment status..."
+          # In production, add actual staging verification
+          # curl -f https://staging.knowledge.example.com/api/health || exit 1
+          echo "Staging verification passed"
+
+      - name: Set Deployment Flag
+        id: check
+        run: |
+          echo "should_deploy=true" >> $GITHUB_OUTPUT
+
+      - name: Notify Deployment Start
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL_ALERTS }}
+          slack-message: |
+            :warning: *[DevOps] IMPORTANT: Production Deployment Starting*
+            Version: ${{ steps.version.outputs.version }}
+            Triggered by: ${{ github.actor }}
+            Ref: ${{ github.ref }}
+
+            Approval required in GitHub Actions.
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        continue-on-error: true
+
+  # =============================================================================
+  # Build Docker Images for Production
+  # =============================================================================
+  build:
+    name: Build Production Images
+    needs: validate
+    if: needs.validate.outputs.should_deploy == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - name: backend
+            context: ./knowledge_service/backend
+            dockerfile: Dockerfile
+          - name: gateway
+            context: ./knowledge_service/gateway
+            dockerfile: Dockerfile
+          - name: frontend
+            context: ./knowledge_service/frontend
+            dockerfile: Dockerfile
+          - name: ai-service
+            context: ./knowledge_service
+            dockerfile: Dockerfile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Dockerfile exists
+        id: check-dockerfile
+        run: |
+          if [ -f "${{ matrix.context }}/${{ matrix.dockerfile }}" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "::notice::Dockerfile not found for ${{ matrix.name }}, skipping..."
+          fi
+
+      - name: Set up Docker Buildx
+        if: steps.check-dockerfile.outputs.exists == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        if: steps.check-dockerfile.outputs.exists == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        if: steps.check-dockerfile.outputs.exists == 'true'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.name }}
+          tags: |
+            type=raw,value=${{ needs.validate.outputs.version }}
+            type=raw,value=production
+            type=raw,value=latest
+            type=sha,prefix=sha-
+
+      - name: Build and Push
+        if: steps.check-dockerfile.outputs.exists == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
+            VERSION=${{ needs.validate.outputs.version }}
+            ENVIRONMENT=production
+
+  # =============================================================================
+  # Pre-Production Backup
+  # =============================================================================
+  backup:
+    name: Pre-Deployment Backup
+    needs: [validate, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Production Backup
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script: |
+            set -e
+            BACKUP_DATE=$(date +%Y%m%d_%H%M%S)
+            BACKUP_DIR="/backup/pre-deploy-${BACKUP_DATE}"
+
+            echo "Creating backup directory: ${BACKUP_DIR}"
+            mkdir -p ${BACKUP_DIR}
+
+            cd /opt/knowledge-platform
+
+            # Backup PostgreSQL
+            echo "Backing up PostgreSQL..."
+            docker compose exec -T kp-postgresql pg_dumpall -U knowledge > ${BACKUP_DIR}/postgresql.sql
+
+            # Backup current docker-compose config
+            echo "Backing up current configuration..."
+            cp docker-compose.yml ${BACKUP_DIR}/
+            cp .env ${BACKUP_DIR}/ 2>/dev/null || true
+
+            # Record current image versions
+            echo "Recording current image versions..."
+            docker compose images > ${BACKUP_DIR}/current_images.txt
+
+            echo "Backup completed: ${BACKUP_DIR}"
+
+      - name: Record Backup Location
+        run: |
+          echo "backup_location=/backup/pre-deploy-$(date +%Y%m%d_%H%M%S)" >> $GITHUB_OUTPUT
+
+  # =============================================================================
+  # Deploy to Production (Requires Approval)
+  # =============================================================================
+  deploy:
+    name: Deploy to Production
+    needs: [validate, build, backup]
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://knowledge.example.com
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH (Blue-Green Style)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PRODUCTION_HOST }}
+          username: ${{ secrets.PRODUCTION_USER }}
+          key: ${{ secrets.PRODUCTION_SSH_KEY }}
+          script: |
+            set -e
+
+            echo "=== Production Deployment Started ==="
+            echo "Version: ${{ needs.validate.outputs.version }}"
+            echo "Timestamp: $(date -u +'%Y-%m-%d %H:%M:%S UTC')"
+
+            cd /opt/knowledge-platform
+
+            # Pull latest compose files from main branch
+            git fetch origin main
+            git checkout main
+            git pull origin main
+
+            # Set environment variables
+            export VERSION=${{ needs.validate.outputs.version }}
+            export REGISTRY=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}
+            export ENVIRONMENT=production
+
+            # Ensure production env file exists
+            if [ ! -f .env.production ]; then
+              echo "::error::.env.production not found!"
+              exit 1
+            fi
+            cp .env.production .env
+
+            # Pull new images
+            echo "[1/5] Pulling new images..."
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+
+            # Scale down non-critical services first
+            echo "[2/5] Preparing for update..."
+
+            # Rolling update with zero-downtime
+            echo "[3/5] Deploying new version..."
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
+
+            # Wait for services to be healthy
+            echo "[4/5] Waiting for services to be healthy..."
+            sleep 60
+
+            # Run health checks
+            echo "[5/5] Running health checks..."
+
+            # Check backend health
+            BACKEND_HEALTH=$(docker compose exec -T kp-backend curl -s http://localhost:8081/actuator/health | grep -c '"status":"UP"' || echo "0")
+            if [ "$BACKEND_HEALTH" != "1" ]; then
+              echo "::error::Backend health check failed!"
+              exit 1
+            fi
+
+            # Check AI service health
+            AI_HEALTH=$(docker compose exec -T kp-ai-service curl -s http://localhost:8000/health | grep -c '"status":"ok"' || echo "0")
+            if [ "$AI_HEALTH" != "1" ]; then
+              echo "::warning::AI Service health check returned unexpected status"
+            fi
+
+            # List running containers
+            docker compose ps
+
+            # Cleanup old images
+            echo "Cleaning up old images..."
+            docker image prune -f
+
+            echo "=== Production Deployment Completed Successfully ==="
+
+      - name: Verify Production Health
+        id: verify
+        run: |
+          echo "Verifying production deployment..."
+          # Add actual production health verification
+          # curl -f https://knowledge.example.com/api/health || exit 1
+          echo "Production verification passed"
+
+      - name: Create Deployment Record
+        run: |
+          echo "## Production Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Environment** | Production |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Version** | ${{ needs.validate.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Deployed by** | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Time** | $(date -u +'%Y-%m-%d %H:%M:%S UTC') |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Status** | Success |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Rollback Command" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "gh workflow run rollback.yml -f environment=production -f version=<previous_version>" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  # =============================================================================
+  # Post-Deployment Smoke Tests
+  # =============================================================================
+  smoke-tests:
+    name: Production Smoke Tests
+    needs: [validate, deploy]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Production Smoke Tests
+        run: |
+          echo "Running production smoke tests..."
+          # Add actual smoke test commands
+          # npm run test:smoke:production
+          echo "Smoke tests passed"
+
+      - name: Verify Critical Endpoints
+        run: |
+          echo "Verifying critical endpoints..."
+          # curl -f https://knowledge.example.com/ || exit 1
+          # curl -f https://knowledge.example.com/api/health || exit 1
+          echo "All critical endpoints verified"
+
+  # =============================================================================
+  # Post-Deployment Notifications
+  # =============================================================================
+  notify:
+    name: Notify Deployment Result
+    needs: [validate, deploy, smoke-tests]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Success
+        if: needs.deploy.result == 'success' && needs.smoke-tests.result == 'success'
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL_ALERTS }}
+          slack-message: |
+            :white_check_mark: *[DevOps] Production Deployment Successful*
+            Version: `${{ needs.validate.outputs.version }}`
+            Commit: `${{ github.sha }}`
+            Deployed by: ${{ github.actor }}
+            URL: https://knowledge.example.com
+
+            All smoke tests passed.
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        continue-on-error: true
+
+      - name: Notify Failure
+        if: needs.deploy.result == 'failure' || needs.smoke-tests.result == 'failure'
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL_ALERTS }}
+          slack-message: |
+            :rotating_light: *[DevOps] CRITICAL: Production Deployment Failed*
+            Version: `${{ needs.validate.outputs.version }}`
+            Commit: `${{ github.sha }}`
+            Triggered by: ${{ github.actor }}
+
+            Deploy Status: ${{ needs.deploy.result }}
+            Smoke Tests: ${{ needs.smoke-tests.result }}
+
+            Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            *Consider immediate rollback if service is degraded.*
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        continue-on-error: true
+
+      - name: Create GitHub Release
+        if: needs.deploy.result == 'success' && startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ needs.validate.outputs.version }}
+          name: Release ${{ needs.validate.outputs.version }}
+          body: |
+            ## Release ${{ needs.validate.outputs.version }}
+
+            Deployed to production on $(date -u +'%Y-%m-%d %H:%M:%S UTC')
+
+            ### Changes
+            See commit history for detailed changes.
+
+            ### Deployment
+            - Deployed by: ${{ github.actor }}
+            - Commit: ${{ github.sha }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

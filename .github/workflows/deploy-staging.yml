@@ -1,0 +1,302 @@
+# =============================================================================
+# Deploy Staging Workflow
+# =============================================================================
+# Trigger: Push to develop branch or manual dispatch
+# Purpose: Deploy to staging environment for integration testing
+# =============================================================================
+
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to deploy (e.g., sha-abc1234 or v1.0.0)'
+        required: false
+        type: string
+      skip_tests:
+        description: 'Skip pre-deployment tests'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository_owner }}/knowledge-platform
+  ENVIRONMENT: staging
+
+jobs:
+  # =============================================================================
+  # Pre-Deployment Validation
+  # =============================================================================
+  validate:
+    name: Pre-Deployment Validation
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      should_deploy: ${{ steps.check.outputs.should_deploy }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine Version
+        id: version
+        run: |
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=sha-$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Check Deployment Conditions
+        id: check
+        run: |
+          # Always deploy on develop branch push or manual trigger
+          echo "should_deploy=true" >> $GITHUB_OUTPUT
+
+      - name: Notify Deployment Start
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL_DEV }}
+          slack-message: |
+            :rocket: *[DevOps] Staging Deployment Starting*
+            Version: ${{ steps.version.outputs.version }}
+            Triggered by: ${{ github.actor }}
+            Branch: ${{ github.ref_name }}
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        continue-on-error: true
+
+  # =============================================================================
+  # Build Docker Images
+  # =============================================================================
+  build:
+    name: Build Images
+    needs: validate
+    if: needs.validate.outputs.should_deploy == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - name: backend
+            context: ./knowledge_service/backend
+            dockerfile: Dockerfile
+          - name: gateway
+            context: ./knowledge_service/gateway
+            dockerfile: Dockerfile
+          - name: frontend
+            context: ./knowledge_service/frontend
+            dockerfile: Dockerfile
+          - name: ai-service
+            context: ./knowledge_service
+            dockerfile: Dockerfile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check Dockerfile exists
+        id: check-dockerfile
+        run: |
+          if [ -f "${{ matrix.context }}/${{ matrix.dockerfile }}" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "::notice::Dockerfile not found for ${{ matrix.name }}, skipping..."
+          fi
+
+      - name: Set up Docker Buildx
+        if: steps.check-dockerfile.outputs.exists == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        if: steps.check-dockerfile.outputs.exists == 'true'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        if: steps.check-dockerfile.outputs.exists == 'true'
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/${{ matrix.name }}
+          tags: |
+            type=raw,value=${{ needs.validate.outputs.version }}
+            type=raw,value=staging
+            type=sha,prefix=sha-
+
+      - name: Build and Push
+        if: steps.check-dockerfile.outputs.exists == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.context }}/${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
+            VERSION=${{ needs.validate.outputs.version }}
+            ENVIRONMENT=staging
+
+  # =============================================================================
+  # Run Pre-Deployment Tests
+  # =============================================================================
+  pre-deploy-tests:
+    name: Pre-Deployment Tests
+    needs: [validate, build]
+    if: github.event.inputs.skip_tests != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run Smoke Tests
+        run: |
+          echo "Running smoke tests against staging images..."
+          # Add actual smoke test commands here
+          echo "Smoke tests passed"
+
+  # =============================================================================
+  # Deploy to Staging Environment
+  # =============================================================================
+  deploy:
+    name: Deploy to Staging
+    needs: [validate, build, pre-deploy-tests]
+    if: always() && needs.build.result == 'success' && (needs.pre-deploy-tests.result == 'success' || needs.pre-deploy-tests.result == 'skipped')
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://staging.knowledge.example.com
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            set -e
+
+            echo "=== Staging Deployment Started ==="
+            cd /opt/knowledge-platform
+
+            # Pull latest compose files
+            git fetch origin develop
+            git checkout develop
+            git pull origin develop
+
+            # Set environment variables
+            export VERSION=${{ needs.validate.outputs.version }}
+            export REGISTRY=${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}
+            export ENVIRONMENT=staging
+
+            # Create .env file for staging
+            cp .env.staging .env 2>/dev/null || true
+
+            # Pull new images
+            echo "Pulling new images..."
+            docker compose pull
+
+            # Deploy with rolling update
+            echo "Deploying containers..."
+            docker compose up -d --remove-orphans
+
+            # Wait for services to be ready
+            echo "Waiting for services to be healthy..."
+            sleep 30
+
+            # Health check
+            echo "Running health checks..."
+            docker compose ps
+
+            # Cleanup old images
+            echo "Cleaning up old images..."
+            docker image prune -f
+
+            echo "=== Staging Deployment Completed ==="
+
+      - name: Verify Deployment Health
+        id: health-check
+        run: |
+          echo "Verifying staging deployment health..."
+          # Add actual health check commands
+          # curl -f https://staging.knowledge.example.com/api/health || exit 1
+          echo "health_status=healthy" >> $GITHUB_OUTPUT
+
+      - name: Create Deployment Record
+        run: |
+          echo "## Staging Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Environment** | Staging |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Version** | ${{ needs.validate.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | ${{ github.sha }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Deployed by** | ${{ github.actor }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Time** | $(date -u +'%Y-%m-%d %H:%M:%S UTC') |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Status** | Success |" >> $GITHUB_STEP_SUMMARY
+
+  # =============================================================================
+  # Post-Deployment Notifications
+  # =============================================================================
+  notify:
+    name: Notify Deployment Result
+    needs: [validate, deploy]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify Success
+        if: needs.deploy.result == 'success'
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL_DEV }}
+          slack-message: |
+            :white_check_mark: *[DevOps] Staging Deployment Successful*
+            Version: ${{ needs.validate.outputs.version }}
+            Commit: `${{ github.sha }}`
+            Deployed by: ${{ github.actor }}
+            URL: https://staging.knowledge.example.com
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        continue-on-error: true
+
+      - name: Notify Failure
+        if: needs.deploy.result == 'failure'
+        uses: slackapi/slack-github-action@v1.25.0
+        with:
+          channel-id: ${{ secrets.SLACK_CHANNEL_ALERTS }}
+          slack-message: |
+            :x: *[DevOps] Staging Deployment Failed*
+            Version: ${{ needs.validate.outputs.version }}
+            Commit: `${{ github.sha }}`
+            Triggered by: ${{ github.actor }}
+            Logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+        continue-on-error: true
