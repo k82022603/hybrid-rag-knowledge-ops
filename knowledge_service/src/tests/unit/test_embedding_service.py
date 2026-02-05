@@ -20,7 +20,7 @@ import json
 import math
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch, PropertyMock
 
 import pytest
@@ -98,6 +98,13 @@ def _make_service(mock_settings, cache_enabled=False, **kwargs):
     return svc
 
 
+def _make_mock_array(data):
+    """Mock numpy array for tests to avoid numpy import issues."""
+    mock_arr = MagicMock()
+    mock_arr.tolist.return_value = data
+    return mock_arr
+
+
 # ---------------------------------------------------------------------------
 # ChunkEmbedding 테스트
 # ---------------------------------------------------------------------------
@@ -144,9 +151,9 @@ class TestChunkEmbedding:
 
     def test_created_at_auto(self):
         """자동 생성 시각 테스트"""
-        before = datetime.utcnow()
+        before = datetime.now(timezone.utc).replace(tzinfo=None)
         emb = ChunkEmbedding(chunk_id="c1", dense_vector=[0.0])
-        after = datetime.utcnow()
+        after = datetime.now(timezone.utc).replace(tzinfo=None)
         assert before <= emb.created_at <= after
 
 
@@ -165,6 +172,34 @@ class TestEmbeddingCache:
         try:
             cache = EmbeddingCache(host="nonexistent", port=9999)
             assert cache.available is False
+        finally:
+            _emb_module.logger = original_logger
+
+    def test_cache_connect_success(self):
+        """Redis 연결 성공 시 available=True (mock)"""
+        cache = EmbeddingCache.__new__(EmbeddingCache)
+        cache._host = "localhost"
+        cache._port = 6379
+        cache._password = None
+        cache._db = 0
+        cache._ttl = 3600
+        cache._prefix = "emb:"
+        cache._available = False
+        cache._redis = None
+
+        # Mock redis module
+        mock_redis_client = MagicMock()
+        mock_redis_client.ping.return_value = True
+        mock_redis_module = MagicMock()
+        mock_redis_module.Redis.return_value = mock_redis_client
+
+        original_logger = _emb_module.logger
+        _emb_module.logger = MagicMock()
+        try:
+            with patch.dict(sys.modules, {"redis": mock_redis_module}):
+                cache._connect()
+            assert cache._available is True
+            _emb_module.logger.info.assert_called()
         finally:
             _emb_module.logger = original_logger
 
@@ -192,6 +227,32 @@ class TestEmbeddingCache:
         assert results == [None, None, None]
         assert misses == [0, 1, 2]
 
+    def test_cache_get_batch_empty_texts(self):
+        """빈 텍스트 리스트로 get_batch 호출"""
+        cache = EmbeddingCache.__new__(EmbeddingCache)
+        cache._available = True
+        cache._redis = MagicMock()
+        results, misses = cache.get_batch([], "model")
+        assert results == []
+        assert misses == []
+
+    def test_cache_get_batch_exception_handling(self):
+        """get_batch 예외 발생 시 모든 미스 반환"""
+        cache = EmbeddingCache.__new__(EmbeddingCache)
+        cache._available = True
+        cache._prefix = "emb:"
+        cache._redis = MagicMock()
+        cache._redis.mget.side_effect = Exception("Redis connection failed")
+
+        original_logger = _emb_module.logger
+        _emb_module.logger = MagicMock()
+        try:
+            results, misses = cache.get_batch(["a", "b"], "model")
+            assert results == [None, None]
+            assert misses == [0, 1]
+        finally:
+            _emb_module.logger = original_logger
+
     def test_cache_invalidate_noop_when_unavailable(self):
         """캐시 미사용 시 invalidate()는 아무 동작 안 함"""
         cache = EmbeddingCache.__new__(EmbeddingCache)
@@ -204,6 +265,29 @@ class TestEmbeddingCache:
         cache = EmbeddingCache.__new__(EmbeddingCache)
         cache._available = False
         assert cache.stats == {"available": False}
+
+    def test_cache_stats_when_available(self):
+        """캐시 사용 가능 시 stats 반환"""
+        cache = EmbeddingCache.__new__(EmbeddingCache)
+        cache._available = True
+        cache._redis = MagicMock()
+        cache._redis.info.side_effect = [
+            {"used_memory_human": "1.5M"},  # memory info
+            {"db0": "keys=100"},  # keyspace info
+        ]
+        stats = cache.stats
+        assert stats["available"] is True
+        assert stats["used_memory_human"] == "1.5M"
+
+    def test_cache_stats_exception_handling(self):
+        """stats 조회 예외 시 에러 정보 반환"""
+        cache = EmbeddingCache.__new__(EmbeddingCache)
+        cache._available = True
+        cache._redis = MagicMock()
+        cache._redis.info.side_effect = Exception("Redis error")
+        stats = cache.stats
+        assert stats["available"] is True
+        assert stats["error"] == "stats unavailable"
 
     def test_make_key_deterministic(self):
         """동일 입력에 대해 동일 키 생성"""
@@ -264,6 +348,23 @@ class TestEmbeddingCache:
         cache.set("text", "model", [0.1, 0.2])
         cache._redis.setex.assert_called_once()
 
+    def test_cache_set_exception_handling(self):
+        """set 예외 발생 시 조용히 실패"""
+        cache = EmbeddingCache.__new__(EmbeddingCache)
+        cache._available = True
+        cache._prefix = "emb:"
+        cache._ttl = 3600
+        cache._redis = MagicMock()
+        cache._redis.setex.side_effect = Exception("Redis error")
+
+        original_logger = _emb_module.logger
+        _emb_module.logger = MagicMock()
+        try:
+            cache.set("text", "model", [0.1, 0.2])  # Should not raise
+            _emb_module.logger.debug.assert_called()
+        finally:
+            _emb_module.logger = original_logger
+
     def test_cache_get_batch_with_mock_redis(self):
         """Redis mock을 사용한 배치 get 테스트"""
         cache = EmbeddingCache.__new__(EmbeddingCache)
@@ -304,6 +405,23 @@ class TestEmbeddingCache:
         cache.set_batch([], "model", [])
         cache._redis.pipeline.assert_not_called()
 
+    def test_cache_set_batch_exception_handling(self):
+        """set_batch 예외 발생 시 조용히 실패"""
+        cache = EmbeddingCache.__new__(EmbeddingCache)
+        cache._available = True
+        cache._prefix = "emb:"
+        cache._ttl = 3600
+        cache._redis = MagicMock()
+        cache._redis.pipeline.side_effect = Exception("Redis error")
+
+        original_logger = _emb_module.logger
+        _emb_module.logger = MagicMock()
+        try:
+            cache.set_batch(["a", "b"], "model", [[0.1], [0.2]])  # Should not raise
+            _emb_module.logger.debug.assert_called()
+        finally:
+            _emb_module.logger = original_logger
+
     def test_cache_get_handles_exception(self):
         """get() 예외 발생 시 None 반환"""
         cache = EmbeddingCache.__new__(EmbeddingCache)
@@ -325,6 +443,22 @@ class TestEmbeddingCache:
         cache.invalidate("text", "model")
         cache._redis.delete.assert_called_once()
 
+    def test_cache_invalidate_exception_handling(self):
+        """invalidate 예외 발생 시 조용히 실패"""
+        cache = EmbeddingCache.__new__(EmbeddingCache)
+        cache._available = True
+        cache._prefix = "emb:"
+        cache._redis = MagicMock()
+        cache._redis.delete.side_effect = Exception("Redis error")
+
+        original_logger = _emb_module.logger
+        _emb_module.logger = MagicMock()
+        try:
+            cache.invalidate("text", "model")  # Should not raise
+            _emb_module.logger.debug.assert_called()
+        finally:
+            _emb_module.logger = original_logger
+
 
 # ---------------------------------------------------------------------------
 # EmbeddingService 초기화 테스트
@@ -341,6 +475,58 @@ class TestEmbeddingServiceInit:
         assert svc.batch_size == 32
         assert svc.device == "cpu"
         assert svc.normalize is True
+
+    def test_full_init_with_cache_disabled(self, mock_settings):
+        """캐시 비활성화 전체 초기화"""
+        original_logger = _emb_module.logger
+        _emb_module.logger = MagicMock()
+        try:
+            svc = EmbeddingService(
+                model_name="test-model",
+                use_fp16=False,
+                device="cpu",
+                batch_size=16,
+                max_length=512,
+                normalize=False,
+                cache_enabled=False,
+            )
+            assert svc.model_name == "test-model"
+            assert svc.use_fp16 is False
+            assert svc.device == "cpu"
+            assert svc.batch_size == 16
+            assert svc.max_length == 512
+            assert svc.normalize is False
+            assert svc._cache is None
+        finally:
+            _emb_module.logger = original_logger
+
+    def test_init_with_cache_enabled(self, mock_settings):
+        """캐시 활성화 초기화 (Redis 연결 실패)"""
+        original_logger = _emb_module.logger
+        _emb_module.logger = MagicMock()
+        try:
+            svc = EmbeddingService(
+                device="cpu",
+                cache_enabled=True,
+            )
+            # Redis 연결 실패해도 서비스는 생성됨
+            assert svc._cache is not None
+            # Cache availability depends on environment - just check cache exists
+            assert svc._cache is not None
+        finally:
+            _emb_module.logger = original_logger
+
+    def test_init_with_settings_device(self, mock_settings):
+        """설정에서 디바이스 값 가져오기"""
+        mock_settings.embedding_device = "cuda"
+        original_logger = _emb_module.logger
+        _emb_module.logger = MagicMock()
+        try:
+            svc = EmbeddingService(cache_enabled=False)
+            assert svc.device == "cuda"
+        finally:
+            _emb_module.logger = original_logger
+            mock_settings.embedding_device = None
 
     def test_vector_dimension(self, mock_settings):
         """벡터 차원 상수 테스트"""
@@ -489,11 +675,9 @@ class TestEmbedBatchWithMockModel:
 
     def test_embed_batch_flag_embedding(self, mock_settings):
         """FlagEmbedding 기반 배치 임베딩"""
-        import numpy as np
-
         mock_model = MagicMock()
         mock_model.encode.return_value = {
-            "dense_vecs": np.array([[0.3, 0.4]] * 2),
+            "dense_vecs": _make_mock_array([[0.3, 0.4], [0.3, 0.4]]),
         }
 
         svc = _make_service(
@@ -509,11 +693,9 @@ class TestEmbedBatchWithMockModel:
 
     def test_embed_batch_with_normalization(self, mock_settings):
         """정규화 적용 배치 임베딩"""
-        import numpy as np
-
         mock_model = MagicMock()
         mock_model.encode.return_value = {
-            "dense_vecs": np.array([[3.0, 4.0]]),
+            "dense_vecs": _make_mock_array([[3.0, 4.0]]),
         }
 
         svc = _make_service(
@@ -531,10 +713,8 @@ class TestEmbedBatchWithMockModel:
 
     def test_embed_batch_sentence_transformers(self, mock_settings):
         """sentence-transformers 기반 배치 임베딩"""
-        import numpy as np
-
         mock_model = MagicMock()
-        mock_model.encode.return_value = np.array([[0.5, 0.5]])
+        mock_model.encode.return_value = _make_mock_array([[0.5, 0.5]])
 
         svc = _make_service(
             mock_settings,
@@ -546,13 +726,28 @@ class TestEmbedBatchWithMockModel:
         result = svc.embed_batch(["test"])
         assert len(result) == 1
 
+    def test_embed_batch_sentence_transformers_with_sparse(self, mock_settings):
+        """sentence-transformers sparse 요청 (빈 dict 반환)"""
+        mock_model = MagicMock()
+        mock_model.encode.return_value = _make_mock_array([[0.5, 0.5]])
+
+        svc = _make_service(
+            mock_settings,
+            model=mock_model,
+            model_type="sentence_transformers",
+            normalize=False,
+        )
+
+        dense, sparse = svc.embed_batch(["test"], return_sparse=True)
+        assert len(dense) == 1
+        assert len(sparse) == 1
+        assert sparse[0] == {}
+
     def test_embed_batch_with_sparse(self, mock_settings):
         """Sparse 벡터 포함 배치 임베딩"""
-        import numpy as np
-
         mock_model = MagicMock()
         mock_model.encode.return_value = {
-            "dense_vecs": np.array([[0.1, 0.2]]),
+            "dense_vecs": _make_mock_array([[0.1, 0.2]]),
             "lexical_weights": [{0: 0.5, 10: 0.3}],
         }
 
@@ -568,13 +763,32 @@ class TestEmbedBatchWithMockModel:
         assert len(sparse) == 1
         assert sparse[0][0] == 0.5
 
-    def test_embed_single(self, mock_settings):
-        """단일 텍스트 임베딩"""
-        import numpy as np
-
+    def test_embed_batch_flag_embedding_without_lexical_weights(self, mock_settings):
+        """FlagEmbedding sparse 요청 시 lexical_weights 없는 경우"""
         mock_model = MagicMock()
         mock_model.encode.return_value = {
-            "dense_vecs": np.array([[0.1, 0.2]]),
+            "dense_vecs": _make_mock_array([[0.1, 0.2]]),
+            # lexical_weights 키 없음
+        }
+
+        svc = _make_service(
+            mock_settings,
+            model=mock_model,
+            model_type="flag_embedding",
+            normalize=False,
+        )
+
+        dense, sparse = svc.embed_batch(["test"], return_sparse=True)
+        assert len(dense) == 1
+        assert len(sparse) == 1
+        # get() 기본값으로 빈 dict 리스트 반환
+        assert sparse[0] == {}
+
+    def test_embed_single(self, mock_settings):
+        """단일 텍스트 임베딩"""
+        mock_model = MagicMock()
+        mock_model.encode.return_value = {
+            "dense_vecs": _make_mock_array([[0.1, 0.2]]),
         }
 
         svc = _make_service(
@@ -587,6 +801,30 @@ class TestEmbedBatchWithMockModel:
         result = svc.embed("test")
         assert result == [0.1, 0.2]
 
+    def test_embed_single_cache_miss(self, mock_settings):
+        """단일 텍스트 임베딩 캐시 미스"""
+        mock_model = MagicMock()
+        mock_model.encode.return_value = {
+            "dense_vecs": _make_mock_array([[0.1, 0.2]]),
+        }
+
+        svc = _make_service(
+            mock_settings,
+            model=mock_model,
+            model_type="flag_embedding",
+            normalize=False,
+        )
+
+        mock_cache = MagicMock(spec=EmbeddingCache)
+        mock_cache.available = True
+        mock_cache.get.return_value = None  # Cache miss
+        mock_cache.get_batch.return_value = ([None], [0])
+        svc._cache = mock_cache
+
+        result = svc.embed("test")
+        assert result == [0.1, 0.2]
+        mock_cache.get.assert_called_once()
+
 
 # ---------------------------------------------------------------------------
 # embed_chunks 테스트
@@ -598,11 +836,9 @@ class TestEmbedChunks:
 
     def test_embed_chunks_basic(self, mock_settings):
         """기본 청크 임베딩"""
-        import numpy as np
-
         mock_model = MagicMock()
         mock_model.encode.return_value = {
-            "dense_vecs": np.array([[0.1] * 2, [0.2] * 2]),
+            "dense_vecs": _make_mock_array([[0.1, 0.1], [0.2, 0.2]]),
         }
 
         svc = _make_service(
@@ -622,11 +858,9 @@ class TestEmbedChunks:
 
     def test_embed_chunks_with_sparse(self, mock_settings):
         """Sparse 포함 청크 임베딩"""
-        import numpy as np
-
         mock_model = MagicMock()
         mock_model.encode.return_value = {
-            "dense_vecs": np.array([[0.1, 0.2]]),
+            "dense_vecs": _make_mock_array([[0.1, 0.2]]),
             "lexical_weights": [{5: 0.9}],
         }
 
@@ -670,12 +904,10 @@ class TestEmbeddingServiceWithCache:
 
     def test_embed_batch_with_partial_cache(self, mock_settings):
         """부분 캐시 히트: 미스 텍스트만 모델 호출"""
-        import numpy as np
-
         mock_model = MagicMock()
         # 캐시 미스인 1개만 인코딩
         mock_model.encode.return_value = {
-            "dense_vecs": np.array([[0.5, 0.6]]),
+            "dense_vecs": _make_mock_array([[0.5, 0.6]]),
         }
 
         svc = _make_service(
@@ -716,11 +948,9 @@ class TestEmbeddingServiceWithCache:
 
     def test_embed_batch_cache_disabled(self, mock_settings):
         """캐시 비활성화 시 항상 모델 호출"""
-        import numpy as np
-
         mock_model = MagicMock()
         mock_model.encode.return_value = {
-            "dense_vecs": np.array([[0.1, 0.2]]),
+            "dense_vecs": _make_mock_array([[0.1, 0.2]]),
         }
 
         svc = _make_service(
@@ -734,6 +964,32 @@ class TestEmbeddingServiceWithCache:
         result = svc.embed_batch(["test"])
         assert len(result) == 1
         mock_model.encode.assert_called_once()
+
+    def test_embed_batch_with_sparse_skips_cache(self, mock_settings):
+        """sparse 요청 시 캐시 사용 안 함"""
+        mock_model = MagicMock()
+        mock_model.encode.return_value = {
+            "dense_vecs": _make_mock_array([[0.1, 0.2]]),
+            "lexical_weights": [{0: 0.5}],
+        }
+
+        svc = _make_service(
+            mock_settings,
+            model=mock_model,
+            model_type="flag_embedding",
+            normalize=False,
+        )
+
+        mock_cache = MagicMock(spec=EmbeddingCache)
+        mock_cache.available = True
+        svc._cache = mock_cache
+
+        dense, sparse = svc.embed_batch(["test"], return_sparse=True)
+        assert len(dense) == 1
+        # return_sparse=True이면 캐시 get_batch가 호출되지 않음
+        mock_cache.get_batch.assert_not_called()
+        # 캐시 set_batch도 호출되지 않음
+        mock_cache.set_batch.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -767,7 +1023,7 @@ class TestModelLoading:
 
         svc = _make_service(mock_settings)
 
-        original_import = __import__
+        original_import = __builtins__["__import__"]
 
         def mock_import(name, *args, **kwargs):
             if name in ("FlagEmbedding", "sentence_transformers"):
@@ -786,6 +1042,188 @@ class TestModelLoading:
 
         assert svc.model is mock_model
 
+    def test_model_property_triggers_load(self, mock_settings):
+        """model 프로퍼티 접근 시 로드 트리거"""
+        svc = _make_service(mock_settings)
+        svc._model = None
+
+        with patch.object(svc, "_load_model") as mock_load:
+            mock_load.side_effect = lambda: setattr(svc, "_model", MagicMock())
+            _ = svc.model
+            mock_load.assert_called_once()
+
+    def test_load_model_flag_embedding_with_mock(self, mock_settings):
+        """FlagEmbedding 모델 로드 (mock import)"""
+        svc = _make_service(mock_settings)
+        svc.use_fp16 = True
+        svc.device = "cpu"
+
+        mock_bgem3 = MagicMock()
+        mock_flag_module = MagicMock()
+        mock_flag_module.BGEM3FlagModel.return_value = mock_bgem3
+
+        original_logger = _emb_module.logger
+        _emb_module.logger = MagicMock()
+
+        try:
+            with patch.dict(sys.modules, {"FlagEmbedding": mock_flag_module}):
+                svc._load_model()
+
+            assert svc._model is mock_bgem3
+            assert svc._model_type == "flag_embedding"
+        finally:
+            _emb_module.logger = original_logger
+
+    def test_load_model_sentence_transformers_fallback(self, mock_settings):
+        """FlagEmbedding 실패 후 sentence-transformers 폴백"""
+        svc = _make_service(mock_settings)
+        svc.device = "cpu"
+
+        mock_st_model = MagicMock()
+        mock_st_module = MagicMock()
+        mock_st_module.SentenceTransformer.return_value = mock_st_model
+
+        original_logger = _emb_module.logger
+        _emb_module.logger = MagicMock()
+
+        try:
+            # FlagEmbedding import 실패
+            with patch.dict(
+                sys.modules,
+                {
+                    "FlagEmbedding": None,
+                    "sentence_transformers": mock_st_module,
+                },
+            ):
+                # FlagEmbedding import시 ImportError 발생
+                def mock_import(name, *args, **kwargs):
+                    if name == "FlagEmbedding":
+                        raise ImportError("No FlagEmbedding")
+                    if name == "sentence_transformers":
+                        return mock_st_module
+                    return __builtins__["__import__"](name, *args, **kwargs)
+
+                with patch("builtins.__import__", side_effect=mock_import):
+                    svc._load_model()
+
+            assert svc._model is mock_st_model
+            assert svc._model_type == "sentence_transformers"
+        finally:
+            _emb_module.logger = original_logger
+
+    def test_load_model_flag_embedding_general_exception(self, mock_settings):
+        """FlagEmbedding 로드 중 일반 예외 발생시 폴백"""
+        svc = _make_service(mock_settings)
+        svc.device = "cpu"
+
+        mock_st_model = MagicMock()
+        mock_st_module = MagicMock()
+        mock_st_module.SentenceTransformer.return_value = mock_st_model
+
+        original_logger = _emb_module.logger
+        _emb_module.logger = MagicMock()
+
+        try:
+
+            def mock_import(name, *args, **kwargs):
+                if name == "FlagEmbedding":
+                    mock_mod = MagicMock()
+                    mock_mod.BGEM3FlagModel.side_effect = RuntimeError("Model load error")
+                    return mock_mod
+                if name == "sentence_transformers":
+                    return mock_st_module
+                return __builtins__["__import__"](name, *args, **kwargs)
+
+            with patch("builtins.__import__", side_effect=mock_import):
+                svc._load_model()
+
+            assert svc._model is mock_st_model
+            assert svc._model_type == "sentence_transformers"
+        finally:
+            _emb_module.logger = original_logger
+
+
+# ---------------------------------------------------------------------------
+# _encode_texts 테스트
+# ---------------------------------------------------------------------------
+
+
+class TestEncodeTexts:
+    """_encode_texts 메서드 테스트"""
+
+    def test_encode_texts_flag_embedding(self, mock_settings):
+        """FlagEmbedding 인코딩 경로"""
+        mock_model = MagicMock()
+        mock_model.encode.return_value = {
+            "dense_vecs": _make_mock_array([[0.1, 0.2]]),
+        }
+
+        svc = _make_service(
+            mock_settings,
+            model=mock_model,
+            model_type="flag_embedding",
+        )
+
+        dense, sparse = svc._encode_texts(["test"])
+        assert dense == [[0.1, 0.2]]
+        assert sparse == []
+
+    def test_encode_texts_flag_embedding_with_sparse(self, mock_settings):
+        """FlagEmbedding 인코딩 sparse 포함"""
+        mock_model = MagicMock()
+        mock_model.encode.return_value = {
+            "dense_vecs": _make_mock_array([[0.1, 0.2]]),
+            "lexical_weights": [{1: 0.5}],
+        }
+
+        svc = _make_service(
+            mock_settings,
+            model=mock_model,
+            model_type="flag_embedding",
+        )
+
+        dense, sparse = svc._encode_texts(["test"], return_sparse=True)
+        assert dense == [[0.1, 0.2]]
+        assert sparse == [{1: 0.5}]
+
+    def test_encode_texts_fallback_to_sentence_transformers(self, mock_settings):
+        """FlagEmbedding 실패시 sentence-transformers 폴백"""
+        mock_model = MagicMock()
+        # flag_embedding encode가 예외 발생
+        mock_model.encode.side_effect = [
+            RuntimeError("FlagEmbedding error"),
+            _make_mock_array([[0.3, 0.4]]),  # sentence-transformers 결과
+        ]
+
+        svc = _make_service(
+            mock_settings,
+            model=mock_model,
+            model_type=None,  # 타입 미지정
+        )
+
+        original_logger = _emb_module.logger
+        _emb_module.logger = MagicMock()
+        try:
+            dense, sparse = svc._encode_texts(["test"])
+            assert dense == [[0.3, 0.4]]
+        finally:
+            _emb_module.logger = original_logger
+
+    def test_encode_texts_sentence_transformers_direct(self, mock_settings):
+        """sentence-transformers 직접 인코딩"""
+        mock_model = MagicMock()
+        mock_model.encode.return_value = _make_mock_array([[0.5, 0.6]])
+
+        svc = _make_service(
+            mock_settings,
+            model=mock_model,
+            model_type="sentence_transformers",
+        )
+
+        dense, sparse = svc._encode_texts(["test"])
+        assert dense == [[0.5, 0.6]]
+        assert sparse == []
+
 
 # ---------------------------------------------------------------------------
 # 디바이스 감지 테스트
@@ -797,7 +1235,7 @@ class TestDeviceDetection:
 
     def test_detect_cpu_when_no_torch(self):
         """torch 미설치 시 CPU"""
-        original_import = __import__
+        original_import = __builtins__["__import__"]
 
         def mock_import(name, *args, **kwargs):
             if name == "torch":
@@ -807,6 +1245,31 @@ class TestDeviceDetection:
         with patch("builtins.__import__", side_effect=mock_import):
             device = EmbeddingService._detect_device()
             assert device == "cpu"
+
+    def test_detect_cuda_when_available(self):
+        """CUDA 사용 가능 시 cuda 반환"""
+        mock_torch = MagicMock()
+        mock_torch.cuda.is_available.return_value = True
+        mock_torch.cuda.get_device_name.return_value = "NVIDIA GeForce RTX 3090"
+
+        original_logger = _emb_module.logger
+        _emb_module.logger = MagicMock()
+
+        try:
+            with patch.dict(sys.modules, {"torch": mock_torch}):
+                device = EmbeddingService._detect_device()
+            assert device == "cuda"
+        finally:
+            _emb_module.logger = original_logger
+
+    def test_detect_cpu_when_cuda_not_available(self):
+        """CUDA 미사용 시 CPU"""
+        mock_torch = MagicMock()
+        mock_torch.cuda.is_available.return_value = False
+
+        with patch.dict(sys.modules, {"torch": mock_torch}):
+            device = EmbeddingService._detect_device()
+        assert device == "cpu"
 
 
 # ---------------------------------------------------------------------------
@@ -845,6 +1308,18 @@ class TestHealthCheck:
         svc = _make_service(mock_settings)
         stats = svc.cache_stats
         assert stats["available"] is False
+        assert stats["reason"] == "cache disabled"
+
+    def test_cache_stats_enabled(self, mock_settings):
+        """캐시 활성화 시 stats"""
+        svc = _make_service(mock_settings)
+        mock_cache = MagicMock(spec=EmbeddingCache)
+        mock_cache.stats = {"available": True, "used_memory_human": "2M"}
+        svc._cache = mock_cache
+
+        stats = svc.cache_stats
+        assert stats["available"] is True
+        assert stats["used_memory_human"] == "2M"
 
 
 # ---------------------------------------------------------------------------
@@ -915,11 +1390,9 @@ class TestAsyncMethods:
     @pytest.mark.asyncio
     async def test_aembed(self, mock_settings):
         """비동기 단일 임베딩"""
-        import numpy as np
-
         mock_model = MagicMock()
         mock_model.encode.return_value = {
-            "dense_vecs": np.array([[0.1, 0.2]]),
+            "dense_vecs": _make_mock_array([[0.1, 0.2]]),
         }
 
         svc = _make_service(
@@ -935,11 +1408,9 @@ class TestAsyncMethods:
     @pytest.mark.asyncio
     async def test_aembed_batch(self, mock_settings):
         """비동기 배치 임베딩"""
-        import numpy as np
-
         mock_model = MagicMock()
         mock_model.encode.return_value = {
-            "dense_vecs": np.array([[0.1, 0.2], [0.3, 0.4]]),
+            "dense_vecs": _make_mock_array([[0.1, 0.2], [0.3, 0.4]]),
         }
 
         svc = _make_service(
@@ -953,13 +1424,32 @@ class TestAsyncMethods:
         assert len(result) == 2
 
     @pytest.mark.asyncio
-    async def test_aembed_chunks(self, mock_settings):
-        """비동기 청크 임베딩"""
-        import numpy as np
-
+    async def test_aembed_batch_with_sparse(self, mock_settings):
+        """비동기 배치 임베딩 sparse 포함"""
         mock_model = MagicMock()
         mock_model.encode.return_value = {
-            "dense_vecs": np.array([[0.1, 0.2]]),
+            "dense_vecs": _make_mock_array([[0.1, 0.2]]),
+            "lexical_weights": [{0: 0.5}],
+        }
+
+        svc = _make_service(
+            mock_settings,
+            model=mock_model,
+            model_type="flag_embedding",
+            normalize=False,
+        )
+
+        result = await svc.aembed_batch(["test"], return_sparse=True)
+        dense, sparse = result
+        assert len(dense) == 1
+        assert len(sparse) == 1
+
+    @pytest.mark.asyncio
+    async def test_aembed_chunks(self, mock_settings):
+        """비동기 청크 임베딩"""
+        mock_model = MagicMock()
+        mock_model.encode.return_value = {
+            "dense_vecs": _make_mock_array([[0.1, 0.2]]),
         }
 
         svc = _make_service(
@@ -972,3 +1462,23 @@ class TestAsyncMethods:
         chunks = await svc.aembed_chunks(["c1"], ["text"])
         assert len(chunks) == 1
         assert chunks[0].chunk_id == "c1"
+
+    @pytest.mark.asyncio
+    async def test_aembed_chunks_with_sparse(self, mock_settings):
+        """비동기 청크 임베딩 sparse 포함"""
+        mock_model = MagicMock()
+        mock_model.encode.return_value = {
+            "dense_vecs": _make_mock_array([[0.1, 0.2]]),
+            "lexical_weights": [{5: 0.9}],
+        }
+
+        svc = _make_service(
+            mock_settings,
+            model=mock_model,
+            model_type="flag_embedding",
+            normalize=False,
+        )
+
+        chunks = await svc.aembed_chunks(["c1"], ["text"], return_sparse=True)
+        assert len(chunks) == 1
+        assert chunks[0].sparse_vector == {5: 0.9}
