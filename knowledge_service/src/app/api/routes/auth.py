@@ -1,16 +1,20 @@
 """
 인증 API 엔드포인트
 
-JWT 토큰 기반 인증 - Mock 구현 (테스트용)
-추후 Keycloak SSO 연동 예정
+JWT 토큰 기반 인증
+- 환경변수 기반 JWT_SECRET_KEY (필수)
+- bcrypt 비밀번호 해싱
+- PostgreSQL 사용자 테이블 연동 (또는 환경변수 기반 관리자 계정)
 """
 
+import os
 import secrets
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr, Field
 import jwt
 
@@ -21,34 +25,160 @@ logger = get_logger(__name__)
 
 router = APIRouter()
 
-# JWT 설정
-JWT_SECRET_KEY = "knowledge-service-secret-key-change-in-production"
+# ---------------------------------------------------------------------------
+# 보안 설정 (P0 - 환경변수 필수)
+# ---------------------------------------------------------------------------
+
+# JWT Secret Key - 환경변수에서 로드 (필수)
+JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not JWT_SECRET_KEY:
+    raise ValueError(
+        "JWT_SECRET_KEY environment variable is required. "
+        "Set it in .env file or environment variables."
+    )
+
 JWT_ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
-REFRESH_TOKEN_EXPIRE_DAYS = 7
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
+REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
 
-# Mock 사용자 데이터베이스 (테스트용)
-MOCK_USERS: Dict[str, Dict[str, Any]] = {
-    "test@example.com": {
-        "id": "user-001",
-        "email": "test@example.com",
-        "password": "password123",  # 실제 환경에서는 해시 처리 필수
-        "name": "테스트 사용자",
-        "role": "user",
-        "created_at": "2026-01-01T00:00:00Z",
-    },
-    "admin@example.com": {
-        "id": "user-002",
-        "email": "admin@example.com",
-        "password": "admin123",
-        "name": "관리자",
-        "role": "admin",
-        "created_at": "2026-01-01T00:00:00Z",
-    },
-}
+# bcrypt 비밀번호 해싱 컨텍스트
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# 리프레시 토큰 저장소 (메모리, 테스트용)
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """비밀번호 검증 (bcrypt)"""
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+def get_password_hash(password: str) -> str:
+    """비밀번호 해시 생성 (bcrypt)"""
+    return pwd_context.hash(password)
+
+
+# ---------------------------------------------------------------------------
+# 사용자 저장소 (환경변수 기반 + PostgreSQL 연동 준비)
+# ---------------------------------------------------------------------------
+
+def _load_users_from_env() -> Dict[str, Dict[str, Any]]:
+    """
+    환경변수에서 관리자 계정 로드
+
+    환경변수:
+        ADMIN_EMAIL: 관리자 이메일 (기본: admin@example.com)
+        ADMIN_PASSWORD_HASH: bcrypt 해시된 비밀번호 (필수)
+        ADMIN_NAME: 관리자 이름 (기본: 시스템 관리자)
+
+        TEST_USER_EMAIL: 테스트 사용자 이메일 (선택)
+        TEST_USER_PASSWORD_HASH: bcrypt 해시된 비밀번호 (선택)
+        TEST_USER_NAME: 테스트 사용자 이름 (선택)
+
+    Returns:
+        사용자 딕셔너리 (email -> user_info)
+    """
+    users: Dict[str, Dict[str, Any]] = {}
+
+    # 관리자 계정 (환경변수)
+    admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com")
+    admin_password_hash = os.getenv("ADMIN_PASSWORD_HASH")
+
+    if admin_password_hash:
+        users[admin_email] = {
+            "id": "user-admin",
+            "email": admin_email,
+            "password_hash": admin_password_hash,
+            "name": os.getenv("ADMIN_NAME", "시스템 관리자"),
+            "role": "admin",
+            "created_at": "2026-01-01T00:00:00Z",
+        }
+        logger.info(f"Admin user loaded from environment: {admin_email}")
+    else:
+        logger.warning(
+            "ADMIN_PASSWORD_HASH not set. Admin account not available. "
+            "Generate hash with: python -c \"from passlib.context import CryptContext; "
+            "print(CryptContext(schemes=['bcrypt']).hash('your_password'))\""
+        )
+
+    # 테스트 사용자 계정 (환경변수, 선택)
+    test_email = os.getenv("TEST_USER_EMAIL")
+    test_password_hash = os.getenv("TEST_USER_PASSWORD_HASH")
+
+    if test_email and test_password_hash:
+        users[test_email] = {
+            "id": "user-test",
+            "email": test_email,
+            "password_hash": test_password_hash,
+            "name": os.getenv("TEST_USER_NAME", "테스트 사용자"),
+            "role": "user",
+            "created_at": "2026-01-01T00:00:00Z",
+        }
+        logger.info(f"Test user loaded from environment: {test_email}")
+
+    return users
+
+
+# 사용자 저장소 (환경변수 기반)
+# TODO: PostgreSQL users 테이블 연동 시 이 부분을 DB 조회로 대체
+USERS: Dict[str, Dict[str, Any]] = _load_users_from_env()
+
+# 리프레시 토큰 저장소
+# TODO: Redis 또는 PostgreSQL로 마이그레이션 권장 (분산 환경 대응)
 REFRESH_TOKENS: Dict[str, str] = {}
+
+
+async def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
+    """
+    이메일로 사용자 조회
+
+    현재: 환경변수 기반 사용자 저장소에서 조회
+    TODO: PostgreSQL users 테이블 연동
+
+    Args:
+        email: 사용자 이메일
+
+    Returns:
+        사용자 정보 딕셔너리 또는 None
+    """
+    # 환경변수 기반 사용자 조회
+    user = USERS.get(email)
+    if user:
+        return user
+
+    # TODO: PostgreSQL 연동 시 아래 코드 활성화
+    # async with get_async_session() as session:
+    #     result = await session.execute(
+    #         select(UserModel).where(UserModel.email == email)
+    #     )
+    #     user_model = result.scalar_one_or_none()
+    #     if user_model:
+    #         return {
+    #             "id": str(user_model.id),
+    #             "email": user_model.email,
+    #             "password_hash": user_model.password_hash,
+    #             "name": user_model.name,
+    #             "role": user_model.role,
+    #             "created_at": user_model.created_at.isoformat(),
+    #         }
+
+    return None
+
+
+async def get_user_by_id(user_id: str) -> Optional[Dict[str, Any]]:
+    """
+    ID로 사용자 조회
+
+    Args:
+        user_id: 사용자 ID
+
+    Returns:
+        사용자 정보 딕셔너리 또는 None
+    """
+    for user in USERS.values():
+        if user["id"] == user_id:
+            return user
+
+    # TODO: PostgreSQL 연동 시 DB 조회 추가
+
+    return None
 
 # HTTP Bearer 인증
 security = HTTPBearer(auto_error=False)
@@ -203,13 +333,14 @@ async def get_current_user(
 
     # 사용자 정보 조회
     email = payload.get("email")
-    if email not in MOCK_USERS:
+    user = await get_user_by_email(email)
+    if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="사용자를 찾을 수 없습니다",
         )
 
-    return MOCK_USERS[email]
+    return user
 
 
 # ============================================================================
@@ -226,9 +357,9 @@ async def login(request: LoginRequest) -> TokenResponse:
     """
     사용자 로그인
 
-    테스트 계정:
-    - test@example.com / password123 (일반 사용자)
-    - admin@example.com / admin123 (관리자)
+    환경변수로 설정된 계정 사용:
+    - ADMIN_EMAIL / ADMIN_PASSWORD_HASH (관리자)
+    - TEST_USER_EMAIL / TEST_USER_PASSWORD_HASH (테스트 사용자, 선택)
 
     Args:
         request: 로그인 요청 (email, password)
@@ -242,7 +373,7 @@ async def login(request: LoginRequest) -> TokenResponse:
     logger.info(f"Login attempt: {request.email}")
 
     # 사용자 조회
-    user = MOCK_USERS.get(request.email)
+    user = await get_user_by_email(request.email)
     if user is None:
         logger.warning(f"User not found: {request.email}")
         raise HTTPException(
@@ -250,8 +381,9 @@ async def login(request: LoginRequest) -> TokenResponse:
             detail="이메일 또는 비밀번호가 올바르지 않습니다",
         )
 
-    # 비밀번호 검증 (Mock: 평문 비교, 실제: bcrypt 등 사용)
-    if user["password"] != request.password:
+    # 비밀번호 검증 (bcrypt 해싱)
+    password_hash = user.get("password_hash")
+    if not password_hash or not verify_password(request.password, password_hash):
         logger.warning(f"Invalid password for: {request.email}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -371,11 +503,7 @@ async def refresh_token(request: RefreshRequest) -> TokenResponse:
         )
 
     # 사용자 조회
-    user = None
-    for u in MOCK_USERS.values():
-        if u["id"] == user_id:
-            user = u
-            break
+    user = await get_user_by_id(user_id)
 
     if user is None:
         raise HTTPException(

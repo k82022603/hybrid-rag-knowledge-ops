@@ -1,12 +1,16 @@
 package com.knowledge.backend.service;
 
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
 
 import com.knowledge.backend.api.dto.dashboard.ActivityResponse;
 import com.knowledge.backend.api.dto.dashboard.DashboardStatsResponse;
@@ -21,7 +25,6 @@ import com.knowledge.backend.domain.repository.DocumentRepository;
 import com.knowledge.backend.domain.repository.KnowledgeUserRepository;
 import com.knowledge.backend.domain.repository.SearchHistoryRepository;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -30,10 +33,10 @@ import reactor.core.publisher.Mono;
  * Dashboard Service
  *
  * <p>Aggregates statistics and activity data for the dashboard.
+ * Includes real-time health checks for external services.
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class DashboardService {
 
     private final DocumentRepository documentRepository;
@@ -41,6 +44,27 @@ public class DashboardService {
     private final KnowledgeUserRepository knowledgeUserRepository;
     private final SearchHistoryRepository searchHistoryRepository;
     private final AuditLogRepository auditLogRepository;
+    private final WebClient aiServiceWebClient;
+    private final WebClient elasticsearchWebClient;
+
+    private static final Duration HEALTH_CHECK_TIMEOUT = Duration.ofSeconds(5);
+
+    public DashboardService(
+            DocumentRepository documentRepository,
+            ChunkRepository chunkRepository,
+            KnowledgeUserRepository knowledgeUserRepository,
+            SearchHistoryRepository searchHistoryRepository,
+            AuditLogRepository auditLogRepository,
+            @Qualifier("aiServiceWebClient") WebClient aiServiceWebClient,
+            @Qualifier("elasticsearchWebClient") WebClient elasticsearchWebClient) {
+        this.documentRepository = documentRepository;
+        this.chunkRepository = chunkRepository;
+        this.knowledgeUserRepository = knowledgeUserRepository;
+        this.searchHistoryRepository = searchHistoryRepository;
+        this.auditLogRepository = auditLogRepository;
+        this.aiServiceWebClient = aiServiceWebClient;
+        this.elasticsearchWebClient = elasticsearchWebClient;
+    }
 
     /**
      * Get aggregated dashboard statistics
@@ -117,7 +141,13 @@ public class DashboardService {
      * Get system health status
      *
      * <p>Returns overall system health including individual service statuses.
-     * Currently returns mock data for MVP; to be enhanced with actual health checks.
+     * Performs real-time health checks against external services:
+     * <ul>
+     *   <li>Backend API - always UP if this service is running</li>
+     *   <li>AI Service - calls /api/v1/health endpoint</li>
+     *   <li>PostgreSQL - validated via repository connection</li>
+     *   <li>Elasticsearch - calls /_cluster/health endpoint</li>
+     * </ul>
      *
      * @return Mono of SystemHealthResponse
      */
@@ -126,45 +156,184 @@ public class DashboardService {
 
         LocalDateTime now = LocalDateTime.now();
 
-        // Build service health list (mock data for MVP)
-        List<SystemHealthResponse.ServiceHealth> services = new ArrayList<>();
-        services.add(SystemHealthResponse.ServiceHealth.builder()
-                .name("Backend API")
-                .status("up")
-                .responseTime(45L)
-                .lastChecked(now)
-                .build());
-        services.add(SystemHealthResponse.ServiceHealth.builder()
-                .name("AI Service")
-                .status("up")
-                .responseTime(120L)
-                .lastChecked(now)
-                .build());
-        services.add(SystemHealthResponse.ServiceHealth.builder()
-                .name("PostgreSQL")
-                .status("up")
-                .responseTime(15L)
-                .lastChecked(now)
-                .build());
-        services.add(SystemHealthResponse.ServiceHealth.builder()
-                .name("Elasticsearch")
-                .status("up")
-                .responseTime(30L)
-                .lastChecked(now)
-                .build());
+        // Backend API is always up if we're running
+        Mono<SystemHealthResponse.ServiceHealth> backendHealth = Mono.just(
+                SystemHealthResponse.ServiceHealth.builder()
+                        .name("Backend API")
+                        .status("up")
+                        .responseTime(0L)
+                        .lastChecked(now)
+                        .build()
+        );
 
-        return Mono.just(SystemHealthResponse.builder()
-                .overall("healthy")
-                .timestamp(now)
-                .services(services)
-                .build());
+        // Check AI Service health
+        Mono<SystemHealthResponse.ServiceHealth> aiServiceHealth = checkAiServiceHealth(now);
+
+        // Check PostgreSQL via repository
+        Mono<SystemHealthResponse.ServiceHealth> postgresHealth = checkPostgresHealth(now);
+
+        // Check Elasticsearch health
+        Mono<SystemHealthResponse.ServiceHealth> elasticsearchHealth = checkElasticsearchHealth(now);
+
+        // Combine all health checks
+        return Mono.zip(backendHealth, aiServiceHealth, postgresHealth, elasticsearchHealth)
+                .map(tuple -> {
+                    List<SystemHealthResponse.ServiceHealth> services = new ArrayList<>();
+                    services.add(tuple.getT1());
+                    services.add(tuple.getT2());
+                    services.add(tuple.getT3());
+                    services.add(tuple.getT4());
+
+                    // Determine overall status
+                    long downCount = services.stream()
+                            .filter(s -> "down".equals(s.getStatus()))
+                            .count();
+                    long degradedCount = services.stream()
+                            .filter(s -> "degraded".equals(s.getStatus()))
+                            .count();
+
+                    String overall;
+                    if (downCount > 0) {
+                        overall = "unhealthy";
+                    } else if (degradedCount > 0) {
+                        overall = "degraded";
+                    } else {
+                        overall = "healthy";
+                    }
+
+                    log.info("System health check completed: overall={}, services={}",
+                            overall, services.size());
+
+                    return SystemHealthResponse.builder()
+                            .overall(overall)
+                            .timestamp(now)
+                            .services(services)
+                            .build();
+                });
+    }
+
+    /**
+     * Check AI Service health
+     *
+     * @param checkTime timestamp for the health check
+     * @return Mono of ServiceHealth
+     */
+    private Mono<SystemHealthResponse.ServiceHealth> checkAiServiceHealth(LocalDateTime checkTime) {
+        long startTime = System.currentTimeMillis();
+
+        return aiServiceWebClient.get()
+                .uri("/api/v1/health")
+                .retrieve()
+                .bodyToMono(Map.class)
+                .timeout(HEALTH_CHECK_TIMEOUT)
+                .map(response -> {
+                    long responseTime = System.currentTimeMillis() - startTime;
+                    String status = "healthy".equals(response.get("status")) ? "up" : "degraded";
+                    log.debug("AI Service health check: status={}, responseTime={}ms", status, responseTime);
+                    return SystemHealthResponse.ServiceHealth.builder()
+                            .name("AI Service")
+                            .status(status)
+                            .responseTime(responseTime)
+                            .lastChecked(checkTime)
+                            .build();
+                })
+                .onErrorResume(error -> {
+                    long responseTime = System.currentTimeMillis() - startTime;
+                    log.warn("AI Service health check failed: {}", error.getMessage());
+                    return Mono.just(SystemHealthResponse.ServiceHealth.builder()
+                            .name("AI Service")
+                            .status("down")
+                            .responseTime(responseTime)
+                            .lastChecked(checkTime)
+                            .build());
+                });
+    }
+
+    /**
+     * Check PostgreSQL health via repository connection
+     *
+     * @param checkTime timestamp for the health check
+     * @return Mono of ServiceHealth
+     */
+    private Mono<SystemHealthResponse.ServiceHealth> checkPostgresHealth(LocalDateTime checkTime) {
+        long startTime = System.currentTimeMillis();
+
+        return documentRepository.countTotal()
+                .timeout(HEALTH_CHECK_TIMEOUT)
+                .map(count -> {
+                    long responseTime = System.currentTimeMillis() - startTime;
+                    log.debug("PostgreSQL health check: status=up, responseTime={}ms", responseTime);
+                    return SystemHealthResponse.ServiceHealth.builder()
+                            .name("PostgreSQL")
+                            .status("up")
+                            .responseTime(responseTime)
+                            .lastChecked(checkTime)
+                            .build();
+                })
+                .onErrorResume(error -> {
+                    long responseTime = System.currentTimeMillis() - startTime;
+                    log.warn("PostgreSQL health check failed: {}", error.getMessage());
+                    return Mono.just(SystemHealthResponse.ServiceHealth.builder()
+                            .name("PostgreSQL")
+                            .status("down")
+                            .responseTime(responseTime)
+                            .lastChecked(checkTime)
+                            .build());
+                });
+    }
+
+    /**
+     * Check Elasticsearch cluster health
+     *
+     * @param checkTime timestamp for the health check
+     * @return Mono of ServiceHealth
+     */
+    @SuppressWarnings("unchecked")
+    private Mono<SystemHealthResponse.ServiceHealth> checkElasticsearchHealth(LocalDateTime checkTime) {
+        long startTime = System.currentTimeMillis();
+
+        return elasticsearchWebClient.get()
+                .uri("/_cluster/health")
+                .retrieve()
+                .bodyToMono(Map.class)
+                .timeout(HEALTH_CHECK_TIMEOUT)
+                .map(response -> {
+                    long responseTime = System.currentTimeMillis() - startTime;
+                    String clusterStatus = (String) response.get("status");
+                    String status;
+                    if ("green".equals(clusterStatus)) {
+                        status = "up";
+                    } else if ("yellow".equals(clusterStatus)) {
+                        status = "degraded";
+                    } else {
+                        status = "down";
+                    }
+                    log.debug("Elasticsearch health check: clusterStatus={}, status={}, responseTime={}ms",
+                            clusterStatus, status, responseTime);
+                    return SystemHealthResponse.ServiceHealth.builder()
+                            .name("Elasticsearch")
+                            .status(status)
+                            .responseTime(responseTime)
+                            .lastChecked(checkTime)
+                            .build();
+                })
+                .onErrorResume(error -> {
+                    long responseTime = System.currentTimeMillis() - startTime;
+                    log.warn("Elasticsearch health check failed: {}", error.getMessage());
+                    return Mono.just(SystemHealthResponse.ServiceHealth.builder()
+                            .name("Elasticsearch")
+                            .status("down")
+                            .responseTime(responseTime)
+                            .lastChecked(checkTime)
+                            .build());
+                });
     }
 
     /**
      * Get search trends for the last N days
      *
-     * <p>Returns daily search counts. Currently returns mock data for MVP;
-     * to be enhanced with actual aggregation from search_history table.
+     * <p>Returns daily search counts from the search_history table.
+     * If no data exists for certain dates, returns 0 for those dates.
      *
      * @param days number of days to include
      * @return Flux of SearchTrendResponse
@@ -174,20 +343,44 @@ public class DashboardService {
 
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         LocalDate today = LocalDate.now();
+        LocalDateTime startDateTime = today.minusDays(days - 1).atStartOfDay();
+        LocalDateTime endDateTime = today.plusDays(1).atStartOfDay();
 
-        // Generate mock trend data for MVP
-        List<SearchTrendResponse> trends = new ArrayList<>();
-        for (int i = days - 1; i >= 0; i--) {
-            LocalDate date = today.minusDays(i);
-            // Mock count with some variation
-            long count = 50 + (long)(Math.random() * 100);
-            trends.add(SearchTrendResponse.builder()
-                    .date(date.format(formatter))
-                    .count(count)
-                    .build());
-        }
-
-        return Flux.fromIterable(trends);
+        // Query actual search counts from database
+        return searchHistoryRepository.countByDateRange(startDateTime, endDateTime)
+                .collectMap(
+                        history -> history.getQueryText(), // date string from query
+                        history -> history.getResultCount() != null ? history.getResultCount() : 0
+                )
+                .flatMapMany(dateCountMap -> {
+                    // Fill in missing dates with 0 count
+                    List<SearchTrendResponse> trends = new ArrayList<>();
+                    for (int i = days - 1; i >= 0; i--) {
+                        LocalDate date = today.minusDays(i);
+                        String dateStr = date.format(formatter);
+                        long count = dateCountMap.getOrDefault(dateStr, 0);
+                        trends.add(SearchTrendResponse.builder()
+                                .date(dateStr)
+                                .count(count)
+                                .build());
+                    }
+                    log.debug("Search trends generated: {} days, {} with data",
+                            trends.size(), dateCountMap.size());
+                    return Flux.fromIterable(trends);
+                })
+                .onErrorResume(error -> {
+                    log.warn("Error fetching search trends, returning empty data: {}", error.getMessage());
+                    // Return dates with 0 counts on error
+                    List<SearchTrendResponse> emptyTrends = new ArrayList<>();
+                    for (int i = days - 1; i >= 0; i--) {
+                        LocalDate date = today.minusDays(i);
+                        emptyTrends.add(SearchTrendResponse.builder()
+                                .date(date.format(formatter))
+                                .count(0L)
+                                .build());
+                    }
+                    return Flux.fromIterable(emptyTrends);
+                });
     }
 
     /**

@@ -53,4 +53,18 @@ public interface SearchHistoryRepository extends R2dbcRepository<SearchHistory, 
      */
     @Query("SELECT * FROM search_history ORDER BY created_at DESC LIMIT :limit")
     Flux<SearchHistory> findRecent(int limit);
+
+    /**
+     * Count searches by date for trend analysis
+     *
+     * @param startDate start date (inclusive)
+     * @param endDate end date (inclusive)
+     * @return Flux of daily search counts (date as query_text, count as result_count)
+     */
+    @Query("SELECT DATE(created_at) as query_text, COUNT(*) as result_count " +
+           "FROM search_history " +
+           "WHERE created_at >= :startDate AND created_at < :endDate " +
+           "GROUP BY DATE(created_at) " +
+           "ORDER BY DATE(created_at) ASC")
+    Flux<SearchHistory> countByDateRange(java.time.LocalDateTime startDate, java.time.LocalDateTime endDate);
 }

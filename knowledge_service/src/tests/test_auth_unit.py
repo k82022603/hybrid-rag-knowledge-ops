@@ -3,18 +3,27 @@ STORY-024: 직접 로그인 API 단위 테스트
 
 auth.py (FastAPI 라우트) 로직에 대한 단위 테스트
 Redis 의존성 없이 실행 가능
+
+P0 Security Update:
+- TEST_JWT_SECRET_KEY는 환경변수에서 로드
+- bcrypt 비밀번호 해싱 적용
 """
 
+import os
 import pytest
 import jwt
 from datetime import datetime, timedelta
 from unittest.mock import patch, MagicMock
+from passlib.context import CryptContext
 
-# JWT 설정 (auth.py와 동일)
-JWT_SECRET_KEY = "knowledge-service-secret-key-change-in-production"
+# 테스트용 JWT 설정 (환경변수 모킹)
+TEST_TEST_JWT_SECRET_KEY = "test-secret-key-for-unit-tests-only-32chars"
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
+
+# bcrypt 컨텍스트 (auth.py와 동일)
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class TestJWTTokenGeneration:
@@ -39,10 +48,10 @@ class TestJWTTokenGeneration:
             "iat": datetime.utcnow(),
             "type": "access",
         }
-        token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+        token = jwt.encode(payload, TEST_TEST_JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
         # 토큰 디코딩 검증
-        decoded = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        decoded = jwt.decode(token, TEST_TEST_JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
 
         assert decoded["sub"] == user_id
         assert decoded["email"] == email
@@ -67,10 +76,10 @@ class TestJWTTokenGeneration:
             "type": "refresh",
             "jti": secrets.token_urlsafe(32),
         }
-        token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+        token = jwt.encode(payload, TEST_JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
         # 토큰 디코딩 검증
-        decoded = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        decoded = jwt.decode(token, TEST_JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
 
         assert decoded["sub"] == user_id
         assert decoded["type"] == "refresh"
@@ -90,11 +99,11 @@ class TestJWTTokenGeneration:
             "exp": expire,
             "type": "access",
         }
-        token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+        token = jwt.encode(payload, TEST_JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
         # 만료된 토큰 디코딩 시 예외 발생
         with pytest.raises(jwt.ExpiredSignatureError):
-            jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+            jwt.decode(token, TEST_JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
 
     def test_invalid_token(self):
         """
@@ -103,7 +112,7 @@ class TestJWTTokenGeneration:
         invalid_token = "invalid.token.here"
 
         with pytest.raises(jwt.InvalidTokenError):
-            jwt.decode(invalid_token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+            jwt.decode(invalid_token, TEST_JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
 
     def test_wrong_secret_key(self):
         """
@@ -122,27 +131,57 @@ class TestJWTTokenGeneration:
 
 class TestPasswordValidation:
     """
-    비밀번호 검증 테스트
+    비밀번호 검증 테스트 (bcrypt 사용)
     """
+
+    def test_password_hash_and_verify(self):
+        """
+        bcrypt 비밀번호 해싱 및 검증
+        """
+        plain_password = "password123"
+        hashed_password = pwd_context.hash(plain_password)
+
+        # 해시는 원본과 다름
+        assert hashed_password != plain_password
+
+        # verify로 검증 가능
+        assert pwd_context.verify(plain_password, hashed_password)
 
     def test_password_match(self):
         """
-        비밀번호 일치 검증
+        비밀번호 일치 검증 (bcrypt)
         """
-        stored_password = "password123"
-        input_password = "password123"
+        plain_password = "password123"
+        hashed_password = pwd_context.hash(plain_password)
 
-        # Mock 구현에서는 평문 비교 (실제는 bcrypt 사용)
-        assert stored_password == input_password
+        # bcrypt verify 사용
+        assert pwd_context.verify(plain_password, hashed_password)
 
     def test_password_mismatch(self):
         """
-        비밀번호 불일치 검증
+        비밀번호 불일치 검증 (bcrypt)
         """
-        stored_password = "password123"
-        input_password = "wrongpassword"
+        plain_password = "password123"
+        hashed_password = pwd_context.hash(plain_password)
+        wrong_password = "wrongpassword"
 
-        assert stored_password != input_password
+        # 잘못된 비밀번호는 검증 실패
+        assert not pwd_context.verify(wrong_password, hashed_password)
+
+    def test_hash_is_not_deterministic(self):
+        """
+        bcrypt 해시는 매번 다른 값 (salt)
+        """
+        plain_password = "password123"
+        hash1 = pwd_context.hash(plain_password)
+        hash2 = pwd_context.hash(plain_password)
+
+        # 같은 비밀번호여도 해시는 다름 (salt)
+        assert hash1 != hash2
+
+        # 하지만 둘 다 검증 가능
+        assert pwd_context.verify(plain_password, hash1)
+        assert pwd_context.verify(plain_password, hash2)
 
 
 class TestEmailValidation:
@@ -188,18 +227,18 @@ class TestEmailValidation:
 
 class TestUserLookup:
     """
-    사용자 조회 테스트
+    사용자 조회 테스트 (bcrypt 해시 사용)
     """
 
     def test_user_exists(self):
         """
-        존재하는 사용자 조회
+        존재하는 사용자 조회 (password_hash 사용)
         """
         mock_users = {
             "test@example.com": {
                 "id": "user-001",
                 "email": "test@example.com",
-                "password": "password123",
+                "password_hash": pwd_context.hash("password123"),
                 "name": "Test User",
                 "role": "user",
             }
@@ -208,6 +247,7 @@ class TestUserLookup:
         user = mock_users.get("test@example.com")
         assert user is not None
         assert user["email"] == "test@example.com"
+        assert "password_hash" in user
 
     def test_user_not_exists(self):
         """
@@ -241,9 +281,9 @@ class TestTokenDecoding:
             "iat": datetime.utcnow(),
             "type": "access",
         }
-        token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+        token = jwt.encode(payload, TEST_JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
-        decoded = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        decoded = jwt.decode(token, TEST_JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
 
         assert decoded["type"] == "access"
         assert decoded["sub"] == "user-001"
@@ -259,9 +299,9 @@ class TestTokenDecoding:
             "type": "refresh",
             "jti": "unique-id-123",
         }
-        token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+        token = jwt.encode(payload, TEST_JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
-        decoded = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        decoded = jwt.decode(token, TEST_JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
 
         assert decoded["type"] == "refresh"
         assert decoded["jti"] == "unique-id-123"
@@ -275,9 +315,9 @@ class TestTokenDecoding:
             "exp": datetime.utcnow() + timedelta(minutes=30),
             "type": "access",
         }
-        token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+        token = jwt.encode(payload, TEST_JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
-        decoded = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        decoded = jwt.decode(token, TEST_JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
 
         # type이 "refresh"가 아니므로 refresh 용도로 사용 불가
         assert decoded.get("type") != "refresh"
@@ -329,31 +369,32 @@ class TestRoleBasedAccess:
 
 class TestLoginFlow:
     """
-    로그인 플로우 단위 테스트
+    로그인 플로우 단위 테스트 (bcrypt 사용)
     """
 
     def test_successful_login_flow(self):
         """
-        성공적인 로그인 플로우
+        성공적인 로그인 플로우 (bcrypt 검증)
         """
+        plain_password = "password123"
         mock_users = {
             "test@example.com": {
                 "id": "user-001",
                 "email": "test@example.com",
-                "password": "password123",
+                "password_hash": pwd_context.hash(plain_password),
                 "role": "user",
             }
         }
 
         email = "test@example.com"
-        password = "password123"
+        input_password = "password123"
 
         # 1. 사용자 조회
         user = mock_users.get(email)
         assert user is not None, "User should exist"
 
-        # 2. 비밀번호 검증
-        assert user["password"] == password, "Password should match"
+        # 2. 비밀번호 검증 (bcrypt)
+        assert pwd_context.verify(input_password, user["password_hash"]), "Password should match"
 
         # 3. 토큰 생성
         payload = {
@@ -363,32 +404,33 @@ class TestLoginFlow:
             "exp": datetime.utcnow() + timedelta(minutes=30),
             "type": "access",
         }
-        token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+        token = jwt.encode(payload, TEST_JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
 
         assert token is not None
         assert len(token.split(".")) == 3
 
     def test_failed_login_wrong_password(self):
         """
-        잘못된 비밀번호로 로그인 실패
+        잘못된 비밀번호로 로그인 실패 (bcrypt 검증)
         """
+        plain_password = "password123"
         mock_users = {
             "test@example.com": {
                 "id": "user-001",
                 "email": "test@example.com",
-                "password": "password123",
+                "password_hash": pwd_context.hash(plain_password),
                 "role": "user",
             }
         }
 
         email = "test@example.com"
-        password = "wrongpassword"
+        wrong_password = "wrongpassword"
 
         user = mock_users.get(email)
         assert user is not None
 
-        # 비밀번호 불일치
-        assert user["password"] != password
+        # 비밀번호 불일치 (bcrypt)
+        assert not pwd_context.verify(wrong_password, user["password_hash"])
 
     def test_failed_login_user_not_found(self):
         """
@@ -398,7 +440,7 @@ class TestLoginFlow:
             "test@example.com": {
                 "id": "user-001",
                 "email": "test@example.com",
-                "password": "password123",
+                "password_hash": pwd_context.hash("password123"),
             }
         }
 

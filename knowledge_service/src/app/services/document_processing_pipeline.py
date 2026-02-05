@@ -100,8 +100,12 @@ class DocumentRepository:
     """
     문서 저장소 인터페이스
 
-    PostgreSQL 연동 전 In-memory 저장소와의 호환을 위한 어댑터.
-    실제 환경에서는 SQLAlchemy 세션을 사용하여 구현합니다.
+    PostgreSQL 연동과 In-memory 저장소를 모두 지원합니다.
+    - document_store가 None이면 PostgreSQL 사용
+    - document_store가 제공되면 In-memory 사용 (테스트용)
+
+    PostgreSQL 연동:
+        SQLAlchemy async 세션을 사용하여 documents 테이블과 상호작용.
     """
 
     def __init__(self, document_store: Optional[Dict[UUID, Dict[str, Any]]] = None):
@@ -113,6 +117,11 @@ class DocumentRepository:
         """
         self._store = document_store
         self._use_memory = document_store is not None
+
+        if not self._use_memory:
+            logger.info("DocumentRepository initialized with PostgreSQL backend")
+        else:
+            logger.info("DocumentRepository initialized with in-memory backend (testing)")
 
     async def get_documents_by_status(
         self,
@@ -130,15 +139,38 @@ class DocumentRepository:
             문서 딕셔너리 리스트
         """
         if self._use_memory:
-            return [
-                doc
-                for doc in self._store.values()
-                if doc.get("status") == status or doc.get("status").value == status
-            ][:limit]
+            results = []
+            for doc in self._store.values():
+                doc_status = doc.get("status")
+                # Enum 또는 문자열 처리
+                if hasattr(doc_status, "value"):
+                    doc_status = doc_status.value
+                if doc_status == status:
+                    results.append(doc)
+                    if len(results) >= limit:
+                        break
+            return results
 
-        # TODO: PostgreSQL 연동 시 SQLAlchemy 쿼리 구현
-        logger.warning("PostgreSQL repository not implemented - returning empty list")
-        return []
+        # PostgreSQL 연동
+        try:
+            from sqlalchemy import select
+            from app.core.database import DocumentModel, get_async_session
+
+            async with get_async_session() as session:
+                query = (
+                    select(DocumentModel)
+                    .where(DocumentModel.status == status)
+                    .order_by(DocumentModel.created_at.asc())
+                    .limit(limit)
+                )
+                result = await session.execute(query)
+                documents = result.scalars().all()
+
+                return [doc.to_dict() for doc in documents]
+
+        except Exception as e:
+            logger.error(f"PostgreSQL query failed: {e}")
+            return []
 
     async def update_document_status(
         self,
@@ -183,9 +215,49 @@ class DocumentRepository:
             )
             return True
 
-        # TODO: PostgreSQL 연동 시 SQLAlchemy 업데이트 구현
-        logger.warning("PostgreSQL repository not implemented")
-        return False
+        # PostgreSQL 연동
+        try:
+            from sqlalchemy import update
+            from app.core.database import DocumentModel, get_async_session
+
+            async with get_async_session() as session:
+                # 업데이트할 값 준비
+                update_values = {
+                    "status": status,
+                    "progress_percent": progress_percent,
+                }
+
+                if error_message is not None:
+                    update_values["error_message"] = error_message
+
+                # metadata에서 처리 결과 추출
+                if metadata:
+                    if "chunk_count" in metadata:
+                        update_values["chunk_count"] = metadata["chunk_count"]
+                    if "entity_count" in metadata:
+                        update_values["entity_count"] = metadata["entity_count"]
+                    if "relationship_count" in metadata:
+                        update_values["relationship_count"] = metadata["relationship_count"]
+
+                query = (
+                    update(DocumentModel)
+                    .where(DocumentModel.id == str(document_id))
+                    .values(**update_values)
+                )
+                result = await session.execute(query)
+
+                if result.rowcount > 0:
+                    logger.debug(
+                        f"Document status updated: {document_id} -> {status} ({progress_percent}%)"
+                    )
+                    return True
+                else:
+                    logger.warning(f"Document not found for update: {document_id}")
+                    return False
+
+        except Exception as e:
+            logger.error(f"PostgreSQL update failed: {e}")
+            return False
 
     async def get_document(self, document_id: UUID) -> Optional[Dict[str, Any]]:
         """
@@ -200,8 +272,88 @@ class DocumentRepository:
         if self._use_memory:
             return self._store.get(document_id)
 
-        # TODO: PostgreSQL 연동
-        return None
+        # PostgreSQL 연동
+        try:
+            from sqlalchemy import select
+            from app.core.database import DocumentModel, get_async_session
+
+            async with get_async_session() as session:
+                query = select(DocumentModel).where(DocumentModel.id == str(document_id))
+                result = await session.execute(query)
+                document = result.scalar_one_or_none()
+
+                if document:
+                    return document.to_dict()
+                return None
+
+        except Exception as e:
+            logger.error(f"PostgreSQL query failed: {e}")
+            return None
+
+    async def create_document(
+        self,
+        document_id: UUID,
+        filename: str,
+        format_type: str,
+        size_bytes: int,
+        storage_path: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        새 문서 생성
+
+        Args:
+            document_id: 문서 UUID
+            filename: 파일명
+            format_type: 문서 형식 (pdf, docx, hwp, pptx)
+            size_bytes: 파일 크기 (바이트)
+            storage_path: 스토리지 경로
+            metadata: 추가 메타데이터
+
+        Returns:
+            생성된 문서 딕셔너리 또는 None
+        """
+        if self._use_memory:
+            doc = {
+                "document_id": document_id,
+                "filename": filename,
+                "format": format_type,
+                "size_bytes": size_bytes,
+                "storage_path": storage_path,
+                "status": ProcessingStatus.UPLOADED,
+                "progress_percent": 0,
+                "created_at": datetime.now(timezone.utc),
+                "updated_at": datetime.now(timezone.utc),
+            }
+            if metadata:
+                doc.update(metadata)
+            self._store[document_id] = doc
+            return doc
+
+        # PostgreSQL 연동
+        try:
+            from app.core.database import DocumentModel, get_async_session
+
+            async with get_async_session() as session:
+                new_doc = DocumentModel(
+                    id=str(document_id),
+                    filename=filename,
+                    format=format_type,
+                    size_bytes=size_bytes,
+                    storage_path=storage_path,
+                    status=ProcessingStatus.UPLOADED,
+                    title=metadata.get("title") if metadata else None,
+                    description=metadata.get("description") if metadata else None,
+                    project_name=metadata.get("project_name") if metadata else None,
+                )
+                session.add(new_doc)
+                await session.flush()
+
+                return new_doc.to_dict()
+
+        except Exception as e:
+            logger.error(f"PostgreSQL insert failed: {e}")
+            return None
 
 
 # ---------------------------------------------------------------------------

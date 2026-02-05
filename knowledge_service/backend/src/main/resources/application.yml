@@ -73,6 +73,11 @@ ai-service:
   url: ${AI_SERVICE_URL:http://localhost:8000}
   timeout: 60s
 
+# Elasticsearch Configuration
+elasticsearch:
+  url: ${ELASTICSEARCH_URL:http://localhost:9200}
+  timeout: 10s
+
 # MinIO Configuration
 # SECURITY: MinIO credentials must be set via environment variables. No default credentials allowed.
 minio:
@@ -178,6 +183,9 @@ spring:
 
 ai-service:
   url: http://ai-service:8000
+
+elasticsearch:
+  url: http://elasticsearch:9200
 
 minio:
   url: http://minio:9000
