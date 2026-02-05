@@ -1,7 +1,7 @@
 # WSL2 Python 환경 트러블슈팅 가이드
 
-**Version**: 1.0
-**Last Updated**: 2026-01-30
+**Version**: 1.1
+**Last Updated**: 2026-02-02
 **Author**: Claude Code
 
 ---
@@ -47,7 +47,13 @@ WSL2 환경에서 Python venv를 사용할 때 **Windows/Linux 패키지 호환�
 | **torch** | `libtorch_global_deps.so` 오류 | CPU 버전 재설치 |
 | **pyarrow** | `add_dll_directory` 오류 | 재설치 (Linux wheel) |
 | **numpy** | 간헐적 import 오류 | 재설치 |
-| **sentence-transformers** | torch 의존성 오류 | torch 먼저 해결 |
+| **pandas** | `add_dll_directory` 오류 | 재설치 |
+| **scipy** | `add_dll_directory` 오류 | 재설치 |
+| **scikit-learn** | `_check_build` 모듈 누락 | 재설치 |
+| **safetensors** | `_safetensors_rust` 모듈 누락 | 재설치 |
+| **tokenizers** | `tokenizers.tokenizers` 모듈 누락 | 재설치 |
+| **sentencepiece** | `_sentencepiece` 모듈 누락 | 재설치 |
+| **sentence-transformers** | 위 의존성 전부 필요 | 의존성 먼저 해결 |
 
 ---
 
@@ -199,6 +205,56 @@ cat .venv/lib/python3.12/site-packages/torch*.dist-info/WHEEL | grep Tag
 
 **결과**: 환경 호환성 문제 해결
 
+### 6.2 2026-02-02 발생 이슈
+
+**상황**: EmbeddingService(sentence-transformers + BGE-M3) 모델 로드 실패
+
+**원인 분석**:
+- Windows에서 설치된 다수의 ML 패키지가 WSL2에서 동작하지 않음
+- C/Rust 확장 모듈들이 플랫폼 불일치로 로드 불가
+
+**해결 과정 (7개 패키지 순차 재설치)**:
+```bash
+# 1. safetensors - Rust 바인딩
+.venv/bin/pip uninstall safetensors -y
+.venv/bin/pip install safetensors --no-cache-dir
+
+# 2. tokenizers - Rust 바인딩
+.venv/bin/pip uninstall tokenizers -y
+.venv/bin/pip install tokenizers --no-cache-dir
+
+# 3. scikit-learn - C 확장
+.venv/bin/pip uninstall scikit-learn -y
+.venv/bin/pip install scikit-learn --no-cache-dir
+
+# 4. scipy - Fortran/C 확장
+.venv/bin/pip uninstall scipy -y
+.venv/bin/pip install scipy --no-cache-dir
+
+# 5. pandas - C 확장
+.venv/bin/pip uninstall pandas -y
+.venv/bin/pip install pandas --no-cache-dir
+
+# 6. numpy - C 확장
+.venv/bin/pip uninstall numpy -y
+.venv/bin/pip install numpy --no-cache-dir
+
+# 7. sentencepiece - C++ 확장
+.venv/bin/pip uninstall sentencepiece -y
+.venv/bin/pip install sentencepiece --no-cache-dir
+```
+
+**원스톱 명령어**:
+```bash
+# 모든 문제 패키지 한번에 재설치
+.venv/bin/pip uninstall -y safetensors tokenizers scikit-learn scipy pandas numpy sentencepiece
+.venv/bin/pip install --no-cache-dir safetensors tokenizers scikit-learn scipy pandas numpy sentencepiece
+```
+
+**결과**:
+- sentence-transformers 정상 로드
+- BGE-M3 모델 임베딩 성공 (1024차원)
+
 ---
 
 ## 7. 관련 문서
@@ -216,6 +272,7 @@ cat .venv/lib/python3.12/site-packages/torch*.dist-info/WHEEL | grep Tag
 | 버전 | 날짜 | 변경 내용 |
 |------|------|----------|
 | 1.0 | 2026-01-30 | 최초 작성 - WSL2 환경 호환성 이슈 해결 가이드 |
+| 1.1 | 2026-02-02 | ML 패키지 추가 (safetensors, tokenizers, sklearn, scipy, pandas, sentencepiece) |
 
 ---
 
