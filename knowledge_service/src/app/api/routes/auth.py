@@ -2,12 +2,11 @@
 인증 API 엔드포인트
 
 JWT 토큰 기반 인증
-- 환경변수 기반 JWT_SECRET_KEY (필수)
+- 중앙화된 config.py 설정 사용
 - bcrypt 비밀번호 해싱
-- PostgreSQL 사용자 테이블 연동 (또는 환경변수 기반 관리자 계정)
+- 환경변수 기반 관리자 계정
 """
 
-import os
 import secrets
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
@@ -26,22 +25,8 @@ logger = get_logger(__name__)
 router = APIRouter()
 
 # ---------------------------------------------------------------------------
-# 보안 설정 (P0 - 환경변수 필수)
-# ---------------------------------------------------------------------------
-
-# JWT Secret Key - 환경변수에서 로드 (필수)
-JWT_SECRET_KEY = os.getenv("JWT_SECRET_KEY")
-if not JWT_SECRET_KEY:
-    raise ValueError(
-        "JWT_SECRET_KEY environment variable is required. "
-        "Set it in .env file or environment variables."
-    )
-
-JWT_ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
-REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
-
 # bcrypt 비밀번호 해싱 컨텍스트
+# ---------------------------------------------------------------------------
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
@@ -55,70 +40,75 @@ def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
 
+def _get_jwt_secret() -> str:
+    """
+    JWT Secret Key를 settings에서 가져옴
+
+    Raises:
+        ValueError: jwt_secret_key가 설정되지 않았거나 너무 짧은 경우
+    """
+    secret = settings.jwt_secret_key
+    if not secret:
+        raise ValueError(
+            "JWT_SECRET_KEY is not set. Add it to .env file."
+        )
+    if len(secret) < 32:
+        logger.warning(
+            "JWT_SECRET_KEY is shorter than recommended (32+ chars). "
+            "Consider using a longer key for production."
+        )
+    return secret
+
+
 # ---------------------------------------------------------------------------
 # 사용자 저장소 (환경변수 기반 + PostgreSQL 연동 준비)
 # ---------------------------------------------------------------------------
 
-def _load_users_from_env() -> Dict[str, Dict[str, Any]]:
+def _load_users_from_settings() -> Dict[str, Dict[str, Any]]:
     """
-    환경변수에서 관리자 계정 로드
-
-    환경변수:
-        ADMIN_EMAIL: 관리자 이메일 (기본: admin@example.com)
-        ADMIN_PASSWORD_HASH: bcrypt 해시된 비밀번호 (필수)
-        ADMIN_NAME: 관리자 이름 (기본: 시스템 관리자)
-
-        TEST_USER_EMAIL: 테스트 사용자 이메일 (선택)
-        TEST_USER_PASSWORD_HASH: bcrypt 해시된 비밀번호 (선택)
-        TEST_USER_NAME: 테스트 사용자 이름 (선택)
+    settings에서 관리자/테스트 계정 로드
 
     Returns:
         사용자 딕셔너리 (email -> user_info)
     """
     users: Dict[str, Dict[str, Any]] = {}
 
-    # 관리자 계정 (환경변수)
-    admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com")
-    admin_password_hash = os.getenv("ADMIN_PASSWORD_HASH")
-
-    if admin_password_hash:
-        users[admin_email] = {
+    # 관리자 계정
+    if settings.admin_password_hash:
+        users[settings.admin_email] = {
             "id": "user-admin",
-            "email": admin_email,
-            "password_hash": admin_password_hash,
-            "name": os.getenv("ADMIN_NAME", "시스템 관리자"),
+            "email": settings.admin_email,
+            "password_hash": settings.admin_password_hash,
+            "name": settings.admin_name,
             "role": "admin",
             "created_at": "2026-01-01T00:00:00Z",
         }
-        logger.info(f"Admin user loaded from environment: {admin_email}")
+        logger.info(f"Admin user loaded from settings: {settings.admin_email}")
     else:
         logger.warning(
             "ADMIN_PASSWORD_HASH not set. Admin account not available. "
-            "Generate hash with: python -c \"from passlib.context import CryptContext; "
-            "print(CryptContext(schemes=['bcrypt']).hash('your_password'))\""
+            "Generate hash with: python -c \"import bcrypt; "
+            "print(bcrypt.hashpw(b'password', bcrypt.gensalt()).decode())\""
         )
 
-    # 테스트 사용자 계정 (환경변수, 선택)
-    test_email = os.getenv("TEST_USER_EMAIL")
-    test_password_hash = os.getenv("TEST_USER_PASSWORD_HASH")
-
-    if test_email and test_password_hash:
-        users[test_email] = {
+    # 테스트 사용자 계정 (선택)
+    if settings.test_user_email and settings.test_user_password_hash:
+        users[settings.test_user_email] = {
             "id": "user-test",
-            "email": test_email,
-            "password_hash": test_password_hash,
-            "name": os.getenv("TEST_USER_NAME", "테스트 사용자"),
+            "email": settings.test_user_email,
+            "password_hash": settings.test_user_password_hash,
+            "name": settings.test_user_name or "테스트 사용자",
             "role": "user",
             "created_at": "2026-01-01T00:00:00Z",
         }
-        logger.info(f"Test user loaded from environment: {test_email}")
+        logger.info(f"Test user loaded from settings: {settings.test_user_email}")
 
     return users
 
 
 # 사용자 저장소 (환경변수 기반)
 # TODO: PostgreSQL users 테이블 연동 시 이 부분을 DB 조회로 대체
-USERS: Dict[str, Dict[str, Any]] = _load_users_from_env()
+USERS: Dict[str, Dict[str, Any]] = _load_users_from_settings()
 
 # 리프레시 토큰 저장소
 # TODO: Redis 또는 PostgreSQL로 마이그레이션 권장 (분산 환경 대응)
@@ -129,37 +119,13 @@ async def get_user_by_email(email: str) -> Optional[Dict[str, Any]]:
     """
     이메일로 사용자 조회
 
-    현재: 환경변수 기반 사용자 저장소에서 조회
-    TODO: PostgreSQL users 테이블 연동
-
     Args:
         email: 사용자 이메일
 
     Returns:
         사용자 정보 딕셔너리 또는 None
     """
-    # 환경변수 기반 사용자 조회
-    user = USERS.get(email)
-    if user:
-        return user
-
-    # TODO: PostgreSQL 연동 시 아래 코드 활성화
-    # async with get_async_session() as session:
-    #     result = await session.execute(
-    #         select(UserModel).where(UserModel.email == email)
-    #     )
-    #     user_model = result.scalar_one_or_none()
-    #     if user_model:
-    #         return {
-    #             "id": str(user_model.id),
-    #             "email": user_model.email,
-    #             "password_hash": user_model.password_hash,
-    #             "name": user_model.name,
-    #             "role": user_model.role,
-    #             "created_at": user_model.created_at.isoformat(),
-    #         }
-
-    return None
+    return USERS.get(email)
 
 
 async def get_user_by_id(user_id: str) -> Optional[Dict[str, Any]]:
@@ -175,10 +141,8 @@ async def get_user_by_id(user_id: str) -> Optional[Dict[str, Any]]:
     for user in USERS.values():
         if user["id"] == user_id:
             return user
-
-    # TODO: PostgreSQL 연동 시 DB 조회 추가
-
     return None
+
 
 # HTTP Bearer 인증
 security = HTTPBearer(auto_error=False)
@@ -244,7 +208,7 @@ def create_access_token(user_id: str, email: str, role: str) -> str:
     Returns:
         JWT 토큰 문자열
     """
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.utcnow() + timedelta(minutes=settings.access_token_expire_minutes)
     payload = {
         "sub": user_id,
         "email": email,
@@ -253,7 +217,7 @@ def create_access_token(user_id: str, email: str, role: str) -> str:
         "iat": datetime.utcnow(),
         "type": "access",
     }
-    return jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    return jwt.encode(payload, _get_jwt_secret(), algorithm=settings.jwt_algorithm)
 
 
 def create_refresh_token(user_id: str) -> str:
@@ -266,7 +230,7 @@ def create_refresh_token(user_id: str) -> str:
     Returns:
         리프레시 토큰 문자열
     """
-    expire = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    expire = datetime.utcnow() + timedelta(days=settings.refresh_token_expire_days)
     payload = {
         "sub": user_id,
         "exp": expire,
@@ -274,7 +238,7 @@ def create_refresh_token(user_id: str) -> str:
         "type": "refresh",
         "jti": secrets.token_urlsafe(32),
     }
-    token = jwt.encode(payload, JWT_SECRET_KEY, algorithm=JWT_ALGORITHM)
+    token = jwt.encode(payload, _get_jwt_secret(), algorithm=settings.jwt_algorithm)
     # 저장소에 등록
     REFRESH_TOKENS[user_id] = token
     return token
@@ -291,7 +255,11 @@ def decode_token(token: str) -> Optional[Dict[str, Any]]:
         토큰 페이로드 또는 None (실패 시)
     """
     try:
-        payload = jwt.decode(token, JWT_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        payload = jwt.decode(
+            token,
+            _get_jwt_secret(),
+            algorithms=[settings.jwt_algorithm]
+        )
         return payload
     except jwt.ExpiredSignatureError:
         logger.warning("Token expired")
@@ -357,10 +325,6 @@ async def login(request: LoginRequest) -> TokenResponse:
     """
     사용자 로그인
 
-    환경변수로 설정된 계정 사용:
-    - ADMIN_EMAIL / ADMIN_PASSWORD_HASH (관리자)
-    - TEST_USER_EMAIL / TEST_USER_PASSWORD_HASH (테스트 사용자, 선택)
-
     Args:
         request: 로그인 요청 (email, password)
 
@@ -400,7 +364,7 @@ async def login(request: LoginRequest) -> TokenResponse:
         access_token=access_token,
         refresh_token=refresh_token,
         token_type="Bearer",
-        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        expires_in=settings.access_token_expire_minutes * 60,
     )
 
 
@@ -473,8 +437,6 @@ async def refresh_token(request: RefreshRequest) -> TokenResponse:
     """
     토큰 갱신
 
-    유효한 리프레시 토큰으로 새 액세스 토큰과 리프레시 토큰 발급
-
     Args:
         request: 갱신 요청 (refresh_token)
 
@@ -521,5 +483,5 @@ async def refresh_token(request: RefreshRequest) -> TokenResponse:
         access_token=access_token,
         refresh_token=refresh_token,
         token_type="Bearer",
-        expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        expires_in=settings.access_token_expire_minutes * 60,
     )

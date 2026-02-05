@@ -32,6 +32,40 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
     allowed_hosts: List[str] = Field(default=["*"], description="허용 호스트")
 
+    # JWT 인증 설정 (P0 - 필수)
+    jwt_secret_key: str = Field(
+        default="", description="JWT 시크릿 키 (필수, 최소 32자)"
+    )
+    jwt_algorithm: str = Field(default="HS256", description="JWT 알고리즘")
+    access_token_expire_minutes: int = Field(
+        default=30, description="액세스 토큰 만료 시간 (분)"
+    )
+    refresh_token_expire_days: int = Field(
+        default=7, description="리프레시 토큰 만료 시간 (일)"
+    )
+
+    # 관리자 계정 설정 (P0 - 필수)
+    admin_email: str = Field(
+        default="admin@example.com", description="관리자 이메일"
+    )
+    admin_password_hash: str = Field(
+        default="", description="관리자 비밀번호 bcrypt 해시"
+    )
+    admin_name: str = Field(
+        default="시스템 관리자", description="관리자 이름"
+    )
+
+    # 테스트 사용자 계정 (선택)
+    test_user_email: Optional[str] = Field(
+        default=None, description="테스트 사용자 이메일"
+    )
+    test_user_password_hash: Optional[str] = Field(
+        default=None, description="테스트 사용자 비밀번호 bcrypt 해시"
+    )
+    test_user_name: Optional[str] = Field(
+        default=None, description="테스트 사용자 이름"
+    )
+
     # LLM 설정 (DeepSeek)
     deepseek_api_key: Optional[str] = Field(default=None, description="DeepSeek API 키")
     deepseek_base_url: str = Field(
