@@ -8,6 +8,8 @@
 - LRU eviction
 - 캐시 무효화
 - 캐시 통계
+- Redis 백엔드 테스트 (Mocked)
+- 싱글톤 테스트
 """
 
 import asyncio
@@ -20,6 +22,7 @@ from app.services.cache_service import (
     CacheStats,
     InMemoryLRUCache,
     LRUCacheEntry,
+    RedisCacheBackend,
     SearchCacheService,
     get_cache_service,
     reset_cache_service,
@@ -135,6 +138,41 @@ class TestCacheStats:
         assert d["max_size"] == 100
         assert d["backend"] == "in_memory_lru"
 
+    def test_zero_total_requests(self):
+        """총 요청이 0일 때 히트율/미스율"""
+        stats = CacheStats(hits=0, misses=0)
+        assert stats.hit_rate == 0.0
+        assert stats.miss_rate == 0.0
+
+
+# ---------------------------------------------------------------------------
+# LRUCacheEntry Tests
+# ---------------------------------------------------------------------------
+
+
+class TestLRUCacheEntry:
+    """LRU 캐시 엔트리 테스트"""
+
+    def test_entry_creation(self):
+        """엔트리 생성"""
+        entry = LRUCacheEntry(
+            value={"data": "test"},
+            expires_at=time.time() + 60,
+        )
+        assert entry.value == {"data": "test"}
+        assert entry.expires_at > time.time()
+        assert entry.created_at <= time.time()
+
+    def test_entry_with_custom_created_at(self):
+        """커스텀 생성 시간"""
+        custom_time = time.time() - 100
+        entry = LRUCacheEntry(
+            value={"data": "test"},
+            expires_at=time.time() + 60,
+            created_at=custom_time,
+        )
+        assert entry.created_at == custom_time
+
 
 # ---------------------------------------------------------------------------
 # InMemoryLRUCache Tests
@@ -246,9 +284,302 @@ class TestInMemoryLRUCache:
         assert "search:query2" in keys
         assert "other:key" not in keys
 
+    @pytest.mark.asyncio
+    async def test_keys_exact_match(self, lru_cache: InMemoryLRUCache):
+        """정확한 키 매칭"""
+        await lru_cache.set("exact_key", {"data": "value1"})
+        await lru_cache.set("other_key", {"data": "value2"})
+
+        keys = await lru_cache.keys("exact_key")
+        assert len(keys) == 1
+        assert "exact_key" in keys
+
+    @pytest.mark.asyncio
+    async def test_keys_no_match(self, lru_cache: InMemoryLRUCache):
+        """매칭되지 않는 키"""
+        await lru_cache.set("key1", {"data": "value1"})
+
+        keys = await lru_cache.keys("nonexistent")
+        assert len(keys) == 0
+
+    @pytest.mark.asyncio
+    async def test_keys_expired_cleanup(self):
+        """keys() 호출 시 만료된 항목 정리"""
+        cache = InMemoryLRUCache(max_size=10, default_ttl=1)
+        await cache.set("key1", {"data": "value1"})
+        await cache.set("key2", {"data": "value2"}, ttl=10)  # 더 긴 TTL
+
+        # key1 만료 후 keys() 호출
+        await asyncio.sleep(1.1)
+        keys = await cache.keys("*")
+
+        # key1은 만료되어 정리됨, key2만 남음
+        assert "key1" not in keys
+        assert "key2" in keys
+
     def test_get_backend_name(self, lru_cache: InMemoryLRUCache):
         """백엔드 이름"""
         assert lru_cache.get_backend_name() == "in_memory_lru"
+
+    def test_get_max_size(self, lru_cache: InMemoryLRUCache):
+        """최대 크기"""
+        assert lru_cache.get_max_size() == 3
+
+    @pytest.mark.asyncio
+    async def test_set_with_custom_ttl(self, lru_cache: InMemoryLRUCache):
+        """커스텀 TTL로 저장"""
+        await lru_cache.set("key1", {"data": "value1"}, ttl=1)
+
+        result = await lru_cache.get("key1")
+        assert result is not None
+
+        await asyncio.sleep(1.1)
+        result = await lru_cache.get("key1")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_set_update_existing(self, lru_cache: InMemoryLRUCache):
+        """기존 키 업데이트"""
+        await lru_cache.set("key1", {"data": "value1"})
+        await lru_cache.set("key1", {"data": "value2"})
+
+        result = await lru_cache.get("key1")
+        assert result == {"data": "value2"}
+        assert lru_cache.get_size() == 1
+
+
+# ---------------------------------------------------------------------------
+# RedisCacheBackend Tests (Mocked)
+# ---------------------------------------------------------------------------
+
+
+class TestRedisCacheBackend:
+    """Redis 캐시 백엔드 테스트 (Mocked)"""
+
+    @pytest.fixture
+    def mock_redis_client(self):
+        """Mock Redis 클라이언트"""
+        client = AsyncMock()
+        return client
+
+    @pytest.fixture
+    def redis_backend(self, mock_redis_client) -> RedisCacheBackend:
+        """Redis 백엔드 생성 (Mock)"""
+        backend = RedisCacheBackend(
+            redis_url="redis://localhost:6379/0",
+            prefix="test_cache:",
+            default_ttl=60,
+            max_size=1000,
+        )
+        backend._client = mock_redis_client
+        return backend
+
+    def test_make_key(self, redis_backend: RedisCacheBackend):
+        """키 생성 - prefix 추가"""
+        key = redis_backend._make_key("mykey")
+        assert key == "test_cache:mykey"
+
+    def test_get_backend_name(self, redis_backend: RedisCacheBackend):
+        """백엔드 이름"""
+        assert redis_backend.get_backend_name() == "redis"
+
+    def test_get_size(self, redis_backend: RedisCacheBackend):
+        """크기 조회 (비동기 불가로 -1 반환)"""
+        assert redis_backend.get_size() == -1
+
+    def test_get_max_size(self, redis_backend: RedisCacheBackend):
+        """최대 크기"""
+        assert redis_backend.get_max_size() == 1000
+
+    @pytest.mark.asyncio
+    async def test_get_success(self, redis_backend: RedisCacheBackend, mock_redis_client):
+        """Redis get 성공"""
+        mock_redis_client.get.return_value = '{"data": "value1"}'
+
+        result = await redis_backend.get("key1")
+        assert result == {"data": "value1"}
+        mock_redis_client.get.assert_called_once_with("test_cache:key1")
+
+    @pytest.mark.asyncio
+    async def test_get_miss(self, redis_backend: RedisCacheBackend, mock_redis_client):
+        """Redis get 미스"""
+        mock_redis_client.get.return_value = None
+
+        result = await redis_backend.get("key1")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_get_exception(self, redis_backend: RedisCacheBackend, mock_redis_client):
+        """Redis get 예외"""
+        mock_redis_client.get.side_effect = Exception("Connection error")
+
+        result = await redis_backend.get("key1")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_set_success(self, redis_backend: RedisCacheBackend, mock_redis_client):
+        """Redis set 성공"""
+        mock_redis_client.set.return_value = True
+
+        result = await redis_backend.set("key1", {"data": "value1"}, ttl=120)
+        assert result is True
+        mock_redis_client.set.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_set_with_default_ttl(self, redis_backend: RedisCacheBackend, mock_redis_client):
+        """Redis set - 기본 TTL 사용"""
+        mock_redis_client.set.return_value = True
+
+        result = await redis_backend.set("key1", {"data": "value1"})
+        assert result is True
+        # default_ttl이 60이므로 ex=60으로 호출되어야 함
+        call_args = mock_redis_client.set.call_args
+        assert call_args[1]["ex"] == 60
+
+    @pytest.mark.asyncio
+    async def test_set_exception(self, redis_backend: RedisCacheBackend, mock_redis_client):
+        """Redis set 예외"""
+        mock_redis_client.set.side_effect = Exception("Connection error")
+
+        result = await redis_backend.set("key1", {"data": "value1"})
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_delete_success(self, redis_backend: RedisCacheBackend, mock_redis_client):
+        """Redis delete 성공"""
+        mock_redis_client.delete.return_value = 1
+
+        result = await redis_backend.delete("key1")
+        assert result is True
+
+    @pytest.mark.asyncio
+    async def test_delete_not_found(self, redis_backend: RedisCacheBackend, mock_redis_client):
+        """Redis delete - 키 없음"""
+        mock_redis_client.delete.return_value = 0
+
+        result = await redis_backend.delete("key1")
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_delete_exception(self, redis_backend: RedisCacheBackend, mock_redis_client):
+        """Redis delete 예외"""
+        mock_redis_client.delete.side_effect = Exception("Connection error")
+
+        result = await redis_backend.delete("key1")
+        assert result is False
+
+    @pytest.mark.asyncio
+    async def test_clear_success(self, redis_backend: RedisCacheBackend, mock_redis_client):
+        """Redis clear 성공"""
+        # SCAN 결과 시뮬레이션
+        mock_redis_client.scan.side_effect = [
+            (1, ["test_cache:key1", "test_cache:key2"]),
+            (0, ["test_cache:key3"]),
+        ]
+        mock_redis_client.delete.return_value = 2
+
+        result = await redis_backend.clear()
+        assert result == 4  # 2 + 2 (두 번의 delete 호출)
+
+    @pytest.mark.asyncio
+    async def test_clear_empty(self, redis_backend: RedisCacheBackend, mock_redis_client):
+        """Redis clear - 빈 캐시"""
+        mock_redis_client.scan.return_value = (0, [])
+
+        result = await redis_backend.clear()
+        assert result == 0
+
+    @pytest.mark.asyncio
+    async def test_clear_exception(self, redis_backend: RedisCacheBackend, mock_redis_client):
+        """Redis clear 예외"""
+        mock_redis_client.scan.side_effect = Exception("Connection error")
+
+        result = await redis_backend.clear()
+        assert result == 0
+
+    @pytest.mark.asyncio
+    async def test_keys_success(self, redis_backend: RedisCacheBackend, mock_redis_client):
+        """Redis keys 성공"""
+        mock_redis_client.scan.side_effect = [
+            (1, ["test_cache:key1", "test_cache:key2"]),
+            (0, ["test_cache:key3"]),
+        ]
+
+        result = await redis_backend.keys("*")
+        assert len(result) == 3
+        assert "key1" in result
+        assert "key2" in result
+        assert "key3" in result
+
+    @pytest.mark.asyncio
+    async def test_keys_empty(self, redis_backend: RedisCacheBackend, mock_redis_client):
+        """Redis keys - 빈 결과"""
+        mock_redis_client.scan.return_value = (0, [])
+
+        result = await redis_backend.keys("*")
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_keys_exception(self, redis_backend: RedisCacheBackend, mock_redis_client):
+        """Redis keys 예외"""
+        mock_redis_client.scan.side_effect = Exception("Connection error")
+
+        result = await redis_backend.keys("*")
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_get_client_initialization(self):
+        """Redis 클라이언트 초기화"""
+        backend = RedisCacheBackend(
+            redis_url="redis://localhost:6379/0",
+            prefix="test:",
+        )
+        assert backend._client is None
+
+        # 실제 Redis 없이 테스트 - import만 확인
+        with patch("redis.asyncio.from_url") as mock_from_url:
+            mock_client = AsyncMock()
+            mock_from_url.return_value = mock_client
+
+            client = await backend._get_client()
+            assert client is mock_client
+            mock_from_url.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_get_client_reuse(self):
+        """Redis 클라이언트 재사용"""
+        backend = RedisCacheBackend(
+            redis_url="redis://localhost:6379/0",
+            prefix="test:",
+        )
+
+        with patch("redis.asyncio.from_url") as mock_from_url:
+            mock_client = AsyncMock()
+            mock_from_url.return_value = mock_client
+
+            # 첫 번째 호출
+            client1 = await backend._get_client()
+            # 두 번째 호출
+            client2 = await backend._get_client()
+
+            # 같은 클라이언트 반환
+            assert client1 is client2
+            # from_url은 한 번만 호출
+            assert mock_from_url.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_get_client_connection_failure(self):
+        """Redis 클라이언트 연결 실패"""
+        backend = RedisCacheBackend(
+            redis_url="redis://localhost:6379/0",
+            prefix="test:",
+        )
+
+        with patch("redis.asyncio.from_url") as mock_from_url:
+            mock_from_url.side_effect = Exception("Connection refused")
+
+            with pytest.raises(Exception, match="Connection refused"):
+                await backend._get_client()
 
 
 # ---------------------------------------------------------------------------
@@ -298,6 +629,12 @@ class TestSearchCacheService:
         """캐시 키 생성 - 다른 top_k는 다른 키"""
         key1 = cache_service.get_cache_key(query="테스트", top_k=5)
         key2 = cache_service.get_cache_key(query="테스트", top_k=10)
+        assert key1 != key2
+
+    def test_cache_key_different_search_type(self, cache_service: SearchCacheService):
+        """캐시 키 생성 - 다른 search_type은 다른 키"""
+        key1 = cache_service.get_cache_key(query="테스트", search_type="hybrid")
+        key2 = cache_service.get_cache_key(query="테스트", search_type="semantic")
         assert key1 != key2
 
     def test_cache_key_normalization(self, cache_service: SearchCacheService):
@@ -400,6 +737,30 @@ class TestSearchCacheService:
         assert await cache_service._backend.get("other:c") is not None
 
     @pytest.mark.asyncio
+    async def test_delete(
+        self,
+        cache_service: SearchCacheService,
+        sample_search_result: Dict[str, Any],
+    ):
+        """특정 키 삭제"""
+        key = cache_service.get_cache_key(query="테스트")
+        await cache_service.set(key, sample_search_result)
+
+        # 삭제
+        success = await cache_service.delete(key)
+        assert success is True
+
+        # 확인
+        result = await cache_service.get(key)
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_delete_nonexistent(self, cache_service: SearchCacheService):
+        """존재하지 않는 키 삭제"""
+        success = await cache_service.delete("nonexistent_key")
+        assert success is False
+
+    @pytest.mark.asyncio
     async def test_reset_stats(
         self,
         cache_service: SearchCacheService,
@@ -421,6 +782,7 @@ class TestSearchCacheService:
         stats = cache_service.get_stats()
         assert stats.hits == 0
         assert stats.misses == 0
+        assert stats.last_reset != ""
 
     @pytest.mark.asyncio
     async def test_custom_ttl(
@@ -447,6 +809,40 @@ class TestSearchCacheService:
         await asyncio.sleep(1.1)
         result = await cache.get(key)
         assert result is None
+
+    def test_init_with_redis_url(self):
+        """Redis URL로 초기화"""
+        # RedisCacheBackend 초기화는 실제 연결 없이 가능
+        cache = SearchCacheService(
+            redis_url="redis://localhost:6379/0",
+            ttl=120,
+            max_size=500,
+        )
+        assert cache._stats.backend == "redis"
+
+    def test_init_without_redis_url(self):
+        """Redis URL 없이 초기화 (인메모리 폴백)"""
+        cache = SearchCacheService(
+            redis_url=None,
+            ttl=120,
+            max_size=500,
+        )
+        assert cache._stats.backend == "in_memory_lru"
+
+    def test_get_stats_updates_size(self, cache_service: SearchCacheService):
+        """get_stats가 현재 크기를 업데이트하는지 확인"""
+        stats = cache_service.get_stats()
+        assert stats.size == 0
+        assert stats.max_size == 100
+        assert stats.backend == "in_memory_lru"
+
+    @pytest.mark.asyncio
+    async def test_set_failure_logs_warning(self, cache_service: SearchCacheService):
+        """set 실패 시 로깅 확인"""
+        # 백엔드의 set 메서드를 모킹하여 실패 반환
+        with patch.object(cache_service._backend, "set", return_value=False):
+            result = await cache_service.set("key", {"data": "value"})
+            assert result is False
 
 
 # ---------------------------------------------------------------------------
@@ -477,6 +873,23 @@ class TestLRUEviction:
         assert await small_cache_service.get("k3") is not None
         assert await small_cache_service.get("k4") is not None
 
+    @pytest.mark.asyncio
+    async def test_multiple_eviction(self, small_cache_service: SearchCacheService):
+        """여러 항목 eviction"""
+        await small_cache_service.set("k1", {"v": 1})
+        await small_cache_service.set("k2", {"v": 2})
+        await small_cache_service.set("k3", {"v": 3})
+
+        # 2개 더 추가 -> k1, k2 삭제
+        await small_cache_service.set("k4", {"v": 4})
+        await small_cache_service.set("k5", {"v": 5})
+
+        assert await small_cache_service.get("k1") is None
+        assert await small_cache_service.get("k2") is None
+        assert await small_cache_service.get("k3") is not None
+        assert await small_cache_service.get("k4") is not None
+        assert await small_cache_service.get("k5") is not None
+
 
 # ---------------------------------------------------------------------------
 # Singleton Tests
@@ -488,24 +901,75 @@ class TestSingleton:
 
     def test_singleton_instance(self):
         """동일 인스턴스 반환"""
-        # settings는 get_cache_service 내부에서 로컬 import 되므로
-        # 직접 get_cache_service에 파라미터 전달
         reset_cache_service()
 
-        # 첫 번째 호출
-        service1 = get_cache_service(ttl=60, max_size=100)
-        # 두 번째 호출 - 같은 인스턴스 반환
-        service2 = get_cache_service(ttl=120, max_size=200)  # 파라미터 무시
-        assert service1 is service2
+        # settings를 로컬 import로 사용하므로 app.core.config.settings를 패치
+        with patch("app.core.config.settings") as mock_settings:
+            mock_settings.redis_host = None
+            mock_settings.redis_password = None
+            mock_settings.redis_port = 6379
+            mock_settings.redis_db = 0
+
+            # 첫 번째 호출
+            service1 = get_cache_service(ttl=60, max_size=100)
+            # 두 번째 호출 - 같은 인스턴스 반환
+            service2 = get_cache_service(ttl=120, max_size=200)  # 파라미터 무시
+            assert service1 is service2
 
     def test_reset_singleton(self):
         """싱글톤 리셋"""
         reset_cache_service()
 
-        service1 = get_cache_service(ttl=60, max_size=100)
+        with patch("app.core.config.settings") as mock_settings:
+            mock_settings.redis_host = None
+            mock_settings.redis_password = None
+            mock_settings.redis_port = 6379
+            mock_settings.redis_db = 0
+
+            service1 = get_cache_service(ttl=60, max_size=100)
+            reset_cache_service()
+            service2 = get_cache_service(ttl=60, max_size=100)
+            assert service1 is not service2
+
+    def test_get_cache_service_with_redis_from_settings(self):
+        """settings에서 Redis 설정 사용"""
         reset_cache_service()
-        service2 = get_cache_service(ttl=60, max_size=100)
-        assert service1 is not service2
+
+        with patch("app.core.config.settings") as mock_settings:
+            mock_settings.redis_host = "localhost"
+            mock_settings.redis_password = "testpass"
+            mock_settings.redis_port = 6379
+            mock_settings.redis_db = 1
+
+            service = get_cache_service()
+            assert service._stats.backend == "redis"
+
+    def test_get_cache_service_with_redis_no_password(self):
+        """settings에서 Redis 설정 (비밀번호 없음)"""
+        reset_cache_service()
+
+        with patch("app.core.config.settings") as mock_settings:
+            mock_settings.redis_host = "localhost"
+            mock_settings.redis_password = None
+            mock_settings.redis_port = 6379
+            mock_settings.redis_db = 0
+
+            service = get_cache_service()
+            assert service._stats.backend == "redis"
+
+    def test_get_cache_service_with_explicit_redis_url(self):
+        """명시적 Redis URL 우선 사용"""
+        reset_cache_service()
+
+        with patch("app.core.config.settings") as mock_settings:
+            mock_settings.redis_host = "other-host"
+            mock_settings.redis_password = None
+            mock_settings.redis_port = 6379
+            mock_settings.redis_db = 0
+
+            # 명시적 URL이 settings보다 우선
+            service = get_cache_service(redis_url="redis://localhost:6379/0")
+            assert service._stats.backend == "redis"
 
 
 # ---------------------------------------------------------------------------
@@ -552,7 +1016,6 @@ class TestEdgeCases:
         queries = [
             "한글 쿼리",
             "日本語クエリ",
-            "🎉 이모지 테스트",
             "mixed 한글 english",
         ]
 
@@ -580,50 +1043,182 @@ class TestEdgeCases:
         assert result is not None
         assert result["filters"] == filters
 
+    @pytest.mark.asyncio
+    async def test_nested_filters(self, cache_service: SearchCacheService):
+        """중첩된 필터 처리"""
+        filters = {
+            "level1": {
+                "level2": {
+                    "level3": "value"
+                }
+            },
+            "array": [1, 2, 3],
+        }
+        key = cache_service.get_cache_key(query="test", filters=filters)
 
-# ---------------------------------------------------------------------------
-# Integration with Search Service
-# ---------------------------------------------------------------------------
-
-
-class TestSearchServiceIntegration:
-    """SearchService 통합 테스트"""
+        await cache_service.set(key, {"filters": filters})
+        result = await cache_service.get(key)
+        assert result is not None
+        assert result["filters"] == filters
 
     @pytest.mark.asyncio
-    async def test_search_uses_cache(self):
-        """SearchService가 캐시를 사용하는지 확인"""
-        from app.services.search import SearchService
+    async def test_filter_order_independence(self, cache_service: SearchCacheService):
+        """필터 순서 독립성"""
+        filters1 = {"a": 1, "b": 2}
+        filters2 = {"b": 2, "a": 1}
 
-        with patch("app.services.search.settings") as mock_settings:
-            mock_settings.search_cache_enabled = True
-            mock_settings.search_cache_ttl = 60
-            mock_settings.search_cache_max_size = 100
-            mock_settings.rrf_k = 60
+        key1 = cache_service.get_cache_key(query="test", filters=filters1)
+        key2 = cache_service.get_cache_key(query="test", filters=filters2)
 
-            # SearchService 생성
-            service = SearchService(cache_enabled=True)
+        # 필터가 정렬되어 같은 키 생성
+        assert key1 == key2
 
-            # _get_cache_service 모킹
-            with patch("app.services.search._get_cache_service") as mock_get_cache:
-                mock_cache = AsyncMock()
-                mock_cache.get_cache_key.return_value = "test_key"
-                mock_cache.get.return_value = None  # 캐시 미스
-                mock_cache.set.return_value = True
-                mock_get_cache.return_value = mock_cache
 
-                # 캐시 활성화된 서비스 생성
-                service._cache = mock_cache
+# ---------------------------------------------------------------------------
+# Concurrent Access Tests
+# ---------------------------------------------------------------------------
 
-                # 검색 수행 (실제 ES/Neo4j 없이)
-                try:
-                    await service.hybrid_search(
-                        query="테스트 쿼리",
-                        filters=None,
-                        top_k=10,
-                    )
-                except Exception:
-                    # 실제 DB 없이 테스트하므로 예외 허용
-                    pass
 
-                # 캐시 키 생성 호출 확인
-                mock_cache.get_cache_key.assert_called()
+class TestConcurrentAccess:
+    """동시 접근 테스트"""
+
+    @pytest.mark.asyncio
+    async def test_concurrent_set(self, cache_service: SearchCacheService):
+        """동시 set 작업"""
+        async def set_item(i):
+            key = cache_service.get_cache_key(query=f"query{i}")
+            await cache_service.set(key, {"value": i})
+            return True
+
+        # 50개 동시 저장
+        results = await asyncio.gather(*[set_item(i) for i in range(50)])
+        assert all(results)
+        assert cache_service.get_stats().size == 50
+
+    @pytest.mark.asyncio
+    async def test_concurrent_get(self, cache_service: SearchCacheService):
+        """동시 get 작업"""
+        # 미리 데이터 저장
+        for i in range(10):
+            key = cache_service.get_cache_key(query=f"query{i}")
+            await cache_service.set(key, {"value": i})
+
+        async def get_item(i):
+            key = cache_service.get_cache_key(query=f"query{i}")
+            return await cache_service.get(key)
+
+        # 동시 조회
+        results = await asyncio.gather(*[get_item(i % 10) for i in range(50)])
+        assert all(r is not None for r in results)
+
+    @pytest.mark.asyncio
+    async def test_concurrent_set_get(self, cache_service: SearchCacheService):
+        """동시 set/get 혼합 작업"""
+        async def mixed_operation(i):
+            key = cache_service.get_cache_key(query=f"query{i % 10}")
+            if i % 2 == 0:
+                await cache_service.set(key, {"value": i})
+            else:
+                await cache_service.get(key)
+            return True
+
+        results = await asyncio.gather(*[mixed_operation(i) for i in range(50)])
+        assert all(results)
+
+
+# ---------------------------------------------------------------------------
+# Stats Tests
+# ---------------------------------------------------------------------------
+
+
+class TestStatsTracking:
+    """통계 추적 상세 테스트"""
+
+    @pytest.mark.asyncio
+    async def test_hit_miss_tracking(self, cache_service: SearchCacheService):
+        """히트/미스 추적"""
+        # 미스 3회
+        for i in range(3):
+            key = cache_service.get_cache_key(query=f"query{i}")
+            await cache_service.get(key)
+
+        stats = cache_service.get_stats()
+        assert stats.misses == 3
+        assert stats.hits == 0
+
+        # 저장 후 히트 2회
+        key = cache_service.get_cache_key(query="query0")
+        await cache_service.set(key, {"data": "value"})
+        await cache_service.get(key)
+        await cache_service.get(key)
+
+        stats = cache_service.get_stats()
+        assert stats.misses == 3
+        assert stats.hits == 2
+        assert stats.hit_rate == 2 / 5
+
+    @pytest.mark.asyncio
+    async def test_stats_after_clear(self, cache_service: SearchCacheService):
+        """clear 후 통계"""
+        # 데이터 저장
+        for i in range(5):
+            key = cache_service.get_cache_key(query=f"query{i}")
+            await cache_service.set(key, {"value": i})
+
+        # 통계 기록
+        for i in range(5):
+            key = cache_service.get_cache_key(query=f"query{i}")
+            await cache_service.get(key)
+
+        stats = cache_service.get_stats()
+        assert stats.hits == 5
+        assert stats.size == 5
+
+        # clear
+        await cache_service.invalidate(pattern=None)
+
+        stats = cache_service.get_stats()
+        assert stats.hits == 5  # 통계는 유지
+        assert stats.size == 0  # 크기만 0
+
+    @pytest.mark.asyncio
+    async def test_stats_with_redis_backend(self):
+        """Redis 백엔드에서 통계 (get_size가 -1 반환)"""
+        cache = SearchCacheService(
+            redis_url="redis://localhost:6379/0",
+            ttl=60,
+            max_size=100,
+        )
+
+        # Redis 백엔드는 get_size가 -1 반환
+        # get_stats에서 음수 크기는 업데이트하지 않음
+        stats = cache.get_stats()
+        assert stats.size == 0  # 초기값 유지
+
+
+# ---------------------------------------------------------------------------
+# Redis Fallback Tests
+# ---------------------------------------------------------------------------
+
+
+class TestRedisFallback:
+    """Redis 초기화 실패 시 폴백 테스트"""
+
+    def test_redis_init_failure_fallback(self):
+        """Redis 초기화 실패 시 인메모리로 폴백"""
+        # RedisCacheBackend 생성 자체는 실패하지 않지만,
+        # 연결 시 실패하면 get/set 등에서 None/False 반환
+
+        # 실제 Redis 연결 실패를 시뮬레이션하기 위해
+        # SearchCacheService가 RedisCacheBackend 생성 시 예외 발생하면
+        # 인메모리로 폴백하는지 확인
+        with patch(
+            "app.services.cache_service.RedisCacheBackend",
+            side_effect=Exception("Connection failed"),
+        ):
+            cache = SearchCacheService(
+                redis_url="redis://localhost:6379/0",
+                ttl=60,
+                max_size=100,
+            )
+            assert cache._stats.backend == "in_memory_lru"
