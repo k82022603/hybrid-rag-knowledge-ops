@@ -3,17 +3,56 @@ Infrastructure E2E Test Configuration
 
 pytest fixtures and configuration for infrastructure testing.
 SCRUM-20: Sprint 01 Validation
+
+Updated: 2026-02-05 - Added .env file auto-loading for Keycloak credentials
 """
 
 import os
 import subprocess
 import time
+from pathlib import Path
 from typing import Dict, Generator, List, Optional
 
 import pytest
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+
+
+# =============================================================================
+# AUTO-LOAD .env FILE
+# =============================================================================
+
+def load_dotenv_file():
+    """Load environment variables from infrastructure/docker/.env file.
+
+    This ensures that test credentials match the Docker Compose environment.
+    """
+    # Find the .env file relative to this conftest.py
+    current_dir = Path(__file__).parent
+    # Navigate: tests/e2e/infrastructure -> knowledge_service/src/tests/e2e/infrastructure
+    # Project root: hybrid-rag-knowledge-ops
+    project_root = current_dir.parents[5]  # Go up 5 levels
+    env_file = project_root / "infrastructure" / "docker" / ".env"
+
+    if env_file.exists():
+        with open(env_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                # Skip comments and empty lines
+                if not line or line.startswith('#'):
+                    continue
+                # Parse KEY=VALUE
+                if '=' in line:
+                    key, _, value = line.partition('=')
+                    key = key.strip()
+                    value = value.strip()
+                    # Only set if not already in environment
+                    if key not in os.environ or not os.environ[key]:
+                        os.environ[key] = value
+
+# Load .env file at module import time
+load_dotenv_file()
 
 
 # =============================================================================
@@ -78,21 +117,22 @@ SERVICE_ENDPOINTS = {
 }
 
 # Environment variables (loaded from .env or defaults)
+# Note: load_dotenv_file() is called before this, so os.getenv will find the values
 DEFAULT_CONFIG = {
     "POSTGRES_USER": os.getenv("DB_USERNAME", "knowledge"),
-    "POSTGRES_PASSWORD": os.getenv("DB_PASSWORD", "knowledge"),
+    "POSTGRES_PASSWORD": os.getenv("DB_PASSWORD", "knowledge_dev_2026!"),
     "POSTGRES_DB": os.getenv("DB_NAME", "knowledge"),
     "NEO4J_USER": os.getenv("NEO4J_USER", "neo4j"),
-    "NEO4J_PASSWORD": os.getenv("NEO4J_PASSWORD", ""),
+    "NEO4J_PASSWORD": os.getenv("NEO4J_PASSWORD", "neo4j_dev_2026!"),
     "ELASTIC_USER": os.getenv("ELASTIC_USER", "elastic"),
     "ELASTIC_PASSWORD": os.getenv("ELASTIC_PASSWORD", ""),
     "KEYCLOAK_ADMIN": os.getenv("KEYCLOAK_ADMIN", "admin"),
-    "KEYCLOAK_ADMIN_PASSWORD": os.getenv("KEYCLOAK_ADMIN_PASSWORD", ""),
+    "KEYCLOAK_ADMIN_PASSWORD": os.getenv("KEYCLOAK_ADMIN_PASSWORD", "keycloak_admin_2026!"),
     "KEYCLOAK_REALM": os.getenv("KEYCLOAK_REALM", "hybrid-rag"),
-    "MINIO_ACCESS_KEY": os.getenv("MINIO_ACCESS_KEY", ""),
-    "MINIO_SECRET_KEY": os.getenv("MINIO_SECRET_KEY", ""),
+    "MINIO_ACCESS_KEY": os.getenv("MINIO_ACCESS_KEY", "minioadmin"),
+    "MINIO_SECRET_KEY": os.getenv("MINIO_SECRET_KEY", "minio_dev_2026!"),
     "GRAFANA_ADMIN_USER": os.getenv("GRAFANA_ADMIN_USER", "admin"),
-    "GRAFANA_ADMIN_PASSWORD": os.getenv("GRAFANA_ADMIN_PASSWORD", "admin"),
+    "GRAFANA_ADMIN_PASSWORD": os.getenv("GRAFANA_ADMIN_PASSWORD", "grafana_dev_2026!"),
 }
 
 
