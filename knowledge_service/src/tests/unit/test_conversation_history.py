@@ -2,6 +2,8 @@
 대화 이력 관리 서비스 테스트 모듈
 
 STORY-057: 대화이력 + 스트리밍 구현
+
+테스트 커버리지 목표: 80%+
 """
 
 import pytest
@@ -42,6 +44,31 @@ class TestConversationTurn:
         assert turn.latency_ms == 100.5
         assert turn.timestamp is not None
 
+    def test_create_turn_with_metadata(self):
+        """메타데이터 포함 턴 생성 테스트"""
+        turn = ConversationTurn(
+            turn_id="turn-002",
+            query="질문",
+            answer="답변",
+            metadata={"model": "deepseek-chat", "tokens": 100},
+        )
+
+        assert turn.metadata["model"] == "deepseek-chat"
+        assert turn.metadata["tokens"] == 100
+
+    def test_create_turn_default_values(self):
+        """기본값 턴 생성 테스트"""
+        turn = ConversationTurn(
+            turn_id="turn-003",
+            query="Q",
+            answer="A",
+        )
+
+        assert turn.sources == []
+        assert turn.latency_ms == 0.0
+        assert turn.metadata == {}
+        assert turn.timestamp is not None
+
     def test_to_dict(self):
         """딕셔너리 변환 테스트"""
         turn = ConversationTurn(
@@ -56,6 +83,9 @@ class TestConversationTurn:
         assert result["query"] == "질문"
         assert result["answer"] == "답변"
         assert "timestamp" in result
+        assert "latencyMs" in result
+        assert "metadata" in result
+        assert "sources" in result
 
     def test_to_message_format(self):
         """LLM 메시지 형식 변환 테스트"""
@@ -94,6 +124,16 @@ class TestConversationSession:
         assert len(session.turns) == 0
         assert session.created_at is not None
 
+    def test_create_session_with_metadata(self):
+        """메타데이터 포함 세션 생성 테스트"""
+        session = ConversationSession(
+            session_id="session-002",
+            metadata={"topic": "RAG", "language": "ko"},
+        )
+
+        assert session.metadata["topic"] == "RAG"
+        assert session.metadata["language"] == "ko"
+
     def test_add_turn(self):
         """턴 추가 테스트"""
         session = ConversationSession(session_id="session-001")
@@ -103,10 +143,13 @@ class TestConversationSession:
             query="질문",
             answer="답변",
         )
+        original_updated_at = session.updated_at
         session.add_turn(turn)
 
         assert len(session.turns) == 1
         assert session.turns[0].query == "질문"
+        # updated_at should be updated (or equal if very fast)
+        assert session.updated_at >= original_updated_at
 
     def test_get_recent_turns(self):
         """최근 턴 조회 테스트"""
@@ -127,6 +170,32 @@ class TestConversationSession:
         assert len(recent) == 5
         assert recent[0].query == "질문 5"
         assert recent[-1].query == "질문 9"
+
+    def test_get_recent_turns_empty_session(self):
+        """빈 세션 최근 턴 조회 테스트"""
+        session = ConversationSession(session_id="session-empty")
+
+        recent = session.get_recent_turns(n=5)
+
+        assert recent == []
+
+    def test_get_recent_turns_fewer_than_requested(self):
+        """요청보다 적은 턴 조회 테스트"""
+        session = ConversationSession(session_id="session-001")
+
+        # 2개 턴 추가
+        for i in range(2):
+            turn = ConversationTurn(
+                turn_id=f"turn-{i:03d}",
+                query=f"질문 {i}",
+                answer=f"답변 {i}",
+            )
+            session.add_turn(turn)
+
+        # 5개 요청 (실제 2개만 존재)
+        recent = session.get_recent_turns(n=5)
+
+        assert len(recent) == 2
 
     def test_get_conversation_context(self):
         """대화 컨텍스트 문자열 테스트"""
@@ -149,6 +218,15 @@ class TestConversationSession:
         assert "첫 번째 질문" in context
         assert "두 번째 답변" in context
 
+    def test_get_conversation_context_empty_session(self):
+        """빈 세션 대화 컨텍스트 테스트 (Line 127 coverage)"""
+        session = ConversationSession(session_id="session-empty")
+
+        # 턴이 없는 세션에서 컨텍스트 조회
+        context = session.get_conversation_context(max_turns=5)
+
+        assert context == ""
+
     def test_get_conversation_context_with_char_limit(self):
         """컨텍스트 문자 제한 테스트"""
         session = ConversationSession(session_id="session-001")
@@ -169,6 +247,23 @@ class TestConversationSession:
 
         # 문자 제한으로 인해 일부만 포함
         assert len(context) <= 200  # 헤더 포함
+
+    def test_get_conversation_context_all_turns_exceed_limit(self):
+        """모든 턴이 문자 제한 초과 테스트"""
+        session = ConversationSession(session_id="session-001")
+
+        # 첫 턴이 이미 제한을 초과하는 경우
+        session.add_turn(ConversationTurn(
+            turn_id="turn-001",
+            query="A" * 1000,
+            answer="B" * 1000,
+        ))
+
+        # 매우 작은 제한으로 테스트 (모든 턴이 초과)
+        context = session.get_conversation_context(max_turns=5, max_chars=10)
+
+        # context_parts가 비어있어 빈 문자열 반환 예상
+        assert context == ""
 
     def test_get_messages_for_llm(self):
         """LLM 메시지 목록 테스트"""
@@ -191,6 +286,14 @@ class TestConversationSession:
         assert messages[0]["role"] == "user"
         assert messages[1]["role"] == "assistant"
 
+    def test_get_messages_for_llm_empty_session(self):
+        """빈 세션 LLM 메시지 조회 테스트"""
+        session = ConversationSession(session_id="session-empty")
+
+        messages = session.get_messages_for_llm(max_turns=5)
+
+        assert messages == []
+
     def test_to_dict(self):
         """세션 딕셔너리 변환 테스트"""
         session = ConversationSession(
@@ -209,6 +312,9 @@ class TestConversationSession:
         assert result["userId"] == "user-123"
         assert result["turnCount"] == 1
         assert len(result["turns"]) == 1
+        assert "createdAt" in result
+        assert "updatedAt" in result
+        assert "metadata" in result
 
 
 # ---------------------------------------------------------------------------
@@ -240,6 +346,18 @@ class TestConversationStore:
 
         assert session.session_id is not None
         assert len(session.session_id) > 0
+
+    def test_create_session_with_metadata(self):
+        """메타데이터 포함 세션 생성 테스트"""
+        store = ConversationStore()
+
+        session = store.create_session(
+            session_id="session-001",
+            metadata={"source": "web", "version": "1.0"},
+        )
+
+        assert session.metadata["source"] == "web"
+        assert session.metadata["version"] == "1.0"
 
     def test_get_session(self):
         """세션 조회 테스트"""
@@ -278,6 +396,16 @@ class TestConversationStore:
         assert session.session_id == "session-001"
         assert store.get_session_count() == 1
 
+    def test_get_or_create_session_no_session_id(self):
+        """세션 ID 없이 새 세션 생성 테스트"""
+        store = ConversationStore()
+
+        session = store.get_or_create_session(user_id="user-001")
+
+        assert session.session_id is not None
+        assert session.user_id == "user-001"
+        assert store.get_session_count() == 1
+
     def test_add_turn(self):
         """턴 추가 테스트"""
         store = ConversationStore()
@@ -296,6 +424,21 @@ class TestConversationStore:
 
         session = store.get_session("session-001")
         assert len(session.turns) == 1
+
+    def test_add_turn_with_metadata(self):
+        """메타데이터 포함 턴 추가 테스트"""
+        store = ConversationStore()
+
+        store.create_session(session_id="session-001")
+        turn = store.add_turn(
+            session_id="session-001",
+            query="질문",
+            answer="답변",
+            metadata={"intent": "search", "confidence": 0.95},
+        )
+
+        assert turn.metadata["intent"] == "search"
+        assert turn.metadata["confidence"] == 0.95
 
     def test_add_turn_session_not_found(self):
         """없는 세션에 턴 추가 테스트"""
@@ -391,6 +534,16 @@ class TestConversationStore:
 
         assert len(user_a_sessions) == 2
 
+    def test_get_user_sessions_empty(self):
+        """존재하지 않는 사용자 세션 조회 테스트"""
+        store = ConversationStore()
+
+        store.create_session(session_id="session-001", user_id="user-A")
+
+        user_b_sessions = store.get_user_sessions("user-B")
+
+        assert len(user_b_sessions) == 0
+
 
 # ---------------------------------------------------------------------------
 # ConversationHistoryService Tests
@@ -403,6 +556,18 @@ class TestConversationHistoryService:
     def setup_method(self):
         """테스트 전 싱글톤 초기화"""
         reset_conversation_history_service()
+
+    def test_init_with_custom_store(self):
+        """커스텀 스토어로 서비스 초기화 테스트"""
+        custom_store = ConversationStore(max_sessions=5)
+        service = ConversationHistoryService(
+            store=custom_store,
+            max_context_turns=3,
+            max_context_chars=2000,
+        )
+
+        assert service._max_context_turns == 3
+        assert service._max_context_chars == 2000
 
     def test_get_or_create_session(self):
         """세션 생성/조회 테스트"""
@@ -425,6 +590,14 @@ class TestConversationHistoryService:
 
         assert session is not None
 
+    def test_get_session_not_found(self):
+        """없는 세션 조회 테스트"""
+        service = ConversationHistoryService()
+
+        session = service.get_session("nonexistent")
+
+        assert session is None
+
     def test_add_turn(self):
         """턴 추가 테스트"""
         service = ConversationHistoryService()
@@ -437,6 +610,26 @@ class TestConversationHistoryService:
         )
 
         assert turn.query == "질문"
+
+    def test_add_turn_with_all_params(self):
+        """모든 파라미터 포함 턴 추가 테스트"""
+        service = ConversationHistoryService()
+
+        service.get_or_create_session(session_id="session-001")
+        turn = service.add_turn(
+            session_id="session-001",
+            query="질문",
+            answer="답변",
+            sources=[{"doc_id": "doc-001", "title": "테스트 문서"}],
+            latency_ms=150.5,
+            metadata={"model": "deepseek-chat"},
+        )
+
+        assert turn.query == "질문"
+        assert turn.answer == "답변"
+        assert len(turn.sources) == 1
+        assert turn.latency_ms == 150.5
+        assert turn.metadata["model"] == "deepseek-chat"
 
     def test_add_turn_auto_create_session(self):
         """세션 자동 생성 턴 추가 테스트"""
@@ -468,6 +661,27 @@ class TestConversationHistoryService:
         assert "이전 대화 내용" in context
         assert "질문" in context
 
+    def test_get_conversation_context_with_custom_params(self):
+        """커스텀 파라미터로 대화 컨텍스트 조회 테스트"""
+        service = ConversationHistoryService()
+
+        service.get_or_create_session(session_id="session-001")
+        for i in range(10):
+            service.add_turn(
+                session_id="session-001",
+                query=f"질문 {i}",
+                answer=f"답변 {i}",
+            )
+
+        context = service.get_conversation_context(
+            "session-001",
+            max_turns=3,
+            max_chars=500,
+        )
+
+        # max_turns=3이므로 최근 3개만 포함
+        assert "질문 7" in context or "질문 8" in context or "질문 9" in context
+
     def test_get_conversation_context_empty(self):
         """빈 대화 컨텍스트 조회 테스트"""
         service = ConversationHistoryService()
@@ -491,6 +705,31 @@ class TestConversationHistoryService:
 
         assert len(messages) == 2
 
+    def test_get_messages_for_llm_with_custom_max_turns(self):
+        """커스텀 max_turns로 LLM 메시지 조회 테스트"""
+        service = ConversationHistoryService()
+
+        service.get_or_create_session(session_id="session-001")
+        for i in range(10):
+            service.add_turn(
+                session_id="session-001",
+                query=f"질문 {i}",
+                answer=f"답변 {i}",
+            )
+
+        messages = service.get_messages_for_llm("session-001", max_turns=3)
+
+        # 3턴 * 2 메시지 = 6 메시지
+        assert len(messages) == 6
+
+    def test_get_messages_for_llm_nonexistent_session(self):
+        """없는 세션 LLM 메시지 조회 테스트 (Line 531 coverage)"""
+        service = ConversationHistoryService()
+
+        messages = service.get_messages_for_llm("nonexistent-session")
+
+        assert messages == []
+
     def test_get_session_summary(self):
         """세션 요약 조회 테스트"""
         service = ConversationHistoryService()
@@ -509,6 +748,26 @@ class TestConversationHistoryService:
         assert summary["turnCount"] == 1
         assert summary["lastQuery"] == "마지막 질문"
 
+    def test_get_session_summary_nonexistent(self):
+        """없는 세션 요약 조회 테스트 (Line 549 coverage)"""
+        service = ConversationHistoryService()
+
+        summary = service.get_session_summary("nonexistent-session")
+
+        assert summary is None
+
+    def test_get_session_summary_no_turns(self):
+        """턴이 없는 세션 요약 조회 테스트"""
+        service = ConversationHistoryService()
+
+        service.get_or_create_session(session_id="session-001", user_id="user-123")
+
+        summary = service.get_session_summary("session-001")
+
+        assert summary["sessionId"] == "session-001"
+        assert summary["turnCount"] == 0
+        assert summary["lastQuery"] is None
+
     def test_delete_session(self):
         """세션 삭제 테스트"""
         service = ConversationHistoryService()
@@ -518,6 +777,14 @@ class TestConversationHistoryService:
 
         assert deleted is True
         assert service.get_session("session-001") is None
+
+    def test_delete_session_not_found(self):
+        """없는 세션 삭제 테스트"""
+        service = ConversationHistoryService()
+
+        deleted = service.delete_session("nonexistent")
+
+        assert deleted is False
 
     def test_get_stats(self):
         """서비스 통계 조회 테스트"""
@@ -531,6 +798,8 @@ class TestConversationHistoryService:
         assert stats["sessionCount"] == 2
         assert "maxSessions" in stats
         assert "maxContextTurns" in stats
+        assert "maxContextChars" in stats
+        assert "maxTurnsPerSession" in stats
 
 
 # ---------------------------------------------------------------------------
@@ -559,3 +828,14 @@ class TestSingleton:
         service2 = get_conversation_history_service()
 
         assert service1 is not service2
+
+    def test_singleton_persists_data(self):
+        """싱글톤 데이터 유지 테스트"""
+        service1 = get_conversation_history_service()
+        service1.get_or_create_session(session_id="session-001")
+
+        service2 = get_conversation_history_service()
+        session = service2.get_session("session-001")
+
+        assert session is not None
+        assert session.session_id == "session-001"
