@@ -5,7 +5,8 @@ Graph RAG 기반 지능형 지식 검색 시스템의 AI Service 엔트리포인
 """
 
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator
+from datetime import datetime
+from typing import Any, AsyncGenerator, Dict
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -143,9 +144,10 @@ def create_app() -> FastAPI:
         title=settings.app_name,
         description="Graph RAG 기반 지능형 지식 검색 시스템 - AI Service",
         version=settings.app_version,
-        docs_url="/docs" if settings.debug else None,
-        redoc_url="/redoc" if settings.debug else None,
-        openapi_url="/openapi.json" if settings.debug else None,
+        # OpenAPI 문서는 항상 활성화 (E2E 테스트 및 개발/운영 모니터링용)
+        docs_url="/docs",
+        redoc_url="/redoc",
+        openapi_url="/openapi.json",
         lifespan=lifespan,
     )
 
@@ -190,6 +192,66 @@ def create_app() -> FastAPI:
 
     # API 라우터 등록
     app.include_router(api_router, prefix=settings.api_v1_prefix)
+
+    # 루트 레벨 Health Check 엔드포인트 (E2E 테스트 및 Docker 헬스체크용)
+    @app.get(
+        "/health",
+        tags=["Health"],
+        summary="Root Health Check",
+        description="서비스 상태를 확인하는 루트 레벨 헬스체크 엔드포인트",
+    )
+    async def root_health_check() -> Dict[str, Any]:
+        """
+        루트 레벨 Health Check
+
+        Docker 컨테이너 헬스체크 및 E2E 테스트에서 사용됩니다.
+        상세 헬스체크는 /api/v1/health를 사용하세요.
+
+        Returns:
+            서비스 상태 정보
+        """
+        return {
+            "status": "healthy",
+            "service": settings.app_name,
+            "version": settings.app_version,
+            "environment": settings.environment,
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+        }
+
+    @app.get(
+        "/health/live",
+        tags=["Health"],
+        summary="Liveness Probe",
+        description="Kubernetes Liveness Probe용 엔드포인트",
+    )
+    async def root_liveness() -> Dict[str, str]:
+        """
+        Liveness Probe
+
+        서비스가 살아있는지 확인 (Kubernetes용)
+        """
+        return {"status": "alive"}
+
+    @app.get(
+        "/health/ready",
+        tags=["Health"],
+        summary="Readiness Probe",
+        description="Kubernetes Readiness Probe용 엔드포인트",
+    )
+    async def root_readiness() -> Dict[str, Any]:
+        """
+        Readiness Probe
+
+        서비스가 트래픽을 받을 준비가 되었는지 확인 (Kubernetes용)
+        """
+        checks = {
+            "config_loaded": True,
+            "llm_api_key_set": settings.deepseek_api_key is not None,
+        }
+        return {
+            "ready": all(checks.values()),
+            "checks": checks,
+        }
 
     return app
 
