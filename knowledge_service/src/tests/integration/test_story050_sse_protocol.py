@@ -24,10 +24,12 @@ import asyncio
 import json
 import sys
 import time
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import jwt
 import pytest
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
@@ -54,6 +56,8 @@ pytestmark = [
 # Fixtures
 # =============================================================================
 
+# Note: auth_headers fixture is provided by conftest.py (with test user setup)
+
 
 @pytest.fixture(scope="module")
 def client() -> TestClient:
@@ -68,25 +72,11 @@ def api_prefix() -> str:
 
 
 @pytest.fixture
-def auth_headers(client: TestClient, api_prefix: str) -> Dict[str, str]:
-    """Obtain JWT token via login and return Authorization headers."""
-    response = client.post(
-        f"{api_prefix}/auth/login",
-        json={"email": "test@example.com", "password": "password123"},
-    )
-    if response.status_code == 200:
-        token = response.json()["access_token"]
-        return {"Authorization": f"Bearer {token}"}
-    # Fallback: return empty header (tests that need auth will fail explicitly)
-    return {}
-
-
-@pytest.fixture
 def sample_sse_request() -> Dict[str, Any]:
     """Standard SSE search request body."""
     return {
         "query": "RAG 시스템 동작 원리",
-        "top_k": 5,
+        "topK": 5,
     }
 
 
@@ -95,11 +85,11 @@ def sse_request_with_history() -> Dict[str, Any]:
     """SSE request with conversation history."""
     return {
         "query": "JWT 인증 필터 구현",
-        "conversation_history": [
+        "conversationHistory": [
             {"role": "user", "content": "RAG 시스템이란?"},
             {"role": "assistant", "content": "RAG는 Retrieval-Augmented Generation의 약자입니다."},
         ],
-        "top_k": 5,
+        "topK": 5,
     }
 
 
@@ -127,7 +117,7 @@ class TestPostSSEConnection:
     """POST SSE Connection Tests - S04-050-E2E-001 ~ S04-050-E2E-004."""
 
     def test_s04_050_e2e_001_post_sse_connection_establishes(
-        self, client: TestClient, api_prefix: str, sample_sse_request: Dict
+        self, client: TestClient, api_prefix: str, auth_headers: Dict[str, str], sample_sse_request: Dict
     ):
         """
         S04-050-E2E-001: POST SSE connection establishes successfully.
@@ -141,6 +131,7 @@ class TestPostSSEConnection:
             "POST",
             f"{api_prefix}/search/chat/stream",
             json=sample_sse_request,
+            headers=auth_headers,
         ) as response:
             # Verify POST request accepted
             assert response.status_code == 200, (
@@ -160,12 +151,12 @@ class TestPostSSEConnection:
             )
 
     def test_s04_050_e2e_002_post_body_contains_query_and_history(
-        self, client: TestClient, api_prefix: str, sse_request_with_history: Dict
+        self, client: TestClient, api_prefix: str, auth_headers: Dict[str, str], sse_request_with_history: Dict
     ):
         """
         S04-050-E2E-002: POST body contains query and conversation_history.
 
-        Verifies that the POST body with query, conversation_history, and top_k
+        Verifies that the POST body with query, conversation_history, and topK
         is accepted by the SSE endpoint. No query parameters in URL.
 
         Priority: P0
@@ -174,6 +165,7 @@ class TestPostSSEConnection:
             "POST",
             f"{api_prefix}/search/chat/stream",
             json=sse_request_with_history,
+            headers=auth_headers,
         ) as response:
             assert response.status_code == 200, (
                 f"POST with conversation_history should be accepted, got {response.status_code}"
@@ -190,7 +182,7 @@ class TestPostSSEConnection:
             assert len(content) > 0, "Expected SSE events in response"
 
     def test_s04_050_e2e_003_jwt_token_in_authorization_header(
-        self, client: TestClient, api_prefix: str, auth_headers: Dict, sample_sse_request: Dict
+        self, client: TestClient, api_prefix: str, auth_headers: Dict[str, str], sample_sse_request: Dict
     ):
         """
         S04-050-E2E-003: JWT token sent in Authorization header (not URL).
@@ -200,9 +192,6 @@ class TestPostSSEConnection:
 
         Priority: P0
         """
-        if not auth_headers:
-            pytest.skip("Auth headers not available (login may have failed)")
-
         # Verify the token is in Bearer format
         auth_value = auth_headers.get("Authorization", "")
         assert auth_value.startswith("Bearer "), (
@@ -222,7 +211,7 @@ class TestPostSSEConnection:
             )
 
     def test_s04_050_e2e_004_large_conversation_history(
-        self, client: TestClient, api_prefix: str
+        self, client: TestClient, api_prefix: str, auth_headers: Dict[str, str]
     ):
         """
         S04-050-E2E-004: Large conversation_history (20+ messages) transmitted safely.
@@ -244,14 +233,15 @@ class TestPostSSEConnection:
 
         request_body = {
             "query": "이전 대화를 요약해주세요",
-            "conversation_history": conversation_history,
-            "top_k": 5,
+            "conversationHistory": conversation_history,
+            "topK": 5,
         }
 
         with client.stream(
             "POST",
             f"{api_prefix}/search/chat/stream",
             json=request_body,
+            headers=auth_headers,
         ) as response:
             # POST should handle large body without URL length issues
             assert response.status_code == 200, (
@@ -268,7 +258,7 @@ class TestSSEStreamingResponse:
     """SSE Streaming Response Tests - S04-050-E2E-005 ~ S04-050-E2E-008."""
 
     def test_s04_050_e2e_005_token_streaming_renders(
-        self, client: TestClient, api_prefix: str, sample_sse_request: Dict
+        self, client: TestClient, api_prefix: str, auth_headers: Dict[str, str], sample_sse_request: Dict
     ):
         """
         S04-050-E2E-005: Token-by-token streaming renders.
@@ -283,6 +273,7 @@ class TestSSEStreamingResponse:
             "POST",
             f"{api_prefix}/search/chat/stream",
             json=sample_sse_request,
+            headers=auth_headers,
         ) as response:
             assert response.status_code == 200
 
@@ -296,7 +287,7 @@ class TestSSEStreamingResponse:
         )
 
     def test_s04_050_e2e_006_sse_events_parsed_correctly(
-        self, client: TestClient, api_prefix: str, sample_sse_request: Dict
+        self, client: TestClient, api_prefix: str, auth_headers: Dict[str, str], sample_sse_request: Dict
     ):
         """
         S04-050-E2E-006: SSE events parsed correctly (data, event type, done).
@@ -311,6 +302,7 @@ class TestSSEStreamingResponse:
             "POST",
             f"{api_prefix}/search/chat/stream",
             json=sample_sse_request,
+            headers=auth_headers,
         ) as response:
             assert response.status_code == 200
             for chunk in response.iter_text():
@@ -336,7 +328,7 @@ class TestSSEStreamingResponse:
         )
 
     def test_s04_050_e2e_007_sources_in_response(
-        self, client: TestClient, api_prefix: str, sample_sse_request: Dict
+        self, client: TestClient, api_prefix: str, auth_headers: Dict[str, str], sample_sse_request: Dict
     ):
         """
         S04-050-E2E-007: Sources displayed after streaming completes.
@@ -351,6 +343,7 @@ class TestSSEStreamingResponse:
             "POST",
             f"{api_prefix}/search/chat/stream",
             json=sample_sse_request,
+            headers=auth_headers,
         ) as response:
             assert response.status_code == 200
             for chunk in response.iter_text():
@@ -378,7 +371,7 @@ class TestSSEStreamingResponse:
         assert len(parsed_events) >= 1, "Stream should produce at least one event"
 
     def test_s04_050_e2e_008_korean_text_streaming(
-        self, client: TestClient, api_prefix: str
+        self, client: TestClient, api_prefix: str, auth_headers: Dict[str, str]
     ):
         """
         S04-050-E2E-008: Korean text streaming renders correctly.
@@ -390,7 +383,7 @@ class TestSSEStreamingResponse:
         """
         korean_request = {
             "query": "프로젝트 보안 감사 절차는 무엇인가요?",
-            "top_k": 5,
+            "topK": 5,
         }
 
         full_content = ""
@@ -398,6 +391,7 @@ class TestSSEStreamingResponse:
             "POST",
             f"{api_prefix}/search/chat/stream",
             json=korean_request,
+            headers=auth_headers,
         ) as response:
             assert response.status_code == 200
             for chunk in response.iter_text():
@@ -423,7 +417,7 @@ class TestSSEReconnectAndAbort:
     """SSE Reconnect and Abort Tests - S04-050-E2E-009 ~ S04-050-E2E-012."""
 
     def test_s04_050_e2e_009_connection_abort_via_cancel(
-        self, client: TestClient, api_prefix: str, sample_sse_request: Dict
+        self, client: TestClient, api_prefix: str, auth_headers: Dict[str, str], sample_sse_request: Dict
     ):
         """
         S04-050-E2E-009: Connection abort via user cancel.
@@ -438,6 +432,7 @@ class TestSSEReconnectAndAbort:
             "POST",
             f"{api_prefix}/search/chat/stream",
             json=sample_sse_request,
+            headers=auth_headers,
         ) as response:
             assert response.status_code == 200
             for chunk in response.iter_text():
@@ -520,7 +515,7 @@ class TestSSEReconnectAndAbort:
         assert retry_count <= max_retries, "Must not exceed max retry count"
 
     def test_s04_050_e2e_012_new_search_cancels_previous(
-        self, client: TestClient, api_prefix: str
+        self, client: TestClient, api_prefix: str, auth_headers: Dict[str, str]
     ):
         """
         S04-050-E2E-012: New search cancels previous streaming.
@@ -530,14 +525,15 @@ class TestSSEReconnectAndAbort:
 
         Priority: P1
         """
-        request_a = {"query": "첫 번째 검색 쿼리 A", "top_k": 3}
-        request_b = {"query": "두 번째 검색 쿼리 B", "top_k": 3}
+        request_a = {"query": "첫 번째 검색 쿼리 A", "topK": 3}
+        request_b = {"query": "두 번째 검색 쿼리 B", "topK": 3}
 
         # Start search A and immediately abort
         with client.stream(
             "POST",
             f"{api_prefix}/search/chat/stream",
             json=request_a,
+            headers=auth_headers,
         ) as response_a:
             assert response_a.status_code == 200
             # Read one chunk then abort
@@ -550,6 +546,7 @@ class TestSSEReconnectAndAbort:
             "POST",
             f"{api_prefix}/search/chat/stream",
             json=request_b,
+            headers=auth_headers,
         ) as response_b:
             assert response_b.status_code == 200
             for chunk in response_b.iter_text():
@@ -570,7 +567,7 @@ class TestSSEBackwardCompatibility:
     """SSE Backward Compatibility Tests - S04-050-E2E-013 ~ S04-050-E2E-016."""
 
     def test_s04_050_e2e_013_chat_search_api_unchanged(
-        self, client: TestClient, api_prefix: str
+        self, client: TestClient, api_prefix: str, auth_headers: Dict[str, str]
     ):
         """
         S04-050-E2E-013: useSearchChat hook API unchanged.
@@ -582,7 +579,8 @@ class TestSSEBackwardCompatibility:
         """
         response = client.post(
             f"{api_prefix}/search/chat",
-            json={"query": "Hybrid RAG 시스템이란?", "top_k": 5},
+            json={"query": "Hybrid RAG 시스템이란?", "topK": 5},
+            headers=auth_headers,
         )
 
         assert response.status_code == 200, (
@@ -616,7 +614,7 @@ class TestSSEBackwardCompatibility:
         )
 
     def test_s04_050_e2e_015_streaming_indicator_behavior(
-        self, client: TestClient, api_prefix: str, sample_sse_request: Dict
+        self, client: TestClient, api_prefix: str, auth_headers: Dict[str, str], sample_sse_request: Dict
     ):
         """
         S04-050-E2E-015: StreamingIndicator component still works.
@@ -634,6 +632,7 @@ class TestSSEBackwardCompatibility:
             "POST",
             f"{api_prefix}/search/chat/stream",
             json=sample_sse_request,
+            headers=auth_headers,
         ) as response:
             assert response.status_code == 200
             started = True
@@ -649,7 +648,7 @@ class TestSSEBackwardCompatibility:
         assert len(full_content) > 0, "Stream should produce content"
 
     def test_s04_050_e2e_016_error_boundary_catches_sse_failures(
-        self, client: TestClient, api_prefix: str
+        self, client: TestClient, api_prefix: str, auth_headers: Dict[str, str]
     ):
         """
         S04-050-E2E-016: Error boundary catches SSE failures.
@@ -660,11 +659,12 @@ class TestSSEBackwardCompatibility:
         Priority: P1
         """
         # Send request with invalid/empty query
-        invalid_request = {"query": "", "top_k": 5}
+        invalid_request = {"query": "", "topK": 5}
 
         response = client.post(
             f"{api_prefix}/search/chat/stream",
             json=invalid_request,
+            headers=auth_headers,
         )
 
         # Should return validation error, not crash
@@ -676,6 +676,53 @@ class TestSSEBackwardCompatibility:
         health_response = client.get(f"{api_prefix}/health")
         assert health_response.status_code == 200, (
             "Server should remain healthy after SSE error"
+        )
+
+
+# =============================================================================
+# 3.5 Authentication Tests
+# =============================================================================
+
+
+class TestSSEAuthentication:
+    """SSE Authentication Tests - verify endpoints require valid JWT."""
+
+    def test_sse_endpoint_requires_authentication(
+        self, client: TestClient, api_prefix: str, sample_sse_request: Dict
+    ):
+        """
+        Verify that SSE endpoint returns 401 without authentication.
+
+        Priority: P0
+        """
+        response = client.post(
+            f"{api_prefix}/search/chat/stream",
+            json=sample_sse_request,
+            # No auth_headers
+        )
+
+        assert response.status_code == 401, (
+            f"Expected 401 without JWT, got {response.status_code}"
+        )
+
+    def test_sse_endpoint_rejects_invalid_token(
+        self, client: TestClient, api_prefix: str, sample_sse_request: Dict
+    ):
+        """
+        Verify that SSE endpoint rejects invalid/malformed tokens.
+
+        Priority: P0
+        """
+        invalid_headers = {"Authorization": "Bearer invalid.token.here"}
+
+        response = client.post(
+            f"{api_prefix}/search/chat/stream",
+            json=sample_sse_request,
+            headers=invalid_headers,
+        )
+
+        assert response.status_code == 401, (
+            f"Expected 401 with invalid token, got {response.status_code}"
         )
 
 
