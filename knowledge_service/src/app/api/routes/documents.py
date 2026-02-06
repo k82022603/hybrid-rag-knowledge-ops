@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Form, HTTPException, Query, UploadFile, status
+from fastapi.responses import StreamingResponse
 
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -442,6 +443,97 @@ async def get_document_status(document_id: UUID) -> DocumentStatusResponse:
 
 
 @router.get(
+    "/{document_id}/status/stream",
+    summary="문서 처리 상태 SSE 스트리밍",
+    description="문서 처리 상태를 Server-Sent Events로 실시간 스트리밍합니다",
+)
+async def stream_document_status(document_id: UUID) -> StreamingResponse:
+    """
+    SSE 기반 문서 처리 상태 실시간 스트리밍
+
+    - 1초 간격으로 상태를 전송
+    - completed 또는 failed 상태가 되면 스트림 종료
+    - 최대 5분 타임아웃
+
+    Args:
+        document_id: 문서 UUID
+
+    Returns:
+        StreamingResponse (text/event-stream)
+    """
+    import asyncio
+
+    async def event_generator():
+        max_iterations = 300  # 5분 (1초 * 300)
+        iteration = 0
+
+        while iteration < max_iterations:
+            # 인메모리 저장소에서 먼저 조회
+            doc_record = _document_store.get(document_id)
+
+            # PostgreSQL fallback
+            if doc_record is None:
+                try:
+                    from app.services.document_repository import get_document_repository
+
+                    repo = await get_document_repository()
+                    doc_record = await repo.get(document_id)
+                except Exception:
+                    pass
+
+            if doc_record is None:
+                yield f"event: error\ndata: {json.dumps({'error': 'Document not found'})}\n\n"
+                return
+
+            # 상태 추출
+            status_val = doc_record.get("status")
+            if hasattr(status_val, "value"):
+                status_val = status_val.value
+
+            progress = doc_record.get("progress_percent", 0)
+            error_msg = doc_record.get("error_message")
+
+            # updated_at 직렬화
+            updated_at_raw = doc_record.get("updated_at", "")
+            if hasattr(updated_at_raw, "isoformat"):
+                updated_at_str = updated_at_raw.isoformat()
+            else:
+                updated_at_str = str(updated_at_raw)
+
+            # SSE 이벤트 전송
+            event_data = {
+                "document_id": str(doc_record.get("document_id", document_id)),
+                "status": status_val,
+                "progress_percent": progress,
+                "error_message": error_msg,
+                "updated_at": updated_at_str,
+            }
+
+            yield f"event: status\ndata: {json.dumps(event_data)}\n\n"
+
+            # 완료 또는 실패 시 스트림 종료
+            if status_val in ("completed", "failed"):
+                yield f"event: done\ndata: {json.dumps({'final_status': status_val})}\n\n"
+                return
+
+            iteration += 1
+            await asyncio.sleep(1)
+
+        # 타임아웃
+        yield f"event: timeout\ndata: {json.dumps({'message': 'Stream timeout after 5 minutes'})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
+@router.get(
     "",
     response_model=DocumentListResponse,
     summary="문서 목록 조회",
@@ -640,6 +732,108 @@ async def trigger_document_processing(document_id: UUID) -> Dict[str, Any]:
         "document_id": str(document_id),
         "status": "accepted",
         "message": "문서 처리가 시작되었습니다",
+        "status_url": f"{settings.api_v1_prefix}/documents/{document_id}/status",
+    }
+
+
+@router.post(
+    "/{document_id}/retry",
+    summary="실패 문서 재시도",
+    description="처리에 실패한 문서를 재시도합니다. 상태를 queued로 초기화하고 파이프라인을 다시 실행합니다.",
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def retry_failed_document(document_id: UUID) -> Dict[str, Any]:
+    """
+    실패 문서 재시도 API
+
+    failed 상태의 문서를 queued로 초기화하고 처리 파이프라인을 다시 실행합니다.
+
+    Args:
+        document_id: 문서 UUID
+
+    Returns:
+        재시도 시작 응답
+
+    Raises:
+        HTTPException 404: 문서를 찾을 수 없음
+        HTTPException 409: 실패 상태가 아닌 문서
+    """
+    import asyncio
+    from app.services.document_processing_pipeline import (
+        DocumentProcessingPipeline,
+        ProcessingStatus,
+    )
+
+    doc_record = _document_store.get(document_id)
+
+    # PostgreSQL fallback
+    if doc_record is None:
+        try:
+            from app.services.document_repository import get_document_repository
+            repo = await get_document_repository()
+            doc_record = await repo.get(document_id)
+            if doc_record:
+                _document_store[document_id] = doc_record
+        except Exception as e:
+            logger.warning("PostgreSQL query failed: %s", e)
+
+    if doc_record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"문서를 찾을 수 없습니다: {document_id}",
+        )
+
+    current_status = doc_record.get("status")
+    status_value = current_status.value if hasattr(current_status, "value") else str(current_status)
+
+    # failed 또는 completed 상태만 재시도 허용
+    if status_value not in (ProcessingStatus.FAILED, ProcessingStatus.COMPLETED):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"재시도할 수 없는 상태입니다. 현재 상태: {status_value} (failed 또는 completed만 재시도 가능)",
+        )
+
+    # 상태 초기화
+    now = datetime.now(timezone.utc)
+    doc_record["status"] = DocumentStatus.QUEUED
+    doc_record["progress_percent"] = 0
+    doc_record["error_message"] = None
+    doc_record["updated_at"] = now
+
+    # PostgreSQL도 업데이트
+    try:
+        from app.services.document_repository import get_document_repository
+        repo = await get_document_repository()
+        await repo.update_status(document_id, "queued")
+        logger.info("Document retry status reset in PostgreSQL: %s", document_id)
+    except Exception as e:
+        logger.warning("PostgreSQL update failed (non-critical): %s", e)
+
+    # 파이프라인 재실행 (백그라운드)
+    async def _retry_process():
+        try:
+            pipeline = DocumentProcessingPipeline(
+                document_store=_document_store,
+                enable_neo4j=True,
+                enable_entity_extraction=True,
+            )
+            result = await pipeline.process_document(document_id)
+            logger.info(
+                "Document retry complete: %s, success=%s, chunks=%d",
+                document_id, result.success, result.chunk_count,
+            )
+        except Exception as e:
+            logger.warning("Document retry failed: %s - %s", document_id, e)
+
+    asyncio.create_task(_retry_process())
+
+    logger.info("Document retry triggered: %s", document_id)
+
+    return {
+        "document_id": str(document_id),
+        "status": "accepted",
+        "message": "문서 재처리가 시작되었습니다",
+        "previous_status": status_value,
         "status_url": f"{settings.api_v1_prefix}/documents/{document_id}/status",
     }
 

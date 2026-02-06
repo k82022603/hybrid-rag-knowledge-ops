@@ -206,11 +206,12 @@ const FileDropzone: React.FC<{
 const UploadFileItem: React.FC<{
   uploadFile: UploadFile;
   onRemove: (id: string) => void;
+  onRetry: (id: string) => void;
   onUpdateTitle: (id: string, title: string) => void;
   onUpdateCategory: (id: string, category: string) => void;
   onAddTag: (id: string, tag: string) => void;
   onRemoveTag: (id: string, tag: string) => void;
-}> = ({ uploadFile, onRemove, onUpdateTitle, onUpdateCategory, onAddTag, onRemoveTag }) => {
+}> = ({ uploadFile, onRemove, onRetry, onUpdateTitle, onUpdateCategory, onAddTag, onRemoveTag }) => {
   const [tagInput, setTagInput] = useState('');
 
   const handleAddTag = () => {
@@ -377,7 +378,17 @@ const UploadFileItem: React.FC<{
         (uploadFile.processingStatus === 'failed' && uploadFile.error)) && (
         <div className="flex items-center gap-2 p-2 bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded-lg mb-4" role="alert">
           <ExclamationTriangleIcon className="h-4 w-4 text-error-500 flex-shrink-0" />
-          <span className="text-xs text-error-700 dark:text-error-300">{uploadFile.error}</span>
+          <span className="text-xs text-error-700 dark:text-error-300 flex-1">{uploadFile.error}</span>
+          {/* Retry button for failed processing */}
+          {uploadFile.processingStatus === 'failed' && uploadFile.documentId && (
+            <button
+              onClick={() => onRetry(uploadFile.id)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors"
+            >
+              <ArrowPathIcon className="h-3.5 w-3.5" />
+              Retry
+            </button>
+          )}
         </div>
       )}
 
@@ -573,6 +584,24 @@ const DocumentUploadPage: React.FC = () => {
     );
   }, []);
 
+  const handleRetry = useCallback(async (id: string) => {
+    const file = files.find((f) => f.id === id);
+    if (!file?.documentId) return;
+
+    try {
+      await knowledgeService.retryDocument(file.documentId);
+      setFiles((prev) =>
+        prev.map((f) =>
+          f.id === id
+            ? { ...f, processingStatus: 'processing' as ProcessingStatus, progress: 50, error: undefined }
+            : f
+        )
+      );
+    } catch (error) {
+      console.error('Retry failed:', error);
+    }
+  }, [files]);
+
   const handleUploadAll = useCallback(async () => {
     const pendingFiles = files.filter((f) => f.status === 'pending');
     if (pendingFiles.length === 0) return;
@@ -640,18 +669,123 @@ const DocumentUploadPage: React.FC = () => {
   }, [files, queryClient]);
 
   /**
-   * Poll processing status for files that have been uploaded
-   * but are still being processed by the backend.
-   * Polls every 5 seconds, max 60 times (5-minute timeout).
+   * SSE-based processing status streaming.
+   * Opens an EventSource per processing file for real-time updates.
+   * Falls back to REST polling if SSE connection fails.
+   *
+   * SSE events:
+   *   - status: periodic progress update
+   *   - done: terminal state (completed/failed)
+   *   - error: document not found
+   *   - timeout: server-side 5-minute timeout
    */
+  const sseActiveRef = useRef<Set<string>>(new Set());
   const pollCountRef = useRef<Record<string, number>>({});
 
+  // Primary: SSE streaming
+  useEffect(() => {
+    const eventSources: Map<string, EventSource> = new Map();
+
+    // SSE 연결이 필요한 파일들 (업로드 완료 + processing 중 + SSE 미연결)
+    const processingFiles = files.filter(
+      (f) =>
+        f.status === 'completed' &&
+        f.documentId &&
+        f.processingStatus &&
+        !['completed', 'failed'].includes(f.processingStatus) &&
+        !sseActiveRef.current.has(f.id)
+    );
+
+    for (const file of processingFiles) {
+      if (!file.documentId || eventSources.has(file.id)) continue;
+
+      const url = knowledgeService.getProcessingStatusStreamUrl(file.documentId);
+      const es = new EventSource(url);
+      eventSources.set(file.id, es);
+      sseActiveRef.current.add(file.id);
+
+      es.addEventListener('status', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          setFiles((prev) =>
+            prev.map((f) =>
+              f.id === file.id
+                ? {
+                    ...f,
+                    processingStatus: data.status as ProcessingStatus,
+                    progress:
+                      data.status === 'completed'
+                        ? 100
+                        : Math.max(f.progress, 50 + Math.floor((data.progress_percent || 0) / 2)),
+                  }
+                : f
+            )
+          );
+        } catch (e) {
+          console.warn('SSE parse error:', e);
+        }
+      });
+
+      es.addEventListener('done', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          setFiles((prev) =>
+            prev.map((f) =>
+              f.id === file.id
+                ? {
+                    ...f,
+                    processingStatus: data.final_status as ProcessingStatus,
+                    progress: data.final_status === 'completed' ? 100 : f.progress,
+                  }
+                : f
+            )
+          );
+        } catch (e) {
+          console.warn('SSE done parse error:', e);
+        }
+        es.close();
+        eventSources.delete(file.id);
+        sseActiveRef.current.delete(file.id);
+      });
+
+      es.addEventListener('error', () => {
+        // SSE 연결 실패 시 정리 (REST 폴링 fallback이 처리)
+        es.close();
+        eventSources.delete(file.id);
+        sseActiveRef.current.delete(file.id);
+      });
+
+      es.addEventListener('timeout', () => {
+        setFiles((prev) =>
+          prev.map((f) =>
+            f.id === file.id
+              ? { ...f, processingStatus: 'failed' as ProcessingStatus, error: 'Processing timed out' }
+              : f
+          )
+        );
+        es.close();
+        eventSources.delete(file.id);
+        sseActiveRef.current.delete(file.id);
+      });
+    }
+
+    return () => {
+      eventSources.forEach((es, fileId) => {
+        es.close();
+        sseActiveRef.current.delete(fileId);
+      });
+      eventSources.clear();
+    };
+  }, [files]);
+
+  // Fallback: REST polling (only for files without active SSE connection)
   useEffect(() => {
     const processingFiles = files.filter(
       (f) =>
         f.documentId &&
         f.processingStatus &&
-        (f.processingStatus === 'processing' || f.processingStatus === 'queued')
+        (f.processingStatus === 'processing' || f.processingStatus === 'queued') &&
+        !sseActiveRef.current.has(f.id)
     );
 
     if (processingFiles.length === 0) return;
@@ -659,11 +793,11 @@ const DocumentUploadPage: React.FC = () => {
     const intervalId = setInterval(async () => {
       for (const file of processingFiles) {
         if (!file.documentId) continue;
+        // Skip if SSE became active since interval started
+        if (sseActiveRef.current.has(file.id)) continue;
 
-        // Track poll count per file
         const currentCount = pollCountRef.current[file.id] || 0;
         if (currentCount >= MAX_POLL_ATTEMPTS) {
-          // Timeout: mark as failed
           setFiles((prev) =>
             prev.map((f) =>
               f.id === file.id
@@ -689,32 +823,19 @@ const DocumentUploadPage: React.FC = () => {
               if (f.id !== file.id) return f;
 
               const serverStatus = result.status as ProcessingStatus;
-              // Map server progress (0-100) to our 50-100 range
               const processingProgress = 50 + Math.round((result.progress / 100) * 50);
 
               if (serverStatus === 'completed') {
                 delete pollCountRef.current[file.id];
-                return {
-                  ...f,
-                  processingStatus: 'completed',
-                  progress: 100,
-                };
+                return { ...f, processingStatus: 'completed', progress: 100 };
               }
 
               if (serverStatus === 'failed') {
                 delete pollCountRef.current[file.id];
-                return {
-                  ...f,
-                  processingStatus: 'failed',
-                  error: 'Document processing failed',
-                };
+                return { ...f, processingStatus: 'failed', error: 'Document processing failed' };
               }
 
-              return {
-                ...f,
-                processingStatus: serverStatus,
-                progress: processingProgress,
-              };
+              return { ...f, processingStatus: serverStatus, progress: processingProgress };
             })
           );
         } catch {
@@ -749,8 +870,9 @@ const DocumentUploadPage: React.FC = () => {
         return true;
       })
     );
-    // Clean up poll counts for cleared files
+    // Clean up poll counts and SSE tracking for cleared files
     pollCountRef.current = {};
+    sseActiveRef.current.clear();
   }, []);
 
   const pendingCount = files.filter((f) => f.status === 'pending').length;
@@ -832,6 +954,7 @@ const DocumentUploadPage: React.FC = () => {
                     key={uploadFile.id}
                     uploadFile={uploadFile}
                     onRemove={handleRemoveFile}
+                    onRetry={handleRetry}
                     onUpdateTitle={handleUpdateTitle}
                     onUpdateCategory={handleUpdateCategory}
                     onAddTag={handleAddTag}

@@ -115,6 +115,24 @@ export const knowledgeService = {
     const response = await api.get(`/documents/${id}/status`);
     return response.data;
   },
+
+  /**
+   * 실패 문서 재시도
+   */
+  async retryDocument(id: string): Promise<{ document_id: string; status: string; message: string }> {
+    const response = await api.post(`/documents/${id}/retry`);
+    return response.data;
+  },
+
+  /**
+   * 문서 처리 상태 SSE 스트림 URL 생성
+   *
+   * EventSource에서 사용할 절대 URL을 반환합니다.
+   * api 인스턴스의 baseURL을 활용하여 프록시/개발 환경 모두 대응합니다.
+   */
+  getProcessingStatusStreamUrl(id: string): string {
+    return `/api/v1/documents/${id}/status/stream`;
+  },
 };
 
 export default knowledgeService;
