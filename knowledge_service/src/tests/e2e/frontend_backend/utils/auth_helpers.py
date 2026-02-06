@@ -11,16 +11,25 @@ Features:
 
 Author: QA Agent
 Sprint: Sprint 04 Day 3
+Updated: 2026-02-05 (JWT Secret Key synchronization with Docker environment)
 """
 
+import os
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Optional
 
 import jwt
 
-# Default test JWT configuration (matches knowledge_service auth.py)
-DEFAULT_JWT_SECRET = "knowledge-service-secret-key-change-in-production"
+# Default test JWT configuration
+# Priority: JWT_SECRET_KEY (app config) > JWT_SECRET (Docker) > hardcoded default
+DEFAULT_JWT_SECRET = os.getenv(
+    "JWT_SECRET_KEY",
+    os.getenv(
+        "JWT_SECRET",
+        "dev_jwt_secret_key_for_local_development_only_2026_do_not_use_in_production!"
+    )
+)
 DEFAULT_JWT_ALGORITHM = "HS256"
 
 # Test account constants (from E2E Test Plan Section 3.5)

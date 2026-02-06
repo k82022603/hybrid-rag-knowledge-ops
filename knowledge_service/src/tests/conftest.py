@@ -35,10 +35,11 @@ def get_test_jwt_secret() -> str:
 
 
 # 테스트 사용자 정보 (USERS 딕셔너리에 추가될 데이터)
+# password_hash는 "password123"의 bcrypt 해시
 TEST_USER_DATA = {
     "id": "user-test-001",
     "email": "test@example.com",
-    "password_hash": "",  # 테스트에서 로그인 필요 없음 (토큰 직접 생성)
+    "password_hash": "$2b$12$sriFYJkYkErkTeRD39HH.e1lHoiikNXUBLj.nASqeRIM.hLChpQBK",
     "name": "테스트 사용자",
     "role": "user",
     "created_at": "2026-01-01T00:00:00Z",

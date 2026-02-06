@@ -196,7 +196,12 @@
       "Bash(sha256sum:*)",
       "Bash(md5sum:*)",
       "Bash(PYTHONPATH=:*)",
-      "Bash(xargs grep:*)"
+      "Bash(xargs grep:*)",
+      "Bash(/mnt/d/Users/KTDS/Documents/06.과제/hybrid-rag-knowledge-ops/scripts/send_slack.sh:*)",
+      "Bash(while IFS=: read name status)",
+      "Bash(do echo \"$name -> $status\")",
+      "Bash(done)",
+      "mcp__jira__jira_add_comment"
     ]
   },
   "enabledMcpjsonServers": [

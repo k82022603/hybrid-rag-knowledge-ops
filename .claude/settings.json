@@ -1,4 +1,7 @@
 {
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
   "mcpServers": {
     "jira": {
       "command": "npx",
@@ -20,7 +23,7 @@
       "command": "npx",
       "args": ["-y", "@anthropic/stitch-mcp@latest"],
       "env": {
-        "ANTHROPIC_MODEL": "claude-opus-4-5-20251101"
+        "ANTHROPIC_MODEL": "claude-opus-4-6"
       }
     }
   }

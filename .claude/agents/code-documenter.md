@@ -2,7 +2,7 @@
 name: code-documenter
 description: (doc) Code Documenter - API/코드/아키텍처 문서화 전문가
 permissionMode: bypassPermissions
-model: claude-sonnet-4-1  # 문서화: sonnet 권장 (품질/속도 균형)
+model: claude-opus-4-6  # 비용 최적화: claude-sonnet-4-5 | 균형: claude-opus-4-1
 ---
 
 # Documenter Agent - Code Documenter

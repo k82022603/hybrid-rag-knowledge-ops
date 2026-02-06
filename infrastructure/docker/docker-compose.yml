@@ -319,6 +319,8 @@ services:
     environment:
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
       - DEEPSEEK_BASE_URL=${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+      # JWT settings (REQUIRED for auth - must match backend JWT_SECRET)
+      - JWT_SECRET_KEY=${JWT_SECRET}
       # Elasticsearch settings (individual fields for config.py)
       - ELASTICSEARCH_HOST=elasticsearch
       - ELASTICSEARCH_PORT=9200

@@ -97,9 +97,10 @@ GATEWAY_URL = os.getenv("E2E_GATEWAY_URL", "http://localhost:8080")
 BACKEND_URL = os.getenv("E2E_BACKEND_URL", "http://localhost:8081")
 AI_SERVICE_URL = os.getenv("E2E_AI_SERVICE_URL", "http://localhost:8000")
 
-# JWT settings
+# JWT settings - Priority: JWT_SECRET_KEY (app config) > JWT_SECRET (Docker) > helper default
 JWT_SECRET = os.getenv(
-    "JWT_SECRET_KEY", DEFAULT_JWT_SECRET
+    "JWT_SECRET_KEY",
+    os.getenv("JWT_SECRET", DEFAULT_JWT_SECRET)
 )
 JWT_ALGORITHM = DEFAULT_JWT_ALGORITHM
 

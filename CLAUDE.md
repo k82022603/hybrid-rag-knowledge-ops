@@ -2,7 +2,7 @@
 
 🤖 Hybrid RAG Knowledge Operations 프로젝트 개발 규칙
 
-**Version**: 2.22 | **Updated**: 2026-02-04
+**Version**: 2.23 | **Updated**: 2026-02-06
 
 ---
 
@@ -182,9 +182,10 @@ flowchart LR
 
 ## 🔧 설치된 Claude Code 명령어
 
-### Daily (4개)
+### Daily (5개)
 | 명령어 | 설명 |
 |--------|------|
+| `/daily:standup` | 데일리 스탠드업 (팀원 인사 + 상태 공유) |
 | `/daily:daily-close` | 전체 마무리 워크플로우 |
 | `/daily:daily-log` | 작업일지 작성/업데이트 |
 | `/daily:vibe-log` | 바이브 코딩 일지 |
@@ -548,6 +549,7 @@ PM 승인: [PM Agent]
 - [Claude Commands README](./.claude/commands/README.md) - 설치된 명령어 전체 목록
 - [개발자 에이전트 가이드](./knowledge_service/docs/05_development/developer_agent_guide.md) - AI 에이전트 도구 사용법 ⭐
 - [개발자 통합 가이드](./knowledge_service/docs/05_development/developer_integration_guide.md) - MCP/Agent/Skills 설정 ⭐
+- [Agent Teams 활용 가이드](./knowledge_service/docs/05_development/agent_teams_guide.md) - 멀티-에이전트 협업 ⭐
 - [테스트 계획서](./knowledge_service/docs/04_testing/unit_integration_test_plan.md) - TDD/Test-Along 기준
 - [백로그 관리 가이드](./backlog/README.md) - Jira-free 백로그 관리
 - [ALM 완전가이드](./docs/claude_code_virtual_team_alm_guide/) - 가상팀 협업 가이드 (4개 문서)

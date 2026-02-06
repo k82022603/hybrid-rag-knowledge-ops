@@ -13,7 +13,11 @@ Hybrid RAG Knowledge Operations Platform의 개발 관련 가이드 문서 모�
 ├── quick_start_guide.md               # 빠른 시작 가이드 (NEW)
 ├── development_conventions.md         # 개발 컨벤션 (NEW)
 ├── developer_agent_guide.md           # 개발자 에이전트 도구 가이드
-└── developer_integration_guide.md     # 개발자 통합 가이드
+├── developer_integration_guide.md     # 개발자 통합 가이드
+├── agent_teams_guide.md               # Agent Teams 활용 가이드 (NEW)
+├── mui_to_tailwind_migration.md       # MUI → Tailwind 마이그레이션 가이드
+├── playwright_setup_guide.md          # Playwright E2E 테스트 설정 가이드
+└── ragas_evaluation_guide.md          # RAGAS RAG 평가 가이드
 ```
 
 ---
@@ -27,6 +31,10 @@ Hybrid RAG Knowledge Operations Platform의 개발 관련 가이드 문서 모�
 | [development_conventions.md](./development_conventions.md) | 코드 스타일, 커밋 규칙, PR 가이드 | 개발자 | 1.0 |
 | [developer_agent_guide.md](./developer_agent_guide.md) | Claude Code 개발자 에이전트 도구 가이드 | AI 에이전트 | 1.0 |
 | [developer_integration_guide.md](./developer_integration_guide.md) | Jira, Slack, GitHub 연동 가이드 | 개발자 | 1.0 |
+| [agent_teams_guide.md](./agent_teams_guide.md) | Agent Teams 멀티-에이전트 협업 가이드 | AI 에이전트 운영자 | 1.0 |
+| [mui_to_tailwind_migration.md](./mui_to_tailwind_migration.md) | MUI → Tailwind CSS 마이그레이션 가이드 | Frontend 개발자 | 1.0 |
+| [playwright_setup_guide.md](./playwright_setup_guide.md) | Playwright E2E 테스트 환경 설정 | QA, Frontend 개발자 | 1.0 |
+| [ragas_evaluation_guide.md](./ragas_evaluation_guide.md) | RAGAS 기반 RAG 품질 평가 가이드 | RAG 엔지니어, QA | 1.0 |
 
 ---
 
@@ -57,6 +65,26 @@ Hybrid RAG Knowledge Operations Platform의 개발 관련 가이드 문서 모�
 - **대상**: 개발자
 - **내용**: GitHub 브랜치 전략, Jira/Slack 연동, Claude Code 활용
 
+### Agent Teams 활용 가이드 (NEW)
+- **목적**: Agent Teams 멀티-에이전트 협업 기능 이해 및 적용
+- **대상**: 프로젝트 관리자, AI 에이전트 운영자
+- **내용**: 아키텍처, 역할 매핑, 사용 시나리오, 비용 가이드
+
+### MUI → Tailwind 마이그레이션 가이드
+- **목적**: Material UI에서 Tailwind CSS로의 마이그레이션 안내
+- **대상**: Frontend 개발자
+- **내용**: 컴포넌트 매핑, 스타일 변환, Headless UI 활용
+
+### Playwright 설정 가이드
+- **목적**: Playwright E2E 테스트 환경 구축
+- **대상**: QA, Frontend 개발자
+- **내용**: 설치, 설정, 테스트 작성, CI 연동
+
+### RAGAS 평가 가이드
+- **목적**: RAGAS 프레임워크 기반 RAG 품질 평가
+- **대상**: RAG 엔지니어, QA
+- **내용**: 평가 지표, 데이터셋 준비, 평가 실행, 결과 분석
+
 ---
 
 ## 관련 문서
@@ -76,3 +104,7 @@ Hybrid RAG Knowledge Operations Platform의 개발 관련 가이드 문서 모�
 | development_conventions | 1.0 | 2026-01-20 |
 | developer_agent_guide | 1.0 | 2026-01-17 |
 | developer_integration_guide | 1.0 | 2026-01-18 |
+| agent_teams_guide | 1.0 | 2026-02-06 |
+| mui_to_tailwind_migration | 1.0 | 2026-01-25 |
+| playwright_setup_guide | 1.0 | 2026-01-29 |
+| ragas_evaluation_guide | 1.0 | 2026-01-30 |

@@ -1,0 +1,241 @@
+[
+  {
+    "question": "LangGraph란 무엇인가요?",
+    "answer": "LangGraph는 LangChain 기반의 상태 기반 에이전트 프레임워크입니다. 복잡한 워크플로우를 그래프 형태로 모델링하여 AI 에이전트를 구축할 수 있습니다.",
+    "contexts": [
+      "LangGraph는 LangChain을 기반으로 한 상태 기반 에이전트 프레임워크입니다. 그래프 형태의 워크플로우를 통해 복잡한 AI 에이전트를 구축할 수 있습니다.",
+      "LangGraph는 상태 머신 개념을 활용하여 에이전트의 행동을 제어합니다."
+    ],
+    "ground_truth": "LangGraph는 LangChain 기반의 상태 기반 에이전트 프레임워크로, 그래프 형태의 워크플로우를 통해 AI 에이전트를 구축합니다."
+  },
+  {
+    "question": "RAG 파이프라인의 구성 요소는 무엇인가요?",
+    "answer": "RAG 파이프라인은 크게 Retrieval(검색), Augmentation(증강), Generation(생성)의 세 단계로 구성됩니다. 검색 단계에서는 관련 문서를 찾고, 증강 단계에서는 컨텍스트를 추가하며, 생성 단계에서는 LLM이 답변을 생성합니다.",
+    "contexts": [
+      "RAG(Retrieval-Augmented Generation)는 검색, 증강, 생성의 세 단계로 구성됩니다.",
+      "검색 단계에서는 벡터 데이터베이스나 전통적인 검색 엔진을 사용하여 관련 문서를 찾습니다.",
+      "생성 단계에서는 검색된 컨텍스트를 활용하여 LLM이 최종 답변을 생성합니다."
+    ],
+    "ground_truth": "RAG 파이프라인은 Retrieval(검색), Augmentation(증강), Generation(생성) 세 단계로 구성되며, 관련 문서 검색 후 컨텍스트와 함께 LLM이 답변을 생성합니다."
+  },
+  {
+    "question": "BGE-M3 임베딩 모델의 특징은 무엇인가요?",
+    "answer": "BGE-M3는 다국어를 지원하는 임베딩 모델로, 1024차원의 벡터를 생성합니다. 한국어를 포함한 100개 이상의 언어를 지원하며, Dense, Sparse, Multi-vector 방식의 임베딩을 모두 지원합니다.",
+    "contexts": [
+      "BGE-M3는 BAAI에서 개발한 다국어 임베딩 모델입니다. 100개 이상의 언어를 지원합니다.",
+      "BGE-M3는 1024차원의 벡터를 생성하며, Dense, Sparse, Multi-vector 세 가지 임베딩 방식을 지원합니다.",
+      "한국어 텍스트에 대해서도 높은 성능을 보이며, 최대 8192 토큰까지 처리할 수 있습니다."
+    ],
+    "ground_truth": "BGE-M3는 100개 이상의 언어를 지원하는 다국어 임베딩 모델로, 1024차원 벡터를 생성하고 Dense, Sparse, Multi-vector 방식을 지원합니다."
+  },
+  {
+    "question": "Elasticsearch의 kNN 검색이란 무엇인가요?",
+    "answer": "Elasticsearch의 kNN 검색은 k-Nearest Neighbors 알고리즘을 사용한 벡터 유사도 검색입니다. dense_vector 필드에 저장된 임베딩 벡터를 기반으로 가장 유사한 k개의 문서를 검색합니다.",
+    "contexts": [
+      "Elasticsearch 8.x부터 native kNN(k-Nearest Neighbors) 검색을 지원합니다.",
+      "kNN 검색은 dense_vector 필드 타입을 사용하여 벡터 임베딩을 저장하고 검색합니다.",
+      "HNSW 알고리즘을 사용하여 효율적인 근사 최근접 이웃 검색을 수행합니다."
+    ],
+    "ground_truth": "Elasticsearch kNN 검색은 k-Nearest Neighbors 알고리즘을 사용하여 dense_vector 필드의 임베딩 벡터를 기반으로 유사 문서를 검색하는 기능입니다."
+  },
+  {
+    "question": "Neo4j에서 Cypher 쿼리 언어는 어떤 용도로 사용되나요?",
+    "answer": "Cypher는 Neo4j의 선언적 그래프 쿼리 언어입니다. 노드와 관계를 패턴 매칭 방식으로 검색하고, 그래프 순회, 데이터 생성/수정/삭제 등의 작업을 수행할 수 있습니다.",
+    "contexts": [
+      "Cypher는 Neo4j에서 사용하는 선언적 그래프 쿼리 언어입니다.",
+      "Cypher는 ASCII-art 스타일의 패턴 매칭 문법을 사용하여 그래프를 쿼리합니다. 예: (a)-[:KNOWS]->(b)",
+      "MATCH, CREATE, MERGE, DELETE 등의 명령어로 그래프 데이터를 조작합니다."
+    ],
+    "ground_truth": "Cypher는 Neo4j의 선언적 그래프 쿼리 언어로, 패턴 매칭 방식으로 노드와 관계를 검색하고 그래프 데이터를 조작합니다."
+  },
+  {
+    "question": "Hybrid Search란 무엇인가요?",
+    "answer": "Hybrid Search는 키워드 기반의 전통적인 검색(BM25)과 벡터 기반의 시맨틱 검색을 결합한 검색 방식입니다. 두 검색 방식의 장점을 활용하여 더 정확한 검색 결과를 제공합니다.",
+    "contexts": [
+      "Hybrid Search는 lexical search(BM25)와 semantic search(vector)를 결합한 검색 방식입니다.",
+      "RRF(Reciprocal Rank Fusion)나 가중치 합산 방식으로 두 검색 결과를 융합합니다.",
+      "키워드 매칭의 정확성과 시맨틱 검색의 의미 이해를 모두 활용할 수 있습니다."
+    ],
+    "ground_truth": "Hybrid Search는 BM25 기반 키워드 검색과 벡터 기반 시맨틱 검색을 RRF 등으로 융합하여 더 정확한 검색 결과를 제공하는 방식입니다."
+  },
+  {
+    "question": "RRF(Reciprocal Rank Fusion)는 어떻게 동작하나요?",
+    "answer": "RRF는 여러 검색 결과를 융합하는 알고리즘입니다. 각 문서의 순위를 기반으로 점수를 계산하며, 공식은 score = 1 / (k + rank) 입니다. k는 일반적으로 60을 사용합니다.",
+    "contexts": [
+      "RRF(Reciprocal Rank Fusion)는 여러 검색 결과 리스트를 하나로 병합하는 알고리즘입니다.",
+      "RRF 점수는 score = sum(1 / (k + rank_i)) 공식으로 계산됩니다. k는 보통 60을 사용합니다.",
+      "RRF는 정규화 없이 서로 다른 검색 시스템의 결과를 효과적으로 결합할 수 있습니다."
+    ],
+    "ground_truth": "RRF는 여러 검색 결과를 융합하는 알고리즘으로, score = 1/(k+rank) 공식을 사용하며 일반적으로 k=60을 적용합니다."
+  },
+  {
+    "question": "Gleaning 기법이란 무엇인가요?",
+    "answer": "Gleaning은 엔티티 추출 품질을 높이기 위한 다중 추출 기법입니다. 첫 번째 추출 후 누락된 정보가 있는지 검토하고, 추가 추출을 반복하여 엔티티 재현율을 높입니다. 평균 33% 품질 향상 효과가 있습니다.",
+    "contexts": [
+      "Gleaning은 Microsoft의 GraphRAG 논문에서 소개된 다중 엔티티 추출 기법입니다.",
+      "첫 번째 추출 후 LLM에게 누락된 엔티티가 있는지 질문하여 추가 추출을 수행합니다.",
+      "Gleaning을 통해 엔티티 재현율(Entity Recall)을 평균 33% 향상시킬 수 있습니다."
+    ],
+    "ground_truth": "Gleaning은 다중 추출 기법으로, LLM에게 누락 엔티티를 질문하며 반복 추출하여 엔티티 재현율을 평균 33% 향상시킵니다."
+  },
+  {
+    "question": "RAGAS 평가 메트릭에는 어떤 것들이 있나요?",
+    "answer": "RAGAS의 주요 평가 메트릭은 Faithfulness(컨텍스트 충실도), Answer Relevancy(답변 관련성), Context Precision(컨텍스트 정밀도), Context Recall(컨텍스트 재현율)입니다.",
+    "contexts": [
+      "RAGAS(Retrieval Augmented Generation Assessment)는 RAG 시스템을 평가하기 위한 프레임워크입니다.",
+      "Faithfulness는 생성된 답변이 컨텍스트에 얼마나 충실한지 측정합니다.",
+      "Answer Relevancy는 답변이 질문에 얼마나 관련있는지, Context Precision은 검색된 컨텍스트의 정확도를 측정합니다."
+    ],
+    "ground_truth": "RAGAS 메트릭은 Faithfulness, Answer Relevancy, Context Precision, Context Recall 네 가지로 RAG 품질을 평가합니다."
+  },
+  {
+    "question": "DeepSeek V3 모델의 장점은 무엇인가요?",
+    "answer": "DeepSeek V3는 GPT-4급 성능을 제공하면서 95% 이상의 비용 절감이 가능한 LLM입니다. OpenAI API 호환 인터페이스를 제공하여 기존 코드 변경 없이 사용할 수 있습니다.",
+    "contexts": [
+      "DeepSeek V3는 중국 DeepSeek사에서 개발한 대규모 언어 모델입니다.",
+      "GPT-4와 유사한 성능을 보이면서 API 비용이 95% 이상 저렴합니다.",
+      "OpenAI API와 호환되는 인터페이스를 제공하여 기존 OpenAI 기반 코드를 쉽게 마이그레이션할 수 있습니다."
+    ],
+    "ground_truth": "DeepSeek V3는 GPT-4급 성능과 95% 비용 절감, OpenAI API 호환성을 제공하는 LLM입니다."
+  },
+  {
+    "question": "Semantic Chunking은 어떤 방식으로 동작하나요?",
+    "answer": "Semantic Chunking은 문서를 의미 단위로 분할하는 기법입니다. 문장 간 임베딩 유사도를 계산하여 의미적으로 연결된 문장들을 하나의 청크로 그룹화합니다. 고정 길이 분할보다 컨텍스트 보존력이 높습니다.",
+    "contexts": [
+      "Semantic Chunking은 고정 길이 대신 의미 단위로 문서를 분할합니다.",
+      "문장 임베딩 간 코사인 유사도를 계산하여 유사도 임계값을 기준으로 청크 경계를 결정합니다.",
+      "의미적으로 연결된 내용이 같은 청크에 포함되어 검색 품질이 향상됩니다."
+    ],
+    "ground_truth": "Semantic Chunking은 문장 임베딩 유사도를 기반으로 의미 단위로 문서를 분할하여 컨텍스트 보존력을 높이는 기법입니다."
+  },
+  {
+    "question": "FastAPI의 의존성 주입(Dependency Injection)은 어떻게 사용하나요?",
+    "answer": "FastAPI의 의존성 주입은 Depends() 함수를 사용합니다. 라우트 함수의 파라미터에 Depends(dependency_function)을 선언하면 요청마다 해당 함수가 실행되어 의존성을 제공합니다. 인증, 데이터베이스 세션 관리 등에 활용됩니다.",
+    "contexts": [
+      "FastAPI는 Depends() 함수를 통해 의존성 주입을 지원합니다.",
+      "def get_db(): ... 형태의 의존성 함수를 정의하고, 라우트에서 db: Session = Depends(get_db)로 사용합니다.",
+      "의존성 주입으로 인증, DB 세션, 설정 등을 라우트에 자동으로 전달할 수 있습니다."
+    ],
+    "ground_truth": "FastAPI 의존성 주입은 Depends() 함수로 구현되며, 라우트 파라미터에 선언하여 인증, DB 세션 등을 자동 전달합니다."
+  },
+  {
+    "question": "Knowledge Graph에서 Entity와 Relation의 차이는 무엇인가요?",
+    "answer": "Entity는 지식 그래프의 노드로, 사람, 장소, 개념 등 실체를 나타냅니다. Relation은 Entity 간의 연결(엣지)로, 관계의 유형과 방향을 정의합니다. 예를 들어 (LangChain)-[BASED_ON]->(Python) 형태입니다.",
+    "contexts": [
+      "Knowledge Graph는 Entity(노드)와 Relation(엣지)로 구성됩니다.",
+      "Entity는 실세계의 객체를 나타내며, 속성(property)을 가질 수 있습니다.",
+      "Relation은 두 Entity 간의 관계를 나타내며, 방향성을 가집니다. (subject)-[predicate]->(object) 형태의 트리플로 표현됩니다."
+    ],
+    "ground_truth": "Entity는 지식 그래프의 노드(실체)이고, Relation은 Entity 간의 방향성 있는 연결(관계)입니다."
+  },
+  {
+    "question": "Reranking의 목적은 무엇인가요?",
+    "answer": "Reranking은 초기 검색 결과를 더 정교하게 재정렬하는 과정입니다. Cross-encoder 등 정밀 모델을 사용하여 쿼리와 문서 간의 관련성을 더 정확하게 평가합니다. 검색 정확도를 높이지만 추가 계산 비용이 발생합니다.",
+    "contexts": [
+      "Reranking은 초기 검색 결과를 두 번째 모델로 재정렬하는 과정입니다.",
+      "Cross-encoder 모델은 쿼리와 문서를 함께 입력받아 관련성 점수를 출력합니다.",
+      "Bi-encoder보다 정확하지만 계산 비용이 높아, 상위 N개 결과에만 적용합니다."
+    ],
+    "ground_truth": "Reranking은 Cross-encoder 등으로 초기 검색 결과를 재정렬하여 검색 정확도를 높이는 과정입니다."
+  },
+  {
+    "question": "LangChain의 LCEL(LangChain Expression Language)이란 무엇인가요?",
+    "answer": "LCEL은 LangChain의 체인 구성을 위한 선언적 언어입니다. 파이프 연산자(|)를 사용하여 컴포넌트를 연결하고, 스트리밍, 병렬 실행, 재시도 등을 자동 지원합니다. chain = prompt | llm | parser 형태로 사용합니다.",
+    "contexts": [
+      "LCEL(LangChain Expression Language)은 LangChain 0.1부터 도입된 선언적 체인 구성 방식입니다.",
+      "파이프 연산자(|)로 컴포넌트를 연결합니다: chain = prompt | model | output_parser",
+      "자동으로 스트리밍, 배치 처리, 병렬 실행을 지원하며, Runnable 인터페이스를 따릅니다."
+    ],
+    "ground_truth": "LCEL은 LangChain의 선언적 체인 구성 언어로, 파이프 연산자로 컴포넌트를 연결하고 스트리밍/병렬 처리를 자동 지원합니다."
+  },
+  {
+    "question": "Prompt Engineering에서 Few-shot Learning이란?",
+    "answer": "Few-shot Learning은 프롬프트에 몇 가지 예시를 포함하여 LLM이 원하는 형식과 패턴을 학습하도록 하는 기법입니다. 예시 입출력 쌍을 제공하면 LLM이 유사한 패턴으로 응답합니다. 일반적으로 3-5개의 예시가 효과적입니다.",
+    "contexts": [
+      "Few-shot Learning은 프롬프트에 예시를 포함하여 모델이 패턴을 학습하게 합니다.",
+      "예시 형식: 'Q: 질문1 A: 답변1 Q: 질문2 A: 답변2 Q: 새 질문 A: '",
+      "보통 3-5개의 예시가 적절하며, 너무 많으면 컨텍스트 길이를 초과할 수 있습니다."
+    ],
+    "ground_truth": "Few-shot Learning은 프롬프트에 3-5개의 예시를 포함하여 LLM이 원하는 패턴을 학습하게 하는 기법입니다."
+  },
+  {
+    "question": "Streaming Response의 장점은 무엇인가요?",
+    "answer": "Streaming Response는 LLM 응답을 토큰 단위로 실시간 전송하는 방식입니다. 사용자가 전체 응답을 기다리지 않고 즉시 결과를 볼 수 있어 체감 응답 속도가 향상됩니다. Server-Sent Events(SSE)를 주로 사용합니다.",
+    "contexts": [
+      "Streaming Response는 LLM 응답을 점진적으로 전송합니다.",
+      "Server-Sent Events(SSE)를 사용하여 클라이언트에 토큰을 실시간 전달합니다.",
+      "전체 응답 생성을 기다리지 않아 사용자 체감 응답 속도가 크게 향상됩니다."
+    ],
+    "ground_truth": "Streaming Response는 LLM 응답을 SSE로 실시간 전송하여 사용자 체감 응답 속도를 향상시킵니다."
+  },
+  {
+    "question": "Docker Compose에서 서비스 간 의존성은 어떻게 설정하나요?",
+    "answer": "Docker Compose에서는 depends_on 키워드로 서비스 간 의존성을 설정합니다. condition: service_healthy를 사용하면 헬스체크 통과 후 시작하도록 할 수 있습니다. 또한 healthcheck 설정으로 서비스 상태를 모니터링합니다.",
+    "contexts": [
+      "Docker Compose의 depends_on으로 서비스 시작 순서를 지정할 수 있습니다.",
+      "depends_on에 condition: service_healthy를 설정하면 헬스체크 통과 후 의존 서비스가 시작됩니다.",
+      "healthcheck에서 test, interval, timeout, retries를 설정하여 서비스 상태를 확인합니다."
+    ],
+    "ground_truth": "Docker Compose에서 depends_on과 service_healthy 조건, healthcheck 설정으로 서비스 간 의존성과 시작 순서를 관리합니다."
+  },
+  {
+    "question": "JWT 토큰의 구조는 어떻게 되어 있나요?",
+    "answer": "JWT(JSON Web Token)는 Header, Payload, Signature 세 부분으로 구성됩니다. Header는 토큰 타입과 알고리즘, Payload는 클레임(사용자 정보), Signature는 변조 방지용 서명입니다. 각 부분은 Base64로 인코딩되어 점(.)으로 연결됩니다.",
+    "contexts": [
+      "JWT는 Header.Payload.Signature 형태의 세 부분으로 구성됩니다.",
+      "Header에는 토큰 타입(JWT)과 서명 알고리즘(예: HS256, RS256)이 포함됩니다.",
+      "Payload에는 사용자 ID, 권한 등의 클레임이 포함되며, Base64Url로 인코딩됩니다."
+    ],
+    "ground_truth": "JWT는 Header(알고리즘), Payload(클레임), Signature(서명) 세 부분이 Base64 인코딩되어 점으로 연결된 구조입니다."
+  },
+  {
+    "question": "Prometheus에서 메트릭 수집은 어떻게 이루어지나요?",
+    "answer": "Prometheus는 Pull 방식으로 메트릭을 수집합니다. 타겟 서비스가 /metrics 엔드포인트를 노출하면 Prometheus가 주기적으로 해당 엔드포인트를 스크랩합니다. scrape_configs에서 타겟과 수집 주기를 설정합니다.",
+    "contexts": [
+      "Prometheus는 Pull 기반 메트릭 수집 시스템입니다.",
+      "애플리케이션은 /metrics 엔드포인트를 통해 메트릭을 노출하고, Prometheus가 주기적으로 가져갑니다.",
+      "prometheus.yml의 scrape_configs에서 타겟 서비스와 scrape_interval을 설정합니다."
+    ],
+    "ground_truth": "Prometheus는 Pull 방식으로 타겟 서비스의 /metrics 엔드포인트를 주기적으로 스크랩하여 메트릭을 수집합니다."
+  },
+  {
+    "question": "Vector Database의 인덱싱 알고리즘에는 어떤 것들이 있나요?",
+    "answer": "주요 벡터 인덱싱 알고리즘으로는 HNSW(Hierarchical Navigable Small World), IVF(Inverted File Index), PQ(Product Quantization)가 있습니다. HNSW는 검색 속도가 빠르고, IVF는 메모리 효율적이며, PQ는 압축률이 높습니다.",
+    "contexts": [
+      "HNSW(Hierarchical Navigable Small World)는 그래프 기반 인덱싱으로 검색 속도가 빠릅니다.",
+      "IVF(Inverted File Index)는 벡터를 클러스터로 분할하여 검색 범위를 줄입니다.",
+      "PQ(Product Quantization)는 벡터를 양자화하여 메모리 사용량을 줄이면서 근사 검색을 수행합니다."
+    ],
+    "ground_truth": "주요 벡터 인덱싱 알고리즘은 HNSW(빠른 검색), IVF(메모리 효율), PQ(높은 압축률)입니다."
+  },
+  {
+    "question": "GraphRAG와 일반 RAG의 차이점은 무엇인가요?",
+    "answer": "GraphRAG는 지식 그래프를 활용한 RAG로, 엔티티와 관계를 기반으로 다중 홉 추론이 가능합니다. 일반 RAG는 단순 유사도 검색인 반면, GraphRAG는 구조화된 지식을 통해 복잡한 질문에 더 정확한 답변을 제공합니다.",
+    "contexts": [
+      "GraphRAG는 지식 그래프를 검색 소스로 활용하는 RAG 방식입니다.",
+      "엔티티와 관계 정보를 활용하여 다중 홉(multi-hop) 추론이 가능합니다.",
+      "일반 벡터 RAG보다 구조화된 지식이 필요한 질문에 더 효과적입니다."
+    ],
+    "ground_truth": "GraphRAG는 지식 그래프 기반으로 다중 홉 추론이 가능한 반면, 일반 RAG는 벡터 유사도 기반 단순 검색입니다."
+  },
+  {
+    "question": "Pydantic에서 Field validator는 어떻게 사용하나요?",
+    "answer": "Pydantic의 Field validator는 @field_validator 데코레이터로 정의합니다. 특정 필드에 대한 검증 로직을 구현하며, mode='before' 또는 'after'로 검증 시점을 지정합니다. 검증 실패 시 ValueError를 발생시킵니다.",
+    "contexts": [
+      "Pydantic v2에서는 @field_validator 데코레이터로 필드 검증을 정의합니다.",
+      "mode='before'는 타입 변환 전, mode='after'는 타입 변환 후에 검증합니다.",
+      "@field_validator('field_name') def validate_field(cls, v): ... 형태로 사용합니다."
+    ],
+    "ground_truth": "Pydantic Field validator는 @field_validator 데코레이터로 정의하며, mode로 검증 시점을 지정하고 ValueError로 실패를 처리합니다."
+  },
+  {
+    "question": "Context Window란 무엇이고 왜 중요한가요?",
+    "answer": "Context Window는 LLM이 한 번에 처리할 수 있는 최대 토큰 수입니다. 입력 프롬프트와 출력 응답을 합친 길이가 이 제한을 초과하면 처리가 불가능합니다. RAG에서는 컨텍스트 윈도우 내에서 최대한 관련 정보를 포함해야 합니다.",
+    "contexts": [
+      "Context Window는 LLM의 최대 입출력 토큰 제한입니다.",
+      "GPT-4는 128K, Claude는 200K 토큰의 컨텍스트 윈도우를 지원합니다.",
+      "RAG에서는 검색된 컨텍스트가 윈도우 제한을 초과하지 않도록 청킹과 선택이 중요합니다."
+    ],
+    "ground_truth": "Context Window는 LLM의 최대 처리 토큰 수로, RAG에서 관련 정보를 윈도우 제한 내에 효율적으로 포함해야 합니다."
+  }
+]

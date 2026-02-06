@@ -2,12 +2,12 @@
 
 🧠 Graph RAG 기반 지능형 지식 검색 시스템 + Antigravity 협업 공간
 
-**프로젝트 버전**: 4.4
-**마지막 업데이트**: 2026-02-03
-**설계서 상태**: ✅ 설계 완료 (Phase 2 - 100%, 91점 A등급 승인)
-**구현 진행**: ✅ Sprint 05 완료 (7/7 Story Done, 100%) - Phase 4 진행률 90%
+**프로젝트 버전**: 4.5
+**마지막 업데이트**: 2026-02-06
+**프로젝트 상태**: ✅ Phase 5 배포 완료 (Sprint 07, TechLead 승인 39/40)
+**테스트 커버리지**: 5개 핵심 모듈 평균 97% (Docker 모드)
 **CI/CD**: ✅ GitHub Actions 8개 워크플로우 정상 운영
-**테스트**: Unit 626/627 (99.8%) | E2E 180/192 (93.75%) | Docker 13/13 healthy
+**AI 모델**: Claude Opus 4.6 + Agent Teams 활성화 (12개 에이전트)
 
 ## 📋 개요
 
@@ -21,7 +21,7 @@
 ```
 .
 ├── README.md                      # 이 파일
-├── CLAUDE.md                      # 전체 프로젝트 Claude Code 규칙 (v2.12)
+├── CLAUDE.md                      # 전체 프로젝트 Claude Code 규칙 (v2.23)
 ├── PLAN.md                        # 프로젝트 전체 계획
 ├── .gitignore                     # Git 추적 제외
 ├── .env.example                   # 환경 변수 템플릿
@@ -107,7 +107,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 | 문서 | 설명 |
 |------|------|
-| [CLAUDE.md](./CLAUDE.md) | Claude Code 프로젝트 규칙 v2.20 |
+| [CLAUDE.md](./CLAUDE.md) | Claude Code 프로젝트 규칙 v2.23 |
 | [PLAN.md](./PLAN.md) | 프로젝트 전체 계획 및 AI 에이전트 협업 구조 |
 | [통합 설계서](./knowledge_service/docs/02_design/integrated_detailed_design.md) | 전체 시스템 통합 설계 |
 
@@ -127,22 +127,35 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 |------|------|
 | [단위/통합 테스트 계획서](./knowledge_service/docs/04_testing/unit_integration_test_plan.md) | TDD/Test-Along 기준 포함 ⭐ |
 | [개발자 에이전트 가이드](./knowledge_service/docs/05_development/developer_agent_guide.md) | AI 에이전트 도구 사용법 ⭐ |
+| [Agent Teams 활용 가이드](./knowledge_service/docs/05_development/agent_teams_guide.md) | 멀티-에이전트 협업 가이드 ⭐ |
 
 ## 📅 Next Steps (다음 작업)
 
-### 🔴 P0 - 최우선
+### 🟡 P1 - 운영 안정화
 
 | # | 작업 | 설명 | 상태 |
 |:-:|------|------|:----:|
-| 1 | **Docker E2E 테스트 100%** | Keycloak realm 설정 완료 | 🔜 |
-| 2 | **프로덕션 환경 검증** | 전체 통합 테스트 | 🔜 |
+| 1 | **RAGAS 실제 LLM 평가** | DeepSeek API 연동 평가 | ⏳ |
+| 2 | **성능 최적화** | 캐싱 및 Circuit Breaker 프로덕션 검증 | ⏳ |
+| 3 | **Agent Teams 실전 적용** | 12개 에이전트 멀티-에이전트 협업 워크플로우 검증 | ⏳ |
 
-### 🟡 P1 - 중요
+### ✅ 완료된 작업 (2026-02-06 Opus 4.6 업그레이드)
 
-| # | 작업 | 설명 | 상태 |
-|:-:|------|------|:----:|
-| 3 | **RAGAS 실제 LLM 평가** | DeepSeek API 키 설정 필요 | ⏳ |
-| 4 | **성능 최적화** | 캐싱 및 Circuit Breaker 검증 | ⏳ |
+| # | 문서/작업 | 설명 |
+|:-:|------|------|
+| ✅ | **Claude Opus 4.6 전환** | 12개 에이전트 모델 통일, Stitch MCP 업데이트 |
+| ✅ | **Agent Teams 활성화** | settings.json 환경변수 설정 |
+| ✅ | **Agent Teams 매뉴얼** | docs/05_development/agent_teams_guide.md 작성 |
+
+### ✅ 완료된 작업 (2026-02-05 테스트 커버리지 강화)
+
+| # | 문서/작업 | 설명 |
+|:-:|------|------|
+| ✅ | **테스트 커버리지 97% 달성** | 5개 핵심 모듈 Docker 모드 테스트 |
+| ✅ | **embedding.py 22% → 99%** | 임베딩 서비스 테스트 대폭 개선 |
+| ✅ | **conversation_history.py 100%** | 대화이력 관리 완전 커버리지 |
+| ✅ | **Mock 제거 및 실제 연동** | P0/P1/P2 Mock 의존성 해결 |
+| ✅ | **Phase 5 배포 완료** | Sprint 07, TechLead 승인 39/40 |
 
 ### ✅ 완료된 작업 (2026-01-30 Sprint 05)
 
@@ -205,7 +218,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 | ✅ | **백로그 관리 시스템 구축** | Jira-free Markdown 백로그 (EPIC, Stories, Sprints) |
 | ✅ | **EPIC-001 + 6개 Story** | Document Processing 34 pts, Given-When-Then AC |
 | ✅ | **Sprint 1-2 계획서** | Sprint 1 (19 pts), Sprint 2 (15 pts) 상세 계획 |
-| ✅ | **9개 Agent 정의 파일** | PM, TechLead, Backend, Frontend, MLRag, Data, QA, DevOps, Infra |
+| ✅ | **12개 Agent 정의 파일** | PM, TechLead, Backend, Frontend, RAG, ETL, DB, QA, DevOps, Infra, Web, Doc |
 | ✅ | **ALM 완전가이드 4개 문서** | Ralph Playbook, 자율학습사이클, 실전협업, 프로젝트 ALM |
 | ✅ | **문서 Mermaid 변환** | 11개 텍스트 도식 → Mermaid 변환 (01~04 문서) |
 | ✅ | **개발자 통합 가이드** | MCP 서버, Agent 정의, Commands/Skills 사용법 |
@@ -335,10 +348,9 @@ AI 에이전트가 사용할 수 있는 도구 가이드:
 
 ---
 
-**Made with Claude Code (Opus 4.5) & DeepSeek-V3.2**
+**Made with Claude Code (Opus 4.6) & DeepSeek-V3.2**
 
-*설계서 v2.4 완료 (Gleaning 통합): 2026-01-16*
-*테스트 계획서 및 개발자 에이전트 가이드 추가: 2026-01-17*
-*백로그 관리 시스템, 9개 Agent 정의, ALM 가이드 추가: 2026-01-18*
+*Phase 5 배포 완료, Sprint 07 TechLead 승인: 2026-02-05*
+*Opus 4.6 전환, Agent Teams 활성화, 12개 에이전트 통일: 2026-02-06*
+*테스트 커버리지 97% 달성 (5개 핵심 모듈 Docker 모드): 2026-02-05*
 *인프라 비용 86% 절감 (K8s 13대 → Docker Compose 1~2대)*
-*Sprint 05 완료 (7/7 Story, 99.8% 테스트): 2026-01-30*

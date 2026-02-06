@@ -2,7 +2,7 @@
 
 > Claude Code 세션 간 컨텍스트 유지를 위한 계획 문서
 >
-> **Last Updated**: 2026-02-05 11:00 KST (Phase 5 완료, Production-Ready)
+> **Last Updated**: 2026-02-06 KST (Opus 4.6 전환, Agent Teams 활성화)
 > **Current Phase**: Phase 5 배포 완료 ✅ (Sprint 07 완료, TechLead 승인 39/40)
 > **Sprint 07**: UAT 문서 업로드, 임베딩 파이프라인, Production 환경, CI/CD 완료
 > **Frontend 전략 변경**: Tailwind + Antigravity + Stitch MCP 도입 결정 (2026-01-25)
@@ -62,7 +62,7 @@
 │                  ▼                             ▼                        │
 │       ┌─────────────────────┐       ┌─────────────────────┐            │
 │       │    Claude Code      │       │    Antigravity      │            │
-│       │    (Opus 4.5)       │       │    (UI Agent)       │            │
+│       │    (Opus 4.6)       │       │    (UI Agent)       │            │
 │       ├─────────────────────┤       ├─────────────────────┤            │
 │       │ [아키텍트 역할]     │       │ [UI 전문 역할]      │            │
 │       │ • 아키텍처 설계     │       │ • UI 코딩           │            │
@@ -94,7 +94,7 @@
 
 | 에이전트 | 역할 | 담당 영역 | 비고 |
 |----------|------|----------|------|
-| **Claude Code (Opus 4.5)** | 아키텍트 + 개발 | 아키텍처 설계, 개발표준 산출물, 디자인 가이드, Backend, AI Service, 코드 리뷰 | MCP/Skills 연동 |
+| **Claude Code (Opus 4.6)** | 아키텍트 + 개발 | 아키텍처 설계, 개발표준 산출물, 디자인 가이드, Backend, AI Service, 코드 리뷰 | MCP/Skills/Agent Teams 연동 |
 | **Antigravity** | UI 전문 + 테스터 | React 컴포넌트, 스타일링, UI 테스트, 제3자 테스트, 접근성 검증 | UI 품질 담당 |
 | **Human** | 오케스트레이터 | 요구사항 정의, 최종 검토, 의사결정 | 품질 게이트 |
 
@@ -940,6 +940,32 @@ CI/CD Pipeline (GitHub Actions)
 
 ## Session Notes
 
+### 2026-02-06 (Opus 4.6 업그레이드 + Agent Teams 활성화)
+
+- **Claude Opus 4.6 전환**
+  - 12개 에이전트 모델 일괄 업데이트 (opus-4-5-20251101 → opus-4-6)
+  - Stitch MCP 모델도 opus-4-6으로 업데이트
+  - 비용 최적화 주석 갱신 (sonnet-4-1 → sonnet-4-5)
+- **Agent Teams 실험적 기능 활성화**
+  - settings.json에 CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS 환경변수 추가
+  - Agent Teams 활용 가이드 작성 (docs/05_development/agent_teams_guide.md)
+- **프로젝트 문서 현행화** (sync-docs)
+  - README.md: Phase 5 완료 반영, Next Steps 갱신, 에이전트 12개 반영
+  - CLAUDE.md: v2.23, Daily 5개 반영, Agent Teams 가이드 링크 추가
+  - PLAN.md: Opus 4.6 참조, 세션 노트 추가
+  - 05_development/README.md: 누락 문서 3건 등록
+
+### 2026-02-05 (테스트 커버리지 97% + Phase 5 배포)
+
+- **핵심 모듈 테스트 커버리지 대폭 개선** (Docker 모드)
+  - embedding.py: 22% → 99%
+  - parsed_document.py: 66% → 100%
+  - document_processing_pipeline.py: 0% → 90%
+  - conversation_history.py: 38% → 100%
+  - cache_service.py: 28% → 97%
+- **Mock 제거 및 실제 연동 구현**: P0/P1/P2 해결
+- **Phase 5 배포 완료**: Sprint 07, TechLead 승인 39/40
+
 ### 2026-02-04 (Sprint 06 완료 - Phase 4 공식 종료)
 
 - **Sprint 06 전체 완료** (8/8 Story, 1일 완료!)
@@ -1193,7 +1219,7 @@ CI/CD Pipeline (GitHub Actions)
   - 품질: qa-engineer (qa), code-documenter (doc)
   - 디자인: web-designer (web)
   - 인프라: devops-engineer, infra-engineer
-  - 모든 Agent: claude-opus-4-5-20251101 모델
+  - 모든 Agent: claude-opus-4-6 모델 (2026-02-06 업그레이드, Agent Teams 활성화)
   - 역할별 권한 분리 (읽기 전용/쓰기 권한)
 - **Claude Code 가상팀 ALM 완전가이드** (4개 문서)
   - Ralph Playbook 완전가이드

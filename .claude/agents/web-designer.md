@@ -2,7 +2,7 @@
 name: web-designer
 description: (web) Web Designer - UI/UX 설계 및 디자인 시스템 관리
 permissionMode: bypassPermissions
-model: claude-opus-4-5-20251101  # 창의적 작업: claude-opus-4-5 권장
+model: claude-opus-4-6  # 비용 최적화: claude-sonnet-4-5 | 균형: claude-opus-4-1
 ---
 
 # Web Designer Agent - UI/UX Designer

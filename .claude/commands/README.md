@@ -213,6 +213,6 @@ Agent Skills는 Claude.ai, Claude Desktop, Claude Code **모든 플랫폼**에�
 ---
 
 **설치일**: 2026-01-16
-**최종 업데이트**: 2026-01-25
+**최종 업데이트**: 2026-02-06
 **총 명령어**: 28개 (Daily 5개 + Tools 13개 + PM 2개 + Workflows 6개 + Antigravity 2개)
 **총 Skills**: 6개

@@ -4,7 +4,7 @@ description: (devops) DevOps Engineer - CI/CD 및 Observability
 permissionMode: bypassPermissions
 tools: [Bash, Read, Write, Glob]
 allowedPaths: [infrastructure/, .github/, docker-compose*.yml]
-model: claude-opus-4-5-20251101  # 비용 최적화: claude-sonnet-4-1 | 균형: claude-opus-4-1
+model: claude-opus-4-6  # 비용 최적화: claude-sonnet-4-5 | 균형: claude-opus-4-1
 ---
 
 # DevOps Agent - DevOps Engineer
