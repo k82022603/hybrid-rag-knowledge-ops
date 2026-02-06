@@ -478,7 +478,7 @@ class SearchService:
             if self.es_client is not None:
                 # 2. Elasticsearch kNN 검색
                 knn_query: Dict[str, Any] = {
-                    "field": "embedding",
+                    "field": "dense_vector",
                     "query_vector": query_vector,  # EmbeddingService returns List[float]
                     "k": top_k,
                     "num_candidates": top_k * 10,
@@ -568,8 +568,8 @@ class SearchService:
                     "multi_match": {
                         "query": query,
                         "fields": [
-                            "content^3",
-                            "content.nori^2",
+                            "text^3",
+                            "text.standard^2",
                             "metadata.title^2",
                             "metadata.summary",
                         ],
@@ -590,7 +590,7 @@ class SearchService:
                     "size": top_k,
                     "highlight": {
                         "fields": {
-                            "content": {
+                            "text": {
                                 "fragment_size": 200,
                                 "number_of_fragments": 3,
                             }
@@ -882,7 +882,7 @@ class SearchService:
             result = SearchResult(
                 chunk_id=hit.get("_id", str(uuid4())),
                 document_id=str(metadata.get("document_id", "")),
-                content=src.get("content", ""),
+                content=src.get("text", ""),
                 score=float(hit.get("_score", 0.0)),
                 source=source,
                 metadata=metadata,

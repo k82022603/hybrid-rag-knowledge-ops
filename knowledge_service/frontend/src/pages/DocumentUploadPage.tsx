@@ -4,7 +4,7 @@
  * 드래그 앤 드롭 파일 업로드, 메타데이터 입력,
  * 업로드 진행률 표시, 업로드 이력 표시
  */
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   CloudArrowUpIcon,
@@ -37,6 +37,11 @@ const MAX_FILE_SIZE_MB = 2048; // 2GB
 const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 /**
+ * 문서 처리 상태
+ */
+type ProcessingStatus = 'queued' | 'processing' | 'completed' | 'failed';
+
+/**
  * 파일 상태 인터페이스
  */
 interface UploadFile {
@@ -48,7 +53,17 @@ interface UploadFile {
   progress: number;
   status: 'pending' | 'uploading' | 'completed' | 'failed';
   error?: string;
+  /** Server-assigned document ID after upload */
+  documentId?: string;
+  /** Backend processing status after upload completes */
+  processingStatus?: ProcessingStatus;
 }
+
+/**
+ * Maximum number of polling attempts (5-second interval x 60 = 5 minutes)
+ */
+const MAX_POLL_ATTEMPTS = 60;
+const POLL_INTERVAL_MS = 5000;
 
 /**
  * 파일 사이즈 포맷
@@ -214,6 +229,24 @@ const UploadFileItem: React.FC<{
   };
 
   const statusIcon = () => {
+    // Processing states take priority when upload is done
+    if (uploadFile.status === 'completed' && uploadFile.processingStatus) {
+      switch (uploadFile.processingStatus) {
+        case 'queued':
+          return (
+            <span className="inline-flex items-center justify-center h-5 w-5 rounded-full bg-warning-100 dark:bg-warning-900/40">
+              <span className="h-2 w-2 rounded-full bg-warning-500" />
+            </span>
+          );
+        case 'processing':
+          return <ArrowPathIcon className="h-5 w-5 text-primary-500 animate-spin" />;
+        case 'completed':
+          return <CheckCircleIcon className="h-5 w-5 text-success-500" />;
+        case 'failed':
+          return <ExclamationCircleIcon className="h-5 w-5 text-error-500" />;
+      }
+    }
+
     switch (uploadFile.status) {
       case 'completed':
         return <CheckCircleIcon className="h-5 w-5 text-success-500" />;
@@ -224,6 +257,43 @@ const UploadFileItem: React.FC<{
       default:
         return <DocumentTextIcon className="h-5 w-5 text-gray-400" />;
     }
+  };
+
+  /**
+   * Determine the label text for the current processing/upload status
+   */
+  const getProgressLabel = (): string => {
+    if (uploadFile.status === 'uploading') {
+      return `Uploading... ${uploadFile.progress}%`;
+    }
+    if (uploadFile.status === 'completed' && uploadFile.processingStatus) {
+      switch (uploadFile.processingStatus) {
+        case 'queued':
+          return 'Queued for processing...';
+        case 'processing':
+          return `Processing document... ${uploadFile.progress}%`;
+        case 'completed':
+          return 'Ready for search';
+        case 'failed':
+          return 'Processing failed';
+      }
+    }
+    if (uploadFile.status === 'completed') {
+      return 'Completed';
+    }
+    return '';
+  };
+
+  /**
+   * Determine the progress bar color class
+   */
+  const getProgressBarColor = (): string => {
+    if (uploadFile.status === 'uploading') return 'bg-primary-500';
+    if (uploadFile.processingStatus === 'queued') return 'bg-warning-400';
+    if (uploadFile.processingStatus === 'processing') return 'bg-primary-500';
+    if (uploadFile.processingStatus === 'completed') return 'bg-success-500';
+    if (uploadFile.processingStatus === 'failed') return 'bg-error-500';
+    return 'bg-success-500';
   };
 
   const isEditable = uploadFile.status === 'pending';
@@ -255,27 +325,56 @@ const UploadFileItem: React.FC<{
         )}
       </div>
 
-      {/* Progress bar */}
+      {/* Progress bar - 2-stage: Upload (0-50%) then Processing (50-100%) */}
       {(uploadFile.status === 'uploading' || uploadFile.status === 'completed') && (
         <div className="mb-4">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs text-gray-500 dark:text-gray-400">
-              {uploadFile.status === 'completed' ? 'Completed' : `Uploading... ${uploadFile.progress}%`}
+              {getProgressLabel()}
             </span>
+            {/* Processing status badge */}
+            {uploadFile.processingStatus && uploadFile.processingStatus !== 'completed' && uploadFile.processingStatus !== 'failed' && (
+              <span
+                className={`inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-medium ${
+                  uploadFile.processingStatus === 'queued'
+                    ? 'bg-warning-50 text-warning-700 dark:bg-warning-900/30 dark:text-warning-400'
+                    : 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400'
+                }`}
+              >
+                {uploadFile.processingStatus === 'queued' ? 'Queued' : 'Processing'}
+              </span>
+            )}
+            {uploadFile.processingStatus === 'completed' && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-medium bg-success-50 text-success-700 dark:bg-success-900/30 dark:text-success-400">
+                Ready
+              </span>
+            )}
           </div>
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+          {/* 2-stage progress bar */}
+          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
             <div
-              className={`h-1.5 rounded-full transition-all duration-300 ${
-                uploadFile.status === 'completed' ? 'bg-success-500' : 'bg-primary-500'
-              }`}
+              className={`h-1.5 rounded-full transition-all duration-500 ${getProgressBarColor()}`}
               style={{ width: `${uploadFile.progress}%` }}
+              role="progressbar"
+              aria-valuenow={uploadFile.progress}
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={getProgressLabel()}
             />
           </div>
+          {/* Stage labels */}
+          {uploadFile.processingStatus && uploadFile.processingStatus !== 'completed' && (
+            <div className="flex justify-between mt-1">
+              <span className="text-2xs text-gray-400">Upload</span>
+              <span className="text-2xs text-gray-400">Processing</span>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Error message */}
-      {uploadFile.status === 'failed' && uploadFile.error && (
+      {/* Error message - upload failure or processing failure */}
+      {((uploadFile.status === 'failed' && uploadFile.error) ||
+        (uploadFile.processingStatus === 'failed' && uploadFile.error)) && (
         <div className="flex items-center gap-2 p-2 bg-error-50 dark:bg-error-900/20 border border-error-200 dark:border-error-800 rounded-lg mb-4" role="alert">
           <ExclamationTriangleIcon className="h-4 w-4 text-error-500 flex-shrink-0" />
           <span className="text-xs text-error-700 dark:text-error-300">{uploadFile.error}</span>
@@ -487,28 +586,37 @@ const DocumentUploadPage: React.FC = () => {
       );
 
       try {
-        // Simulate progress updates
+        // Simulate upload progress updates (0% to 45%)
         const progressInterval = setInterval(() => {
           setFiles((prev) =>
             prev.map((f) =>
               f.id === uploadFile.id && f.status === 'uploading'
-                ? { ...f, progress: Math.min(f.progress + 10, 90) }
+                ? { ...f, progress: Math.min(f.progress + 5, 45) }
                 : f
             )
           );
         }, 200);
 
-        await knowledgeService.uploadFile(uploadFile.file, {
+        const uploadedDoc = await knowledgeService.uploadFile(uploadFile.file, {
           projectName: uploadFile.title,
           documentType: uploadFile.category,
         });
 
         clearInterval(progressInterval);
 
-        // Set completed
+        // Upload complete -> transition to processing phase
+        // Progress 50% = upload done, 50-100% = processing
         setFiles((prev) =>
           prev.map((f) =>
-            f.id === uploadFile.id ? { ...f, status: 'completed' as const, progress: 100 } : f
+            f.id === uploadFile.id
+              ? {
+                  ...f,
+                  status: 'completed' as const,
+                  progress: 50,
+                  documentId: uploadedDoc.id,
+                  processingStatus: 'processing' as ProcessingStatus,
+                }
+              : f
           )
         );
       } catch (error) {
@@ -531,12 +639,130 @@ const DocumentUploadPage: React.FC = () => {
     queryClient.invalidateQueries({ queryKey: ['documents'] });
   }, [files, queryClient]);
 
+  /**
+   * Poll processing status for files that have been uploaded
+   * but are still being processed by the backend.
+   * Polls every 5 seconds, max 60 times (5-minute timeout).
+   */
+  const pollCountRef = useRef<Record<string, number>>({});
+
+  useEffect(() => {
+    const processingFiles = files.filter(
+      (f) =>
+        f.documentId &&
+        f.processingStatus &&
+        (f.processingStatus === 'processing' || f.processingStatus === 'queued')
+    );
+
+    if (processingFiles.length === 0) return;
+
+    const intervalId = setInterval(async () => {
+      for (const file of processingFiles) {
+        if (!file.documentId) continue;
+
+        // Track poll count per file
+        const currentCount = pollCountRef.current[file.id] || 0;
+        if (currentCount >= MAX_POLL_ATTEMPTS) {
+          // Timeout: mark as failed
+          setFiles((prev) =>
+            prev.map((f) =>
+              f.id === file.id
+                ? {
+                    ...f,
+                    processingStatus: 'failed' as ProcessingStatus,
+                    error: 'Processing timed out after 5 minutes',
+                  }
+                : f
+            )
+          );
+          delete pollCountRef.current[file.id];
+          continue;
+        }
+
+        pollCountRef.current[file.id] = currentCount + 1;
+
+        try {
+          const result = await knowledgeService.getProcessingStatus(file.documentId);
+
+          setFiles((prev) =>
+            prev.map((f) => {
+              if (f.id !== file.id) return f;
+
+              const serverStatus = result.status as ProcessingStatus;
+              // Map server progress (0-100) to our 50-100 range
+              const processingProgress = 50 + Math.round((result.progress / 100) * 50);
+
+              if (serverStatus === 'completed') {
+                delete pollCountRef.current[file.id];
+                return {
+                  ...f,
+                  processingStatus: 'completed',
+                  progress: 100,
+                };
+              }
+
+              if (serverStatus === 'failed') {
+                delete pollCountRef.current[file.id];
+                return {
+                  ...f,
+                  processingStatus: 'failed',
+                  error: 'Document processing failed',
+                };
+              }
+
+              return {
+                ...f,
+                processingStatus: serverStatus,
+                progress: processingProgress,
+              };
+            })
+          );
+        } catch {
+          // Gracefully ignore polling errors and retry next interval
+        }
+      }
+    }, POLL_INTERVAL_MS);
+
+    return () => clearInterval(intervalId);
+  }, [files]);
+
+  /**
+   * Invalidate document queries when all processing completes
+   */
+  useEffect(() => {
+    const hasProcessing = files.some(
+      (f) => f.processingStatus === 'processing' || f.processingStatus === 'queued'
+    );
+    const hasCompleted = files.some((f) => f.processingStatus === 'completed');
+
+    if (!hasProcessing && hasCompleted) {
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+    }
+  }, [files, queryClient]);
+
   const handleClearCompleted = useCallback(() => {
-    setFiles((prev) => prev.filter((f) => f.status !== 'completed'));
+    setFiles((prev) =>
+      prev.filter((f) => {
+        // Only clear files where processing is fully completed or processing failed
+        if (f.status === 'completed' && f.processingStatus === 'completed') return false;
+        if (f.status === 'completed' && f.processingStatus === 'failed') return false;
+        return true;
+      })
+    );
+    // Clean up poll counts for cleared files
+    pollCountRef.current = {};
   }, []);
 
   const pendingCount = files.filter((f) => f.status === 'pending').length;
-  const completedCount = files.filter((f) => f.status === 'completed').length;
+  const fullyCompletedCount = files.filter(
+    (f) => f.status === 'completed' && f.processingStatus === 'completed'
+  ).length;
+  const processingCount = files.filter(
+    (f) =>
+      f.status === 'completed' &&
+      (f.processingStatus === 'processing' || f.processingStatus === 'queued')
+  ).length;
+  const completedCount = fullyCompletedCount;
 
   return (
     <div className="space-y-6" data-testid="upload-page">
@@ -559,11 +785,19 @@ const DocumentUploadPage: React.FC = () => {
             <div className="space-y-4">
               {/* Actions bar */}
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-medium text-gray-900 dark:text-white">
-                  {files.length} file{files.length !== 1 ? 's' : ''} selected
-                </h2>
                 <div className="flex items-center gap-3">
-                  {completedCount > 0 && (
+                  <h2 className="text-sm font-medium text-gray-900 dark:text-white">
+                    {files.length} file{files.length !== 1 ? 's' : ''} selected
+                  </h2>
+                  {processingCount > 0 && (
+                    <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-2xs font-medium bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400">
+                      <ArrowPathIcon className="h-3 w-3 animate-spin" />
+                      {processingCount} processing
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  {(completedCount > 0 || files.some((f) => f.processingStatus === 'failed')) && (
                     <button
                       onClick={handleClearCompleted}
                       className="text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
