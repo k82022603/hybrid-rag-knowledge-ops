@@ -98,8 +98,11 @@ tmpclaude-*
 
 # Test artifacts
 .coverage
-playwright-report/data/
+**/playwright-report/data/
 test-results/
+
+# Binary documents
+*.pptx
 
 # Backup files
 /backup/
