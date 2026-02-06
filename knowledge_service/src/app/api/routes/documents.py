@@ -74,6 +74,16 @@ _document_store: Dict[UUID, Dict[str, Any]] = {}
 # Utility Functions
 # ============================================================================
 
+# 파이프라인 세부 상태 → API Enum 매핑
+_PROCESSING_SUBSTATES = {"parsing", "chunking", "embedding", "storing", "extracting", "uploaded"}
+
+
+def _normalize_status(raw_status: str) -> str:
+    """세부 처리 상태를 API DocumentStatus Enum 값으로 정규화"""
+    if raw_status in _PROCESSING_SUBSTATES:
+        return "processing"
+    return raw_status
+
 
 def _sanitize_filename(filename: str) -> str:
     """
@@ -435,7 +445,7 @@ async def get_document_status(document_id: UUID) -> DocumentStatusResponse:
 
     return DocumentStatusResponse(
         document_id=doc_record["document_id"],
-        status=doc_record["status"],
+        status=_normalize_status(doc_record["status"]),
         progress_percent=doc_record.get("progress_percent", 0),
         error_message=doc_record.get("error_message"),
         updated_at=doc_record["updated_at"],
@@ -589,7 +599,7 @@ async def list_documents(
                         filename=d["filename"],
                         format=d.get("format") or "unknown",
                         size_bytes=d["size_bytes"],
-                        status=d["status"],
+                        status=_normalize_status(d["status"]),
                         created_at=d["created_at"],
                     )
                     for d in pg_docs
@@ -606,7 +616,7 @@ async def list_documents(
             logger.warning("PostgreSQL list failed: %s", e)
 
     if status_filter is not None:
-        all_docs = [d for d in all_docs if d["status"] == status_filter]
+        all_docs = [d for d in all_docs if _normalize_status(d["status"]) == status_filter]
 
     if format_filter is not None:
         all_docs = [d for d in all_docs if d["format"] == format_filter]
@@ -628,7 +638,7 @@ async def list_documents(
             filename=d["filename"],
             format=d["format"],
             size_bytes=d["size_bytes"],
-            status=d["status"],
+            status=_normalize_status(d["status"]),
             created_at=d["created_at"],
         )
         for d in page_docs

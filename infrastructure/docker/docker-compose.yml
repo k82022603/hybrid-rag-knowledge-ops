@@ -321,6 +321,10 @@ services:
       - DEEPSEEK_BASE_URL=${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
       # JWT settings (REQUIRED for auth - must match backend JWT_SECRET)
       - JWT_SECRET_KEY=${JWT_SECRET}
+      # Admin account settings (REQUIRED for login)
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@example.com}
+      - ADMIN_PASSWORD_HASH=${ADMIN_PASSWORD_HASH}
+      - ADMIN_NAME=${ADMIN_NAME:-System Administrator}
       # Elasticsearch settings (individual fields for config.py)
       - ELASTICSEARCH_HOST=elasticsearch
       - ELASTICSEARCH_PORT=9200

@@ -429,7 +429,7 @@ class TestESResultParsing:
                         "_id": "chunk_001",
                         "_score": 0.95,
                         "_source": {
-                            "content": "Elasticsearch kNN 검색을 사용합니다.",
+                            "text": "Elasticsearch kNN 검색을 사용합니다.",
                             "metadata": {
                                 "document_id": "doc_001",
                                 "title": "ES 가이드",
@@ -458,11 +458,11 @@ class TestESResultParsing:
                         "_id": "chunk_002",
                         "_score": 0.8,
                         "_source": {
-                            "content": "RAG 파이프라인을 구현합니다.",
+                            "text": "RAG 파이프라인을 구현합니다.",
                             "metadata": {"document_id": "doc_002"},
                         },
                         "highlight": {
-                            "content": ["<em>RAG</em> 파이프라인을 구현합니다."],
+                            "text": ["<em>RAG</em> 파이프라인을 구현합니다."],
                         },
                     }
                 ],
@@ -483,7 +483,7 @@ class TestESResultParsing:
                         "_id": f"chunk_{i}",
                         "_score": 1.0 - i * 0.1,
                         "_source": {
-                            "content": f"Content {i}",
+                            "text": f"Content {i}",
                             "metadata": {"document_id": f"doc_{i}"},
                         },
                     }

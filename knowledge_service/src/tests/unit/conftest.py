@@ -16,14 +16,16 @@ def setup_test_users():
     yield
 
 
-# Override client fixture to avoid app.main import
+# Provide real TestClient for unit tests that need API endpoint testing
 @pytest.fixture(scope="function")
 def client():
     """
-    Unit 테스트에서는 TestClient가 필요 없으므로 None 반환
-    실제 client가 필요한 테스트는 integration/e2e로 이동
+    TestClient for API endpoint unit tests (document upload, status, etc.)
     """
-    return None
+    from fastapi.testclient import TestClient
+    from app.main import app
+
+    return TestClient(app)
 
 
 # Override async_client fixture
