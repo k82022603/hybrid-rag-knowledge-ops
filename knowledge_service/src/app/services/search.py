@@ -899,9 +899,39 @@ class SearchService:
 _search_service: Optional[SearchService] = None
 
 
+def init_search_service(
+    es_client: Optional[Any] = None,
+    neo4j_driver: Optional[Any] = None,
+) -> SearchService:
+    """SearchService 싱글톤 초기화 (lifespan에서 호출)
+
+    Args:
+        es_client: Elasticsearch AsyncElasticsearch 클라이언트
+        neo4j_driver: Neo4j AsyncGraphDatabase 드라이버
+
+    Returns:
+        초기화된 SearchService 인스턴스
+    """
+    global _search_service
+    _search_service = SearchService(
+        es_client=es_client,
+        neo4j_driver=neo4j_driver,
+    )
+    logger.info(
+        f"SearchService initialized - "
+        f"ES: {'connected' if es_client else 'none'}, "
+        f"Neo4j: {'connected' if neo4j_driver else 'none'}"
+    )
+    return _search_service
+
+
 def get_search_service() -> SearchService:
-    """SearchService 인스턴스 반환 (싱글톤)"""
+    """SearchService 인스턴스 반환 (싱글톤)
+
+    init_search_service()로 초기화되지 않은 경우 기본값으로 생성합니다.
+    """
     global _search_service
     if _search_service is None:
+        logger.warning("SearchService not initialized via init_search_service() - creating with defaults")
         _search_service = SearchService()
     return _search_service

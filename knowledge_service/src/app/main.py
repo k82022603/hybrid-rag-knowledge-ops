@@ -73,6 +73,25 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             logger.warning(f"Neo4j connection failed (non-critical): {e}")
             app.state.neo4j_driver = None
 
+        # SearchService 초기화 (ES + Neo4j 클라이언트 주입)
+        from app.services.search import init_search_service
+        search_service = init_search_service(
+            es_client=app.state.es_client,
+            neo4j_driver=app.state.neo4j_driver,
+        )
+        app.state.search_service = search_service
+
+        # DocumentRepository 초기화 (PostgreSQL 연결)
+        try:
+            from app.services.document_repository import init_document_repository
+
+            doc_repo = await init_document_repository()
+            app.state.document_repository = doc_repo
+            logger.info("DocumentRepository initialized (PostgreSQL)")
+        except Exception as e:
+            logger.warning(f"DocumentRepository init failed (non-critical): {e}")
+            app.state.document_repository = None
+
         # EmbeddingService 초기화 (lazy load, 실제 로딩은 첫 요청 시)
         logger.info("EmbeddingService will be initialized on first request")
 
@@ -135,6 +154,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                 logger.info("Neo4j driver closed")
             except Exception as e:
                 logger.warning(f"Error closing Neo4j driver: {e}")
+
+        # DocumentRepository 종료
+        if hasattr(app.state, "document_repository") and app.state.document_repository:
+            try:
+                from app.services.document_repository import close_document_repository
+
+                await close_document_repository()
+                logger.info("DocumentRepository closed")
+            except Exception as e:
+                logger.warning(f"Error closing DocumentRepository: {e}")
 
 
 def create_app() -> FastAPI:

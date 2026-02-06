@@ -342,6 +342,10 @@ services:
       - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
       - PYTHONUNBUFFERED=1
+      # Background Worker 설정 (문서 자동 처리)
+      - ENABLE_BACKGROUND_WORKER=true
+      - WORKER_POLL_INTERVAL=${WORKER_POLL_INTERVAL:-30}
+      - WORKER_BATCH_SIZE=${WORKER_BATCH_SIZE:-5}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
     depends_on:
       elasticsearch:

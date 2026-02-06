@@ -64,7 +64,8 @@ MAX_FILE_SIZES: Dict[DocumentFormat, int] = {
 # 스토리지 버킷명
 DOCUMENTS_BUCKET = "documents"
 
-# In-memory 문서 저장소 (PostgreSQL 연동 전 임시)
+# In-memory 문서 저장소 (PostgreSQL dual-write와 함께 사용)
+# 인메모리: 빠른 조회 / PostgreSQL: 영구 저장 (컨테이너 재시작 후 복구)
 _document_store: Dict[UUID, Dict[str, Any]] = {}
 
 
@@ -318,7 +319,7 @@ async def upload_document(
             detail="파일 저장에 실패했습니다. 잠시 후 다시 시도해주세요.",
         )
 
-    # 9. 문서 레코드 저장 (In-memory, 추후 PostgreSQL)
+    # 9. 문서 레코드 저장 (In-memory + PostgreSQL dual-write)
     status_url = f"{settings.api_v1_prefix}/documents/{document_id}/status"
 
     doc_record = {
@@ -336,6 +337,16 @@ async def upload_document(
         "updated_at": now,
     }
     _document_store[document_id] = doc_record
+
+    # PostgreSQL에도 저장 (dual-write, 영구 저장)
+    try:
+        from app.services.document_repository import get_document_repository
+
+        repo = await get_document_repository()
+        await repo.save(doc_record)
+        logger.info("Document saved to PostgreSQL: %s", document_id)
+    except Exception as e:
+        logger.warning("PostgreSQL save failed (non-critical): %s", e)
 
     logger.info(
         "Document uploaded successfully - id: %s, filename: %s, format: %s, size: %d bytes",
@@ -378,6 +389,16 @@ async def get_document_status(document_id: UUID) -> DocumentStatusResponse:
     """
     doc_record = _document_store.get(document_id)
 
+    # PostgreSQL fallback (인메모리에 없을 때, 예: 컨테이너 재시작 후)
+    if doc_record is None:
+        try:
+            from app.services.document_repository import get_document_repository
+
+            repo = await get_document_repository()
+            doc_record = await repo.get(document_id)
+        except Exception as e:
+            logger.warning("PostgreSQL query failed: %s", e)
+
     if doc_record is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -387,8 +408,8 @@ async def get_document_status(document_id: UUID) -> DocumentStatusResponse:
     return DocumentStatusResponse(
         document_id=doc_record["document_id"],
         status=doc_record["status"],
-        progress_percent=doc_record["progress_percent"],
-        error_message=doc_record["error_message"],
+        progress_percent=doc_record.get("progress_percent", 0),
+        error_message=doc_record.get("error_message"),
         updated_at=doc_record["updated_at"],
     )
 
@@ -427,6 +448,43 @@ async def list_documents(
     """
     # 전체 목록에서 필터링
     all_docs = list(_document_store.values())
+
+    # 인메모리가 비어있으면 PostgreSQL에서 조회 (컨테이너 재시작 후 fallback)
+    if not all_docs:
+        try:
+            from app.services.document_repository import get_document_repository
+
+            repo = await get_document_repository()
+            status_val = status_filter.value if status_filter else None
+            format_val = format_filter.value if format_filter else None
+            pg_docs, pg_total = await repo.list_all(
+                status_filter=status_val,
+                format_filter=format_val,
+                page=page,
+                page_size=page_size,
+            )
+            if pg_docs:
+                items = [
+                    DocumentListItem(
+                        document_id=d["document_id"],
+                        filename=d["filename"],
+                        format=d.get("format") or "unknown",
+                        size_bytes=d["size_bytes"],
+                        status=d["status"],
+                        created_at=d["created_at"],
+                    )
+                    for d in pg_docs
+                ]
+                total_pages = max(1, math.ceil(pg_total / page_size))
+                return DocumentListResponse(
+                    documents=items,
+                    total=pg_total,
+                    page=page,
+                    page_size=page_size,
+                    total_pages=total_pages,
+                )
+        except Exception as e:
+            logger.warning("PostgreSQL list failed: %s", e)
 
     if status_filter is not None:
         all_docs = [d for d in all_docs if d["status"] == status_filter]
