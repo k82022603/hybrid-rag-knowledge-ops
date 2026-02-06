@@ -356,6 +356,33 @@ async def upload_document(
         file_size,
     )
 
+    # 10. 업로드 후 자동 처리 트리거 (TASK-02: 백그라운드에서 즉시 파이프라인 실행)
+    import asyncio
+
+    async def _auto_process_document():
+        """업로드 직후 자동 처리 (백그라운드 태스크)"""
+        try:
+            from app.services.document_processing_pipeline import (
+                DocumentProcessingPipeline,
+            )
+
+            pipeline = DocumentProcessingPipeline(
+                document_store=_document_store,
+                enable_neo4j=True,
+                enable_entity_extraction=True,
+            )
+            result = await pipeline.process_document(document_id)
+            logger.info(
+                "Auto-processing complete: %s, success=%s, chunks=%d",
+                document_id,
+                result.success,
+                result.chunk_count,
+            )
+        except Exception as e:
+            logger.warning("Auto-processing failed (will retry via background worker): %s", e)
+
+    asyncio.create_task(_auto_process_document())
+
     return DocumentResponse(
         document_id=document_id,
         filename=safe_filename,
