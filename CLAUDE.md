@@ -549,7 +549,7 @@ PM 승인: [PM Agent]
 - [Claude Commands README](./.claude/commands/README.md) - 설치된 명령어 전체 목록
 - [개발자 에이전트 가이드](./knowledge_service/docs/05_development/developer_agent_guide.md) - AI 에이전트 도구 사용법 ⭐
 - [개발자 통합 가이드](./knowledge_service/docs/05_development/developer_integration_guide.md) - MCP/Agent/Skills 설정 ⭐
-- [Agent Teams 활용 가이드](./knowledge_service/docs/05_development/agent_teams_guide.md) - 멀티-에이전트 협업 ⭐
+- [Agent Teams 활용 가이드](./docs/12_Agent_Teams_활용_가이드.md) - 멀티-에이전트 협업 ⭐
 - [테스트 계획서](./knowledge_service/docs/04_testing/unit_integration_test_plan.md) - TDD/Test-Along 기준
 - [백로그 관리 가이드](./backlog/README.md) - Jira-free 백로그 관리
 - [ALM 완전가이드](./docs/claude_code_virtual_team_alm_guide/) - 가상팀 협업 가이드 (4개 문서)

@@ -127,7 +127,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 |------|------|
 | [단위/통합 테스트 계획서](./knowledge_service/docs/04_testing/unit_integration_test_plan.md) | TDD/Test-Along 기준 포함 ⭐ |
 | [개발자 에이전트 가이드](./knowledge_service/docs/05_development/developer_agent_guide.md) | AI 에이전트 도구 사용법 ⭐ |
-| [Agent Teams 활용 가이드](./knowledge_service/docs/05_development/agent_teams_guide.md) | 멀티-에이전트 협업 가이드 ⭐ |
+| [Agent Teams 활용 가이드](./docs/12_Agent_Teams_활용_가이드.md) | 멀티-에이전트 협업 가이드 ⭐ |
 
 ## 📅 Next Steps (다음 작업)
 
