@@ -110,6 +110,31 @@ spring:
                 redis-rate-limiter.requestedTokens: 1
 
         # ==============================================
+        # Document Service Routes (/api/v1/documents/**)
+        # Upload, status, list, retry → AI Service
+        # ==============================================
+        - id: document-service
+          uri: ${AI_SERVICE_URL:http://localhost:8000}
+          predicates:
+            - Path=/api/v1/documents/**
+          filters:
+            - TokenRelay=
+            - name: CircuitBreaker
+              args:
+                name: ai-service-circuit-breaker
+                fallbackUri: forward:/fallback/ai-service
+            - name: Retry
+              args:
+                retries: 2
+                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT
+                methods: GET
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 60
+                redis-rate-limiter.requestedTokens: 1
+
+        # ==============================================
         # Knowledge Service Routes (/api/v1/knowledge/**)
         # ==============================================
         - id: knowledge-service
@@ -290,8 +315,8 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: ${KEYCLOAK_URL:http://localhost:8180}/realms/${KEYCLOAK_REALM:knowledge-platform}
-          jwk-set-uri: ${KEYCLOAK_URL:http://localhost:8180}/realms/${KEYCLOAK_REALM:knowledge-platform}/protocol/openid-connect/certs
+          issuer-uri: ${KEYCLOAK_URL:http://localhost:8180}/realms/${KEYCLOAK_REALM:hybrid-rag}
+          jwk-set-uri: ${KEYCLOAK_URL:http://localhost:8180}/realms/${KEYCLOAK_REALM:hybrid-rag}/protocol/openid-connect/certs
 
 # JWT Configuration (for self-issued HS256 tokens from Direct Login)
 jwt:
@@ -500,6 +525,29 @@ spring:
                 redis-rate-limiter.burstCapacity: 40
                 redis-rate-limiter.requestedTokens: 1
 
+        # Document Service (Docker)
+        # Upload, status, list, retry → AI Service
+        - id: document-service
+          uri: http://ai-service:8000
+          predicates:
+            - Path=/api/v1/documents/**
+          filters:
+            - TokenRelay=
+            - name: CircuitBreaker
+              args:
+                name: ai-service-circuit-breaker
+                fallbackUri: forward:/fallback/ai-service
+            - name: Retry
+              args:
+                retries: 2
+                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT
+                methods: GET
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 60
+                redis-rate-limiter.requestedTokens: 1
+
         # Knowledge Service (Docker)
         - id: knowledge-service
           uri: http://backend:8081
@@ -637,8 +685,10 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://keycloak:8080/realms/${KEYCLOAK_REALM:knowledge-platform}
-          jwk-set-uri: http://keycloak:8080/realms/${KEYCLOAK_REALM:knowledge-platform}/protocol/openid-connect/certs
+          # issuer-uri: Token issuer must match what browser sees (localhost:8180)
+          # jwk-set-uri: Key fetch uses internal Docker network (keycloak:8080)
+          issuer-uri: ${KEYCLOAK_EXTERNAL_URL:http://localhost:8180}/realms/${KEYCLOAK_REALM:hybrid-rag}
+          jwk-set-uri: http://keycloak:8080/realms/${KEYCLOAK_REALM:hybrid-rag}/protocol/openid-connect/certs
 
 # CORS Configuration
 cors:

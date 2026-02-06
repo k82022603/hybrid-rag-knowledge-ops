@@ -33,6 +33,12 @@ class DocumentFormat(str, Enum):
     DOCX = "docx"
     HWP = "hwp"
     PPTX = "pptx"
+    MARKDOWN = "md"
+    TXT = "txt"
+    LOG = "log"
+    HTML = "html"
+    SVG = "svg"
+    IPYNB = "ipynb"
 
 
 # ============================================================================

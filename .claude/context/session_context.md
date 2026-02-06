@@ -5,11 +5,11 @@
 
 ### Recent Commits
 ```
-1c2eddf [DOCS] 일일 마무리 - 작업일지, 바이브로그, 스탠드업 기록
-60cf193 [TEST] Docker 모드 테스트 결과 보고서 추가
-b03044f [TEST] cache_service.py 테스트 커버리지 28% → 97% 개선
-9db690d [TEST] conversation_history.py 테스트 커버리지 38% → 100% 개선
-e11d743 [TEST] document_processing_pipeline.py 테스트 커버리지 0% → 90% 개선
+b491a3e [CHORE] BGE-M3 임베딩 모델 캐시 볼륨 마운트 추가
+b85b253 [FIX] 검증 단계에서 발견된 버그 3건 수정 + 테스트 942건 전체 통과
+4932f10 [FEAT] P2 Phase 4: SSE 실시간 상태 스트리밍 + 실패 문서 재시도
+514a53d [FIX] P1 Phase 3: ES 필드명 수정 + 업로드 후 처리 상태 UI
+177990b [FEAT] P0 Phase 2: 파일 업로드 후 자동 처리 파이프라인 트리거 (TASK-02)
 ```
 
 ## Work Log Status

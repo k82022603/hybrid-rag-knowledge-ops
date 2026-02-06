@@ -1,4 +1,4 @@
-# Session Summary - 2026-02-06 10:58
+# Session Summary - 2026-02-06 15:12
 
 ## Commits This Session
 ```
@@ -8,15 +8,15 @@
 ## Files Modified
 ```
 .claude/context/session_context.md
-.claude/context/session_summary.md
-.claude/settings.local.json
 infrastructure/docker/docker-compose.yml
-knowledge_service/docs/04_testing/dev_environment_user_test_guide.md
-knowledge_service/docs/results/docker_mode_test_report_2026-02-05.md
-knowledge_service/docs/results/unit_test_coverage_improvement_report.md
-knowledge_service/frontend/.gitignore
-knowledge_service/frontend/playwright-report/index.html
-knowledge_service/frontend/tsconfig.node.tsbuildinfo
+knowledge_service/frontend/src/pages/DocumentUploadPage.tsx
+knowledge_service/frontend/src/services/knowledgeService.ts
+knowledge_service/pyproject.toml
+knowledge_service/src/app/api/routes/documents.py
+knowledge_service/src/app/main.py
+knowledge_service/src/app/services/document_repository.py
+knowledge_service/src/app/services/search.py
+knowledge_service/src/tests/unit/conftest.py
 ```
 
 ---

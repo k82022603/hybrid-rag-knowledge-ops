@@ -200,14 +200,18 @@ services:
       - BACKEND_URL=http://backend:8081
       - AI_SERVICE_URL=http://ai-service:8000
       - KEYCLOAK_URL=http://keycloak:8080
+      - KEYCLOAK_EXTERNAL_URL=http://localhost:${KEYCLOAK_PORT:-8180}
       - KEYCLOAK_REALM=${KEYCLOAK_REALM:-hybrid-rag}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - JWT_SECRET=${JWT_SECRET}
       - JAVA_OPTS=-XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0
+      - SPRING_CONFIG_ADDITIONAL_LOCATION=file:/app/config/
       - LOGGING_LEVEL_COM_KNOWLEDGE_GATEWAY=DEBUG
       - LOGGING_LEVEL_COM_KNOWLEDGE_GATEWAY_SECURITY=DEBUG
       - LOGGING_LEVEL_COM_KNOWLEDGE_GATEWAY_FILTER=DEBUG
+    volumes:
+      - ../../knowledge_service/gateway/src/main/resources/application.yml:/app/config/application.yml:ro
     depends_on:
       keycloak:
         condition: service_healthy

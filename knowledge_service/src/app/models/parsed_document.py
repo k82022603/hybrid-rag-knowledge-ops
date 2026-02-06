@@ -172,9 +172,13 @@ class ParsedDocument(BaseModel):
             "pptx": DocumentFormat.PPTX,
             "hwp": DocumentFormat.HWP,
             "md": DocumentFormat.MARKDOWN,
+            "markdown": DocumentFormat.MARKDOWN,
             "txt": DocumentFormat.TEXT,
+            "log": DocumentFormat.TEXT,
             "html": DocumentFormat.HTML,
             "htm": DocumentFormat.HTML,
+            "svg": DocumentFormat.HTML,
+            "ipynb": DocumentFormat.TEXT,
         }
 
         return cls(

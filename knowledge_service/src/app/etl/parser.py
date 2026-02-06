@@ -62,8 +62,11 @@ class DocumentParser:
         ".md": DocumentFormat.MARKDOWN,
         ".markdown": DocumentFormat.MARKDOWN,
         ".txt": DocumentFormat.TEXT,
+        ".log": DocumentFormat.TEXT,
         ".html": DocumentFormat.HTML,
         ".htm": DocumentFormat.HTML,
+        ".svg": DocumentFormat.HTML,
+        ".ipynb": DocumentFormat.TEXT,
     }
 
     def __init__(
@@ -132,8 +135,17 @@ class DocumentParser:
         """
         path = Path(file_path)
         doc_format = force_format or self.get_format(path)
+        suffix = path.suffix.lower()
 
         logger.info(f"Parsing document: {path.name} (format: {doc_format})")
+
+        # 확장자 기반 특수 파서 (같은 DocumentFormat을 공유하는 형식 구분)
+        if suffix == ".ipynb":
+            return self._parse_with_retry(
+                file_path=path,
+                parser_func=self._parse_ipynb,
+                doc_format=doc_format,
+            )
 
         # 형식별 파서 선택
         if doc_format in (DocumentFormat.PDF, DocumentFormat.DOCX, DocumentFormat.PPTX):
@@ -630,6 +642,78 @@ class DocumentParser:
                 document=doc,
                 success=False,
                 message=f"Failed to parse HTML: {e}",
+            )
+
+    def _parse_ipynb(self, file_path: Path) -> ParseResult:
+        """Jupyter Notebook (.ipynb) 파일 파싱 - 셀 소스 텍스트 추출"""
+        import json as _json
+
+        doc = ParsedDocument.from_file_path(str(file_path))
+        start_time = time.time()
+
+        try:
+            raw = file_path.read_text(encoding="utf-8")
+            nb = _json.loads(raw)
+
+            parts: List[str] = []
+            sections: List[Section] = []
+            cell_index = 0
+
+            for cell in nb.get("cells", []):
+                cell_type = cell.get("cell_type", "")
+                source_lines = cell.get("source", [])
+                if isinstance(source_lines, list):
+                    source = "".join(source_lines)
+                else:
+                    source = str(source_lines)
+
+                if not source.strip():
+                    continue
+
+                if cell_type == "markdown":
+                    parts.append(source)
+                    # 마크다운 셀의 첫 헤딩을 섹션으로 추출
+                    heading = re.search(r"^#{1,6}\s+(.+)$", source, re.MULTILINE)
+                    title = heading.group(1).strip() if heading else f"Cell {cell_index}"
+                    sections.append(Section(title=title, level=2, content=source))
+                elif cell_type == "code":
+                    parts.append(f"```python\n{source}\n```")
+                    sections.append(Section(title=f"Code Cell {cell_index}", level=3, content=source))
+                elif cell_type == "raw":
+                    parts.append(source)
+
+                cell_index += 1
+
+            content = "\n\n".join(parts)
+            doc.content = content
+            doc.sections = sections
+            doc.word_count = len(content.split())
+            doc.char_count = len(content)
+
+            # 노트북 메타데이터
+            kernel = nb.get("metadata", {}).get("kernelspec", {}).get("display_name", "")
+            if kernel:
+                doc.metadata["kernel"] = kernel
+
+            doc.status = ParseStatus.SUCCESS
+            doc.parsing_time_ms = (time.time() - start_time) * 1000
+            doc.parser_version = "ipynb-native"
+
+            return ParseResult(
+                document=doc,
+                success=True,
+                message=f"Successfully parsed Jupyter Notebook: {file_path.name} ({cell_index} cells)",
+            )
+
+        except Exception as e:
+            doc.status = ParseStatus.FAILED
+            doc.error_message = str(e)
+            doc.parsing_time_ms = (time.time() - start_time) * 1000
+
+            return ParseResult(
+                document=doc,
+                success=False,
+                message=f"Failed to parse IPYNB: {e}",
             )
 
     def parse_batch(

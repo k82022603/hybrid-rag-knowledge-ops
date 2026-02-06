@@ -44,6 +44,12 @@ ALLOWED_MIME_TYPES: Dict[str, DocumentFormat] = {
     "application/x-hwp": DocumentFormat.HWP,
     "application/vnd.hancom.hwp": DocumentFormat.HWP,
     "application/vnd.openxmlformats-officedocument.presentationml.presentation": DocumentFormat.PPTX,
+    "text/markdown": DocumentFormat.MARKDOWN,
+    "text/x-markdown": DocumentFormat.MARKDOWN,
+    "text/plain": DocumentFormat.TXT,
+    "text/html": DocumentFormat.HTML,
+    "image/svg+xml": DocumentFormat.SVG,
+    "application/x-ipynb+json": DocumentFormat.IPYNB,
 }
 
 # 확장자별 문서 형식 매핑
@@ -52,6 +58,14 @@ ALLOWED_EXTENSIONS: Dict[str, DocumentFormat] = {
     ".docx": DocumentFormat.DOCX,
     ".hwp": DocumentFormat.HWP,
     ".pptx": DocumentFormat.PPTX,
+    ".md": DocumentFormat.MARKDOWN,
+    ".markdown": DocumentFormat.MARKDOWN,
+    ".txt": DocumentFormat.TXT,
+    ".log": DocumentFormat.LOG,
+    ".html": DocumentFormat.HTML,
+    ".htm": DocumentFormat.HTML,
+    ".svg": DocumentFormat.SVG,
+    ".ipynb": DocumentFormat.IPYNB,
 }
 
 # 형식별 최대 파일 크기 (바이트)
@@ -60,6 +74,12 @@ MAX_FILE_SIZES: Dict[DocumentFormat, int] = {
     DocumentFormat.PPTX: 100 * 1024 * 1024,  # 100MB
     DocumentFormat.DOCX: 50 * 1024 * 1024,   # 50MB
     DocumentFormat.HWP: 50 * 1024 * 1024,    # 50MB
+    DocumentFormat.MARKDOWN: 10 * 1024 * 1024,  # 10MB
+    DocumentFormat.TXT: 10 * 1024 * 1024,    # 10MB
+    DocumentFormat.LOG: 10 * 1024 * 1024,    # 10MB
+    DocumentFormat.HTML: 10 * 1024 * 1024,   # 10MB
+    DocumentFormat.SVG: 10 * 1024 * 1024,    # 10MB
+    DocumentFormat.IPYNB: 50 * 1024 * 1024,  # 50MB
 }
 
 # 스토리지 버킷명
@@ -194,6 +214,12 @@ def _get_content_type_for_format(doc_format: DocumentFormat) -> str:
         DocumentFormat.DOCX: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         DocumentFormat.HWP: "application/haansofthwp",
         DocumentFormat.PPTX: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        DocumentFormat.MARKDOWN: "text/markdown",
+        DocumentFormat.TXT: "text/plain",
+        DocumentFormat.LOG: "text/plain",
+        DocumentFormat.HTML: "text/html",
+        DocumentFormat.SVG: "image/svg+xml",
+        DocumentFormat.IPYNB: "application/x-ipynb+json",
     }
     return mime_map.get(doc_format, "application/octet-stream")
 
@@ -208,7 +234,7 @@ def _get_content_type_for_format(doc_format: DocumentFormat) -> str:
     response_model=DocumentResponse,
     status_code=status.HTTP_201_CREATED,
     summary="문서 업로드",
-    description="문서 파일을 업로드합니다. 지원 형식: PDF, DOCX, HWP, PPTX",
+    description="문서 파일을 업로드합니다. 지원 형식: PDF, DOCX, HWP, PPTX, Markdown, TXT, LOG, HTML, SVG, IPYNB",
 )
 async def upload_document(
     file: UploadFile,
@@ -227,6 +253,12 @@ async def upload_document(
     - PPTX: 최대 100MB
     - DOCX: 최대 50MB
     - HWP: 최대 50MB
+    - Markdown (.md): 최대 10MB
+    - TXT (.txt): 최대 10MB
+    - LOG (.log): 최대 10MB
+    - HTML (.html/.htm): 최대 10MB
+    - SVG (.svg): 최대 10MB
+    - IPYNB (.ipynb): 최대 50MB
 
     Args:
         file: 업로드 파일

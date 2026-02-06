@@ -2,9 +2,9 @@
 
 > Claude Code 세션 간 컨텍스트 유지를 위한 계획 문서
 >
-> **Last Updated**: 2026-02-06 KST (Opus 4.6 전환, Agent Teams 활성화)
-> **Current Phase**: Phase 5 배포 완료 ✅ (Sprint 07 완료, TechLead 승인 39/40)
-> **Sprint 07**: UAT 문서 업로드, 임베딩 파이프라인, Production 환경, CI/CD 완료
+> **Last Updated**: 2026-02-06 19:05 KST (Sprint 08 Day 1 마감, 18/24pts 75%)
+> **Current Phase**: Phase 5 배포 완료 ✅ → Sprint 08 UAT + 안정화 진행 중
+> **Sprint 08**: UAT Part A/B 완료, Gateway SSO Fix, Terminal Retriever, 파일 형식 10개 확장
 > **Frontend 전략 변경**: Tailwind + Antigravity + Stitch MCP 도입 결정 (2026-01-25)
 > **소스코드 리뷰**: 72.5/100 B+ (Gateway 65, Backend 72, AI Service 78, Frontend 75)
 
@@ -940,7 +940,20 @@ CI/CD Pipeline (GitHub Actions)
 
 ## Session Notes
 
-### 2026-02-06 (Opus 4.6 업그레이드 + Agent Teams 활성화)
+### 2026-02-06 오후 (Sprint 08 Day 1 - UAT + 파일 형식 확장 + Retriever)
+
+- **Sprint 08 Day 1 결산**: 18/24 pts (75%) - Story 5건 완료
+  - STORY-083: UAT Part B PPTX Pipeline (5pts)
+  - STORY-084: Gateway SSO Routing Fix (3pts)
+  - STORY-085: Hybrid Search Validation (3pts)
+  - STORY-086: Terminal Retriever + Perf Benchmark (5pts)
+  - STORY-087: BGE-M3 Cache Volume (1pts)
+- **UAT 결과**: Part A 32/37 PASS (86%), Part B 6/6 PASS (100%)
+- **파일 형식 확장**: 4개→10개 (MD/TXT/LOG/HTML/SVG/IPYNB 추가)
+- **Docker 이슈 해결**: credential helper 일시적 통신 문제 → Desktop 재시작
+- **잔여 백로그**: STORY-088 (Neo4j), STORY-089 (Doc Sync), STORY-090 (Search Perf)
+
+### 2026-02-06 오전 (Opus 4.6 업그레이드 + Agent Teams 활성화)
 
 - **Claude Opus 4.6 전환**
   - 12개 에이전트 모델 일괄 업데이트 (opus-4-5-20251101 → opus-4-6)
