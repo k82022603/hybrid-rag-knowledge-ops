@@ -96,6 +96,11 @@ bin/
 .dockerignore
 tmpclaude-*
 
+# Test artifacts
+.coverage
+playwright-report/data/
+test-results/
+
 # Backup files
 /backup/
 *.backup
