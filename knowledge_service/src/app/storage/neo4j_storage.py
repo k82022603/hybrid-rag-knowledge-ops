@@ -587,12 +587,12 @@ class Neo4jStorageService:
             async with driver.session(database=self._database) as session:
                 cypher = """
                 MERGE (k:Knowledge {knowledge_id: $knowledge_id})
+                ON CREATE SET k.created_at = $now
                 SET k.title = $title,
                     k.document_type = $document_type,
                     k.project_name = $project_name,
                     k.summary = $summary,
                     k.updated_at = $now
-                ON CREATE SET k.created_at = $now
                 RETURN k.knowledge_id AS kid
                 """
                 result = await session.run(
@@ -683,12 +683,12 @@ class Neo4jStorageService:
                 MATCH (k:Knowledge {knowledge_id: $knowledge_id})
                 UNWIND $chunks AS chunk
                 MERGE (c:Chunk {chunk_id: chunk.chunk_id})
+                ON CREATE SET c.created_at = $now
                 SET c.content = chunk.content,
                     c.chunk_index = chunk.chunk_index,
                     c.token_count = chunk.token_count,
                     c.knowledge_id = $knowledge_id,
                     c.updated_at = $now
-                ON CREATE SET c.created_at = $now
                 MERGE (k)-[r:CONTAINS]->(c)
                 SET r.chunk_index = chunk.chunk_index
                 RETURN count(c) AS cnt

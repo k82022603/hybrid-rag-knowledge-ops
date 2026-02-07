@@ -95,9 +95,9 @@ class TestDocumentUploadEndpoint:
 
     def test_upload_unsupported_format_returns_400(self, client: TestClient, api_prefix: str):
         """지원하지 않는 형식 업로드 시 400 반환"""
-        txt_content = b"plain text content"
+        zip_content = b"PK\x03\x04 fake zip content"
         files = {
-            "file": ("readme.txt", io.BytesIO(txt_content), "text/plain"),
+            "file": ("archive.zip", io.BytesIO(zip_content), "application/zip"),
         }
 
         response = client.post(f"{api_prefix}/documents/upload", files=files)
@@ -268,7 +268,9 @@ class TestDocumentStatusEndpoint:
         assert status_resp.status_code == 200
         data = status_resp.json()
         assert data["document_id"] == document_id
-        assert data["status"] in ("queued", "processing")  # 비동기 파이프라인이 즉시 시작될 수 있음
+        # STORY-089: 세부 상태(parsing, chunking 등)가 API에 직접 노출됨
+        valid_statuses = ("queued", "processing", "parsing", "chunking", "embedding", "storing", "extracting")
+        assert data["status"] in valid_statuses, f"Unexpected status: {data['status']}"
         assert data["progress_percent"] >= 0
         assert data["error_message"] is None
         assert "updated_at" in data
@@ -333,7 +335,9 @@ class TestDocumentListEndpoint:
             assert "document_id" in doc
             assert "filename" in doc
             assert doc["format"] == "pdf"
-            assert doc["status"] in ("queued", "processing")  # 비동기 파이프라인이 즉시 시작될 수 있음
+            # STORY-089: 세부 상태(parsing, chunking 등)가 API에 직접 노출됨
+            valid_statuses = ("queued", "processing", "parsing", "chunking", "embedding", "storing", "extracting")
+            assert doc["status"] in valid_statuses, f"Unexpected status: {doc['status']}"
             assert "created_at" in doc
 
     def test_list_documents_pagination(self, client: TestClient, api_prefix: str):

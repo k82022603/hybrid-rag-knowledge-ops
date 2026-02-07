@@ -213,6 +213,22 @@ class DocumentRepository:
             logger.debug(
                 f"Document status updated: {document_id} -> {status} ({progress_percent}%)"
             )
+
+            # STORY-089: PG dual-write - in-memory 업데이트 후 PG에도 동기화
+            try:
+                from app.services.document_repository import get_document_repository
+
+                pg_repo = await get_document_repository()
+                await pg_repo.update_status(
+                    document_id=document_id,
+                    status=status,
+                    error_message=error_message,
+                    progress_percent=progress_percent,
+                )
+            except Exception as e:
+                # PG 실패해도 in-memory는 이미 업데이트됨 (non-critical)
+                logger.warning(f"PG dual-write failed (non-critical): {e}")
+
             return True
 
         # PostgreSQL 연동

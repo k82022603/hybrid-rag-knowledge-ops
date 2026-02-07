@@ -210,6 +210,123 @@ cmd_logs() {
     fi
 }
 
+# 헬스체크 (스탠드업 후 점검용)
+cmd_healthcheck() {
+    cd "$DOCKER_DIR"
+    local compose_cmd=$(get_compose_command)
+    local all_healthy=true
+    local failed_services=""
+    local restarted_services=""
+
+    echo ""
+    log_info "=== 컨테이너 헬스체크 시작 ==="
+    echo ""
+
+    # 필수 컨테이너 목록 (서비스명)
+    local critical_services=("postgresql" "neo4j" "elasticsearch" "redis")
+    local app_services=("ai-service" "backend" "api-gateway" "frontend")
+    local infra_services=("nginx" "keycloak" "prometheus" "grafana" "loki" "promtail" "kibana" "jaeger" "minio" "keycloak-db")
+
+    # 1. 모든 컨테이너 상태 확인
+    log_info "[Phase 1] 컨테이너 상태 확인"
+    local exited_containers=$(docker ps -a --format "{{.Names}}\t{{.Status}}" 2>/dev/null | grep -i "exited" | awk '{print $1}')
+
+    if [[ -n "$exited_containers" ]]; then
+        log_warn "중지된 컨테이너 발견:"
+        for c in $exited_containers; do
+            echo -e "  ${RED}✗${NC} $c"
+        done
+    else
+        log_success "모든 컨테이너 실행 중"
+    fi
+    echo ""
+
+    # 2. Critical DB 서비스 점검 + 자동 복구
+    log_info "[Phase 2] Critical DB 서비스 점검"
+    for svc in "${critical_services[@]}"; do
+        local container="kp-$svc"
+        local status=$(docker inspect --format='{{.State.Health.Status}}' "$container" 2>/dev/null || echo "not_found")
+        local running=$(docker inspect --format='{{.State.Running}}' "$container" 2>/dev/null || echo "false")
+
+        if [[ "$running" != "true" ]]; then
+            log_warn "$container 중지 상태 → 자동 시작"
+            $compose_cmd up -d "$svc" 2>/dev/null
+            restarted_services="$restarted_services $container"
+            all_healthy=false
+        elif [[ "$status" == "unhealthy" ]]; then
+            log_warn "$container unhealthy → 자동 재시작"
+            docker restart "$container" 2>/dev/null
+            restarted_services="$restarted_services $container"
+            all_healthy=false
+        elif [[ "$status" == "healthy" ]]; then
+            log_success "$container healthy"
+        else
+            log_info "$container status=$status (starting...)"
+        fi
+    done
+    echo ""
+
+    # 3. App 서비스 점검
+    log_info "[Phase 3] Application 서비스 점검"
+    for svc in "${app_services[@]}"; do
+        local container="kp-$svc"
+        local running=$(docker inspect --format='{{.State.Running}}' "$container" 2>/dev/null || echo "false")
+        local status=$(docker inspect --format='{{.State.Health.Status}}' "$container" 2>/dev/null || echo "none")
+
+        if [[ "$running" != "true" ]]; then
+            log_warn "$container 중지 상태"
+            failed_services="$failed_services $container"
+            all_healthy=false
+        elif [[ "$status" == "unhealthy" ]]; then
+            log_warn "$container unhealthy"
+            failed_services="$failed_services $container"
+            all_healthy=false
+        elif [[ "$status" == "healthy" ]]; then
+            log_success "$container healthy"
+        else
+            log_info "$container running (status=$status)"
+        fi
+    done
+    echo ""
+
+    # 4. 재시작된 서비스가 있으면 대기
+    if [[ -n "$restarted_services" ]]; then
+        log_info "[Phase 4] 재시작된 서비스 안정화 대기 (30초)..."
+        sleep 30
+
+        log_info "재시작된 서비스 재확인:"
+        for container in $restarted_services; do
+            local status=$(docker inspect --format='{{.State.Health.Status}}' "$container" 2>/dev/null || echo "unknown")
+            local running=$(docker inspect --format='{{.State.Running}}' "$container" 2>/dev/null || echo "false")
+            if [[ "$running" == "true" ]] && [[ "$status" == "healthy" || "$status" == "starting" ]]; then
+                log_success "$container → $status"
+            else
+                log_error "$container → $status (수동 확인 필요)"
+                all_healthy=false
+            fi
+        done
+        echo ""
+    fi
+
+    # 5. 요약
+    log_info "=== 헬스체크 요약 ==="
+    if $all_healthy; then
+        log_success "전체 서비스 정상"
+    else
+        log_warn "일부 서비스 이상 감지"
+        if [[ -n "$restarted_services" ]]; then
+            echo -e "  자동 복구: ${YELLOW}$restarted_services${NC}"
+        fi
+        if [[ -n "$failed_services" ]]; then
+            echo -e "  수동 확인 필요: ${RED}$failed_services${NC}"
+            echo ""
+            log_info "수동 복구 명령어:"
+            echo "  cd $DOCKER_DIR && $compose_cmd up -d"
+        fi
+    fi
+    echo ""
+}
+
 # 도움말
 cmd_help() {
     echo "Docker 환경 시작 스크립트"
@@ -217,12 +334,13 @@ cmd_help() {
     echo "사용법: $0 [command] [options]"
     echo ""
     echo "Commands:"
-    echo "  up        컨테이너 시작 (기본값)"
-    echo "  down      컨테이너 중지"
-    echo "  restart   컨테이너 재시작"
-    echo "  status    상태 확인"
-    echo "  logs      로그 확인 (logs [service])"
-    echo "  help      도움말"
+    echo "  up          컨테이너 시작 (기본값)"
+    echo "  down        컨테이너 중지"
+    echo "  restart     컨테이너 재시작"
+    echo "  status      상태 확인"
+    echo "  logs        로그 확인 (logs [service])"
+    echo "  healthcheck 컨테이너 헬스체크 + 자동 복구"
+    echo "  help        도움말"
     echo ""
     echo "환경 자동 감지:"
     echo "  - WSL2: docker-compose.wsl2.yml 자동 적용"
@@ -256,6 +374,9 @@ case $COMMAND in
         ;;
     logs)
         cmd_logs "$2"
+        ;;
+    healthcheck|hc|health)
+        cmd_healthcheck
         ;;
     help|--help|-h)
         cmd_help

@@ -28,6 +28,7 @@ psycopg2-binary = "^2.9.0"  # PostgreSQL (sync)
 asyncpg = "^0.29.0"         # PostgreSQL (async)
 neo4j = "^5.26.0"            # Neo4j 5.26 LTS
 elasticsearch = "^8.12.0"    # Elasticsearch 8.x
+redis = "^5.0.0"             # Redis (embedding cache)
 
 # LLM & Embedding
 openai = "^1.3.0"            # OpenAI API

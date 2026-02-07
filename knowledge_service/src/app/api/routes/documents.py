@@ -95,14 +95,24 @@ _document_store: Dict[UUID, Dict[str, Any]] = {}
 # ============================================================================
 
 # 파이프라인 세부 상태 → API Enum 매핑
-_PROCESSING_SUBSTATES = {"parsing", "chunking", "embedding", "storing", "extracting", "uploaded"}
+# STORY-089: 세부 상태를 API에 직접 노출 (DocumentStatus enum 확장됨)
+_VALID_STATUSES = {
+    "queued", "processing", "parsing", "chunking", "embedding",
+    "storing", "extracting", "completed", "failed",
+}
 
 
 def _normalize_status(raw_status: str) -> str:
-    """세부 처리 상태를 API DocumentStatus Enum 값으로 정규화"""
-    if raw_status in _PROCESSING_SUBSTATES:
-        return "processing"
-    return raw_status
+    """파이프라인 상태를 API DocumentStatus Enum 값으로 매핑
+
+    STORY-089: 세부 상태(parsing, chunking 등)를 그대로 노출.
+    'uploaded' 같은 내부 전용 상태만 'queued'로 매핑.
+    """
+    if raw_status == "uploaded":
+        return "queued"
+    if raw_status in _VALID_STATUSES:
+        return raw_status
+    return "processing"
 
 
 def _sanitize_filename(filename: str) -> str:

@@ -91,12 +91,21 @@ class RetrieverClient:
             "hybrid": "/api/v1/search/hybrid",
             "keyword": "/api/v1/search/keyword",
             "semantic": "/api/v1/search/semantic",
+            "graph": "/api/v1/search/hybrid",  # hybrid with useGraph=True, useVector=False
         }
         endpoint = endpoints.get(search_type, endpoints["hybrid"])
         payload = {"query": query, "top_k": top_k}
+        if search_type == "graph":
+            payload["useGraph"] = True
+            payload["useVector"] = False
         if filters:
             payload["filters"] = filters
         return self._request("POST", endpoint, payload)
+
+    def graph_explore(self, entity_name, depth=2, limit=50):
+        """Neo4j 서브그래프 탐색"""
+        payload = {"entity_name": entity_name, "depth": depth, "limit": limit}
+        return self._request("POST", "/api/v1/graph/subgraph", payload)
 
     def health_check(self):
         """서비스 상태 확인"""
@@ -117,8 +126,9 @@ def print_banner():
 
 {colorize('Commands:', Colors.YELLOW)}
   /help          이 도움말 표시
-  /type <t>      검색 타입 변경 (hybrid|keyword|semantic)
+  /type <t>      검색 타입 변경 (hybrid|keyword|semantic|graph)
   /topk <n>      top_k 변경 (1~50)
+  /graph <name>  Neo4j 서브그래프 탐색 (예: /graph LangGraph)
   /filter <k=v>  필터 추가 (예: document_type=pptx)
   /clear          필터 초기화
   /stats         현재 설정 표시
@@ -126,7 +136,8 @@ def print_banner():
 
 {colorize('Tips:', Colors.DIM)}
   - 검색어를 입력하면 바로 Hybrid Search 실행
-  - 응답시간, 검색 소스(vector/keyword), 점수가 함께 표시됩니다
+  - 응답시간, 검색 소스(vector/keyword/graph), 점수가 함께 표시됩니다
+  - /type graph 로 전환하면 Neo4j Knowledge Graph 기반 검색
 """
     print(banner)
 
@@ -170,7 +181,8 @@ def print_result(result, elapsed_ms, search_type):
             score_color = Colors.RED
 
         # 소스 색상
-        source_color = Colors.BLUE if source == "vector" else Colors.MAGENTA
+        source_colors = {"vector": Colors.BLUE, "keyword": Colors.MAGENTA, "neo4j_graph": Colors.GREEN, "graph": Colors.GREEN}
+        source_color = source_colors.get(source, Colors.MAGENTA)
 
         # 순위 헤더
         print(f"\n  {colorize(f'#{i}', Colors.BOLD + Colors.WHITE)}"
@@ -229,7 +241,7 @@ Examples:
         """,
     )
     parser.add_argument("--url", default="http://localhost:8000", help="AI Service URL (default: http://localhost:8000)")
-    parser.add_argument("--type", default="hybrid", choices=["hybrid", "keyword", "semantic"], help="검색 타입 (default: hybrid)")
+    parser.add_argument("--type", default="hybrid", choices=["hybrid", "keyword", "semantic", "graph"], help="검색 타입 (default: hybrid)")
     parser.add_argument("--top_k", type=int, default=5, help="결과 개수 (default: 5)")
     parser.add_argument("--email", default="admin@example.com", help="AI Service 이메일 (default: admin@example.com)")
     parser.add_argument("--password", default="admin1234", help="AI Service 비밀번호 (default: admin1234)")
@@ -281,11 +293,36 @@ Examples:
                 elif cmd == "/help":
                     print_banner()
                 elif cmd == "/type":
-                    if arg in ("hybrid", "keyword", "semantic"):
+                    if arg in ("hybrid", "keyword", "semantic", "graph"):
                         search_type = arg
                         print(colorize(f"  Search type -> {search_type}", Colors.GREEN))
                     else:
-                        print(colorize("  Usage: /type <hybrid|keyword|semantic>", Colors.RED))
+                        print(colorize("  Usage: /type <hybrid|keyword|semantic|graph>", Colors.RED))
+                elif cmd == "/graph":
+                    if not arg:
+                        print(colorize("  Usage: /graph <entity_name>  (예: /graph LangGraph)", Colors.RED))
+                    else:
+                        try:
+                            result, elapsed = client.graph_explore(arg)
+                            nodes = result.get("nodes", [])
+                            edges = result.get("edges", [])
+                            center = result.get("center", arg)
+                            print(f"\n  {colorize('[GRAPH EXPLORE]', Colors.BG_GREEN + Colors.WHITE)}"
+                                  f"  {colorize(center, Colors.BOLD + Colors.CYAN)}"
+                                  f"  {colorize(f'({elapsed:.0f}ms)', Colors.YELLOW)}")
+                            print(colorize(f"  Nodes: {len(nodes)}, Edges: {len(edges)}", Colors.GREEN))
+                            for i, node in enumerate(nodes[:10], 1):
+                                name = node.get("name", node.get("value", node.get("knowledge_id", "?")))
+                                desc = node.get("description", "")[:80]
+                                print(f"    {colorize(f'#{i}', Colors.DIM)} {colorize(str(name), Colors.CYAN)}"
+                                      f"  {colorize(desc, Colors.WHITE)}")
+                            if len(nodes) > 10:
+                                print(colorize(f"    ... 외 {len(nodes) - 10}개 노드", Colors.DIM))
+                        except HTTPError as e:
+                            body = e.read().decode("utf-8", errors="replace")
+                            print(colorize(f"  Graph Error: {e.code} - {body[:200]}", Colors.RED))
+                        except URLError as e:
+                            print(colorize(f"  Connection Error: {e.reason}", Colors.RED))
                 elif cmd == "/topk":
                     try:
                         n = int(arg)

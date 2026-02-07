@@ -667,32 +667,34 @@ class SearchService:
 
         try:
             # Neo4j Cypher 기반 검색
+            # 실제 스키마: (Person|Technology|Topic|Keyword)-[:MENTIONED_IN]->(Knowledge)-[:CONTAINS]->(Chunk)
             entity_names = [e.get("name", "") for e in (entities or [])]
 
             # 엔티티가 있으면 엔티티 기반 검색
             if entity_names:
                 cypher = """
-                MATCH (e:Entity)-[:MENTIONED_IN]->(c:Chunk)-[:BELONGS_TO]->(d:Document)
-                WHERE e.name IN $entity_names
-                WITH c, d, count(e) AS entity_match_count
+                MATCH (e)-[:MENTIONED_IN]->(k:Knowledge)-[:CONTAINS]->(c:Chunk)
+                WHERE (e.name IN $entity_names OR e.value IN $entity_names)
+                WITH c, k, count(e) AS entity_match_count
                 ORDER BY entity_match_count DESC
                 LIMIT $top_k
-                RETURN c.id AS chunk_id, c.content AS content,
-                       d.id AS document_id, d.title AS title,
+                RETURN c.chunk_id AS chunk_id, c.content AS content,
+                       k.knowledge_id AS document_id, k.title AS title,
                        entity_match_count AS score
                 """
                 params = {"entity_names": entity_names, "top_k": top_k}
             else:
-                # 키워드 기반 전문 검색 (fulltext index)
+                # 키워드 기반: 쿼리 문자열로 엔티티명 매칭 후 서브그래프 탐색
                 cypher = """
-                CALL db.index.fulltext.queryNodes('chunk_content', $query)
-                YIELD node AS c, score
-                MATCH (c)-[:BELONGS_TO]->(d:Document)
-                RETURN c.id AS chunk_id, c.content AS content,
-                       d.id AS document_id, d.title AS title,
-                       score
-                ORDER BY score DESC
+                MATCH (e)-[:MENTIONED_IN]->(k:Knowledge)-[:CONTAINS]->(c:Chunk)
+                WHERE e.name CONTAINS $query OR e.value CONTAINS $query
+                   OR k.title CONTAINS $query
+                WITH c, k, count(e) AS match_count
+                ORDER BY match_count DESC
                 LIMIT $top_k
+                RETURN c.chunk_id AS chunk_id, c.content AS content,
+                       k.knowledge_id AS document_id, k.title AS title,
+                       match_count AS score
                 """
                 params = {"query": query, "top_k": top_k}
 

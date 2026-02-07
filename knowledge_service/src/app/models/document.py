@@ -18,10 +18,20 @@ from pydantic import BaseModel, Field
 
 
 class DocumentStatus(str, Enum):
-    """문서 처리 상태"""
+    """문서 처리 상태
+
+    MVP에서는 queued/processing/completed/failed 4개만 사용했으나,
+    STORY-089에서 파이프라인 세부 상태를 API에 노출하도록 확장.
+    세부 상태: parsing → chunking → embedding → storing → extracting
+    """
 
     QUEUED = "queued"
     PROCESSING = "processing"
+    PARSING = "parsing"
+    CHUNKING = "chunking"
+    EMBEDDING = "embedding"
+    STORING = "storing"
+    EXTRACTING = "extracting"
     COMPLETED = "completed"
     FAILED = "failed"
 
