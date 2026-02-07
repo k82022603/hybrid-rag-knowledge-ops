@@ -2,7 +2,7 @@
 
 🤖 Hybrid RAG Knowledge Operations 프로젝트 개발 규칙
 
-**Version**: 2.23 | **Updated**: 2026-02-06
+**Version**: 2.23 | **Updated**: 2026-02-07
 
 ---
 

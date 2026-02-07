@@ -2,9 +2,9 @@
 
 > Claude Code 세션 간 컨텍스트 유지를 위한 계획 문서
 >
-> **Last Updated**: 2026-02-06 19:05 KST (Sprint 08 Day 1 마감, 18/24pts 75%)
+> **Last Updated**: 2026-02-07 23:54 KST (Sprint 08 Day 2 마감)
 > **Current Phase**: Phase 5 배포 완료 ✅ → Sprint 08 UAT + 안정화 진행 중
-> **Sprint 08**: UAT Part A/B 완료, Gateway SSO Fix, Terminal Retriever, 파일 형식 10개 확장
+> **Sprint 08**: Graph Search 3단계 매칭, Source Type 배지, Graph 시각화 패널, Neo4j Subgraph 양방향 탐색
 > **Frontend 전략 변경**: Tailwind + Antigravity + Stitch MCP 도입 결정 (2026-01-25)
 > **소스코드 리뷰**: 72.5/100 B+ (Gateway 65, Backend 72, AI Service 78, Frontend 75)
 
@@ -939,6 +939,19 @@ CI/CD Pipeline (GitHub Actions)
 ---
 
 ## Session Notes
+
+### 2026-02-07 (Sprint 08 Day 2 - Graph Search + Graph Panel + 디버깅)
+
+- **STORY-088/089 버그 수정**: Neo4j storage 버그 + PG Sync datetime timezone 해결
+- **UAT 재검증**: Part A/B ALL PASS, 테스트 942건 통과
+- **Graph Search 3단계 매칭 구현**: Entity → Community → Keyword 순차 탐색
+- **Source Type 배지 UI**: Vector(blue)/Keyword(amber)/Graph(teal) 시각 구분
+- **Graph 시각화 패널**: react-force-graph-2d 기반 Knowledge Graph 인터랙티브 렌더링
+- **Gateway graph 라우트 추가**: `/api/v1/graph/**` → AI Service (500 에러 해결)
+- **Neo4j subgraph 양방향 탐색**: 단방향 → 양방향 변경 (38 nodes, 111 edges)
+- **Frontend snake_case 매핑**: SSE graph_context → graphContext 변환 추가
+- **미해결 ISSUE-011**: GraphPanel entity_name에 파일명 전달 문제 (다음 세션)
+- **커밋**: 4건, 43파일, +5,727/-321 lines
 
 ### 2026-02-06 오후 (Sprint 08 Day 1 - UAT + 파일 형식 확장 + Retriever)
 
