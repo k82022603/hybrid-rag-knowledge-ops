@@ -2,18 +2,89 @@
  * SourceCitation - AI response source document display
  *
  * Shows source documents referenced in AI-generated answers.
- * Each citation shows the document name, relevance score,
- * and a preview tooltip of the content.
+ * Each citation shows [출처N] index, source type badge, document title,
+ * relevance score, and expandable content preview.
+ * Graph sources include a "Graph" button to open the visualization panel.
  */
-import React from 'react';
-import { DocumentTextIcon } from '@heroicons/react/24/outline';
+import React, { useState } from 'react';
+import {
+  DocumentTextIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  CircleStackIcon,
+  MagnifyingGlassIcon,
+  ShareIcon,
+} from '@heroicons/react/24/outline';
 import type { Source } from '../types';
 
 export interface SourceCitationProps {
   /** List of source documents */
   sources: Source[];
-  /** Maximum number of sources to display (default: 3) */
+  /** Maximum number of sources to display (default: 5) */
   maxDisplay?: number;
+  /** Callback when a graph source's "Graph" button is clicked */
+  onGraphSourceClick?: (source: Source) => void;
+}
+
+/** Source type badge configuration */
+const SOURCE_TYPE_CONFIG: Record<
+  string,
+  { icon: typeof CircleStackIcon; label: string; className: string }
+> = {
+  vector: {
+    icon: CircleStackIcon,
+    label: 'Vector',
+    className:
+      'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
+  },
+  keyword: {
+    icon: MagnifyingGlassIcon,
+    label: 'Keyword',
+    className:
+      'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300',
+  },
+  graph: {
+    icon: ShareIcon,
+    label: 'Graph',
+    className:
+      'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300',
+  },
+};
+
+/**
+ * SourceTypeBadge - displays icon + label for source type
+ */
+function SourceTypeBadge({ type }: { type: string }) {
+  const config = SOURCE_TYPE_CONFIG[type];
+  if (!config) return null;
+  const Icon = config.icon;
+  return (
+    <span
+      className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-2xs font-medium flex-shrink-0 ${config.className}`}
+    >
+      <Icon className="h-2.5 w-2.5" aria-hidden="true" />
+      {config.label}
+    </span>
+  );
+}
+
+/**
+ * Get display title for a source.
+ */
+function getSourceTitle(source: Source): string {
+  if (source.title && source.title !== '문서') return source.title;
+  if (source.metadata?.projectName) return source.metadata.projectName;
+  if (source.documentId) return `Doc-${source.documentId.slice(0, 8)}`;
+  return '문서';
+}
+
+/**
+ * Score color based on relevance.
+ */
+function getScoreColor(score: number): string {
+  if (score >= 0.7) return 'text-green-600 dark:text-green-400';
+  if (score >= 0.4) return 'text-primary-600 dark:text-primary-400';
+  return 'text-gray-500 dark:text-gray-400';
 }
 
 /**
@@ -21,41 +92,106 @@ export interface SourceCitationProps {
  */
 const SourceCitation: React.FC<SourceCitationProps> = ({
   sources,
-  maxDisplay = 3,
+  maxDisplay = 5,
+  onGraphSourceClick,
 }) => {
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+  const [showAll, setShowAll] = useState(false);
+
   if (!sources || sources.length === 0) return null;
 
-  const displayedSources = sources.slice(0, maxDisplay);
+  const displayedSources = showAll ? sources : sources.slice(0, maxDisplay);
   const remainingCount = sources.length - maxDisplay;
 
+  const toggleExpand = (idx: number) => {
+    setExpandedIndex(expandedIndex === idx ? null : idx);
+  };
+
   return (
-    <div className="mt-2 space-y-1" data-testid="source-citation">
+    <div className="mt-2 space-y-1.5" data-testid="source-citation">
       <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
-        Sources:
+        Sources ({sources.length}):
       </p>
-      <div className="flex flex-wrap gap-2">
-        {displayedSources.map((source) => (
-          <div
-            key={source.chunkId}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-750 transition-colors cursor-pointer"
-            title={source.content}
-            role="link"
-            tabIndex={0}
-            aria-label={`Source: ${source.metadata?.projectName || 'Document'}, relevance ${(source.score * 100).toFixed(0)}%`}
-          >
-            <DocumentTextIcon className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" aria-hidden="true" />
-            <span className="truncate max-w-[150px]">
-              {source.metadata?.projectName || 'Document'}
-            </span>
-            <span className="text-gray-400 flex-shrink-0">
-              {(source.score * 100).toFixed(0)}%
-            </span>
-          </div>
-        ))}
+      <div className="space-y-1">
+        {displayedSources.map((source, idx) => {
+          const sourceIndex = source.index || idx + 1;
+          const title = getSourceTitle(source);
+          const isExpanded = expandedIndex === idx;
+
+          return (
+            <div key={source.chunkId || idx} className="group">
+              {/* Source header - clickable */}
+              <button
+                onClick={() => toggleExpand(idx)}
+                className="w-full flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-left hover:bg-gray-100 dark:hover:bg-gray-750 transition-colors"
+                aria-expanded={isExpanded}
+                aria-label={`출처${sourceIndex}: ${title}, ${source.sourceType ? source.sourceType + ' 검색,' : ''} 관련성 ${(source.score * 100).toFixed(0)}%`}
+              >
+                <DocumentTextIcon
+                  className="h-3.5 w-3.5 text-primary-500 flex-shrink-0"
+                  aria-hidden="true"
+                />
+                <span className="font-medium text-primary-600 dark:text-primary-400 flex-shrink-0">
+                  [출처{sourceIndex}]
+                </span>
+                {source.sourceType && (
+                  <SourceTypeBadge type={source.sourceType} />
+                )}
+                <span className="truncate text-gray-700 dark:text-gray-300 flex-1 min-w-0">
+                  {title}
+                </span>
+                <span
+                  className={`flex-shrink-0 font-mono ${getScoreColor(source.score)}`}
+                >
+                  {(source.score * 100).toFixed(0)}%
+                </span>
+                {/* Graph view button */}
+                {source.sourceType === 'graph' && onGraphSourceClick && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onGraphSourceClick(source);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.stopPropagation();
+                        onGraphSourceClick(source);
+                      }
+                    }}
+                    className="flex-shrink-0 px-1.5 py-0.5 text-2xs font-medium text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 rounded transition-colors"
+                    aria-label={`View graph for ${title}`}
+                  >
+                    Graph
+                  </span>
+                )}
+                {source.content &&
+                  (isExpanded ? (
+                    <ChevronUpIcon className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                  ) : (
+                    <ChevronDownIcon className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                  ))}
+              </button>
+
+              {/* Expanded content preview */}
+              {isExpanded && source.content && (
+                <div className="mt-1 mx-1 px-3 py-2 bg-gray-50 dark:bg-gray-800/50 border border-gray-100 dark:border-gray-700/50 rounded-md text-xs text-gray-600 dark:text-gray-400 leading-relaxed max-h-32 overflow-y-auto">
+                  {source.content}
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* Show more / Show less toggle */}
         {remainingCount > 0 && (
-          <span className="inline-flex items-center px-2 py-1 text-xs text-gray-400 dark:text-gray-500">
-            +{remainingCount} more
-          </span>
+          <button
+            onClick={() => setShowAll(!showAll)}
+            className="text-xs text-primary-500 hover:text-primary-700 dark:hover:text-primary-300 px-2.5 py-1"
+          >
+            {showAll ? '접기' : `+${remainingCount}개 더 보기`}
+          </button>
         )}
       </div>
     </div>

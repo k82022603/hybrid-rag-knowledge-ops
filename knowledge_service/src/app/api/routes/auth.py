@@ -11,7 +11,7 @@ import secrets
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from passlib.context import CryptContext
 from pydantic import BaseModel, EmailStr, Field
@@ -213,6 +213,7 @@ def create_access_token(user_id: str, email: str, role: str) -> str:
         "sub": user_id,
         "email": email,
         "role": role,
+        "iss": "knowledge-platform",
         "exp": expire,
         "iat": datetime.utcnow(),
         "type": "access",
@@ -269,14 +270,45 @@ def decode_token(token: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+def _decode_keycloak_token(token: str) -> Optional[Dict[str, Any]]:
+    """Keycloak RS256 토큰 디코딩 (서명 검증 생략, 만료만 확인).
+
+    내부 네트워크에서 Keycloak이 발급한 토큰을 신뢰합니다.
+    iss 클레임으로 Keycloak 토큰인지 판별합니다.
+    """
+    try:
+        payload = jwt.decode(
+            token,
+            options={"verify_signature": False},
+            algorithms=["RS256", "HS256"],
+        )
+        # Keycloak 토큰인지 확인 (iss에 /realms/ 포함)
+        issuer = payload.get("iss", "")
+        if "/realms/" not in issuer:
+            return None
+        return payload
+    except jwt.ExpiredSignatureError:
+        logger.warning("Keycloak token expired")
+        return None
+    except jwt.InvalidTokenError:
+        return None
+
+
 async def get_current_user(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
 ) -> Dict[str, Any]:
     """
     현재 인증된 사용자 정보 조회 (Dependency)
 
+    3가지 인증 전략 지원:
+    1. HS256 자체 JWT (Direct Login)
+    2. Keycloak RS256 JWT (SSO)
+    3. X-Auth-* 헤더 (API Gateway가 토큰 검증 후 전달)
+
     Args:
-        credentials: HTTP Bearer 토큰
+        request: FastAPI Request 객체
+        credentials: HTTP Bearer 토큰 (Optional)
 
     Returns:
         사용자 정보 딕셔너리
@@ -284,31 +316,63 @@ async def get_current_user(
     Raises:
         HTTPException: 인증 실패 시
     """
-    if credentials is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="인증이 필요합니다",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+    # Strategy 1 & 2: Bearer 토큰 기반 인증
+    if credentials is not None:
+        token = credentials.credentials
 
-    payload = decode_token(credentials.credentials)
-    if payload is None or payload.get("type") != "access":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="유효하지 않거나 만료된 토큰입니다",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        # Strategy 1: 자체 HS256 JWT
+        payload = decode_token(token)
+        if payload is not None and payload.get("type") == "access":
+            email = payload.get("email")
+            user = await get_user_by_email(email)
+            if user is None:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="사용자를 찾을 수 없습니다",
+                )
+            return user
 
-    # 사용자 정보 조회
-    email = payload.get("email")
-    user = await get_user_by_email(email)
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="사용자를 찾을 수 없습니다",
-        )
+        # Strategy 2: Keycloak RS256 JWT
+        kc_payload = _decode_keycloak_token(token)
+        if kc_payload is not None:
+            email = kc_payload.get("email", "")
+            username = kc_payload.get("preferred_username", "")
+            name = kc_payload.get("name", username)
+            roles = kc_payload.get("realm_access", {}).get("roles", [])
+            role = "admin" if "admin" in roles else "user"
+            logger.info("Keycloak SSO user authenticated: %s (%s)", username, email)
+            return {
+                "id": kc_payload.get("sub", ""),
+                "email": email,
+                "name": name,
+                "role": role,
+            }
 
-    return user
+    # Strategy 3: API Gateway X-Auth-* 헤더 (Gateway가 토큰 검증 후 전달)
+    x_user_id = request.headers.get("X-Auth-User-Id")
+    x_email = request.headers.get("X-Auth-User-Email")
+    x_name = request.headers.get("X-Auth-User-Name")
+    x_roles = request.headers.get("X-Auth-User-Roles", "")
+    x_method = request.headers.get("X-Auth-Method")
+
+    if x_user_id and x_email and x_method:
+        role = "admin" if "ADMIN" in x_roles.upper() else "user"
+        logger.info(
+            "Gateway-authenticated user: %s (%s) via %s",
+            x_name or x_email, x_email, x_method,
+        )
+        return {
+            "id": x_user_id,
+            "email": x_email,
+            "name": x_name or x_email,
+            "role": role,
+        }
+
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="인증이 필요합니다",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
 # ============================================================================

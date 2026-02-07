@@ -15,10 +15,11 @@
  * - AC4: Auto-reconnect with 3 retries + exponential backoff
  * - AC5: User cancel/abort support
  *
- * Composed of: MessageList, ChatInput, StreamingIndicator, SourceCitation (via MessageBubble)
+ * Layout: Left (chat) + Right (graph panel, conditional)
+ * Composed of: MessageList, ChatInput, StreamingIndicator, SourceCitation, GraphPanel
  * Uses: useStreamingSearch hook for SSE lifecycle management
  */
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import {
   ExclamationTriangleIcon,
   StopIcon,
@@ -26,8 +27,10 @@ import {
 import MessageList from './components/MessageList';
 import ChatInput from './components/ChatInput';
 import StreamingIndicator from './components/StreamingIndicator';
+import GraphPanel from './components/GraphPanel';
 import { useStreamingSearch } from './hooks/useStreamingSearch';
 import { LiveRegion } from '@/components/common';
+import type { Source } from './types';
 
 /**
  * ChatSearch page component (/search/chat)
@@ -47,6 +50,32 @@ const ChatSearch: React.FC = () => {
     dismissError,
   } = useStreamingSearch();
 
+  // Graph panel state
+  const [showGraphPanel, setShowGraphPanel] = useState(false);
+  const [selectedGraphEntities, setSelectedGraphEntities] = useState<string[]>(
+    [],
+  );
+
+  const handleGraphSourceClick = useCallback((source: Source) => {
+    if (source.sourceType !== 'graph') return;
+    const entities: string[] = [];
+    if (source.graphContext?.relatedEntities?.length) {
+      entities.push(...source.graphContext.relatedEntities);
+    }
+    if (entities.length === 0 && source.title) {
+      entities.push(source.title);
+    }
+    if (entities.length > 0) {
+      setSelectedGraphEntities(entities);
+      setShowGraphPanel(true);
+    }
+  }, []);
+
+  const closeGraphPanel = useCallback(() => {
+    setShowGraphPanel(false);
+    setSelectedGraphEntities([]);
+  }, []);
+
   // Generate status message for screen readers
   const getStatusMessage = () => {
     if (isConnecting) return 'Connecting to search service...';
@@ -63,7 +92,7 @@ const ChatSearch: React.FC = () => {
 
   return (
     <div
-      className="flex flex-col bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden"
+      className="flex flex-row bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden"
       style={{ height: 'calc(100vh - 280px)', minHeight: '400px' }}
       data-testid="chat-search"
       role="region"
@@ -74,64 +103,84 @@ const ChatSearch: React.FC = () => {
         message={getStatusMessage()}
         politeness={error ? 'assertive' : 'polite'}
       />
-      {/* Messages Area */}
-      <MessageList
-        messages={messages}
-        onSuggestionClick={(suggestion) => {
-          setQuery(suggestion);
-        }}
-      />
 
-      {/* Streaming Indicator + Cancel Button */}
-      {isStreaming && (
-        <div className="flex items-center justify-between border-t border-gray-100 dark:border-gray-700/50">
-          <StreamingIndicator
-            isStreaming={isStreaming}
-            isConnecting={isConnecting}
-            reconnectInfo={reconnectInfo}
+      {/* Left: Chat Area */}
+      <div
+        className={`flex flex-col min-w-0 overflow-hidden ${showGraphPanel ? 'flex-[3]' : 'flex-1'}`}
+      >
+        {/* Messages Area */}
+        <MessageList
+          messages={messages}
+          onSuggestionClick={(suggestion) => {
+            setQuery(suggestion);
+          }}
+          onGraphSourceClick={handleGraphSourceClick}
+        />
+
+        {/* Streaming Indicator + Cancel Button */}
+        {isStreaming && (
+          <div className="flex items-center justify-between border-t border-gray-100 dark:border-gray-700/50">
+            <StreamingIndicator
+              isStreaming={isStreaming}
+              isConnecting={isConnecting}
+              reconnectInfo={reconnectInfo}
+            />
+            <button
+              onClick={cancelStream}
+              className="flex items-center gap-1.5 mr-4 px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-error-600 dark:hover:text-error-400 hover:bg-error-50 dark:hover:bg-error-900/20 rounded-lg transition-colors"
+              aria-label="Cancel streaming response"
+              data-testid="cancel-stream-button"
+            >
+              <StopIcon className="h-3.5 w-3.5" />
+              <span>Cancel</span>
+            </button>
+          </div>
+        )}
+
+        {/* Error Banner */}
+        {error && (
+          <div
+            className="px-4 py-2 bg-error-50 dark:bg-error-900/20 border-t border-error-200 dark:border-error-800 flex items-center gap-2"
+            role="alert"
+            aria-live="assertive"
+          >
+            <ExclamationTriangleIcon
+              className="h-4 w-4 text-error-500 flex-shrink-0"
+              aria-hidden="true"
+            />
+            <span className="text-xs text-error-700 dark:text-error-300">
+              {error}
+            </span>
+            <button
+              onClick={dismissError}
+              className="ml-auto text-xs text-error-500 hover:text-error-700 font-medium focus:outline-none focus:ring-2 focus:ring-error-500 rounded px-1"
+              aria-label="Dismiss error message"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {/* Input Area */}
+        <ChatInput
+          value={query}
+          onChange={setQuery}
+          onSubmit={() => sendMessage()}
+          onClear={clearMessages}
+          isLoading={isStreaming}
+          showClear={messages.length > 0}
+        />
+      </div>
+
+      {/* Right: Graph Panel (lg breakpoint and above) */}
+      {showGraphPanel && (
+        <div className="hidden lg:flex flex-[2] min-w-[300px] max-w-[500px]">
+          <GraphPanel
+            entityNames={selectedGraphEntities}
+            onClose={closeGraphPanel}
           />
-          <button
-            onClick={cancelStream}
-            className="flex items-center gap-1.5 mr-4 px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-error-600 dark:hover:text-error-400 hover:bg-error-50 dark:hover:bg-error-900/20 rounded-lg transition-colors"
-            aria-label="Cancel streaming response"
-            data-testid="cancel-stream-button"
-          >
-            <StopIcon className="h-3.5 w-3.5" />
-            <span>Cancel</span>
-          </button>
         </div>
       )}
-
-      {/* Error Banner */}
-      {error && (
-        <div
-          className="px-4 py-2 bg-error-50 dark:bg-error-900/20 border-t border-error-200 dark:border-error-800 flex items-center gap-2"
-          role="alert"
-          aria-live="assertive"
-        >
-          <ExclamationTriangleIcon className="h-4 w-4 text-error-500 flex-shrink-0" aria-hidden="true" />
-          <span className="text-xs text-error-700 dark:text-error-300">
-            {error}
-          </span>
-          <button
-            onClick={dismissError}
-            className="ml-auto text-xs text-error-500 hover:text-error-700 font-medium focus:outline-none focus:ring-2 focus:ring-error-500 rounded px-1"
-            aria-label="Dismiss error message"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
-      {/* Input Area */}
-      <ChatInput
-        value={query}
-        onChange={setQuery}
-        onSubmit={() => sendMessage()}
-        onClear={clearMessages}
-        isLoading={isStreaming}
-        showClear={messages.length > 0}
-      />
     </div>
   );
 };

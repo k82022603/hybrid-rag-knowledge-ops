@@ -14,6 +14,12 @@ export interface Source {
   documentId: string;
   content: string;
   score: number;
+  /** Document title from backend (e.g., "기술 가이드라인") */
+  title?: string;
+  /** 1-based index matching [출처N] in LLM answer */
+  index?: number;
+  /** Search source type (e.g., "vector", "keyword", "graph") */
+  sourceType?: string;
   metadata?: {
     documentType?: string;
     projectName?: string;
@@ -61,3 +67,27 @@ export interface KeywordSearchResponse {
 
 /** Search mode for tabbed navigation */
 export type SearchMode = 'chat' | 'keyword';
+
+/** Graph node from /graph/subgraph API */
+export interface GraphNode {
+  id: string;
+  label: string;
+  type: string;
+  [key: string]: unknown;
+}
+
+/** Graph edge from /graph/subgraph API */
+export interface GraphEdge {
+  source: string;
+  target: string;
+  type: string;
+  [key: string]: unknown;
+}
+
+/** Subgraph API response */
+export interface SubgraphData {
+  center: string;
+  nodes: GraphNode[];
+  edges: GraphEdge[];
+  node_count: number;
+}

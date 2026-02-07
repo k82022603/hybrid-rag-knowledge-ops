@@ -684,21 +684,66 @@ class SearchService:
                 """
                 params = {"entity_names": entity_names, "top_k": top_k}
             else:
-                # 키워드 기반: 쿼리 문자열로 엔티티명 매칭 후 서브그래프 탐색
+                # 3단계 매칭 전략:
+                # 1) 역방향 CONTAINS: 쿼리 안에 엔티티 이름이 포함 (e.g. "Neo4j 설명" → "Neo4j")
+                # 2) 정방향 CONTAINS: 쿼리 단어가 엔티티 이름에 포함 (e.g. "Spring" → "SpringBoot 3.x")
+                # 3) 컨텐츠 폴백: 위 매칭 실패 시 청크 내용에서 직접 검색
+                query_lower = query.lower()
+                query_words = [w for w in query.split() if len(w) >= 2]
+                if not query_words:
+                    query_words = [query]
+
+                # Step 1+2: 엔티티 기반 매칭
                 cypher = """
                 MATCH (e)-[:MENTIONED_IN]->(k:Knowledge)-[:CONTAINS]->(c:Chunk)
-                WHERE e.name CONTAINS $query OR e.value CONTAINS $query
-                   OR k.title CONTAINS $query
-                WITH c, k, count(e) AS match_count
+                WHERE e.name IS NOT NULL AND e.name <> 'None' AND size(e.name) >= 2
+                AND (
+                    toLower($query_str) CONTAINS toLower(e.name)
+                    OR any(word IN $query_words WHERE
+                        toLower(e.name) CONTAINS toLower(word))
+                )
+                WITH c, k,
+                     collect(DISTINCT e.name) AS matched_entities,
+                     count(DISTINCT e) AS match_count
                 ORDER BY match_count DESC
                 LIMIT $top_k
                 RETURN c.chunk_id AS chunk_id, c.content AS content,
                        k.knowledge_id AS document_id, k.title AS title,
-                       match_count AS score
+                       match_count AS score, matched_entities
                 """
-                params = {"query": query, "top_k": top_k}
+                params = {
+                    "query_str": query_lower,
+                    "query_words": query_words,
+                    "top_k": top_k,
+                }
+                logger.debug(f"Graph search query: '{query}', words: {query_words}")
 
-            records = await self._neo4j_query(cypher, params)
+                records = await self._neo4j_query(cypher, params)
+
+                # Step 3: 엔티티 매칭 실패 시 컨텐츠 기반 폴백
+                if not records:
+                    logger.info("Graph entity match returned 0 - falling back to content search")
+                    cypher_fallback = """
+                    MATCH (k:Knowledge)-[:CONTAINS]->(c:Chunk)
+                    WHERE any(word IN $query_words WHERE
+                        toLower(c.content) CONTAINS toLower(word))
+                    WITH c, k
+                    OPTIONAL MATCH (e)-[:MENTIONED_IN]->(k)
+                    WHERE e.name IS NOT NULL AND e.name <> 'None'
+                    WITH c, k,
+                         collect(DISTINCT e.name) AS matched_entities,
+                         count(DISTINCT e) AS match_count
+                    ORDER BY match_count DESC
+                    LIMIT $top_k
+                    RETURN c.chunk_id AS chunk_id, c.content AS content,
+                           k.knowledge_id AS document_id, k.title AS title,
+                           match_count AS score, matched_entities
+                    """
+                    records = await self._neo4j_query(cypher_fallback, params)
+                    logger.info(f"Graph content fallback - Results: {len(records)}")
+
+            if entity_names:
+                records = await self._neo4j_query(cypher, params)
 
             results = [
                 SearchResult(
@@ -710,6 +755,7 @@ class SearchService:
                     metadata={
                         "title": record.get("title", ""),
                         "search_source": "neo4j_graph",
+                        "matched_entities": record.get("matched_entities", []),
                     },
                 )
                 for record in records
@@ -774,7 +820,13 @@ class SearchService:
             # RRF 점수로 업데이트
             result.score = round(scores[chunk_id], 6)
             result.metadata["rrf_score"] = result.score
-            result.metadata["source_ranks"] = source_ranks.get(chunk_id, {})
+            ranks = source_ranks.get(chunk_id, {})
+            result.metadata["source_ranks"] = ranks
+
+            # Primary source: 가장 높은 순위(낮은 rank 숫자) 소스로 결정
+            if ranks:
+                result.source = min(ranks, key=ranks.get)
+
             fused_results.append(result)
 
         logger.debug(

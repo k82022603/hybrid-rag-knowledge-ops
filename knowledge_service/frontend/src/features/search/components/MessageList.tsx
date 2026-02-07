@@ -7,7 +7,7 @@
  */
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import { SparklesIcon } from '@heroicons/react/24/outline';
-import type { Message } from '../types';
+import type { Message, Source } from '../types';
 import MessageBubble from './MessageBubble';
 
 export interface MessageListProps {
@@ -15,6 +15,8 @@ export interface MessageListProps {
   messages: Message[];
   /** Callback when a suggestion is clicked (empty state) */
   onSuggestionClick?: (suggestion: string) => void;
+  /** Callback when a graph source is clicked for visualization */
+  onGraphSourceClick?: (source: Source) => void;
 }
 
 /** Default search suggestions for empty state */
@@ -64,6 +66,7 @@ const EmptyState: React.FC<{ onSuggestionClick?: (s: string) => void }> = ({
 const MessageList: React.FC<MessageListProps> = ({
   messages,
   onSuggestionClick,
+  onGraphSourceClick,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -106,10 +109,10 @@ const MessageList: React.FC<MessageListProps> = ({
   }
 
   return (
-    <div className="relative flex-1">
+    <div className="relative flex-1 min-h-0">
       <div
         ref={containerRef}
-        className="h-full overflow-y-auto p-4 space-y-4"
+        className="h-full chat-scroll p-4 space-y-4"
         onScroll={handleScroll}
         data-testid="message-list"
         role="log"
@@ -117,7 +120,7 @@ const MessageList: React.FC<MessageListProps> = ({
         aria-live="polite"
       >
         {messages.map((message) => (
-          <MessageBubble key={message.id} message={message} />
+          <MessageBubble key={message.id} message={message} onGraphSourceClick={onGraphSourceClick} />
         ))}
         <div ref={messagesEndRef} />
       </div>
@@ -126,7 +129,7 @@ const MessageList: React.FC<MessageListProps> = ({
       {isUserScrolling && messages.length > 0 && (
         <button
           onClick={handleScrollToBottomClick}
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-gray-800/80 dark:bg-gray-200/80 dark:text-gray-800 rounded-full shadow-lg hover:bg-gray-900/90 dark:hover:bg-gray-100/90 transition-colors backdrop-blur-sm"
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-gray-800/80 dark:bg-gray-200/80 dark:text-gray-800 rounded-full shadow-lg hover:bg-gray-900/90 dark:hover:bg-gray-100/90 transition-colors backdrop-blur-sm z-10"
           aria-label="Scroll to latest message"
         >
           Scroll to bottom

@@ -542,34 +542,24 @@ async def chat_stream(
             }, ensure_ascii=False)
             yield f"data: {start_event}\n\n"
 
-            # 토큰 단위 스트리밍 (word 기반으로 시뮬레이션)
-            # 실제 LLM 스트리밍은 추후 구현 예정
+            # 토큰 단위 스트리밍 (문자 기반 청킹)
+            # 줄바꿈/마크다운 포맷을 보존하기 위해 character-based chunking 사용
             answer = response.answer
-            words = answer.split()
-            buffer = []
-            chunk_size = 3  # 3 단어씩 청크로 전송
+            chunk_size = 30  # ~30자 단위 청크 (줄바꿈 등 포맷 완전 보존)
 
-            for i, word in enumerate(words):
-                buffer.append(word)
-                total_tokens += 1
+            for i in range(0, len(answer), chunk_size):
+                chunk_text = answer[i:i + chunk_size]
+                total_tokens += len(chunk_text.split())
 
-                # chunk_size 단어마다 또는 마지막 단어일 때 전송
-                if len(buffer) >= chunk_size or i == len(words) - 1:
-                    chunk_text = " ".join(buffer)
-                    # 마지막이 아닌 경우 공백 추가
-                    if i < len(words) - 1:
-                        chunk_text += " "
+                chunk_event = json.dumps({
+                    "type": "chunk",
+                    "content": chunk_text,
+                    "tokenIndex": total_tokens,
+                }, ensure_ascii=False)
+                yield f"data: {chunk_event}\n\n"
 
-                    chunk_event = json.dumps({
-                        "type": "chunk",
-                        "content": chunk_text,
-                        "tokenIndex": total_tokens,
-                    }, ensure_ascii=False)
-                    yield f"data: {chunk_event}\n\n"
-                    buffer = []
-
-                    # 자연스러운 스트리밍 효과를 위한 짧은 딜레이
-                    await asyncio.sleep(0.02)  # 20ms
+                # 자연스러운 스트리밍 효과를 위한 짧은 딜레이
+                await asyncio.sleep(0.02)  # 20ms
 
         except Exception as e:
             logger.exception(f"Streaming error: {e}")

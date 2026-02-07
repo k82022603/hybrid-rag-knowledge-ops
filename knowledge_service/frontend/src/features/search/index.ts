@@ -19,6 +19,7 @@ export { default as ChatInput } from './components/ChatInput';
 export { default as SourceCitation } from './components/SourceCitation';
 export { default as SearchResultCard } from './components/SearchResultCard';
 export { default as StreamingIndicator } from './components/StreamingIndicator';
+export { default as GraphPanel } from './components/GraphPanel';
 
 // Hooks
 export { useSearchChat } from './hooks/useSearchChat';
@@ -34,6 +35,9 @@ export type {
   SearchFilters,
   KeywordSearchResponse,
   SearchMode,
+  GraphNode,
+  GraphEdge,
+  SubgraphData,
 } from './types';
 
 export type {

@@ -32,6 +32,8 @@
  * ```
  */
 
+import { getToken as getKeycloakToken, isAuthenticated as isKeycloakAuthenticated } from '@/auth/keycloak';
+
 /** SSE event data types sent by the backend */
 export interface SSETokenEvent {
   type: 'token';
@@ -44,10 +46,17 @@ export interface SSESourcesEvent {
 }
 
 export interface SSESourceData {
-  chunkId: string;
-  documentId: string;
-  content: string;
+  chunkId?: string;
+  chunk_id?: string;
+  documentId?: string;
+  document_id?: string;
+  content?: string;
+  snippet?: string;
   score: number;
+  title?: string;
+  index?: number;
+  sourceType?: string;
+  source_type?: string;
   metadata?: {
     documentType?: string;
     projectName?: string;
@@ -62,6 +71,7 @@ export interface SSESourceData {
     relatedEntities: string[];
     community: string;
   };
+  [key: string]: unknown;
 }
 
 export interface SSEErrorEvent {
@@ -427,13 +437,35 @@ export class SSEPostClient {
     try {
       const parsed = JSON.parse(data);
 
+      // Format A: {type: "token", data: "..."} (legacy)
       if (parsed.type === 'token' && typeof parsed.data === 'string') {
         this.options.onToken(parsed.data);
         return;
       }
 
+      // Format B: {type: "chunk", content: "..."} (backend actual)
+      if (parsed.type === 'chunk' && typeof parsed.content === 'string') {
+        this.options.onToken(parsed.content);
+        return;
+      }
+
+      // Format A: {type: "sources", data: [...]} (legacy)
       if (parsed.type === 'sources' && Array.isArray(parsed.data)) {
         this.options.onSources?.(parsed.data);
+        return;
+      }
+
+      // Format B: {type: "start", sources: [...]} (backend actual)
+      if (parsed.type === 'start' && Array.isArray(parsed.sources)) {
+        this.options.onSources?.(parsed.sources);
+        return;
+      }
+
+      // Stream end event
+      if (parsed.type === 'end') {
+        this.abortExisting();
+        this._state = 'closed';
+        this.options.onComplete?.();
         return;
       }
 
@@ -542,7 +574,13 @@ export class SSEPostClient {
  * @returns Bearer token string or undefined
  */
 export function getAuthToken(): string | undefined {
-  // Strategy 1: Try localStorage direct auth token
+  // Strategy 1: Keycloak SSO token
+  if (isKeycloakAuthenticated()) {
+    const kcToken = getKeycloakToken();
+    if (kcToken) return kcToken;
+  }
+
+  // Strategy 2: Direct auth token from localStorage
   const directToken = localStorage.getItem('auth_access_token');
   if (directToken) {
     return directToken;

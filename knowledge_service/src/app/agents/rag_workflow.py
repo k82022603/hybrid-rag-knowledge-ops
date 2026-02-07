@@ -189,6 +189,14 @@ def build_sources_from_results(
             ),
         }
 
+        # Graph 소스인 경우 관련 엔티티 정보 추가
+        if result.source == "graph":
+            matched_entities = result.metadata.get("matched_entities", [])
+            if matched_entities:
+                source_info["graph_context"] = {
+                    "related_entities": matched_entities,
+                }
+
         if doc_id not in seen_doc_ids:
             source_info["is_primary"] = True
             seen_doc_ids.add(doc_id)

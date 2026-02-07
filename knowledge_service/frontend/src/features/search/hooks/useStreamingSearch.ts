@@ -89,15 +89,19 @@ export interface UseStreamingSearchOptions {
 
 /**
  * Converts SSESourceData to the Source type used by the UI.
+ * Handles both camelCase (frontend) and snake_case (backend) field names.
  */
 function mapSSESourcesToSources(sseSources: SSESourceData[]): Source[] {
   return sseSources.map((s) => ({
-    chunkId: s.chunkId,
-    documentId: s.documentId,
-    content: s.content,
-    score: s.score,
-    metadata: s.metadata,
-    graphContext: s.graphContext,
+    chunkId: (s.chunkId ?? s.chunk_id ?? '') as string,
+    documentId: (s.documentId ?? s.document_id ?? '') as string,
+    content: (s.content ?? s.snippet ?? '') as string,
+    score: (s.score ?? 0) as number,
+    title: (s.title ?? '') as string,
+    index: (s.index ?? 0) as number,
+    sourceType: (s.sourceType ?? s.source_type ?? '') as string,
+    metadata: s.metadata as Source['metadata'],
+    graphContext: s.graphContext as Source['graphContext'],
   }));
 }
 
