@@ -201,7 +201,8 @@
       "Bash(while IFS=: read name status)",
       "Bash(do echo \"$name -> $status\")",
       "Bash(done)",
-      "mcp__jira__jira_add_comment"
+      "mcp__jira__jira_add_comment",
+      "WebFetch(domain:bundlephobia.com)"
     ]
   },
   "enabledMcpjsonServers": [
