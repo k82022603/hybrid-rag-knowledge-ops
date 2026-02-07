@@ -71,6 +71,10 @@ export interface SSESourceData {
     relatedEntities: string[];
     community: string;
   };
+  graph_context?: {
+    related_entities: string[];
+    community: string;
+  };
   [key: string]: unknown;
 }
 

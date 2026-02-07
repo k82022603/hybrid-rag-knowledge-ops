@@ -208,6 +208,35 @@ spring:
                 redis-rate-limiter.requestedTokens: 1
 
         # ==============================================
+        # Graph Service Routes (/api/v1/graph/**)
+        # Neo4j Knowledge Graph API → AI Service
+        # ==============================================
+        - id: graph-service
+          uri: ${AI_SERVICE_URL:http://localhost:8000}
+          predicates:
+            - Path=/api/v1/graph/**
+          filters:
+            - TokenRelay=
+            - name: CircuitBreaker
+              args:
+                name: ai-service-circuit-breaker
+                fallbackUri: forward:/fallback/ai-service
+            - name: Retry
+              args:
+                retries: 2
+                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT
+                methods: GET,POST
+                backoff:
+                  firstBackoff: 200ms
+                  maxBackoff: 1000ms
+                  factor: 2
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 60
+                redis-rate-limiter.requestedTokens: 1
+
+        # ==============================================
         # User Service Routes (/api/v1/users/**)
         # ==============================================
         - id: user-service
@@ -591,6 +620,29 @@ spring:
           uri: http://ai-service:8000
           predicates:
             - Path=/api/v1/search/**
+          filters:
+            - TokenRelay=
+            - name: CircuitBreaker
+              args:
+                name: ai-service-circuit-breaker
+                fallbackUri: forward:/fallback/ai-service
+            - name: Retry
+              args:
+                retries: 2
+                statuses: BAD_GATEWAY,GATEWAY_TIMEOUT
+                methods: GET,POST
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 30
+                redis-rate-limiter.burstCapacity: 60
+                redis-rate-limiter.requestedTokens: 1
+
+        # Graph Service (Docker)
+        # Neo4j Knowledge Graph API → AI Service
+        - id: graph-service
+          uri: http://ai-service:8000
+          predicates:
+            - Path=/api/v1/graph/**
           filters:
             - TokenRelay=
             - name: CircuitBreaker

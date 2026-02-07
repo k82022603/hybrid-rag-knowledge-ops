@@ -101,7 +101,10 @@ function mapSSESourcesToSources(sseSources: SSESourceData[]): Source[] {
     index: (s.index ?? 0) as number,
     sourceType: (s.sourceType ?? s.source_type ?? '') as string,
     metadata: s.metadata as Source['metadata'],
-    graphContext: s.graphContext as Source['graphContext'],
+    graphContext: (s.graphContext ?? (s.graph_context ? {
+      relatedEntities: s.graph_context.related_entities ?? [],
+      community: s.graph_context.community ?? '',
+    } : undefined)) as Source['graphContext'],
   }));
 }
 

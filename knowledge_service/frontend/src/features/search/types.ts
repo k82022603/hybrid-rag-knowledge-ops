@@ -71,7 +71,8 @@ export type SearchMode = 'chat' | 'keyword';
 /** Graph node from /graph/subgraph API */
 export interface GraphNode {
   id: string;
-  label: string;
+  name?: string;
+  label?: string;
   type: string;
   [key: string]: unknown;
 }

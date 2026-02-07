@@ -77,10 +77,10 @@ const GraphPanel: React.FC<GraphPanelProps> = ({ entityNames, onClose }) => {
     return {
       nodes: graphData.nodes.map((n) => ({
         id: n.id,
-        name: n.label || n.id,
+        name: n.name || n.label || n.id,
         type: n.type,
         isCenter:
-          n.label === graphData.center || n.id === graphData.center,
+          n.name === graphData.center || n.label === graphData.center || n.id === graphData.center,
       })),
       links: graphData.edges.map((e) => ({
         source: e.source,

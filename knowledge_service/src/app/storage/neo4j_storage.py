@@ -770,23 +770,32 @@ class Neo4jStorageService:
 
         try:
             async with driver.session(database=self._database) as session:
-                # 가변 길이 패턴 매칭 (depth 제한)
-                # 주의: Neo4j 가변 길이 패턴 [*1..n]은 파라미터 바인딩 불가
+                # 서브그래프 조회: 노드 + 관계를 별도로 수집
                 # 보안: validated_depth는 위에서 정수형 및 범위(1-5) 검증 완료
                 cypher = f"""
                 MATCH (center)
                 WHERE center.name = $entity_name OR center.value = $entity_name
+                WITH center LIMIT 1
                 CALL {{
                     WITH center
-                    MATCH path = (center)-[*1..{validated_depth}]->(related)
-                    RETURN related, relationships(path) AS rels
+                    MATCH (center)-[r*1..{validated_depth}]-(related)
+                    WITH DISTINCT related
+                    RETURN related
                     LIMIT $limit
                 }}
-                WITH center, collect(DISTINCT related) AS nodes,
-                     collect(rels) AS all_rels
-                RETURN center,
-                       nodes,
-                       size(nodes) AS node_count
+                WITH center, collect(related) AS related_nodes
+                WITH center, related_nodes,
+                     [center] + related_nodes AS all_nodes
+                UNWIND all_nodes AS a
+                UNWIND all_nodes AS b
+                WITH center, all_nodes,
+                     a, b
+                WHERE elementId(a) < elementId(b)
+                OPTIONAL MATCH (a)-[r]-(b)
+                WHERE r IS NOT NULL
+                WITH center, all_nodes,
+                     collect(DISTINCT r) AS rels
+                RETURN center, all_nodes, rels
                 """
 
                 result = await session.run(
@@ -800,24 +809,51 @@ class Neo4jStorageService:
                 if not records:
                     return {"nodes": [], "edges": [], "center": entity_name}
 
-                # 결과 파싱
+                record = records[0]
+
+                # 노드 파싱: id, name, type(label) 포함
                 nodes_out = []
+                seen_ids = set()
+
+                for node in record.get("all_nodes", []):
+                    if node is None:
+                        continue
+                    node_id = str(node.element_id) if hasattr(node, "element_id") else str(id(node))
+                    if node_id in seen_ids:
+                        continue
+                    seen_ids.add(node_id)
+
+                    labels = list(node.labels) if hasattr(node, "labels") else []
+                    props = dict(node) if node else {}
+                    node_name = props.get("name") or props.get("value") or props.get("title", "Unknown")
+                    node_type = labels[0] if labels else "Entity"
+
+                    nodes_out.append({
+                        "id": node_id,
+                        "name": node_name,
+                        "type": node_type,
+                        "labels": labels,
+                        "properties": {k: str(v) if not isinstance(v, (str, int, float, bool)) else v
+                                       for k, v in props.items()},
+                    })
+
+                # 엣지 파싱: source, target, type 포함
                 edges_out = []
-
-                for record in records:
-                    center_node = record.get("center")
-                    if center_node:
-                        nodes_out.append(self._node_to_dict(center_node))
-
-                    related_nodes = record.get("nodes", [])
-                    for node in related_nodes:
-                        nodes_out.append(self._node_to_dict(node))
+                for rel in record.get("rels", []):
+                    if rel is None:
+                        continue
+                    edges_out.append({
+                        "source": str(rel.start_node.element_id) if hasattr(rel, "start_node") else "",
+                        "target": str(rel.end_node.element_id) if hasattr(rel, "end_node") else "",
+                        "type": rel.type if hasattr(rel, "type") else "RELATED_TO",
+                    })
 
                 logger.info(
-                    "Subgraph query: entity=%s, depth=%d, nodes=%d",
+                    "Subgraph query: entity=%s, depth=%d, nodes=%d, edges=%d",
                     entity_name,
-                    depth,
+                    validated_depth,
                     len(nodes_out),
+                    len(edges_out),
                 )
 
                 return {
