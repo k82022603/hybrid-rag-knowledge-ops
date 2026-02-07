@@ -13,6 +13,24 @@ Dual-write 패턴:
 import json
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+
+
+def _naive_utcnow() -> datetime:
+    """asyncpg 호환 naive UTC datetime 반환.
+
+    PostgreSQL 'timestamp without time zone' 컬럼에는
+    timezone-aware datetime을 넣을 수 없으므로 tzinfo를 제거합니다.
+    """
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def _strip_tz(dt: Optional[datetime]) -> Optional[datetime]:
+    """timezone-aware datetime에서 tzinfo를 제거."""
+    if dt is None:
+        return None
+    if dt.tzinfo is not None:
+        return dt.replace(tzinfo=None)
+    return dt
 from uuid import UUID
 
 import asyncpg
@@ -127,8 +145,8 @@ class DocumentRepository:
                 format_val,
                 status_val,
                 metadata_json or "{}",
-                doc_record.get("created_at", datetime.now(timezone.utc)),
-                doc_record.get("updated_at", datetime.now(timezone.utc)),
+                _strip_tz(doc_record.get("created_at")) or _naive_utcnow(),
+                _strip_tz(doc_record.get("updated_at")) or _naive_utcnow(),
             )
 
     async def get(self, document_id: UUID) -> Optional[Dict[str, Any]]:
@@ -237,7 +255,7 @@ class DocumentRepository:
                 document_id,
                 status,
                 error_message,
-                datetime.now(timezone.utc),
+                _naive_utcnow(),
             )
 
     def _row_to_dict(self, row: asyncpg.Record) -> Dict[str, Any]:

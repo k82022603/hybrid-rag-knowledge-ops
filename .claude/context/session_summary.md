@@ -1,4 +1,4 @@
-# Session Summary - 2026-02-06 15:12
+# Session Summary - 2026-02-06 20:06
 
 ## Commits This Session
 ```
@@ -8,15 +8,15 @@
 ## Files Modified
 ```
 .claude/context/session_context.md
-infrastructure/docker/docker-compose.yml
-knowledge_service/frontend/src/pages/DocumentUploadPage.tsx
-knowledge_service/frontend/src/services/knowledgeService.ts
-knowledge_service/pyproject.toml
-knowledge_service/src/app/api/routes/documents.py
-knowledge_service/src/app/main.py
-knowledge_service/src/app/services/document_repository.py
-knowledge_service/src/app/services/search.py
-knowledge_service/src/tests/unit/conftest.py
+.claude/context/session_summary.md
+PLAN.md
+README.md
+backlog/sprints/sprint-08.md
+backlog/stories/STORY-083-uat-partb-pptx-upload.md
+backlog/stories/STORY-084-gateway-keycloak-sso-fix.md
+backlog/stories/STORY-085-uat-partb-hybrid-search.md
+backlog/stories/STORY-086-terminal-retriever-perf-tool.md
+backlog/stories/STORY-087-bge-m3-cache-volume.md
 ```
 
 ---
