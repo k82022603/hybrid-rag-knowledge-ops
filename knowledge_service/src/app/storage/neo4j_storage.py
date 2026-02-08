@@ -772,16 +772,13 @@ class Neo4jStorageService:
             async with driver.session(database=self._database) as session:
                 # 서브그래프 조회: 노드 + 관계를 별도로 수집
                 # 보안: validated_depth는 위에서 정수형 및 범위(1-5) 검증 완료
+                # Full-Text Index 사용 (entity_fulltext_idx)
+                # Fallback: 인덱스 미존재 시 CONTAINS로 대체
                 cypher = f"""
-                MATCH (center)
-                WHERE center.name = $entity_name OR center.value = $entity_name
-                   OR center.name CONTAINS $entity_name
+                CALL db.index.fulltext.queryNodes("entity_fulltext_idx", $entity_name)
+                YIELD node AS center, score
                 WITH center
-                ORDER BY CASE
-                    WHEN center.name = $entity_name THEN 0
-                    WHEN center.value = $entity_name THEN 1
-                    ELSE 2
-                END
+                ORDER BY score DESC
                 LIMIT 1
                 CALL {{
                     WITH center
