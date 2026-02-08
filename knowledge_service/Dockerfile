@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # =============================================================================
 # AI Service (Knowledge Service) - Production Dockerfile
 # STORY-063: Docling + PyTorch CPU Docker Image Setup
@@ -6,6 +7,8 @@
 # - Stage 1 (builder): Install dependencies with PyTorch CPU-only
 # - Stage 2 (runtime): Copy installed packages + app code
 # =============================================================================
+# BuildKit 필수: DOCKER_BUILDKIT=1 docker-compose build ai-service
+# =============================================================================
 
 # ---------------------------------------------------------------------------
 # Stage 1: Builder - Install Python dependencies
@@ -13,10 +16,6 @@
 FROM python:3.11-slim AS builder
 
 # System dependencies required for building Python packages
-# - build-essential: gcc/g++ for compiled extensions
-# - libgl1, libglib2.0-0: OpenCV/image processing (Docling PDF rendering)
-# - libpq-dev: psycopg2 PostgreSQL adapter
-# - curl: health checks and downloads
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     libgl1 \
@@ -27,35 +26,50 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /build
 
-# Copy dependency files first (Docker layer caching)
+# Install pip and poetry (separate layer - rarely changes)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip && \
+    pip install poetry==2.1.1 poetry-plugin-export
+
+# Copy ONLY dependency files first (Docker layer caching)
+# Source code changes won't invalidate this layer
 COPY pyproject.toml poetry.lock* ./
 
-# Install pip and poetry with export plugin
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir poetry==2.1.1 poetry-plugin-export
-
-# Regenerate poetry.lock if it's inconsistent, then export requirements
+# Export requirements.txt from poetry
 RUN poetry lock --no-update 2>/dev/null || poetry lock && \
     poetry export -f requirements.txt --without-hashes --without dev -o requirements.txt
 
-# Install PyTorch CPU-only first (before other deps to leverage caching)
-# This avoids downloading the ~2GB CUDA-enabled PyTorch
-RUN pip install --no-cache-dir \
+# Pre-build wheels directory for caching
+RUN mkdir -p /build/wheels
+
+# Install PyTorch CPU-only first (biggest package ~700MB)
+# BuildKit cache mount keeps downloaded packages across builds
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip wheel --wheel-dir=/build/wheels \
     --extra-index-url https://download.pytorch.org/whl/cpu \
     torch==2.5.1+cpu
 
-# Install remaining dependencies from exported requirements
-# Skip torch since we already installed CPU-only version
-RUN pip install --no-cache-dir \
+# Build wheels for remaining dependencies
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip wheel --wheel-dir=/build/wheels \
     --extra-index-url https://download.pytorch.org/whl/cpu \
     -r requirements.txt
 
-# Install additional required packages explicitly
-# - email-validator: required for pydantic[email] EmailStr validation
-# - python-multipart: required for FastAPI file upload (form data)
-RUN pip install --no-cache-dir email-validator python-multipart
+# Build wheels for additional required packages
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip wheel --wheel-dir=/build/wheels \
+    email-validator python-multipart
 
-# Verify Docling installation (use pip show since docling has no __version__ attribute)
+# Install all packages from pre-built wheels (fast - no download needed)
+RUN pip install --no-index --find-links=/build/wheels \
+    --extra-index-url https://download.pytorch.org/whl/cpu \
+    torch==2.5.1+cpu && \
+    pip install --no-index --find-links=/build/wheels \
+    -r requirements.txt && \
+    pip install --no-index --find-links=/build/wheels \
+    email-validator python-multipart
+
+# Verify Docling installation
 RUN pip show docling && python -c "import docling; print('Docling imported successfully')"
 
 # ---------------------------------------------------------------------------
@@ -82,7 +96,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 
 WORKDIR /app
 
-# Copy application source code
+# Copy application source code (this layer changes most often)
 COPY src/ /app/src/
 COPY pyproject.toml /app/
 

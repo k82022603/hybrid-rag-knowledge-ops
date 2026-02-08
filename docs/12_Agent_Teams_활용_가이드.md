@@ -28,7 +28,7 @@
 ## 목차
 
 1. [개요](#1-개요)
-2. [As-Is vs To-Be 비교](#2-as-is-vs-to-be-비교)
+2. [As-Is vs To-Be 비교](#2-as-is-vs-to-be-비교) (+ Agent Teams vs 개별 위임 비교)
 3. [활성화 방법](#3-활성화-방법)
 4. [아키텍처](#4-아키텍처)
 5. [팀 구성 (To-Be)](#5-팀-구성-to-be)
@@ -197,6 +197,112 @@ Lead: Slack 알림, 최종 보고
 | 팀원 소환 (Task + team_name) | 🔄 필요시 | 작업 시 필요한 팀원만 소환 |
 | SendMessage 통신 테스트 | ⬜ 대기 | 첫 실전 작업에서 검증 |
 | 가이드 문서 v2.0 | ✅ 완료 | 이 문서 |
+
+### 2.4 Agent Teams vs 개별 위임 (Task Tool) 상세 비교
+
+Agent Teams와 개별 Task 위임은 모두 서브에이전트를 활용하지만, 동작 방식과 적합한 상황이 완전히 다릅니다.
+
+#### 핵심 차이
+
+```
+[개별 위임 (Task Tool)]
+Main Claude ─→ Task(RAG, "ISSUE-011 수정") ─→ 결과 반환 ─→ 소멸
+             ─→ Task(DevOps, "매뉴얼 작성")  ─→ 결과 반환 ─→ 소멸
+             (각 에이전트는 독립적, 서로 모름)
+
+[Agent Teams (TeamCreate)]
+Main Claude ─→ TeamCreate("sprint-08")
+             ─→ Task(RAG, team_name: "sprint-08")   ─→ 상주 (idle/active)
+             ─→ Task(Frontend, team_name: "sprint-08") ─→ 상주 (idle/active)
+             ─→ Task(QA, team_name: "sprint-08")     ─→ 상주 (idle/active)
+             (팀원 간 SendMessage 가능, 공유 TaskList)
+```
+
+#### 비교표
+
+| 항목 | 개별 위임 (Task Tool) | Agent Teams (TeamCreate) |
+|------|----------------------|-------------------------|
+| **생명주기** | 작업 완료 후 즉시 소멸 | 팀 해산(shutdown)까지 상주 |
+| **에이전트 간 통신** | 불가 (각각 독립) | SendMessage로 직접 대화 가능 |
+| **태스크 공유** | 불가 (각자 1개 작업만) | 공유 TaskList에서 claim/complete |
+| **태스크 의존성** | 불가 | blockedBy/blocks로 의존 관계 설정 |
+| **컨텍스트 유지** | 없음 (매번 새로 시작) | 팀 존속 기간 동안 유지 |
+| **병렬 작업** | 가능 (독립적) | 가능 (조율된 병렬) |
+| **비용** | 작업당 과금 | 상주 비용 + 작업 과금 |
+| **설정 복잡도** | 낮음 (Task 호출만) | 높음 (TeamCreate + 태스크 + 메시지) |
+| **관리 오버헤드** | 없음 | shutdown 관리, idle 상태 모니터링 필요 |
+
+#### 사용 시나리오별 권장 방식
+
+| 시나리오 | 권장 | 이유 |
+|---------|------|------|
+| **독립 문서 1개 작성** | 개별 위임 | 다른 에이전트와 소통 불필요, 단발 작업 |
+| **시스템 점검** | 개별 위임 | 읽기 전용, 독립적 확인 작업 |
+| **코드 리뷰** | 개별 위임 | TechLead 1명이 독립적으로 수행 |
+| **2-3개 독립 작업 병렬 처리** | 개별 위임 | 서로 의존 없는 작업은 개별이 효율적 |
+| **ISSUE 해결 (다수 파일 연쇄 수정)** | Agent Teams | RAG→Frontend→QA 순차 의존, 중간 소통 필요 |
+| **Sprint 작업 (5개+ 연관 태스크)** | Agent Teams | 공유 TaskList, 의존성 관리, 장기 협업 |
+| **E2E 기능 개발** | Agent Teams | Backend↔Frontend 양방향 소통 필수 |
+| **대규모 리팩토링** | Agent Teams | 여러 파일 동시 수정, 충돌 방지 조율 |
+
+#### 실제 프로젝트 적용 사례 (2026-02-08)
+
+**Agent Teams 사용 (Sprint 08 Day 3 메인 작업)**:
+```
+TeamCreate("hrkp-sprint-08")
+├── RAG Agent: ISSUE-011 entity_name 수정 + Graph Search 튜닝
+├── Frontend Agent: Graph 패널 UX 개선
+├── Backend Agent: Gateway 라우팅 검증 스크립트
+└── QA Agent: E2E 테스트 54건 작성
+→ 5개 태스크, 의존성 있음, 장시간 협업, 팀원 간 소통 활발
+→ 결과: 5/5 완료, ISSUE-011 해결
+```
+
+**개별 위임 사용 (마무리 작업)**:
+```
+Task(DevOps, "BuildKit 빌드 가이드 작성")  → 독립 문서 작업
+Task(Infra, "UAT 준비 상태 점검")           → 독립 점검 작업
+→ 서로 의존 없는 2개 독립 작업, 팀 구성 불필요
+→ 결과: 둘 다 완료 (빠르고 효율적)
+```
+
+#### 결정 플로우차트
+
+```mermaid
+flowchart TB
+    Q1{"작업이 3개 이상이고<br/>서로 의존 관계가<br/>있는가?"}
+    Q2{"에이전트 간<br/>중간 소통이<br/>필요한가?"}
+    Q3{"장시간 협업이<br/>필요한가?<br/>(30분+)"}
+
+    R1["Agent Teams<br/>(TeamCreate)"]
+    R2["개별 위임<br/>(Task Tool)"]
+
+    Q1 -->|"Yes"| R1
+    Q1 -->|"No"| Q2
+    Q2 -->|"Yes"| R1
+    Q2 -->|"No"| Q3
+    Q3 -->|"Yes"| R1
+    Q3 -->|"No"| R2
+```
+
+#### 비용 효율성 가이드
+
+```
+[개별 위임의 비용 구조]
+  Task 호출 → 작업 수행 → 결과 반환 → 종료
+  과금: 작업 시간만 (idle 비용 없음)
+  적합: 10분 미만 단발 작업
+
+[Agent Teams의 비용 구조]
+  TeamCreate → 팀원 소환 → 작업 수행 → idle 대기 → 추가 작업 → shutdown
+  과금: 작업 시간 + idle 대기 시간 (idle은 API 비용 없으나 프로세스 유지)
+  적합: 여러 태스크를 30분+ 연속 처리할 때
+
+[혼합 전략 (권장)]
+  Sprint 메인 작업 → Agent Teams (팀 협업)
+  독립 부가 작업 → 개별 위임 (빠른 처리)
+  문서/점검 → 개별 위임 (단발 완결)
+```
 
 ---
 

@@ -5,11 +5,11 @@
 
 ### Recent Commits
 ```
+7146f07 [FEAT] ISSUE-011 수정 + Agent Teams 도입 + E2E 테스트 추가
+b578875 [DOCS] 세션 컨텍스트 갱신 및 2/8 작업일지 추가
 2966e47 [DOCS] 일일 마무리 - 작업일지, 바이브로그, 문서 현행화
 cf93e02 [FIX] Gateway graph 라우팅 + Neo4j subgraph 양방향 탐색 + Frontend snake_case 매핑
 3e63561 [FEAT] Graph Search 3단계 매칭 + Source Type 배지 + Graph 시각화 패널
-e7947b5 [FIX] STORY-089 PG Sync datetime timezone 버그 수정 + UAT Part A/B 재검증 ALL PASS
-848049c [FIX] STORY-088/089 Neo4j 버그 수정, PG 동기화, 인프라 강화 + 테스트 942건 통과
 ```
 
 ## Work Log Status
