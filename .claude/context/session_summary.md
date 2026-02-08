@@ -1,4 +1,4 @@
-# Session Summary - 2026-02-08 12:51
+# Session Summary - 2026-02-08 19:04
 
 ## Commits This Session
 ```
@@ -9,14 +9,14 @@
 ```
 .claude/context/session_context.md
 .claude/context/session_summary.md
-.claude/settings.local.json
-CLAUDE.md
-PLAN.md
-README.md
-"docs/12_Agent_Teams_\355\231\234\354\232\251_\352\260\200\354\235\264\353\223\234.md"
-knowledge_service/Dockerfile
-knowledge_service/docs/04_testing/issues/ISSUE-011_entity_name_filename_bug.md
-knowledge_service/docs/06_deployment/ai_service_build_guide.md
+backlog/sprints/sprint-08.md
+backlog/stories/STORY-091-rrf-fusion-search-source-metadata-loss.md
+backlog/stories/STORY-092-document-download-link.md
+backlog/stories/STORY-093-content-viewer-modal.md
+backlog/stories/STORY-094-document-title-extraction.md
+backlog/stories/STORY-095-camelcase-snakecase-residual.md
+backlog/stories/STORY-096-rrf-metadata-merge-highlight.md
+backlog/stories/STORY-097-graph-rag-ab-evaluation.md
 ```
 
 ---

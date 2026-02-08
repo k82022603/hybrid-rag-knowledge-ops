@@ -5,11 +5,11 @@
 
 ### Recent Commits
 ```
+9656b29 [FIX] Dockerfile UID 근본 수정 + STORY-091/092/099 + 운영매뉴얼
 59b9df4 [FEAT] Neo4j subgraph 쿼리 Full-Text Index 전환
 3118007 [FIX] Graph Panel 시각화 최적화 + 세션 로그
 81009aa [DOCS] Neo4j 쿼리 최적화 문서 + UI 테스트 방법론 + subgraph CONTAINS 매칭
 4dfab47 [FIX] Frontend 빌드 인프라 3가지 문제 근본 해결
-b66000c [FIX] ISSUE-011 보강 + Docker 운영 매뉴얼 추가
 ```
 
 ## Work Log Status

@@ -186,5 +186,28 @@ work_logs/
 
 ---
 
+## 후속 확인 (19:00경)
+
+WSL `--shutdown` 후 재시작하여 메모리 상태 재확인.
+
+### 메모리 상태 (`free -h`)
+```
+               total        used        free      shared  buff/cache   available
+Mem:           7.6Gi       4.3Gi       2.1Gi        12Mi       1.6Gi       3.3Gi
+Swap:          2.0Gi       1.5Gi       525Mi
+```
+
+- **결과**: `.wslconfig` 메모리 증가 미적용 상태 (여전히 7.6GB)
+- **Swap 75% 사용**: 메모리 압박 상태 지속
+- **조치**: 사용자가 `.wslconfig`에서 `memory=12GB`, `swap=4GB` 설정 후 WSL 재시작 예정
+
+### 다음 복귀 시 확인사항
+1. `free -h`로 메모리 12GB 적용 확인
+2. `docker compose build ai-service` (Dockerfile UID 변경 반영)
+3. `docker compose up -d ai-service`
+4. 문서 적재 재시도 (5MB 이하 28개 우선)
+
+---
+
 *기록자: Claude Code (Opus 4.6)*
-*기록 시간: 2026-02-08 18:47 KST*
+*최종 업데이트: 2026-02-08 19:00 KST*
