@@ -60,6 +60,13 @@ const DEFAULT_NODE_COLOR = '#94a3b8';
 
 const ZOOM_STEP = 1.5;
 
+/** Node types to exclude from visualization (noise reduction) */
+const HIDDEN_NODE_TYPES = new Set(['Chunk', 'Knowledge']);
+
+/** Truncate label to max length */
+const truncateLabel = (label: string, maxLen = 16): string =>
+  label.length > maxLen ? label.slice(0, maxLen) + '…' : label;
+
 const GraphPanel: React.FC<GraphPanelProps> = ({ entityNames, onClose }) => {
   const [graphData, setGraphData] = useState<SubgraphData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -80,8 +87,8 @@ const GraphPanel: React.FC<GraphPanelProps> = ({ entityNames, onClose }) => {
       try {
         const response = await api.post('/graph/subgraph', {
           entity_name: entityNames[0],
-          depth: 2,
-          limit: 50,
+          depth: 1,
+          limit: 15,
         });
         setGraphData(response.data);
       } catch {
@@ -105,24 +112,43 @@ const GraphPanel: React.FC<GraphPanelProps> = ({ entityNames, onClose }) => {
     return () => observer.disconnect();
   }, []);
 
-  // Transform SubgraphData to react-force-graph format
+  // Transform SubgraphData to react-force-graph format (filter noise nodes)
   const forceGraphData = useMemo(() => {
     if (!graphData) return { nodes: [], links: [] };
+
+    // Filter out Chunk/Knowledge nodes for cleaner visualization
+    const visibleNodes = graphData.nodes.filter(
+      (n) => !HIDDEN_NODE_TYPES.has(n.type),
+    );
+    const visibleIds = new Set(visibleNodes.map((n) => n.id));
+
     return {
-      nodes: graphData.nodes.map((n) => ({
+      nodes: visibleNodes.map((n) => ({
         id: n.id,
         name: n.name || n.label || n.id,
         type: n.type,
         isCenter:
           n.name === graphData.center || n.label === graphData.center || n.id === graphData.center,
       })),
-      links: graphData.edges.map((e) => ({
-        source: e.source,
-        target: e.target,
-        label: e.type,
-      })),
+      links: graphData.edges
+        .filter((e) => visibleIds.has(e.source) && visibleIds.has(e.target))
+        .map((e) => ({
+          source: e.source,
+          target: e.target,
+          label: e.type,
+        })),
     };
   }, [graphData]);
+
+  // Configure force graph physics for better spacing
+  const handleEngineInit = useCallback(() => {
+    const fg = graphRef.current;
+    if (!fg) return;
+    // Increase charge repulsion for wider spacing
+    fg.d3Force('charge')?.strength(-300);
+    // Increase link distance
+    fg.d3Force('link')?.distance(80);
+  }, []);
 
   // Count edges connected to a given node
   const getNodeEdgeInfo = useCallback(
@@ -178,9 +204,9 @@ const GraphPanel: React.FC<GraphPanelProps> = ({ entityNames, onClose }) => {
   const paintNode = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (node: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
-      const label = node.name || node.id;
-      const fontSize = node.isCenter ? 14 / globalScale : 11 / globalScale;
-      const nodeRadius = node.isCenter ? 8 : 5;
+      const label = truncateLabel(node.name || node.id);
+      const fontSize = node.isCenter ? 13 / globalScale : 10 / globalScale;
+      const nodeRadius = node.isCenter ? 10 : 6;
       const color = NODE_COLORS[node.type] || DEFAULT_NODE_COLOR;
       const isSelected = selectedNode?.node.id === node.id;
 
@@ -229,7 +255,7 @@ const GraphPanel: React.FC<GraphPanelProps> = ({ entityNames, onClose }) => {
           </h3>
           {graphData && (
             <p className="text-2xs text-gray-500 dark:text-gray-400 truncate">
-              {graphData.node_count} nodes &middot; {graphData.center}
+              {forceGraphData.nodes.length} nodes &middot; {graphData.center}
             </p>
           )}
         </div>
@@ -241,6 +267,23 @@ const GraphPanel: React.FC<GraphPanelProps> = ({ entityNames, onClose }) => {
           <XMarkIcon className="h-4 w-4" />
         </button>
       </div>
+
+      {/* Legend */}
+      {graphData && !isLoading && (
+        <div className="flex flex-wrap gap-x-3 gap-y-0.5 px-4 py-1.5 border-b border-gray-100 dark:border-gray-700">
+          {Object.entries(NODE_COLORS)
+            .filter(([type]) => !HIDDEN_NODE_TYPES.has(type))
+            .map(([type, color]) => (
+              <span key={type} className="flex items-center gap-1">
+                <span
+                  className="w-2 h-2 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: color }}
+                />
+                <span className="text-2xs text-gray-500 dark:text-gray-400">{type}</span>
+              </span>
+            ))}
+        </div>
+      )}
 
       {/* Content */}
       <div ref={containerRef} className="flex-1 min-h-0 relative">
@@ -281,7 +324,10 @@ const GraphPanel: React.FC<GraphPanelProps> = ({ entityNames, onClose }) => {
               linkColor={() => '#cbd5e1'}
               linkDirectionalArrowLength={4}
               linkDirectionalArrowRelPos={1}
-              cooldownTicks={100}
+              linkWidth={0.8}
+              cooldownTicks={80}
+              onEngineStop={() => graphRef.current?.zoomToFit(300, 40)}
+              onEngineInit={handleEngineInit}
             />
 
             {/* Zoom Controls */}
