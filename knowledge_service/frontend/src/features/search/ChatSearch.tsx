@@ -62,8 +62,13 @@ const ChatSearch: React.FC = () => {
     if (source.graphContext?.relatedEntities?.length) {
       entities.push(...source.graphContext.relatedEntities);
     }
+    // ISSUE-011: title이 파일명인 경우 엔티티로 사용하지 않음
     if (entities.length === 0 && source.title) {
-      entities.push(source.title);
+      const isFilename = /\.\w{2,5}$/.test(source.title) &&
+        /\.(pdf|docx?|xlsx?|pptx?|txt|md|html?|csv|json|xml|hwp)$/i.test(source.title);
+      if (!isFilename) {
+        entities.push(source.title);
+      }
     }
     if (entities.length > 0) {
       setSelectedGraphEntities(entities);
