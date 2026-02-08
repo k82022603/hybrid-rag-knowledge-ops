@@ -18,6 +18,7 @@ import {
   ArrowsPointingOutIcon,
 } from '@heroicons/react/24/outline';
 import ForceGraph2D from 'react-force-graph-2d';
+import type { ForceGraphMethods } from 'react-force-graph-2d';
 import api from '@/services/api';
 import type { SubgraphData } from '../types';
 
@@ -65,7 +66,7 @@ const GraphPanel: React.FC<GraphPanelProps> = ({ entityNames, onClose }) => {
   const [error, setError] = useState<string | null>(null);
   const [selectedNode, setSelectedNode] = useState<SelectedNodeInfo | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const graphRef = useRef<{ zoomToFit: (ms?: number) => void; zoom: (k: number, ms?: number) => void } | null>(null);
+  const graphRef = useRef<ForceGraphMethods | undefined>(undefined);
   const [dimensions, setDimensions] = useState({ width: 400, height: 400 });
 
   // Fetch subgraph data when entityNames change
@@ -258,7 +259,7 @@ const GraphPanel: React.FC<GraphPanelProps> = ({ entityNames, onClose }) => {
         {graphData && !isLoading && forceGraphData.nodes.length > 0 && (
           <>
             <ForceGraph2D
-              ref={graphRef as React.Ref<never>}
+              ref={graphRef}
               graphData={forceGraphData}
               width={dimensions.width}
               height={dimensions.height}

@@ -1,18 +1,21 @@
+# syntax=docker/dockerfile:1
 # Stage 1: Build
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package.json package-lock.json* ./
+# Copy package files and npm config
+COPY package.json package-lock.json* .npmrc ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies with BuildKit cache mount for npm cache persistence
+# This prevents ETIMEDOUT errors by reusing cached packages across builds
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --prefer-offline --timeout=120000
 
 # Copy source code
 COPY . .
 
-# Build the application
+# Build the application (uses tsconfig.build.json which excludes test files)
 RUN npm run build
 
 # Stage 2: Production

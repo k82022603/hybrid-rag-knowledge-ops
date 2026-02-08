@@ -13,7 +13,7 @@
  * - 4.1.2 Name, Role, Value (Level A)
  * - 4.1.3 Status Messages (Level AA)
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import { BrowserRouter } from 'react-router-dom';

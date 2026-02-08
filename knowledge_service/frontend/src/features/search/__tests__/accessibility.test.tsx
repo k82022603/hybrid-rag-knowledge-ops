@@ -35,6 +35,7 @@ const mockAssistantMessage: Message = {
   sources: [
     {
       chunkId: 'chunk-1',
+      documentId: 'doc-chunk-1',
       content: 'Upload documentation content...',
       score: 0.95,
       metadata: { projectName: 'Upload Guide' },
@@ -44,6 +45,7 @@ const mockAssistantMessage: Message = {
 
 const mockSearchResult: SearchResultItem = {
   chunkId: 'result-1',
+  documentId: 'doc-result-1',
   content: 'This is the document content that matches the search query...',
   score: 0.87,
   metadata: {
@@ -52,6 +54,7 @@ const mockSearchResult: SearchResultItem = {
     category: {
       level1: 'Development',
       level2: 'API',
+      level3: 'REST',
     },
   },
 };
@@ -59,12 +62,14 @@ const mockSearchResult: SearchResultItem = {
 const mockSources: Source[] = [
   {
     chunkId: 'source-1',
+    documentId: 'doc-source-1',
     content: 'Source content 1',
     score: 0.92,
     metadata: { projectName: 'Document A' },
   },
   {
     chunkId: 'source-2',
+    documentId: 'doc-source-2',
     content: 'Source content 2',
     score: 0.85,
     metadata: { projectName: 'Document B' },
