@@ -672,15 +672,19 @@ class SearchService:
 
             # 엔티티가 있으면 엔티티 기반 검색
             if entity_names:
+                # ISSUE-011: matched_entities를 RETURN에 포함하여
+                # Graph 패널에서 실제 엔티티명을 사용할 수 있도록 함
                 cypher = """
                 MATCH (e)-[:MENTIONED_IN]->(k:Knowledge)-[:CONTAINS]->(c:Chunk)
                 WHERE (e.name IN $entity_names OR e.value IN $entity_names)
-                WITH c, k, count(e) AS entity_match_count
+                WITH c, k,
+                     collect(DISTINCT COALESCE(e.name, e.value)) AS matched_entities,
+                     count(e) AS entity_match_count
                 ORDER BY entity_match_count DESC
                 LIMIT $top_k
                 RETURN c.chunk_id AS chunk_id, c.content AS content,
                        k.knowledge_id AS document_id, k.title AS title,
-                       entity_match_count AS score
+                       entity_match_count AS score, matched_entities
                 """
                 params = {"entity_names": entity_names, "top_k": top_k}
             else:

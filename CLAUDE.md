@@ -2,7 +2,7 @@
 
 🤖 Hybrid RAG Knowledge Operations 프로젝트 개발 규칙
 
-**Version**: 2.23 | **Updated**: 2026-02-07
+**Version**: 2.24 | **Updated**: 2026-02-08
 
 ---
 
@@ -323,7 +323,11 @@ mcp__slack__slack_post_message
 
 ---
 
-## 🤖 AI 에이전트 목록 (12개)
+## 🤖 AI 에이전트 목록 (12개) - Agent Teams v2.0
+
+> **2026-02-08 전환**: 기존 서브에이전트(Task tool 일회성) → **Agent Teams(상주 팀원, 양방향 통신)** 전환 완료
+> - 팀 이름: `hrkp-sprint-08` | 공유 TaskList + SendMessage 기반 자율 협업
+> - 상세: [Agent Teams 활용 가이드 v2.0](./docs/12_Agent_Teams_활용_가이드.md)
 
 프로젝트 특화 에이전트들이 `.claude/agents/`에 정의되어 있습니다.
 

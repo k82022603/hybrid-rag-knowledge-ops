@@ -14,6 +14,7 @@ STORY-051: RAG 파이프라인 통합 (Day 2)
 STORY-057: 대화이력 + 스트리밍 구현
 """
 
+import re
 import time
 from typing import Any, Dict, List, Optional
 
@@ -157,11 +158,47 @@ def build_context_from_results(
     return "\n".join(context_parts), selected
 
 
+def _is_filename(value: str) -> bool:
+    """
+    값이 파일명 패턴인지 확인
+
+    Args:
+        value: 확인할 문자열
+
+    Returns:
+        파일명이면 True
+    """
+    return bool(re.search(r'\.\w{2,5}$', value))
+
+
+def _extract_entities_from_title(title: str) -> List[str]:
+    """
+    제목에서 엔티티로 사용할 수 있는 키워드 추출
+
+    파일명(예: "KMS_설계서.pdf")은 제외하고,
+    의미 있는 키워드(프로젝트명, 기술명 등)를 추출합니다.
+
+    Args:
+        title: 문서 제목
+
+    Returns:
+        추출된 키워드 목록
+    """
+    if not title or _is_filename(title):
+        return []
+
+    # 제목 자체가 유의미한 엔티티명일 수 있음
+    return [title]
+
+
 def build_sources_from_results(
     search_results: List[SearchResult],
 ) -> List[Dict[str, Any]]:
     """
     검색 결과에서 출처 정보 생성
+
+    ISSUE-011: 모든 소스에 graph_context.related_entities를 포함하여
+    Graph 패널에서 파일명 대신 실제 엔티티명을 사용하도록 개선.
 
     Args:
         search_results: 선택된 검색 결과 목록
@@ -189,13 +226,25 @@ def build_sources_from_results(
             ),
         }
 
-        # Graph 소스인 경우 관련 엔티티 정보 추가
-        if result.source == "graph":
-            matched_entities = result.metadata.get("matched_entities", [])
-            if matched_entities:
-                source_info["graph_context"] = {
-                    "related_entities": matched_entities,
-                }
+        # ISSUE-011: 모든 소스에 대해 graph_context 생성
+        # Graph 소스: matched_entities 사용 (Neo4j 쿼리에서 추출된 실제 엔티티)
+        # Vector/Keyword 소스: 메타데이터의 제목에서 엔티티 추출 (파일명 제외)
+        related_entities: List[str] = []
+
+        matched_entities = result.metadata.get("matched_entities", [])
+        if matched_entities:
+            # 파일명 패턴 필터링
+            related_entities = [e for e in matched_entities if e and not _is_filename(e)]
+
+        # matched_entities가 비어 있으면 제목에서 엔티티 후보 추출
+        if not related_entities:
+            title = result.metadata.get("title", "")
+            related_entities = _extract_entities_from_title(title)
+
+        if related_entities:
+            source_info["graph_context"] = {
+                "related_entities": related_entities,
+            }
 
         if doc_id not in seen_doc_ids:
             source_info["is_primary"] = True

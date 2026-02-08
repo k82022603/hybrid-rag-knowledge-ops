@@ -92,7 +92,7 @@ const ChatSearch: React.FC = () => {
 
   return (
     <div
-      className="flex flex-row bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden"
+      className="relative flex flex-row bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden"
       style={{ height: 'calc(100vh - 280px)', minHeight: '400px' }}
       data-testid="chat-search"
       role="region"
@@ -172,14 +172,24 @@ const ChatSearch: React.FC = () => {
         />
       </div>
 
-      {/* Right: Graph Panel (lg breakpoint and above) */}
+      {/* Right: Graph Panel - shown inline on md+, overlay on small screens */}
       {showGraphPanel && (
-        <div className="hidden lg:flex flex-[2] min-w-[300px] max-w-[500px]">
-          <GraphPanel
-            entityNames={selectedGraphEntities}
-            onClose={closeGraphPanel}
-          />
-        </div>
+        <>
+          {/* Inline panel for md and above */}
+          <div className="hidden md:flex flex-[2] min-w-[280px] max-w-[500px]">
+            <GraphPanel
+              entityNames={selectedGraphEntities}
+              onClose={closeGraphPanel}
+            />
+          </div>
+          {/* Overlay panel for smaller screens */}
+          <div className="md:hidden absolute inset-0 z-20">
+            <GraphPanel
+              entityNames={selectedGraphEntities}
+              onClose={closeGraphPanel}
+            />
+          </div>
+        </>
       )}
     </div>
   );
