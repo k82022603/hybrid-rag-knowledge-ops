@@ -72,6 +72,14 @@ RUN pip install --no-index --find-links=/build/wheels \
 # Verify Docling installation
 RUN pip show docling && python -c "import docling; print('Docling imported successfully')"
 
+# Pre-download RapidOCR models to avoid runtime downloads
+# These models are required for PDF OCR processing
+RUN python -c "\
+from rapidocr import RapidOCR; \
+engine = RapidOCR(); \
+print('RapidOCR models pre-downloaded successfully')" 2>/dev/null || \
+    echo "RapidOCR model pre-download skipped (non-critical)"
+
 # ---------------------------------------------------------------------------
 # Stage 2: Runtime - Lean production image
 # ---------------------------------------------------------------------------
@@ -86,9 +94,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user for security
-RUN groupadd -g 1001 appgroup && \
-    useradd -u 1001 -g appgroup -m -s /bin/bash appuser
+# Create non-root user for security (UID 1000 = match host user for bind mount compatibility)
+RUN groupadd -g 1000 appgroup && \
+    useradd -u 1000 -g appgroup -m -s /bin/bash appuser
 
 # Copy installed Python packages from builder
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
@@ -100,9 +108,10 @@ WORKDIR /app
 COPY src/ /app/src/
 COPY pyproject.toml /app/
 
-# Create necessary directories
-RUN mkdir -p /app/data /app/logs /app/tmp && \
-    chown -R appuser:appgroup /app
+# Create necessary directories + fix runtime-writable model dirs
+RUN mkdir -p /app/data /app/logs /app/tmp /app/.cache/huggingface && \
+    chown -R appuser:appgroup /app && \
+    chmod -R a+rw /usr/local/lib/python3.11/site-packages/rapidocr/models/ 2>/dev/null || true
 
 # Environment variables
 ENV PYTHONUNBUFFERED=1 \

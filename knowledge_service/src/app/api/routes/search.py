@@ -58,6 +58,7 @@ class SearchResult(BaseModel):
     document_id: str = Field(description="문서 ID")
     content: str = Field(description="청크 내용")
     score: float = Field(description="관련성 점수")
+    source_type: Optional[str] = Field(default=None, description="검색 소스 (vector, keyword, graph)")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="메타데이터")
 
 
@@ -206,6 +207,7 @@ async def hybrid_search(
                     document_id=r.document_id,
                     content=r.content,
                     score=r.score,
+                    source_type=getattr(r, "source", None) or r.metadata.get("search_source"),
                     metadata=r.metadata,
                 )
                 for r in result.get("results", [])
@@ -268,6 +270,7 @@ async def semantic_search(
                     document_id=r.document_id,
                     content=r.content,
                     score=r.score,
+                    source_type="vector",
                     metadata=r.metadata,
                 )
                 for r in result.get("results", [])
@@ -329,6 +332,7 @@ async def keyword_search(
                     document_id=r.document_id,
                     content=r.content,
                     score=r.score,
+                    source_type="keyword",
                     metadata=r.metadata,
                 )
                 for r in result.get("results", [])

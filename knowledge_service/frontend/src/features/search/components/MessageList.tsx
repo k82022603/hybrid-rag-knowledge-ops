@@ -17,13 +17,15 @@ export interface MessageListProps {
   onSuggestionClick?: (suggestion: string) => void;
   /** Callback when a graph source is clicked for visualization */
   onGraphSourceClick?: (source: Source) => void;
+  /** Callback when a source download is clicked */
+  onDownloadClick?: (source: Source) => void;
 }
 
 /** Default search suggestions for empty state */
 const SUGGESTIONS = [
-  'What is the document upload process?',
-  'Summarize the latest technical guidelines',
-  'How does the authentication system work?',
+  'MSA 전환 프로젝트 진행 현황을 알려줘',
+  '최신 기술 가이드라인을 요약해줘',
+  '문서 업로드 절차가 어떻게 되나요?',
 ];
 
 /**
@@ -36,15 +38,15 @@ const EmptyState: React.FC<{ onSuggestionClick?: (s: string) => void }> = ({
     <div className="text-center max-w-md">
       <SparklesIcon className="h-12 w-12 text-primary-300 dark:text-primary-600 mx-auto mb-4" />
       <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-        Knowledge Search Assistant
+        지식 검색 어시스턴트
       </h3>
       <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-        Ask questions about your knowledge base. I will search through documents
-        and provide relevant answers with source references.
+        지식 베이스에 대해 질문해 보세요. 문서를 검색하여
+        출처와 함께 관련 답변을 제공합니다.
       </p>
       <div className="space-y-2">
         <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
-          Try asking:
+          이런 질문을 해보세요:
         </p>
         {SUGGESTIONS.map((suggestion) => (
           <button
@@ -67,6 +69,7 @@ const MessageList: React.FC<MessageListProps> = ({
   messages,
   onSuggestionClick,
   onGraphSourceClick,
+  onDownloadClick,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -120,7 +123,7 @@ const MessageList: React.FC<MessageListProps> = ({
         aria-live="polite"
       >
         {messages.map((message) => (
-          <MessageBubble key={message.id} message={message} onGraphSourceClick={onGraphSourceClick} />
+          <MessageBubble key={message.id} message={message} onGraphSourceClick={onGraphSourceClick} onDownloadClick={onDownloadClick} />
         ))}
         <div ref={messagesEndRef} />
       </div>
@@ -132,7 +135,7 @@ const MessageList: React.FC<MessageListProps> = ({
           className="absolute bottom-4 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-gray-800/80 dark:bg-gray-200/80 dark:text-gray-800 rounded-full shadow-lg hover:bg-gray-900/90 dark:hover:bg-gray-100/90 transition-colors backdrop-blur-sm z-10"
           aria-label="Scroll to latest message"
         >
-          Scroll to bottom
+          최신 메시지로 이동
         </button>
       )}
     </div>

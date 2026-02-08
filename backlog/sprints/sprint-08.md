@@ -21,7 +21,8 @@ Key Objectives:
 1. UAT Part B 시나리오 검증 (PPTX 업로드 -> 청킹 -> 임베딩 -> Hybrid Search)
 2. Gateway Keycloak SSO 라우팅 수정
 3. Terminal Retriever + 성능 측정 도구 개발
-4. 발견된 이슈 3건 백로그 등록 및 추적
+4. 발견된 이슈 3건 백로그 등록 및 추적 (STORY-088~090)
+5. 추가 발견 이슈 5건 백로그 등록 (STORY-091~095, 2026-02-08)
 
 ---
 
@@ -73,6 +74,20 @@ Key Objectives:
 | P3 | STORY-090 | SCRUM-86 | PERF: Hybrid Search 984ms > 500ms Target (CPU BGE-M3 Bottleneck) | 2 | RAG/Infra | To Do |
 
 **Subtotal**: 2 pts (1 Story)
+
+### Discovered Issues (2026-02-08) - Backlog
+
+| Priority | ID | Jira | Title | Points | Assignee | Status |
+|----------|-----|------|-------|--------|----------|--------|
+| P1 | STORY-091 | - | BUG: RRF Fusion search_source 메타데이터 유실 (수정 완료) | 2 | RAG/Frontend | **Done** |
+| P1 | STORY-092 | - | FEAT: 검색 결과 원본 문서 다운로드 링크 | 5 | Backend/Frontend | To Do |
+| P1 | STORY-096 | - | FEAT: RRF Metadata 병합 + 검색어 하이라이팅 | 5 | RAG/Frontend | To Do |
+| P2 | STORY-093 | - | FEAT: 청크 전문 조회 Content Viewer 모달 | 3 | Frontend/RAG | To Do |
+| P2 | STORY-094 | - | BUG: 문서 제목이 파일명으로만 표시 | 3 | ETL/RAG | To Do |
+| P2 | STORY-095 | - | BUG: camelCase/snake_case 불일치 잔여 4건 | 3 | Backend/Frontend | To Do |
+| P2 | STORY-097 | - | TEST: Graph RAG 효과성 A/B 비교 평가 | 5 | QA/RAG | To Do (데이터 확보 후) |
+
+**Subtotal**: 26 pts (7 Stories, 1 Done)
 
 ---
 
@@ -283,6 +298,15 @@ During UAT Part B performance measurement, Hybrid Search end-to-end latency meas
 6. **Neo4j MERGE ON CREATE**: Cypher syntax compatibility (STORY-088)
 7. **PG-AI Service Document Sync**: Status sync not implemented (STORY-089)
 8. **Hybrid Search 984ms**: CPU BGE-M3 bottleneck, expected GPU resolution (STORY-090)
+
+### Discovered Issues (2026-02-08)
+9. **RRF Fusion search_source 메타데이터 유실**: Graph 결과가 Vector로 표시 (STORY-091, **수정 완료**)
+10. **원본 문서 다운로드 링크 부재**: MinIO presigned URL 엔드포인트 필요 (STORY-092)
+11. **청크 전문 조회 Content Viewer 부재**: 검색 결과 클릭 시 전문 확인 불가 (STORY-093)
+12. **문서 제목 파일명 표시**: ETL에서 의미 있는 제목 추출 필요 (STORY-094)
+13. **camelCase/snake_case 잔여 불일치 4건**: API 네이밍 컨벤션 통일 필요 (STORY-095)
+14. **RRF Metadata 병합 + 검색어 하이라이팅**: Keyword BM25 highlight 보존 및 UI 렌더링 (STORY-096)
+15. **Graph RAG A/B 비교 평가**: 충분한 데이터 임베딩 후 Graph ON/OFF RAGAS 비교 (STORY-097)
 
 ---
 

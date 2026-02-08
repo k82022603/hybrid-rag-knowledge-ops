@@ -81,6 +81,13 @@ const ChatSearch: React.FC = () => {
     setSelectedGraphEntities([]);
   }, []);
 
+  /** Handle document download - open API URL directly for FileResponse/Redirect */
+  const handleDownloadClick = useCallback((source: Source) => {
+    if (!source.documentId) return;
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+    window.open(`${baseUrl}/documents/${source.documentId}/download`, '_blank');
+  }, []);
+
   // Generate status message for screen readers
   const getStatusMessage = () => {
     if (isConnecting) return 'Connecting to search service...';
@@ -120,6 +127,7 @@ const ChatSearch: React.FC = () => {
             setQuery(suggestion);
           }}
           onGraphSourceClick={handleGraphSourceClick}
+          onDownloadClick={handleDownloadClick}
         />
 
         {/* Streaming Indicator + Cancel Button */}

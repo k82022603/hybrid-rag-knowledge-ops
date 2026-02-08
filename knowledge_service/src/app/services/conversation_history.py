@@ -399,7 +399,7 @@ class ConversationHistoryService:
     def __init__(
         self,
         store: Optional[ConversationStore] = None,
-        max_context_turns: int = 5,
+        max_context_turns: int = 10,
         max_context_chars: int = 4000,
     ):
         """

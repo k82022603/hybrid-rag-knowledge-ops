@@ -14,6 +14,7 @@ import {
   CircleStackIcon,
   MagnifyingGlassIcon,
   ShareIcon,
+  ArrowDownTrayIcon,
 } from '@heroicons/react/24/outline';
 import type { Source } from '../types';
 
@@ -24,6 +25,8 @@ export interface SourceCitationProps {
   maxDisplay?: number;
   /** Callback when a graph source's "Graph" button is clicked */
   onGraphSourceClick?: (source: Source) => void;
+  /** Callback when a source's download button is clicked */
+  onDownloadClick?: (source: Source) => void;
 }
 
 /** Source type badge configuration */
@@ -79,12 +82,17 @@ function getSourceTitle(source: Source): string {
 }
 
 /**
- * Score color based on relevance.
+ * Relevance level label and color based on score.
  */
-function getScoreColor(score: number): string {
-  if (score >= 0.7) return 'text-green-600 dark:text-green-400';
-  if (score >= 0.4) return 'text-primary-600 dark:text-primary-400';
-  return 'text-gray-500 dark:text-gray-400';
+function getRelevanceInfo(score: number): {
+  label: string;
+  className: string;
+} {
+  if (score >= 0.7)
+    return { label: '상', className: 'text-green-600 dark:text-green-400' };
+  if (score >= 0.4)
+    return { label: '중', className: 'text-primary-600 dark:text-primary-400' };
+  return { label: '하', className: 'text-gray-500 dark:text-gray-400' };
 }
 
 /**
@@ -94,6 +102,7 @@ const SourceCitation: React.FC<SourceCitationProps> = ({
   sources,
   maxDisplay = 5,
   onGraphSourceClick,
+  onDownloadClick,
 }) => {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [showAll, setShowAll] = useState(false);
@@ -110,7 +119,7 @@ const SourceCitation: React.FC<SourceCitationProps> = ({
   return (
     <div className="mt-2 space-y-1.5" data-testid="source-citation">
       <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
-        Sources ({sources.length}):
+        출처 ({sources.length}):
       </p>
       <div className="space-y-1">
         {displayedSources.map((source, idx) => {
@@ -125,7 +134,7 @@ const SourceCitation: React.FC<SourceCitationProps> = ({
                 onClick={() => toggleExpand(idx)}
                 className="w-full flex items-center gap-1.5 px-2.5 py-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-xs text-left hover:bg-gray-100 dark:hover:bg-gray-750 transition-colors"
                 aria-expanded={isExpanded}
-                aria-label={`출처${sourceIndex}: ${title}, ${source.sourceType ? source.sourceType + ' 검색,' : ''} 관련성 ${(source.score * 100).toFixed(0)}%`}
+                aria-label={`출처${sourceIndex}: ${title}, ${source.sourceType ? source.sourceType + ' 검색,' : ''} 연관도 ${getRelevanceInfo(source.score).label} (${(source.score * 100).toFixed(0)}%)`}
               >
                 <DocumentTextIcon
                   className="h-3.5 w-3.5 text-primary-500 flex-shrink-0"
@@ -141,9 +150,9 @@ const SourceCitation: React.FC<SourceCitationProps> = ({
                   {title}
                 </span>
                 <span
-                  className={`flex-shrink-0 font-mono ${getScoreColor(source.score)}`}
+                  className={`flex-shrink-0 font-mono text-2xs ${getRelevanceInfo(source.score).className}`}
                 >
-                  {(source.score * 100).toFixed(0)}%
+                  연관도 {getRelevanceInfo(source.score).label} ({(source.score * 100).toFixed(0)}%)
                 </span>
                 {/* Graph view button */}
                 {source.sourceType === 'graph' && onGraphSourceClick && (
@@ -164,6 +173,27 @@ const SourceCitation: React.FC<SourceCitationProps> = ({
                     aria-label={`View graph for ${title}`}
                   >
                     Graph
+                  </span>
+                )}
+                {/* Download button */}
+                {source.documentId && onDownloadClick && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDownloadClick(source);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.stopPropagation();
+                        onDownloadClick(source);
+                      }
+                    }}
+                    className="flex-shrink-0 px-1.5 py-0.5 text-2xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                    aria-label={`${title} 원본 다운로드`}
+                  >
+                    <ArrowDownTrayIcon className="h-2.5 w-2.5 inline" aria-hidden="true" />
                   </span>
                 )}
                 {source.content &&

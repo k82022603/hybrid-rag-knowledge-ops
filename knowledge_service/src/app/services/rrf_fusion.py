@@ -474,6 +474,15 @@ class RRFFusion:
                 k: round(v, 6)
                 for k, v in source_scores_map.get(chunk_id, {}).items()
             }
+
+            # primary_source 결정: 가장 높은 RRF 점수를 가진 소스
+            chunk_source_scores = source_scores_map.get(chunk_id, {})
+            if chunk_source_scores:
+                primary_source = max(chunk_source_scores, key=chunk_source_scores.get)
+                if hasattr(result, "source"):
+                    result.source = primary_source
+                result.metadata["search_source"] = primary_source
+
             fused_results.append(result)
 
         logger.info(

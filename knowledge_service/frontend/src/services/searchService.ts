@@ -36,9 +36,12 @@ export interface SearchResult {
   documentId: string;
   content: string;
   score: number;
+  title?: string;
+  sourceType?: string;
   metadata: {
     documentType?: string;
     projectName?: string;
+    title?: string;
     category?: {
       level1: string;
       level2: string;
@@ -78,11 +81,58 @@ export interface StreamSearchOptions {
  */
 export const searchService = {
   /**
-   * Keyword search (synchronous)
+   * Keyword search (synchronous) - Hybrid 검색 (Vector + Keyword + Graph RRF 융합)
    */
   async search(params: SearchQuery): Promise<SearchResponse> {
-    const response = await api.post<SearchResponse>('/search', params);
-    return response.data;
+    // Backend uses /search/hybrid with SearchRequest schema
+    // Convert camelCase filter keys to snake_case for backend compatibility
+    const filters = params.filters;
+    const snakeFilters = filters ? {
+      document_type: filters.documentType || undefined,
+      project_name: filters.projectName || undefined,
+      date_from: filters.dateFrom || undefined,
+      date_to: filters.dateTo || undefined,
+    } : null;
+
+    const requestBody = {
+      query: params.query,
+      top_k: params.pageSize ?? 10,
+      filters: snakeFilters,
+      useGraph: true,
+      useVector: true,
+    };
+
+    const response = await api.post('/search/hybrid', requestBody);
+    const data = response.data;
+
+    // Map backend snake_case response to frontend camelCase
+    return {
+      query: data.query,
+      answer: data.answer,
+      results: (data.results ?? []).map((r: Record<string, unknown>) => {
+        const meta = (r.metadata ?? {}) as Record<string, unknown>;
+        return {
+          chunkId: r.chunk_id ?? r.chunkId ?? '',
+          documentId: r.document_id ?? r.documentId ?? '',
+          content: r.content ?? '',
+          score: r.score ?? 0,
+          title: meta.title as string | undefined,
+          sourceType: (r.source_type ?? meta.search_source ?? r.sourceType) as string | undefined,
+          metadata: {
+            documentType: meta.document_type as string | undefined,
+            projectName: meta.project_name as string | undefined,
+            title: meta.title as string | undefined,
+            summary: meta.summary as string | undefined,
+          },
+          graphContext: r.graph_context ?? r.graphContext ?? (
+            (meta.matched_entities as string[] | undefined)?.length
+              ? { relatedEntities: meta.matched_entities as string[], community: meta.community as string | undefined }
+              : undefined
+          ),
+        };
+      }),
+      totalCount: data.total ?? data.totalCount ?? 0,
+    };
   },
 
   /**
@@ -143,6 +193,15 @@ export const searchService = {
    */
   async findExperts(topic: string, depth = 2, limit = 5) {
     const response = await api.post('/graph/experts', { topic, depth, limit });
+    return response.data;
+  },
+
+  /**
+   * Get document download URL
+   * Returns MinIO presigned URL for the original document
+   */
+  async getDocumentDownloadUrl(documentId: string): Promise<{ download_url: string; filename: string }> {
+    const response = await api.get(`/documents/${documentId}/download`);
     return response.data;
   },
 };

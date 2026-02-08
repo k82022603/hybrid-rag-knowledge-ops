@@ -5,11 +5,11 @@
 
 ### Recent Commits
 ```
-64106bd [DOCS] Dockerfile BuildKit 최적화 + 빌드 가이드 + Agent Teams 비교 문서화
-7146f07 [FEAT] ISSUE-011 수정 + Agent Teams 도입 + E2E 테스트 추가
-b578875 [DOCS] 세션 컨텍스트 갱신 및 2/8 작업일지 추가
-2966e47 [DOCS] 일일 마무리 - 작업일지, 바이브로그, 문서 현행화
-cf93e02 [FIX] Gateway graph 라우팅 + Neo4j subgraph 양방향 탐색 + Frontend snake_case 매핑
+59b9df4 [FEAT] Neo4j subgraph 쿼리 Full-Text Index 전환
+3118007 [FIX] Graph Panel 시각화 최적화 + 세션 로그
+81009aa [DOCS] Neo4j 쿼리 최적화 문서 + UI 테스트 방법론 + subgraph CONTAINS 매칭
+4dfab47 [FIX] Frontend 빌드 인프라 3가지 문제 근본 해결
+b66000c [FIX] ISSUE-011 보강 + Docker 운영 매뉴얼 추가
 ```
 
 ## Work Log Status

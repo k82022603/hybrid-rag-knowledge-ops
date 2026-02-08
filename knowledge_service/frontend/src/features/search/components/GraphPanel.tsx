@@ -140,15 +140,15 @@ const GraphPanel: React.FC<GraphPanelProps> = ({ entityNames, onClose }) => {
     };
   }, [graphData]);
 
-  // Configure force graph physics for better spacing
-  const handleEngineInit = useCallback(() => {
+  // Configure force graph physics for better spacing (applied when graphData changes)
+  useEffect(() => {
     const fg = graphRef.current;
-    if (!fg) return;
+    if (!fg || !graphData) return;
     // Increase charge repulsion for wider spacing
     fg.d3Force('charge')?.strength(-300);
     // Increase link distance
     fg.d3Force('link')?.distance(80);
-  }, []);
+  }, [graphData]);
 
   // Count edges connected to a given node
   const getNodeEdgeInfo = useCallback(
@@ -327,7 +327,6 @@ const GraphPanel: React.FC<GraphPanelProps> = ({ entityNames, onClose }) => {
               linkWidth={0.8}
               cooldownTicks={80}
               onEngineStop={() => graphRef.current?.zoomToFit(300, 40)}
-              onEngineInit={handleEngineInit}
             />
 
             {/* Zoom Controls */}

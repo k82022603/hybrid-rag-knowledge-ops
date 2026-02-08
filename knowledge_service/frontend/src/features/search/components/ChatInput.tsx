@@ -40,7 +40,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
   onClear,
   isLoading = false,
   showClear = false,
-  placeholder = 'Ask a question...',
+  placeholder = '질문을 입력하세요...',
 }) => {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -77,8 +77,8 @@ const ChatInput: React.FC<ChatInputProps> = ({
             type="button"
             onClick={onClear}
             className="flex-shrink-0 p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-            title="Clear conversation"
-            aria-label="Clear conversation"
+            title="대화 초기화"
+            aria-label="대화 초기화"
           >
             <ArrowPathIcon className="h-5 w-5" />
           </button>
@@ -117,7 +117,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         </button>
       </form>
       <p className="mt-2 text-2xs text-gray-400 dark:text-gray-500 text-center">
-        Powered by Hybrid RAG - Press Enter to send, Shift+Enter for new line
+        Hybrid RAG 기반 검색 - Enter로 전송, Shift+Enter로 줄바꿈
       </p>
     </div>
   );

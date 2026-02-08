@@ -359,8 +359,10 @@ services:
       - HF_HOME=/app/.cache/huggingface
       - TRANSFORMERS_CACHE=/app/.cache/huggingface/hub
     volumes:
-      # BGE-M3 임베딩 모델 캐시 마운트 (6.4GB, 다운로드 없이 로컬 사용)
-      - /home/claude/.cache/huggingface:/app/.cache/huggingface:ro
+      # HuggingFace 모델 캐시 마운트 (BGE-M3 + docling 레이아웃 모델)
+      - /home/claude/.cache/huggingface:/app/.cache/huggingface
+      # 초기 적재용 문서 데이터 (InitialDataLoader 사용)
+      - ../../knowledge_data:/app/knowledge_data:ro
     depends_on:
       elasticsearch:
         condition: service_healthy

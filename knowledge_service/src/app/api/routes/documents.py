@@ -12,8 +12,10 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
+from pathlib import Path
+
 from fastapi import APIRouter, Form, HTTPException, Query, UploadFile, status
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -26,7 +28,7 @@ from app.models.document import (
     DocumentStatus,
     DocumentStatusResponse,
 )
-from app.services.storage import upload_file
+from app.services.storage import get_file_url, upload_file
 
 logger = get_logger(__name__)
 
@@ -961,6 +963,122 @@ async def process_pending_documents(
         "message": f"{len(pending_docs)}개 문서 처리가 시작되었습니다",
         "document_ids": [str(doc.get("document_id")) for doc in pending_docs],
     }
+
+
+# ============================================================================
+# Download endpoint
+# ============================================================================
+
+
+@router.get(
+    "/{document_id}/download",
+    summary="원본 문서 다운로드 URL 조회",
+    description="문서 ID로 원본 파일의 다운로드 URL을 반환합니다 (MinIO presigned URL)",
+)
+async def download_document(document_id: UUID):
+    """
+    원본 문서 다운로드 URL 반환
+
+    1. In-memory 또는 PostgreSQL에서 문서 조회
+    2. storage_path에서 bucket/object_name 추출
+    3. MinIO presigned URL 생성 (1시간 유효)
+
+    Args:
+        document_id: 문서 UUID
+
+    Returns:
+        download_url, filename 포함 JSON
+
+    Raises:
+        HTTPException 404: 문서를 찾을 수 없음
+    """
+    doc_record = _document_store.get(document_id)
+
+    # Fallback 1: PostgreSQL
+    if doc_record is None:
+        try:
+            from app.services.document_repository import get_document_repository
+
+            repo = await get_document_repository()
+            doc_record = await repo.get(document_id)
+        except Exception as e:
+            logger.warning("PostgreSQL query failed: %s", e)
+
+    # Fallback 2: Elasticsearch 청크 메타데이터에서 파일 정보 추출
+    if doc_record is None:
+        try:
+            from app.core.config import settings as app_settings
+            from elasticsearch import AsyncElasticsearch
+
+            es = AsyncElasticsearch(hosts=[app_settings.elasticsearch_url])
+            try:
+                es_resp = await es.search(
+                    index=app_settings.elasticsearch_index,
+                    body={
+                        "query": {"term": {"document_id.keyword": str(document_id)}},
+                        "size": 1,
+                        "_source": ["metadata", "document_id"],
+                    },
+                )
+                hits = es_resp.get("hits", {}).get("hits", [])
+                if hits:
+                    meta = hits[0].get("_source", {}).get("metadata", {})
+                    title = meta.get("title", "document")
+                    doc_record = {
+                        "filename": title,
+                        "storage_path": "",
+                    }
+                    logger.info("Document %s found via ES chunk metadata: %s", document_id, title)
+            finally:
+                await es.close()
+        except Exception as e:
+            logger.warning("Elasticsearch fallback failed: %s", e)
+
+    if doc_record is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"문서를 찾을 수 없습니다: {document_id}",
+        )
+
+    storage_path = doc_record.get("storage_path", "")
+    filename = doc_record.get("filename", doc_record.get("original_filename", "document"))
+
+    # storage_path 파싱: "minio://bucket/object_name" 또는 로컬 경로
+    if storage_path.startswith("minio://"):
+        # minio://documents/uuid/filename.pdf → bucket="documents", object_name="uuid/filename.pdf"
+        parts = storage_path[len("minio://"):]
+        bucket = parts.split("/", 1)[0]
+        object_name = parts.split("/", 1)[1] if "/" in parts else ""
+    else:
+        # 로컬 저장소인 경우 document_id/filename으로 구성
+        bucket = DOCUMENTS_BUCKET
+        object_name = f"{document_id}/{filename}"
+
+    try:
+        download_url = await get_file_url(bucket=bucket, object_name=object_name)
+    except Exception as e:
+        logger.error("Failed to generate download URL for %s: %s", document_id, e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="다운로드 URL 생성에 실패했습니다",
+        )
+
+    # 로컬 파일 경로인 경우 직접 FileResponse로 반환
+    if not download_url.startswith("http"):
+        local_path = Path(download_url)
+        if local_path.exists() and local_path.is_file():
+            return FileResponse(
+                path=str(local_path),
+                filename=filename,
+                media_type="application/octet-stream",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"파일이 서버에 존재하지 않습니다: {filename}",
+        )
+
+    # MinIO presigned URL인 경우 브라우저 리다이렉트
+    return RedirectResponse(url=download_url, status_code=302)
 
 
 # ============================================================================

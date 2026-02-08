@@ -30,6 +30,8 @@ export interface MessageBubbleProps {
   message: Message;
   /** Callback when a graph source is clicked for visualization */
   onGraphSourceClick?: (source: Source) => void;
+  /** Callback when a source download is clicked */
+  onDownloadClick?: (source: Source) => void;
 }
 
 /** Remark/Rehype plugin configuration (stable references) */
@@ -40,7 +42,7 @@ const rehypePlugins = [rehypeHighlight];
  * MessageBubble component for chat search.
  * Displays user messages on the right and AI messages on the left.
  */
-const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onGraphSourceClick }) => {
+const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onGraphSourceClick, onDownloadClick }) => {
   const isUser = message.role === 'user';
   const [copied, setCopied] = useState(false);
 
@@ -129,7 +131,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({ message, onGraphSourceCli
 
         {/* Source Citations */}
         {!isUser && message.sources && message.sources.length > 0 && (
-          <SourceCitation sources={message.sources} onGraphSourceClick={onGraphSourceClick} />
+          <SourceCitation sources={message.sources} onGraphSourceClick={onGraphSourceClick} onDownloadClick={onDownloadClick} />
         )}
 
         {/* Timestamp */}

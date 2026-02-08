@@ -704,9 +704,9 @@ class InitialDataLoader:
                             e,
                         )
 
-                # Step 6: 저장 (Elasticsearch + Neo4j)
+                # Step 6: 저장 (PostgreSQL → Elasticsearch → Neo4j)
                 document_id = str(uuid4())
-                await self._store_document(
+                effective_doc_id = await self._store_document(
                     document_id=document_id,
                     file_info=file_info,
                     parsed_doc=parsed_doc,
@@ -716,14 +716,14 @@ class InitialDataLoader:
                     metadata=metadata,
                 )
 
-                result.document_id = document_id
+                result.document_id = effective_doc_id
                 result.status = LoadStatus.SUCCESS
                 result.processing_time_ms = (time.monotonic() - start_time) * 1000
 
                 logger.info(
                     "File processed successfully: %s (doc_id=%s, chunks=%d, entities=%d, time=%.1fms)",
                     file_info.file_name,
-                    document_id[:8],
+                    effective_doc_id[:8],
                     result.chunk_count,
                     result.entity_count,
                     result.processing_time_ms,
@@ -1004,24 +1004,44 @@ class InitialDataLoader:
         embeddings: Optional[List[Any]],
         entities: List[Any],
         metadata: Dict[str, Any],
-    ) -> None:
+    ) -> str:
         """문서 데이터를 저장소에 적재
 
-        Elasticsearch (청크 + 벡터) 및 Neo4j (엔티티 + 관계)에 저장합니다.
+        PostgreSQL (SSOT) → Elasticsearch (청크 + 벡터) → Neo4j (엔티티 + 관계)
+        순서로 저장합니다. PG에서 생성된 document_id를 ES/Neo4j에 전달하여
+        ID 정합성을 보장합니다. (STORY-099)
+
         저장소가 사용 불가능한 경우 로깅 후 건너뜁니다.
 
         Args:
-            document_id: 문서 ID
+            document_id: 문서 ID (초기 UUID)
             file_info: 파일 정보
             parsed_doc: 파싱된 문서
             chunks: 청크 리스트
             embeddings: 임베딩 리스트 (선택)
             entities: 엔티티 리스트
             metadata: 메타데이터 딕셔너리
+
+        Returns:
+            실제 저장된 document_id (PG 우선)
         """
+        # STORY-099: metadata.title에 실제 파일명 보장
+        if not metadata.get("title") or metadata["title"] == "untitled":
+            metadata["title"] = file_info.file_name
+
+        # PostgreSQL 저장 (SSOT - 가장 먼저 저장)
+        pg_doc_id = await self._store_to_postgresql(
+            document_id=document_id,
+            file_info=file_info,
+            chunks=chunks,
+            metadata=metadata,
+        )
+        # PG 저장 성공 시 PG ID 사용, 실패 시 원래 UUID 유지
+        effective_doc_id = pg_doc_id or document_id
+
         # Elasticsearch 저장
         await self._store_to_elasticsearch(
-            document_id=document_id,
+            document_id=effective_doc_id,
             chunks=chunks,
             embeddings=embeddings,
             metadata=metadata,
@@ -1029,12 +1049,73 @@ class InitialDataLoader:
 
         # Neo4j 저장
         await self._store_to_neo4j(
-            document_id=document_id,
+            document_id=effective_doc_id,
             file_info=file_info,
             chunks=chunks,
             entities=entities,
             metadata=metadata,
         )
+
+        return effective_doc_id
+
+    async def _store_to_postgresql(
+        self,
+        document_id: str,
+        file_info: FileInfo,
+        chunks: List[Any],
+        metadata: Dict[str, Any],
+    ) -> Optional[str]:
+        """PostgreSQL documents 테이블에 문서 레코드 저장 (SSOT)
+
+        STORY-099: InitialDataLoader에서도 PG에 문서를 등록하여
+        ES/Neo4j document_id와 PG id의 정합성을 보장합니다.
+
+        Args:
+            document_id: 문서 UUID
+            file_info: 파일 정보
+            chunks: 청크 리스트 (chunk_count 계산용)
+            metadata: 메타데이터 딕셔너리
+
+        Returns:
+            저장된 document_id (성공 시) 또는 None (실패 시)
+        """
+        try:
+            from app.services.document_repository import get_document_repository
+
+            repo = await get_document_repository()
+
+            # document_repository.save()에 맞는 dict 구성
+            doc_record = {
+                "document_id": document_id,
+                "filename": metadata.get("title", file_info.file_name),
+                "format": file_info.extension.lstrip(".") if file_info.extension else "unknown",
+                "size_bytes": file_info.file_size,
+                "storage_path": str(file_info.file_path),
+                "status": "completed",
+                "metadata": metadata,
+                "created_at": file_info.modified_at or datetime.utcnow(),
+            }
+
+            await repo.save(doc_record)
+
+            logger.info(
+                "PostgreSQL document saved: doc_id=%s, title=%s",
+                document_id[:8],
+                doc_record["filename"],
+            )
+            return document_id
+
+        except ImportError:
+            logger.warning(
+                "asyncpg not available, skipping PostgreSQL storage for doc_id=%s",
+                document_id[:8],
+            )
+            return None
+        except Exception as e:
+            logger.warning(
+                "PostgreSQL storage failed (non-critical): %s", e
+            )
+            return None
 
     async def _store_to_elasticsearch(
         self,

@@ -829,7 +829,10 @@ class SearchService:
 
             # Primary source: 가장 높은 순위(낮은 rank 숫자) 소스로 결정
             if ranks:
-                result.source = min(ranks, key=ranks.get)
+                primary_source = min(ranks, key=ranks.get)
+                result.source = primary_source
+                # metadata.search_source도 함께 갱신 (프론트엔드 전달용)
+                result.metadata["search_source"] = primary_source
 
             fused_results.append(result)
 
@@ -939,7 +942,7 @@ class SearchService:
 
             result = SearchResult(
                 chunk_id=hit.get("_id", str(uuid4())),
-                document_id=str(metadata.get("document_id", "")),
+                document_id=str(src.get("document_id", "") or metadata.get("document_id", "")),
                 content=src.get("text", ""),
                 score=float(hit.get("_score", 0.0)),
                 source=source,

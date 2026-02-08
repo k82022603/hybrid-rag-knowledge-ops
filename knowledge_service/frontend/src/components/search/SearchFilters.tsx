@@ -1,7 +1,7 @@
 /**
  * SearchFilters - 검색 필터 컴포넌트
  *
- * 문서 유형, 프로젝트, 날짜 범위 필터링
+ * 문서 유형, 날짜 범위 필터링
  * Tailwind CSS 기반
  */
 import { useCallback } from 'react';
@@ -20,20 +20,14 @@ interface SearchFiltersProps {
 }
 
 const DOCUMENT_TYPES = [
-  { value: '', label: 'All Types' },
-  { value: 'technical', label: 'Technical' },
-  { value: 'guide', label: 'Guide' },
-  { value: 'manual', label: 'Manual' },
-  { value: 'report', label: 'Report' },
-  { value: 'policy', label: 'Policy' },
-  { value: 'meeting', label: 'Meeting Notes' },
-];
-
-const PROJECTS = [
-  { value: '', label: 'All Projects' },
-  { value: 'project-a', label: 'Project A' },
-  { value: 'project-b', label: 'Project B' },
-  { value: 'project-c', label: 'Project C' },
+  { value: '', label: '전체' },
+  { value: 'txt', label: 'TXT' },
+  { value: 'pdf', label: 'PDF' },
+  { value: 'pptx', label: 'PPTX' },
+  { value: 'docx', label: 'DOCX' },
+  { value: 'xlsx', label: 'XLSX' },
+  { value: 'hwp', label: 'HWP' },
+  { value: 'md', label: 'Markdown' },
 ];
 
 /**
@@ -59,33 +53,33 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ filters, onFilterChange }
   return (
     <div
       role="search"
-      aria-label="Search filters"
+      aria-label="검색 필터"
       className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4"
       data-testid="search-filters"
     >
       <div className="flex items-center justify-between mb-3">
-        <h3 id="filters-heading" className="text-sm font-medium text-gray-900 dark:text-white">Filters</h3>
+        <h3 id="filters-heading" className="text-sm font-medium text-gray-900 dark:text-white">필터</h3>
         {hasFilters && (
           <button
             onClick={handleClear}
             className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-md px-1"
-            aria-label="Clear all filters"
+            aria-label="모든 필터 초기화"
             data-testid="clear-all-filters"
           >
             <XMarkIcon className="h-3.5 w-3.5" aria-hidden="true" />
-            <span>Clear all</span>
+            <span>초기화</span>
           </button>
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3" role="group" aria-labelledby="filters-heading">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" role="group" aria-labelledby="filters-heading">
         {/* Document Type */}
         <div>
           <label
             htmlFor="filter-doc-type"
             className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1"
           >
-            Document Type
+            문서 유형
           </label>
           <select
             id="filter-doc-type"
@@ -101,35 +95,13 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ filters, onFilterChange }
           </select>
         </div>
 
-        {/* Project */}
-        <div>
-          <label
-            htmlFor="filter-project"
-            className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1"
-          >
-            Project
-          </label>
-          <select
-            id="filter-project"
-            value={filters.projectName || ''}
-            onChange={(e) => handleChange('projectName', e.target.value)}
-            className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-          >
-            {PROJECTS.map((project) => (
-              <option key={project.value} value={project.value}>
-                {project.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
         {/* Date From */}
         <div>
           <label
             htmlFor="filter-date-from"
             className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1"
           >
-            From Date
+            시작일
           </label>
           <input
             id="filter-date-from"
@@ -146,7 +118,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ filters, onFilterChange }
             htmlFor="filter-date-to"
             className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1"
           >
-            To Date
+            종료일
           </label>
           <input
             id="filter-date-to"
@@ -163,33 +135,18 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ filters, onFilterChange }
         <div
           className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-700"
           role="list"
-          aria-label="Active filters"
+          aria-label="적용된 필터"
         >
           {filters.documentType && (
             <span
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200"
               role="listitem"
             >
-              <span>Type: {filters.documentType}</span>
+              <span>유형: {filters.documentType.toUpperCase()}</span>
               <button
                 onClick={() => handleChange('documentType', '')}
                 className="ml-0.5 hover:text-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-full"
-                aria-label={`Remove document type filter: ${filters.documentType}`}
-              >
-                <XMarkIcon className="h-3 w-3" aria-hidden="true" />
-              </button>
-            </span>
-          )}
-          {filters.projectName && (
-            <span
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200"
-              role="listitem"
-            >
-              <span>Project: {filters.projectName}</span>
-              <button
-                onClick={() => handleChange('projectName', '')}
-                className="ml-0.5 hover:text-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-full"
-                aria-label={`Remove project filter: ${filters.projectName}`}
+                aria-label={`문서 유형 필터 제거: ${filters.documentType}`}
               >
                 <XMarkIcon className="h-3 w-3" aria-hidden="true" />
               </button>
@@ -200,11 +157,11 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ filters, onFilterChange }
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200"
               role="listitem"
             >
-              <span>From: {filters.dateFrom}</span>
+              <span>시작: {filters.dateFrom}</span>
               <button
                 onClick={() => handleChange('dateFrom', '')}
                 className="ml-0.5 hover:text-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-full"
-                aria-label={`Remove from date filter: ${filters.dateFrom}`}
+                aria-label={`시작일 필터 제거: ${filters.dateFrom}`}
               >
                 <XMarkIcon className="h-3 w-3" aria-hidden="true" />
               </button>
@@ -215,11 +172,11 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ filters, onFilterChange }
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200"
               role="listitem"
             >
-              <span>To: {filters.dateTo}</span>
+              <span>종료: {filters.dateTo}</span>
               <button
                 onClick={() => handleChange('dateTo', '')}
                 className="ml-0.5 hover:text-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-full"
-                aria-label={`Remove to date filter: ${filters.dateTo}`}
+                aria-label={`종료일 필터 제거: ${filters.dateTo}`}
               >
                 <XMarkIcon className="h-3 w-3" aria-hidden="true" />
               </button>

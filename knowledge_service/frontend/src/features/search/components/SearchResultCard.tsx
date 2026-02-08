@@ -2,10 +2,13 @@
  * SearchResultCard - Keyword search result card component
  *
  * Displays a single search result with title, content preview,
- * relevance score, metadata badges, and optional summary.
+ * relevance score (연관도 상|중|하), metadata badges, Graph button,
+ * and optional summary.
  */
-import React from 'react';
-import { DocumentTextIcon } from '@heroicons/react/24/outline';
+import React, { useState } from 'react';
+import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { DocumentTextIcon, ShareIcon, ArrowDownTrayIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
 import type { SearchResultItem } from '../types';
 
 export interface SearchResultCardProps {
@@ -15,19 +18,21 @@ export interface SearchResultCardProps {
   resultIndex?: number;
   /** Optional total number of results for accessibility */
   totalResults?: number;
+  /** Callback when Graph button is clicked */
+  onGraphClick?: () => void;
+  /** Callback when Download button is clicked */
+  onDownloadClick?: () => void;
 }
 
 /**
- * Returns Tailwind color classes based on relevance score.
+ * Returns relevance level info based on score.
  */
-const getScoreColor = (score: number): string => {
-  if (score >= 0.9)
-    return 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400';
+const getRelevanceInfo = (score: number): { label: string; className: string } => {
   if (score >= 0.7)
-    return 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400';
-  if (score >= 0.5)
-    return 'bg-warning-100 text-warning-700 dark:bg-warning-900/30 dark:text-warning-400';
-  return 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+    return { label: '상', className: 'bg-success-100 text-success-700 dark:bg-success-900/30 dark:text-success-400' };
+  if (score >= 0.4)
+    return { label: '중', className: 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400' };
+  return { label: '하', className: 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' };
 };
 
 /**
@@ -37,10 +42,14 @@ const SearchResultCard: React.FC<SearchResultCardProps> = ({
   result,
   resultIndex,
   totalResults,
+  onGraphClick,
+  onDownloadClick,
 }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const title = result.metadata?.projectName || result.title || '문서';
   const ariaLabel = resultIndex && totalResults
-    ? `Result ${resultIndex} of ${totalResults}: ${result.metadata?.projectName || 'Document'}, relevance ${(result.score * 100).toFixed(0)} percent`
-    : `Search result: ${result.metadata?.projectName || 'Document'}`;
+    ? `검색 결과 ${resultIndex}/${totalResults}: ${title}, 연관도 ${getRelevanceInfo(result.score).label} (${(result.score * 100).toFixed(0)}%)`
+    : `검색 결과: ${title}`;
 
   return (
     <article
@@ -54,23 +63,75 @@ const SearchResultCard: React.FC<SearchResultCardProps> = ({
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <DocumentTextIcon className="h-5 w-5 text-gray-400 flex-shrink-0" aria-hidden="true" />
           <h3 className="text-sm font-semibold text-gray-900 dark:text-white truncate">
-            {result.metadata?.projectName || 'Document'}
+            {title}
           </h3>
         </div>
-        <span
-          className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${getScoreColor(
-            result.score
-          )}`}
-          aria-label={`Relevance: ${(result.score * 100).toFixed(0)}%`}
-        >
-          {(result.score * 100).toFixed(0)}%
-        </span>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Graph button */}
+          {onGraphClick && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onGraphClick();
+              }}
+              className="inline-flex items-center gap-1 px-2 py-0.5 text-2xs font-medium text-teal-600 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-900/20 border border-teal-200 dark:border-teal-800 rounded-full transition-colors"
+              aria-label={`${title} 그래프 보기`}
+            >
+              <ShareIcon className="h-3 w-3" aria-hidden="true" />
+              Graph
+            </button>
+          )}
+          {/* Download button */}
+          {onDownloadClick && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDownloadClick();
+              }}
+              className="inline-flex items-center gap-1 px-2 py-0.5 text-2xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-full transition-colors"
+              aria-label={`${title} 원본 다운로드`}
+            >
+              <ArrowDownTrayIcon className="h-3 w-3" aria-hidden="true" />
+              원본
+            </button>
+          )}
+          {/* Relevance badge */}
+          <span
+            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getRelevanceInfo(result.score).className}`}
+            aria-label={`연관도 ${getRelevanceInfo(result.score).label} (${(result.score * 100).toFixed(0)}%)`}
+          >
+            연관도 {getRelevanceInfo(result.score).label} ({(result.score * 100).toFixed(0)}%)
+          </span>
+        </div>
       </div>
 
-      {/* Content preview */}
-      <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-3 mb-3">
-        {result.content}
-      </p>
+      {/* Content preview (Markdown) - expandable */}
+      <div className={`text-sm text-gray-600 dark:text-gray-300 mb-1 prose prose-sm dark:prose-invert max-w-none prose-p:my-0.5 prose-ul:my-0.5 prose-ol:my-0.5 prose-li:my-0 prose-headings:my-1 prose-headings:text-sm prose-pre:my-1 prose-pre:text-xs ${isExpanded ? '' : 'line-clamp-3'}`}>
+        <Markdown remarkPlugins={[remarkGfm]}>
+          {result.content}
+        </Markdown>
+      </div>
+      {result.content && result.content.length > 100 && (
+        <button
+          type="button"
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="inline-flex items-center gap-0.5 text-2xs text-primary-500 hover:text-primary-700 dark:hover:text-primary-300 mb-2"
+        >
+          {isExpanded ? (
+            <>
+              <ChevronUpIcon className="h-3 w-3" />
+              접기
+            </>
+          ) : (
+            <>
+              <ChevronDownIcon className="h-3 w-3" />
+              더 보기
+            </>
+          )}
+        </button>
+      )}
 
       {/* Metadata badges */}
       <div className="flex flex-wrap items-center gap-2">
@@ -89,6 +150,19 @@ const SearchResultCard: React.FC<SearchResultCardProps> = ({
         {result.graphContext?.community && (
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-medium bg-accent-50 text-accent-700 dark:bg-accent-900/30 dark:text-accent-400">
             {result.graphContext.community}
+          </span>
+        )}
+        {result.sourceType && (
+          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-medium ${
+            result.sourceType === 'vector'
+              ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+              : result.sourceType === 'keyword'
+                ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+                : result.sourceType === 'graph'
+                  ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+          }`}>
+            {result.sourceType === 'vector' ? 'Vector' : result.sourceType === 'keyword' ? 'Keyword' : result.sourceType === 'graph' ? 'Graph' : result.sourceType}
           </span>
         )}
       </div>
