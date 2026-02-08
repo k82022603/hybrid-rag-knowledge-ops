@@ -775,7 +775,14 @@ class Neo4jStorageService:
                 cypher = f"""
                 MATCH (center)
                 WHERE center.name = $entity_name OR center.value = $entity_name
-                WITH center LIMIT 1
+                   OR center.name CONTAINS $entity_name
+                WITH center
+                ORDER BY CASE
+                    WHEN center.name = $entity_name THEN 0
+                    WHEN center.value = $entity_name THEN 1
+                    ELSE 2
+                END
+                LIMIT 1
                 CALL {{
                     WITH center
                     MATCH (center)-[r*1..{validated_depth}]-(related)
