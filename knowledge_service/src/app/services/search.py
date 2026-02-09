@@ -940,10 +940,15 @@ class SearchService:
             if highlight:
                 metadata["highlight"] = highlight
 
+            # ES 문서의 content 필드명은 "text"(ElasticsearchStorageService 경유)
+            # 또는 "content"(InitialDataLoader 직접 인덱싱) 두 가지가 공존.
+            # 둘 다 확인하여 누락 방지.
+            chunk_content = src.get("text", "") or src.get("content", "")
+
             result = SearchResult(
                 chunk_id=hit.get("_id", str(uuid4())),
                 document_id=str(src.get("document_id", "") or metadata.get("document_id", "")),
-                content=src.get("text", ""),
+                content=chunk_content,
                 score=float(hit.get("_score", 0.0)),
                 source=source,
                 metadata=metadata,

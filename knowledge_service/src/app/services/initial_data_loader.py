@@ -1151,7 +1151,7 @@ class InitialDataLoader:
                     "document_id": document_id,
                     "chunk_id": chunk.id,
                     "chunk_index": i,
-                    "content": chunk.content,
+                    "text": chunk.content,  # ES 매핑 필드명 "text"에 맞춤 (기존 "content"는 매핑 불일치)
                     "heading": chunk.heading,
                     "token_count": chunk.token_count,
                     "metadata": metadata,

@@ -89,6 +89,33 @@ Key Objectives:
 
 **Subtotal**: 26 pts (7 Stories, 1 Done)
 
+### Ideas Review (2026-02-09) - Backlog
+
+| Priority | ID | Jira | Title | Points | Assignee | Status |
+|----------|-----|------|-------|--------|----------|--------|
+| P0 | STORY-100 | SCRUM-93 | FEAT: ES 벡터 후속 임베딩 배치 스크립트 (10,094 chunks) | 5 | MLRag/Data | **In Progress** |
+| P1 | STORY-101 | SCRUM-94 | FEAT: 파일 유형 자동 분류 + 메모리 예산 할당 | 5 | MLRag/ETL | To Do (Sprint 09) |
+| P2 | STORY-102 | SCRUM-95 | FEAT: WSL 메모리 동적 추정 가이드/도구 | 3 | Infra/DevOps | To Do (Sprint 09) |
+
+**Subtotal**: 13 pts (3 Stories, Sprint 08: 1, Sprint 09: 2)
+
+### Standup Action Items (2026-02-09) - Backlog
+
+| Priority | ID | Jira | Title | Points | Assignee | Status |
+|----------|-----|------|-------|--------|----------|--------|
+| High | STORY-103 | SCRUM-96 | FEAT: 검색 API 응답에 임베딩 유무 플래그 반영 | 2 | Backend | To Do |
+| Medium | STORY-104 | SCRUM-97 | FEAT: 검색 결과에 임베딩 상태 표시 UX | 2 | Frontend | To Do |
+| High | STORY-105 | SCRUM-98 | DOCS: RAGAS 평가 기준 문서 확정 | 3 | MLRag | To Do |
+| High | STORY-106 | - | TEST: 임베딩 유무별 검색 품질 비교 테스트 | 3 | QA | To Do |
+| Medium | STORY-107 | - | FEAT: 배치 작업용 Health Check + 자동 재시작 CI/CD | 3 | DevOps | To Do (Sprint 09) |
+| High | STORY-108 | - | FEAT: InitialDataLoader 중복 방지 (file_hash 기반) | 3 | Data | To Do |
+| Medium | STORY-109 | - | CHORE: docker-compose.yml ai-service 메모리 설정 현행화 | 1 | Infra | To Do |
+| Low | STORY-110 | - | DOCS: git push credential helper 수정 완료 문서화 | 1 | DevOps | To Do |
+
+**Subtotal**: 18 pts (8 Tasks, Sprint 08: 6, Sprint 09: 2)
+
+> **Note**: Jira 무료 플랜 이슈 한도 초과로 STORY-106~110은 Jira 미등록. 로컬 백로그가 SSOT.
+
 ---
 
 ## Story Details

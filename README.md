@@ -2,12 +2,12 @@
 
 🧠 Graph RAG 기반 지능형 지식 검색 시스템 + Antigravity 협업 공간
 
-**프로젝트 버전**: 4.7
+**프로젝트 버전**: 4.8
 **마지막 업데이트**: 2026-02-09
-**프로젝트 상태**: ✅ Phase 5 배포 완료 → Sprint 08 UAT + 안정화 (Day 5: 문서 적재 38/38 = 100% 완료)
+**프로젝트 상태**: ✅ Phase 5 배포 완료 → Sprint 08 UAT + 안정화 (Day 5: 문서 적재 100%, 임베딩 ~50%)
 **테스트 커버리지**: 5개 핵심 모듈 평균 97% (Docker 모드)
 **CI/CD**: ✅ GitHub Actions 8개 워크플로우 정상 운영
-**AI 모델**: Claude Opus 4.6 + Agent Teams 활성화 (12개 에이전트)
+**AI 모델**: Claude Opus 4.6 + Agent Teams 활성화 (13개 에이전트)
 
 ## 📋 개요
 
@@ -107,7 +107,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 | 문서 | 설명 |
 |------|------|
-| [CLAUDE.md](./CLAUDE.md) | Claude Code 프로젝트 규칙 v2.23 |
+| [CLAUDE.md](./CLAUDE.md) | Claude Code 프로젝트 규칙 v2.24 |
 | [PLAN.md](./PLAN.md) | 프로젝트 전체 계획 및 AI 에이전트 협업 구조 |
 | [통합 설계서](./knowledge_service/docs/02_design/integrated_detailed_design.md) | 전체 시스템 통합 설계 |
 
@@ -131,13 +131,31 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ## 📅 Next Steps (다음 작업)
 
+### 🟡 P0 - 임베딩 배치 완료
+
+| # | 작업 | 설명 | 상태 |
+|:-:|------|------|:----:|
+| 1 | **임베딩 배치 완료** | 잔여 ~6,700 청크 벡터 생성 (ba5fe80 진행 중) | 🔄 ~50% |
+| 2 | **ai-service 배포** | API content 빈 문자열 버그 수정 반영 | ⏳ |
+| 3 | **E2E 테스트** | 검색 API + 벡터 검색 품질 검증 | ⏳ |
+
 ### 🟡 P1 - 운영 안정화
 
 | # | 작업 | 설명 | 상태 |
 |:-:|------|------|:----:|
 | 1 | **RAGAS 실제 LLM 평가** | DeepSeek API 연동 평가 | ⏳ |
 | 2 | **성능 최적화** | 캐싱 및 Circuit Breaker 프로덕션 검증 | ⏳ |
-| 3 | **Agent Teams 실전 적용** | 12개 에이전트 멀티-에이전트 협업 워크플로우 검증 | ⏳ |
+| 3 | **Agent Teams 실전 적용** | 13개 에이전트 멀티-에이전트 협업 워크플로우 검증 | ⏳ |
+
+### ✅ 완료된 작업 (2026-02-09 임베딩 배치 + Scroll 최적화)
+
+| # | 문서/작업 | 설명 |
+|:-:|------|------|
+| ✅ | **문서 적재 38/38 = 100%** | 전체 13,430 chunks 적재 완료 |
+| ✅ | **embedding_full_cycle.py** | 5모드, 체크포인트, OOM 방지 배치 프로그램 |
+| ✅ | **ES Scroll Timeout 해결** | scroll_size=20, scroll_timeout=60m |
+| ✅ | **운영매뉴얼 v3.1** | §13.9 Scroll Context 관리 신규 |
+| ✅ | **Software Architect 에이전트** | 13번째 팀원 합류, 상세 설계서 작성 |
 
 ### ✅ 완료된 작업 (2026-02-06 Opus 4.6 업그레이드)
 

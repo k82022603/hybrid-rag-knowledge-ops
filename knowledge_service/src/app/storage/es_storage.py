@@ -747,10 +747,13 @@ class ElasticsearchStorageService:
 
         for hit in hits:
             source = hit.get("_source", {})
+            # ES 문서의 content 필드명은 "text"(정상) 또는 "content"(InitialDataLoader 경유)
+            # 두 가지가 공존하므로 둘 다 확인하여 누락 방지
+            chunk_text = source.get("text", "") or source.get("content", "")
             result: Dict[str, Any] = {
                 "chunk_id": hit.get("_id", ""),
                 "document_id": source.get("document_id", ""),
-                "text": source.get("text", ""),
+                "text": chunk_text,
                 "score": float(hit.get("_score", 0.0)),
                 "chunk_index": source.get("chunk_index", 0),
                 "heading": source.get("heading", ""),

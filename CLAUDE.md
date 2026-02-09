@@ -323,7 +323,7 @@ mcp__slack__slack_post_message
 
 ---
 
-## 🤖 AI 에이전트 목록 (12개) - Agent Teams v2.0
+## 🤖 AI 에이전트 목록 (13개) - Agent Teams v2.0
 
 > **2026-02-08 전환**: 기존 서브에이전트(Task tool 일회성) → **Agent Teams(상주 팀원, 양방향 통신)** 전환 완료
 > - 팀 이름: `hrkp-sprint-08` | 공유 TaskList + SendMessage 기반 자율 협업
@@ -343,6 +343,7 @@ mcp__slack__slack_post_message
 | `infra-engineer.md` | **(infra)** | Docker Compose 인프라 |
 | `devops-engineer.md` | **(devops)** | CI/CD, Observability |
 | `qa-engineer.md` | **(qa)** | 테스트, RAGAS 평가 |
+| `software-architect.md` | **(arch)** | 시스템/기능 상세 설계 |
 | `code-documenter.md` | **(doc)** | API/코드 문서화 |
 | `web-designer.md` | **(web)** | UI/UX 설계 |
 
@@ -396,13 +397,13 @@ mcp__slack__slack_post_message
 WebDesigner(프롬프트) → Antigravity(생성) → Frontend(통합/검증) → TechLead(리뷰)
 ```
 
-#### 🔹 문서화 역할
-| 구분 | code-documenter (doc) | tech-lead (tl) |
-|------|----------------------|----------------|
-| **관점** | 기술 **문서** 작성 | 기술 **검토** |
-| **핵심** | API/코드 문서화 | 설계서 검토, 피드백 |
-| **작업** | OpenAPI, JSDoc, 다이어그램 | 일관성 검증, ADR |
-| **산출물** | API 문서, README | 리뷰 코멘트, 승인 |
+#### 🔹 설계/문서화 역할
+| 구분 | software-architect (arch) | code-documenter (doc) | tech-lead (tl) |
+|------|--------------------------|----------------------|----------------|
+| **관점** | 기능/모듈 **설계 작성** | 기술 **문서** 작성 | 기술 **검토** |
+| **핵심** | 상세 설계서, ADR | API/코드 문서화 | 설계서 검토, 피드백 |
+| **작업** | Mermaid 다이어그램, 설계 결정 | OpenAPI, JSDoc | 일관성 검증 |
+| **산출물** | 설계서 (`docs/02_design/`) | API 문서, README | 리뷰 코멘트, 승인 |
 
 ---
 

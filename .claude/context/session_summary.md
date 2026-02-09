@@ -1,4 +1,4 @@
-# Session Summary - 2026-02-08 19:04
+# Session Summary - 2026-02-09 20:53
 
 ## Commits This Session
 ```
@@ -9,14 +9,14 @@
 ```
 .claude/context/session_context.md
 .claude/context/session_summary.md
+CLAUDE.md
+PLAN.md
+README.md
 backlog/sprints/sprint-08.md
 backlog/stories/STORY-091-rrf-fusion-search-source-metadata-loss.md
 backlog/stories/STORY-092-document-download-link.md
 backlog/stories/STORY-093-content-viewer-modal.md
 backlog/stories/STORY-094-document-title-extraction.md
-backlog/stories/STORY-095-camelcase-snakecase-residual.md
-backlog/stories/STORY-096-rrf-metadata-merge-highlight.md
-backlog/stories/STORY-097-graph-rag-ab-evaluation.md
 ```
 
 ---
