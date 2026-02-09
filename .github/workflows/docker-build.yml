@@ -111,7 +111,7 @@ jobs:
 
       - name: Build and Push
         if: steps.check.outputs.exists == 'true'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ${{ steps.check.outputs.context }}
           file: ${{ steps.check.outputs.dockerfile }}
@@ -188,7 +188,7 @@ jobs:
 
       - name: Build and Push
         if: steps.check.outputs.exists == 'true'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ${{ steps.check.outputs.context }}
           file: ${{ steps.check.outputs.dockerfile }}
@@ -265,7 +265,7 @@ jobs:
 
       - name: Build and Push
         if: steps.check.outputs.exists == 'true'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ${{ steps.check.outputs.context }}
           file: ${{ steps.check.outputs.dockerfile }}
@@ -343,7 +343,7 @@ jobs:
 
       - name: Build and Push
         if: steps.check.outputs.exists == 'true'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ${{ steps.check.outputs.context }}
           file: ${{ steps.check.outputs.dockerfile }}
