@@ -20,6 +20,10 @@ Full Cycle 배치 프로그램입니다.
     python3 /app/scripts/embedding_full_cycle.py --mode reprocess --since 2026-02-01
     python3 /app/scripts/embedding_full_cycle.py --mode all --force --batch-size 8
     python3 /app/scripts/embedding_full_cycle.py --resume /tmp/embedding_checkpoint.json
+
+    # 병렬 워커 + 텍스트 절단 (법률문서 최적화)
+    python3 /app/scripts/embedding_full_cycle.py --mode all --workers 2 \
+      --max-text-length 4000 --batch-size 4 --batch-timeout 300 --stop-service
 """
 
 import argparse
@@ -27,11 +31,13 @@ import asyncio
 import functools
 import gc
 import json
+import multiprocessing
 import os
 import signal
 import subprocess
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -71,6 +77,9 @@ class EmbeddingBatchSummary:
     per_document: Dict[str, Any] = field(default_factory=dict)
     elapsed_seconds: float = 0.0
     batch_size: int = 16
+    max_text_length: int = 0
+    batch_timeout: int = 0
+    workers: int = 1
     dry_run: bool = False
     error_message: Optional[str] = None
 
@@ -159,6 +168,8 @@ class EmbeddingFullCycle:
         dry_run: bool = False,
         force: bool = False,
         stop_service: bool = False,
+        max_text_length: int = 0,
+        batch_timeout: int = 300,
     ):
         self.es_url = es_url
         self.pg_dsn = pg_dsn
@@ -168,6 +179,8 @@ class EmbeddingFullCycle:
         self.dry_run = dry_run
         self.force = force
         self.stop_service = stop_service
+        self.max_text_length = max_text_length
+        self.batch_timeout = batch_timeout
         self.index_name = os.getenv("ELASTICSEARCH_INDEX", "knowledge_chunks")
 
         self._es = None
@@ -366,7 +379,13 @@ class EmbeddingFullCycle:
     # ------------------------------------------------------------------
 
     def _embed_batch(self, texts: List[str]) -> List[List[float]]:
-        """텍스트 배치 임베딩 생성"""
+        """텍스트 배치 임베딩 생성 (타임아웃 지원)"""
+        if self.batch_timeout > 0:
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(
+                    self._embedding_svc.embed_batch, texts, False
+                )
+                return future.result(timeout=self.batch_timeout)
         return self._embedding_svc.embed_batch(texts, return_sparse=False)
 
     async def _bulk_update_es(
@@ -514,6 +533,7 @@ class EmbeddingFullCycle:
         print(f"[CONFIG] ES={self.es_url}, index={self.index_name}")
         print(f"[CONFIG] mode={mode}, force={self.force}, batch_size={self.batch_size}, scroll_size={self.scroll_size}, scroll_timeout={self.scroll_timeout}")
         print(f"[CONFIG] dry_run={self.dry_run}, stop_service={self.stop_service}")
+        print(f"[CONFIG] max_text_length={self.max_text_length}, batch_timeout={self.batch_timeout}s")
         print(f"[MEMORY] {get_memory_gb():.1f}GB at start")
 
         # 서비스 중지 (옵션)
@@ -607,6 +627,10 @@ class EmbeddingFullCycle:
                         source = hit["_source"]
                         text = source.get("text") or source.get("content") or ""
 
+                        # 텍스트 길이 절단 (법률 문서 등 초장문 O(n²) 방지)
+                        if self.max_text_length > 0 and len(text) > self.max_text_length:
+                            text = text[:self.max_text_length]
+
                         if not text.strip():
                             summary.failed += 1
                             processed_ids.add(es_id)
@@ -636,6 +660,14 @@ class EmbeddingFullCycle:
                     # 임베딩 생성
                     try:
                         vectors = self._embed_batch(chunk_texts)
+                    except FuturesTimeoutError:
+                        print(f"  [TIMEOUT] Batch timed out after {self.batch_timeout}s, skipping {len(chunk_texts)} chunks")
+                        for cid, did in zip(chunk_es_ids, chunk_doc_ids):
+                            summary.failed += 1
+                            processed_ids.add(cid)
+                            if did in per_document:
+                                per_document[did].failed += 1
+                        continue
                     except Exception as e:
                         print(f"  [EMB_ERR] Batch embedding failed: {e}")
                         for cid, did in zip(chunk_es_ids, chunk_doc_ids):
@@ -822,6 +854,294 @@ class EmbeddingFullCycle:
 
 
 # ---------------------------------------------------------------------------
+# Multiprocessing Worker
+# ---------------------------------------------------------------------------
+
+def _worker_process(
+    worker_id: int,
+    chunk_ids: List[str],
+    args_dict: dict,
+) -> dict:
+    """
+    독립 워커 프로세스: 할당된 chunk ID 목록에 대해 임베딩 생성.
+    각 워커가 독립적으로 모델 로드 + ES 연결.
+    """
+    import asyncio as _asyncio
+
+    checkpoint_path = f"/tmp/embedding_checkpoint_worker_{worker_id}.json"
+    print(f"[WORKER-{worker_id}] Starting with {len(chunk_ids)} chunks")
+
+    async def _run_worker():
+        from elasticsearch import AsyncElasticsearch
+
+        es_url = args_dict.get("es_url", "http://elasticsearch:9200")
+        index_name = os.getenv("ELASTICSEARCH_INDEX", "knowledge_chunks")
+        batch_size = args_dict.get("batch_size", 4)
+        max_text_length = args_dict.get("max_text_length", 0)
+        batch_timeout = args_dict.get("batch_timeout", 300)
+
+        es = AsyncElasticsearch(es_url, request_timeout=120)
+
+        # 모델 로드
+        print(f"[WORKER-{worker_id}] Loading BGE-M3 model...")
+        model_start = time.monotonic()
+        from app.services.embedding import EmbeddingService
+        embedding_svc = EmbeddingService(cache_enabled=False)
+        _ = embedding_svc.model
+        elapsed = time.monotonic() - model_start
+        print(f"[WORKER-{worker_id}] Model loaded in {elapsed:.1f}s, mem={get_memory_gb():.1f}GB")
+
+        # 체크포인트 로드 (재개용)
+        processed_ids: Set[str] = set()
+        if os.path.exists(checkpoint_path):
+            try:
+                with open(checkpoint_path) as f:
+                    ckpt_data = json.load(f)
+                processed_ids = set(ckpt_data.get("processed_ids", []))
+                print(f"[WORKER-{worker_id}] Resuming: {len(processed_ids)} already done")
+            except Exception:
+                pass
+
+        # 할당된 chunk_ids에서 이미 처리된 것 제외
+        remaining_ids = [cid for cid in chunk_ids if cid not in processed_ids]
+        print(f"[WORKER-{worker_id}] Remaining: {len(remaining_ids)} chunks")
+
+        total_ok = 0
+        total_fail = 0
+        total_start = time.monotonic()
+        batch_count = 0
+
+        # 배치 단위로 mget → embed → bulk update
+        for i in range(0, len(remaining_ids), batch_size):
+            batch_ids = remaining_ids[i:i + batch_size]
+
+            # ES mget으로 청크 텍스트 조회
+            try:
+                mget_resp = await es.mget(
+                    index=index_name,
+                    body={"ids": batch_ids},
+                    _source=["text", "content"],
+                )
+            except Exception as e:
+                print(f"  [WORKER-{worker_id}] mget error: {e}")
+                total_fail += len(batch_ids)
+                processed_ids.update(batch_ids)
+                continue
+
+            texts = []
+            valid_ids = []
+            for doc in mget_resp.get("docs", []):
+                if not doc.get("found"):
+                    total_fail += 1
+                    processed_ids.add(doc["_id"])
+                    continue
+                src = doc["_source"]
+                text = src.get("text") or src.get("content") or ""
+                if max_text_length > 0 and len(text) > max_text_length:
+                    text = text[:max_text_length]
+                if not text.strip():
+                    total_fail += 1
+                    processed_ids.add(doc["_id"])
+                    continue
+                texts.append(text)
+                valid_ids.append(doc["_id"])
+
+            if not texts:
+                continue
+
+            # 임베딩 (타임아웃 지원)
+            try:
+                if batch_timeout > 0:
+                    with ThreadPoolExecutor(max_workers=1) as executor:
+                        future = executor.submit(
+                            embedding_svc.embed_batch, texts, False
+                        )
+                        vectors = future.result(timeout=batch_timeout)
+                else:
+                    vectors = embedding_svc.embed_batch(texts, return_sparse=False)
+            except FuturesTimeoutError:
+                print(f"  [WORKER-{worker_id}] TIMEOUT batch {i//batch_size}")
+                total_fail += len(valid_ids)
+                processed_ids.update(valid_ids)
+                continue
+            except Exception as e:
+                print(f"  [WORKER-{worker_id}] embed error: {e}")
+                total_fail += len(valid_ids)
+                processed_ids.update(valid_ids)
+                continue
+
+            # ES bulk update
+            bulk_body = []
+            for es_id, vec in zip(valid_ids, vectors):
+                bulk_body.append({"update": {"_index": index_name, "_id": es_id}})
+                bulk_body.append({"doc": {"dense_vector": vec}})
+
+            try:
+                resp = await es.bulk(operations=bulk_body, refresh=False)
+                if resp.get("errors"):
+                    for item in resp["items"]:
+                        eid = item["update"]["_id"]
+                        if "error" in item.get("update", {}):
+                            total_fail += 1
+                        else:
+                            total_ok += 1
+                        processed_ids.add(eid)
+                else:
+                    total_ok += len(valid_ids)
+                    processed_ids.update(valid_ids)
+            except Exception as e:
+                print(f"  [WORKER-{worker_id}] bulk error: {e}")
+                total_fail += len(valid_ids)
+                processed_ids.update(valid_ids)
+
+            batch_count += 1
+            # 진행률
+            done = total_ok + total_fail
+            elapsed = time.monotonic() - total_start
+            rate = total_ok / elapsed if elapsed > 0 else 0
+            print(
+                f"  [WORKER-{worker_id}] {done}/{len(remaining_ids)} | "
+                f"ok={total_ok} fail={total_fail} | {rate:.1f} chunks/s"
+            )
+
+            # 주기적 체크포인트
+            if batch_count % 50 == 0:
+                with open(checkpoint_path, "w") as f:
+                    json.dump({"processed_ids": list(processed_ids)}, f)
+
+            gc.collect()
+
+        # 최종 체크포인트
+        with open(checkpoint_path, "w") as f:
+            json.dump({"processed_ids": list(processed_ids)}, f)
+
+        await es.close()
+
+        elapsed_total = time.monotonic() - total_start
+        print(
+            f"[WORKER-{worker_id}] DONE: ok={total_ok} fail={total_fail} "
+            f"in {elapsed_total:.1f}s"
+        )
+        return {"ok": total_ok, "fail": total_fail, "elapsed": elapsed_total}
+
+    return _asyncio.run(_run_worker())
+
+
+async def _collect_all_chunk_ids(
+    es_url: str,
+    index_name: str,
+    query: dict,
+    scroll_timeout: str = "10m",
+) -> List[str]:
+    """Scroll API로 대상 chunk의 ES _id 전체 수집"""
+    from elasticsearch import AsyncElasticsearch
+    es = AsyncElasticsearch(es_url, request_timeout=120)
+
+    ids: List[str] = []
+    resp = await es.search(
+        index=index_name,
+        body={"query": query, "_source": False, "sort": ["_doc"]},
+        scroll=scroll_timeout,
+        size=500,
+    )
+    scroll_id = resp["_scroll_id"]
+    hits = resp["hits"]["hits"]
+
+    while hits:
+        ids.extend(h["_id"] for h in hits)
+        resp = await es.scroll(scroll_id=scroll_id, scroll=scroll_timeout)
+        scroll_id = resp["_scroll_id"]
+        hits = resp["hits"]["hits"]
+
+    try:
+        await es.clear_scroll(scroll_id=scroll_id)
+    except Exception:
+        pass
+    await es.close()
+    return ids
+
+
+def _run_parallel(args, es_url: str, index_name: str, query: dict) -> None:
+    """멀티프로세스 워커 오케스트레이션"""
+    workers = args.workers
+    print(f"[PARALLEL] Collecting all chunk IDs for {workers} workers...")
+
+    all_ids = asyncio.run(_collect_all_chunk_ids(
+        es_url, index_name, query, args.scroll_timeout
+    ))
+    total = len(all_ids)
+    print(f"[PARALLEL] Total {total} chunks to distribute across {workers} workers")
+
+    if total == 0:
+        print("[PARALLEL] No chunks to process.")
+        return
+
+    # 균등 분배
+    partition_size = (total + workers - 1) // workers
+    partitions = [
+        all_ids[i * partition_size : (i + 1) * partition_size]
+        for i in range(workers)
+    ]
+
+    args_dict = {
+        "es_url": es_url,
+        "batch_size": args.batch_size,
+        "max_text_length": args.max_text_length,
+        "batch_timeout": args.batch_timeout,
+    }
+
+    for i, part in enumerate(partitions):
+        print(f"[PARALLEL] Worker-{i}: {len(part)} chunks assigned")
+
+    # 프로세스 생성
+    processes = []
+    start_time = time.monotonic()
+
+    for i, part in enumerate(partitions):
+        if not part:
+            continue
+        p = multiprocessing.Process(
+            target=_worker_process,
+            args=(i, part, args_dict),
+            name=f"embedding-worker-{i}",
+        )
+        p.start()
+        processes.append((i, p))
+        # 워커 간 모델 로딩 stagger (메모리 피크 방지)
+        if i < len(partitions) - 1:
+            print(f"[PARALLEL] Waiting 10s before next worker (memory stagger)...")
+            time.sleep(10)
+
+    # 완료 대기
+    total_ok = 0
+    total_fail = 0
+    for i, p in processes:
+        p.join()
+        print(f"[PARALLEL] Worker-{i} exited with code {p.exitcode}")
+        # 워커 결과는 체크포인트에서 읽기
+        ckpt_path = f"/tmp/embedding_checkpoint_worker_{i}.json"
+        if os.path.exists(ckpt_path):
+            try:
+                with open(ckpt_path) as f:
+                    data = json.load(f)
+                total_ok += len(data.get("processed_ids", []))
+            except Exception:
+                pass
+
+    elapsed = time.monotonic() - start_time
+    print()
+    print("=" * 70)
+    print(f"[PARALLEL] ALL WORKERS DONE")
+    print(f"  Total chunks:   {total}")
+    print(f"  Processed IDs:  {total_ok}")
+    print(f"  Elapsed:        {elapsed:.1f}s")
+    if elapsed > 0:
+        print(f"  Rate:           {total_ok / elapsed:.2f} chunks/s")
+    print(f"  Memory:         {get_memory_gb():.1f}GB")
+    print("=" * 70)
+
+
+# ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
 
@@ -916,11 +1236,56 @@ def main():
         default="",
         help="PostgreSQL DSN (미지정 시 환경변수 사용)",
     )
+    parser.add_argument(
+        "--max-text-length",
+        type=int,
+        default=0,
+        help="텍스트 최대 길이 절단 (0=무제한, 권장: 4000). 법률문서 등 초장문 O(n²) 어텐션 방지",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=1,
+        help="병렬 워커 수 (default: 1). 2 이상이면 멀티프로세스 모드",
+    )
+    parser.add_argument(
+        "--batch-timeout",
+        type=int,
+        default=300,
+        help="배치별 타임아웃(초) (default: 300). 0=무제한",
+    )
 
     args = parser.parse_args()
 
+    es_url = os.getenv("ELASTICSEARCH_URL", "http://elasticsearch:9200")
+
+    # --workers > 1: 멀티프로세스 병렬 모드
+    if args.workers > 1:
+        print(f"[MODE] Parallel mode with {args.workers} workers")
+
+        # 서비스 중지 (옵션)
+        if args.stop_service:
+            processor = EmbeddingFullCycle(stop_service=True)
+            processor._stop_web_service()
+
+        # ES 쿼리 빌드
+        temp = EmbeddingFullCycle(force=args.force)
+        query = temp._build_es_query(
+            args.mode, args.doc_id, args.file_name, args.since
+        )
+        index_name = os.getenv("ELASTICSEARCH_INDEX", "knowledge_chunks")
+        print(f"[QUERY] {json.dumps(query, ensure_ascii=False)[:200]}")
+
+        _run_parallel(args, es_url, index_name, query)
+
+        # 서비스 재시작 (옵션)
+        if args.stop_service:
+            processor._start_web_service()
+        sys.exit(0)
+
+    # 싱글 워커 모드 (기존 로직)
     processor = EmbeddingFullCycle(
-        es_url=os.getenv("ELASTICSEARCH_URL", "http://elasticsearch:9200"),
+        es_url=es_url,
         pg_dsn=args.pg_dsn,
         batch_size=args.batch_size,
         scroll_size=args.scroll_size,
@@ -928,6 +1293,8 @@ def main():
         dry_run=args.dry_run,
         force=args.force,
         stop_service=args.stop_service,
+        max_text_length=args.max_text_length,
+        batch_timeout=args.batch_timeout,
     )
 
     summary = asyncio.run(processor.run(

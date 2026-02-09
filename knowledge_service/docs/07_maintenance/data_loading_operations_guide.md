@@ -1,8 +1,8 @@
 # 문서 데이터 적재 운영 매뉴얼
 
 **작성일**: 2026-02-08
-**최종 업데이트**: 2026-02-09
-**버전**: 3.1
+**최종 업데이트**: 2026-02-10
+**버전**: 3.2
 **관련 스토리**: STORY-099 (ETL document_id 정합성 수정)
 
 ---
@@ -982,6 +982,9 @@ docker exec kp-ai-service python3 /app/scripts/embedding_full_cycle.py \
 | OOM 방지 | X | **O** (GC + 메모리 모니터링) |
 | 작업 이력 | X | **O** (JSON 결과 파일) |
 | dry-run | X | **O** |
+| 병렬 워커 | X | **O** (`--workers N`, 멀티프로세스) |
+| 텍스트 절단 | X | **O** (`--max-text-length`, 초장문 O(n²) 방지) |
+| 배치 타임아웃 | X | **O** (`--batch-timeout`, 무한 대기 방지) |
 
 ### 13.2 실행 방법
 
@@ -1023,6 +1026,20 @@ docker exec kp-ai-service python3 /app/scripts/embedding_full_cycle.py \
   --mode all --force --batch-size 8
 ```
 
+#### 병렬 워커 + 텍스트 절단 (법률문서 최적화)
+
+```bash
+# 2워커 병렬, 텍스트 4000자 절단, 배치 타임아웃 300초
+docker exec kp-ai-service python3 /app/scripts/embedding_full_cycle.py \
+  --mode all --workers 2 --max-text-length 4000 --batch-size 4 \
+  --batch-timeout 300 --stop-service
+```
+
+> **v3.2 추가 (2026-02-10)**: 법률 문서 구간에서 420초/배치 발생 → 텍스트 절단 + 병렬 처리로 해결.
+> - `--max-text-length 4000`: 4000자(≈1000토큰)로 절단 → O(n²) 어텐션 감소로 420초 → ~5초
+> - `--workers 2`: 2개 프로세스가 독립적으로 모델 로드 + 배치 처리 (메모리: ~6GB)
+> - `--batch-timeout 300`: 배치가 300초 초과 시 스킵 → 무한 대기 방지
+
 ### 13.3 실행 모드 상세
 
 | 모드 | ES 쿼리 조건 | 용도 |
@@ -1043,19 +1060,25 @@ usage: embedding_full_cycle.py [-h] --mode {all,document,file,reprocess}
                                 [--scroll-timeout SCROLL_TIMEOUT]
                                 [--force] [--dry-run] [--stop-service]
                                 [--resume RESUME_PATH]
+                                [--max-text-length MAX_TEXT_LENGTH]
+                                [--workers WORKERS]
+                                [--batch-timeout BATCH_TIMEOUT]
 
 옵션:
-  --mode            실행 모드 (필수)
-  --doc-id          대상 문서 UUID (mode=document 시 필수)
-  --file-name       대상 파일명 (mode=file 시 필수)
-  --since           재처리 시작 시점 ISO 형식 (mode=reprocess 시 필수)
-  --batch-size      배치 크기 (기본: 16, CPU 시 4 권장)
-  --scroll-size     ES scroll 페이지 크기 (기본: 20, 긴 텍스트 시 줄임)
-  --scroll-timeout  ES scroll 유지시간 (기본: 60m)
-  --force           이미 임베딩된 청크도 재처리
-  --dry-run         실제 업데이트 없이 대상 건수만 확인
-  --stop-service    임베딩 전 uvicorn 웹 서비스 중지 (메모리 확보)
-  --resume          체크포인트 파일 경로로 이전 작업 재개
+  --mode              실행 모드 (필수)
+  --doc-id            대상 문서 UUID (mode=document 시 필수)
+  --file-name         대상 파일명 (mode=file 시 필수)
+  --since             재처리 시작 시점 ISO 형식 (mode=reprocess 시 필수)
+  --batch-size        배치 크기 (기본: 16, CPU 시 4 권장)
+  --scroll-size       ES scroll 페이지 크기 (기본: 20, 긴 텍스트 시 줄임)
+  --scroll-timeout    ES scroll 유지시간 (기본: 60m)
+  --force             이미 임베딩된 청크도 재처리
+  --dry-run           실제 업데이트 없이 대상 건수만 확인
+  --stop-service      임베딩 전 uvicorn 웹 서비스 중지 (메모리 확보)
+  --resume            체크포인트 파일 경로로 이전 작업 재개
+  --max-text-length   텍스트 최대 길이 절단 (기본: 0=무제한, 권장: 4000)
+  --workers           병렬 워커 수 (기본: 1, 2 이상이면 멀티프로세스 모드)
+  --batch-timeout     배치별 타임아웃 초 (기본: 300, 0=무제한)
 ```
 
 ### 13.5 체크포인트와 재개
@@ -1264,9 +1287,105 @@ docker exec kp-ai-service curl -s "http://elasticsearch:9200/knowledge_chunks/_c
 
 > **참고**: Scroll timeout은 오류가 아닌 **예상된 동작**입니다. 체크포인트 + 재개 메커니즘이 이를 처리하도록 설계되어 있으므로, timeout 발생 시 단순히 재개하면 됩니다. 수 회 재개가 필요할 수 있으나, 각 재개마다 처리된 청크는 누적되어 결국 전체 완료에 도달합니다.
 
+### 13.10 병렬 워커 모드 (v3.2)
+
+> **2026-02-10 추가**: 법률 문서 구간에서 배치가 9시간 이상 hung 상태 발생. 텍스트 절단 + 멀티프로세스로 해결.
+
+#### 개요
+
+`--workers N` (N ≥ 2) 옵션을 사용하면 **멀티프로세스 병렬 모드**로 전환됩니다.
+
+```mermaid
+flowchart TB
+    subgraph Orchestrator["메인 프로세스 (오케스트레이터)"]
+        COLLECT["ES Scroll로<br/>전체 chunk ID 수집"]
+        SPLIT["N등분 파티셔닝"]
+        WAIT["완료 대기 + 결과 집계"]
+    end
+
+    subgraph Worker0["Worker-0"]
+        M0["BGE-M3 모델 로드"]
+        E0["mget → embed → bulk update"]
+        C0["체크포인트 저장"]
+        M0 --> E0 --> C0
+    end
+
+    subgraph Worker1["Worker-1"]
+        M1["BGE-M3 모델 로드"]
+        E1["mget → embed → bulk update"]
+        C1["체크포인트 저장"]
+        M1 --> E1 --> C1
+    end
+
+    COLLECT --> SPLIT
+    SPLIT -->|"파티션 A"| Worker0
+    SPLIT -->|"파티션 B"| Worker1
+    Worker0 -->|"완료"| WAIT
+    Worker1 -->|"완료"| WAIT
+
+    style Orchestrator fill:#e8f5e9,stroke:#2e7d32
+    style Worker0 fill:#e3f2fd,stroke:#1565c0
+    style Worker1 fill:#e3f2fd,stroke:#1565c0
+```
+
+#### 동작 방식
+
+1. **ID 수집**: Scroll API로 대상 chunk의 ES `_id` 전체를 수집 (빠름, 본문 조회 없음)
+2. **파티셔닝**: chunk ID를 N등분하여 각 워커에 할당
+3. **독립 프로세스**: 각 워커가 `multiprocessing.Process`로 생성, 독립적으로:
+   - BGE-M3 모델 로드 (워커당 ~2GB)
+   - ES `mget`으로 배치 텍스트 조회
+   - 임베딩 생성 + ES `bulk update`
+4. **체크포인트**: 워커별 독립 체크포인트 (`/tmp/embedding_checkpoint_worker_0.json`)
+5. **메모리 스태거**: 워커 간 10초 간격으로 모델 로딩하여 메모리 피크 방지
+
+#### 메모리 요구사항
+
+| 워커 수 | BGE-M3 메모리 | 오버헤드 | 총 예상 | WSL 12GB 적합 |
+|---------|-------------|---------|--------|:------------:|
+| 1 (기본) | ~2GB | ~1GB | ~3GB | O |
+| 2 | ~4GB | ~2GB | ~6GB | O (`--stop-service` 권장) |
+| 3 | ~6GB | ~3GB | ~9GB | 위험 |
+
+> 2워커 = WSL 11GB 내 안전. 3워커 이상은 GPU 환경에서만 권장.
+
+#### `--max-text-length` (텍스트 절단)
+
+법률 문서 등 초장문 청크는 BGE-M3의 O(n²) self-attention으로 임베딩 시간이 폭증합니다:
+
+| 텍스트 길이 | 토큰 수 (약) | CPU 배치 시간 | 비고 |
+|------------|-------------|-------------|------|
+| ~1,000자 | ~250 | ~5초 | 일반 기술 문서 |
+| ~4,000자 | ~1,000 | ~15초 | 절단 기준 |
+| ~16,000자 | ~4,000 | ~420초 | 법률 문서 (문제 구간) |
+
+`--max-text-length 4000`을 지정하면 텍스트를 4000자로 절단 후 임베딩합니다.
+
+> **트레이드오프**: 절단된 부분의 의미는 임베딩에 반영되지 않습니다. 그러나 첫 4000자(≈1000토큰)에 문서의 핵심 내용이 포함되는 경우가 대부분이며, 검색 품질 저하는 미미합니다.
+
+#### `--batch-timeout` (배치 타임아웃)
+
+개별 배치가 지정 시간(초)을 초과하면 해당 배치를 **스킵**하고 다음으로 진행합니다.
+
+```
+--batch-timeout 300  → 배치가 5분 초과 시 스킵
+--batch-timeout 0    → 무제한 (타임아웃 없음)
+```
+
+스킵된 배치의 청크는 `failed`로 카운트되며, `--resume`으로 재시도할 수 있습니다.
+
+#### 예상 성능
+
+| 항목 | 싱글 워커 (기존) | 2워커 + 절단 (신규) |
+|------|:---------------:|:------------------:|
+| 법률 문서 배치 | 420초/배치 | ~5초/배치 |
+| 워커 수 | 1 | 2 |
+| 처리 속도 | ~0.1 chunks/s | ~3-5 chunks/s |
+| 5,954개 잔여 | 수일 | **20-30분** |
+
 ---
 
-### 13.10 dry-run으로 사전 확인
+### 13.11 dry-run으로 사전 확인
 
 실제 실행 전에 반드시 dry-run으로 대상 건수를 확인하세요:
 
@@ -1357,6 +1476,17 @@ asyncio.run(check())
 ### Q: WSL 메모리 증가 후에도 `free -h`가 변하지 않음
 **A**: `.wslconfig` 변경 후 반드시 **Windows PowerShell에서 `wsl --shutdown` 실행** 필요.
 WSL 터미널에서는 실행할 수 없습니다.
+
+### Q: Full Cycle 배치가 수시간 hung 상태 (진행 안 됨)
+**A**: 법률 문서 등 초장문 청크가 CPU 임베딩에서 수 분/배치 소요. 3단계 대응:
+1. **hung 프로세스 Kill**: `docker exec kp-ai-service pkill -f embedding_full_cycle || true`
+2. **텍스트 절단 + 병렬 실행**: §13.10 참고
+```bash
+docker exec kp-ai-service python3 /app/scripts/embedding_full_cycle.py \
+  --mode all --workers 2 --max-text-length 4000 --batch-size 4 \
+  --batch-timeout 300 --stop-service
+```
+3. 기존 체크포인트가 있으면 워커가 자동으로 건너뜀
 
 ### Q: Full Cycle 배치 중 OOM Kill 발생
 **A**: batch_size를 줄이고 체크포인트에서 재개합니다.
@@ -1684,5 +1814,5 @@ ai-service 재시작 (프레시 369MB/10GB)
 
 ---
 
-*작성: Claude Code (Opus 4.6) | 2026-02-09 v3.1*
-*변경 이력: v1.0 초안 (2/8) → v1.4 Batch 1 로그 (2/8) → v2.0 Batch 2+3 로그, 임베딩 비활성화 모드 추가 (2/9) → v3.0 전체 재구성: 3-Store 아키텍처, Full Cycle 임베딩 배치 추가, 섹션 재배치 (2/9) → v3.1 ES Scroll Context 관리 섹션 추가, batch_size CPU 실측 데이터 반영 (2/9)*
+*작성: Claude Code (Opus 4.6) | 2026-02-10 v3.2*
+*변경 이력: v1.0 초안 (2/8) → v1.4 Batch 1 로그 (2/8) → v2.0 Batch 2+3 로그, 임베딩 비활성화 모드 추가 (2/9) → v3.0 전체 재구성: 3-Store 아키텍처, Full Cycle 임베딩 배치 추가, 섹션 재배치 (2/9) → v3.1 ES Scroll Context 관리 섹션 추가, batch_size CPU 실측 데이터 반영 (2/9) → v3.2 병렬 워커 모드, 텍스트 절단, 배치 타임아웃 추가 (2/10)*
