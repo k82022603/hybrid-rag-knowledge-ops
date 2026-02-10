@@ -874,12 +874,12 @@ def main() -> None:
     else:
         # 컨테이너 내부인지 확인
         if os.path.exists("/app/docs/results"):
-            output_path = f"/app/docs/results/smoke_test_search_{today}.json"
+            output_path = f"/app/docs/results/smoke_test/smoke_test_search_{today}.json"
         else:
             # 로컬 환경 (스크립트 기준 상대 경로)
             script_dir = os.path.dirname(os.path.abspath(__file__))
             results_dir = os.path.join(
-                script_dir, "..", "docs", "results"
+                script_dir, "..", "docs", "results", "smoke_test"
             )
             output_path = os.path.join(
                 results_dir, f"smoke_test_search_{today}.json"
