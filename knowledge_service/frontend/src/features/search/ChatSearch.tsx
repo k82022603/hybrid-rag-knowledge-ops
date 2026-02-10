@@ -90,13 +90,13 @@ const ChatSearch: React.FC = () => {
 
   // Generate status message for screen readers
   const getStatusMessage = () => {
-    if (isConnecting) return 'Connecting to search service...';
-    if (isStreaming) return 'Generating response...';
-    if (error) return `Error: ${error}`;
+    if (isConnecting) return '검색 서비스에 연결 중...';
+    if (isStreaming) return '답변 생성 중...';
+    if (error) return `오류: ${error}`;
     if (messages.length > 0) {
       const lastMessage = messages[messages.length - 1];
       if (lastMessage.role === 'assistant') {
-        return 'Response complete';
+        return '답변 완료';
       }
     }
     return '';
@@ -145,7 +145,7 @@ const ChatSearch: React.FC = () => {
               data-testid="cancel-stream-button"
             >
               <StopIcon className="h-3.5 w-3.5" />
-              <span>Cancel</span>
+              <span>중지</span>
             </button>
           </div>
         )}
@@ -169,7 +169,7 @@ const ChatSearch: React.FC = () => {
               className="ml-auto text-xs text-error-500 hover:text-error-700 font-medium focus:outline-none focus:ring-2 focus:ring-error-500 rounded px-1"
               aria-label="Dismiss error message"
             >
-              Dismiss
+              닫기
             </button>
           </div>
         )}

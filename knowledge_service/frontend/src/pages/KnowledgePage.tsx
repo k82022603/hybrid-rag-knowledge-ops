@@ -393,10 +393,10 @@ const KnowledgePage: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Knowledge Management
+            지식 관리
           </h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Upload, manage, and monitor documents in the knowledge base
+            지식 베이스의 문서를 업로드, 관리, 모니터링하세요
           </p>
         </div>
         <button
@@ -404,7 +404,7 @@ const KnowledgePage: React.FC = () => {
           className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
         >
           <CloudArrowUpIcon className="h-5 w-5" />
-          Upload Document
+          문서 업로드
         </button>
       </div>
 
@@ -413,28 +413,28 @@ const KnowledgePage: React.FC = () => {
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
           <div className="flex items-center gap-2 mb-1">
             <CheckCircleIcon className="h-4 w-4 text-success-500" />
-            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Completed</span>
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">완료</span>
           </div>
           <p className="text-xl font-bold text-gray-900 dark:text-white">{processingStats.completed}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
           <div className="flex items-center gap-2 mb-1">
             <ArrowPathIcon className="h-4 w-4 text-primary-500 animate-spin" />
-            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Processing</span>
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">처리 중</span>
           </div>
           <p className="text-xl font-bold text-gray-900 dark:text-white">{processingStats.processing}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
           <div className="flex items-center gap-2 mb-1">
             <ClockIcon className="h-4 w-4 text-warning-500" />
-            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Pending</span>
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">대기</span>
           </div>
           <p className="text-xl font-bold text-gray-900 dark:text-white">{processingStats.pending}</p>
         </div>
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4">
           <div className="flex items-center gap-2 mb-1">
             <ExclamationCircleIcon className="h-4 w-4 text-error-500" />
-            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Failed</span>
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">실패</span>
           </div>
           <p className="text-xl font-bold text-gray-900 dark:text-white">{processingStats.failed}</p>
         </div>
@@ -450,7 +450,7 @@ const KnowledgePage: React.FC = () => {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search documents by title, type, or tags..."
+              placeholder="제목, 유형 또는 태그로 문서 검색..."
               className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
               aria-label="Search documents"
             />
@@ -563,7 +563,7 @@ const KnowledgePage: React.FC = () => {
                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors"
               >
                 <CloudArrowUpIcon className="h-4 w-4" />
-                Upload Document
+                문서 업로드
               </button>
             )}
           </div>

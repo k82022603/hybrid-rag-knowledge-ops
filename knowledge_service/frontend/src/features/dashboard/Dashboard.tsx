@@ -34,9 +34,9 @@ const WelcomeSection: React.FC = () => {
 
   const getGreeting = (): string => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return '좋은 아침이에요';
+    if (hour < 18) return '안녕하세요';
+    return '좋은 저녁이에요';
   };
 
   const displayName = user?.name || user?.username || 'User';
@@ -50,7 +50,7 @@ const WelcomeSection: React.FC = () => {
         </span>
       </h1>
       <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-        Welcome to the Knowledge Portal. Here is your overview.
+        Knowledge Portal에 오신 것을 환영합니다. 주요 현황을 확인하세요.
       </p>
     </div>
   );
@@ -84,7 +84,7 @@ const StatsSection: React.FC = () => {
       >
         <ExclamationTriangleIcon className="h-5 w-5 text-error-500 flex-shrink-0" />
         <p className="text-sm text-error-700 dark:text-error-300">
-          Failed to load dashboard statistics. Please try again later.
+          대시보드 통계를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.
         </p>
       </div>
     );
@@ -96,25 +96,25 @@ const StatsSection: React.FC = () => {
       data-testid="stats-section"
     >
       <StatCard
-        title="Total Documents"
+        title="전체 문서"
         value={stats?.totalDocuments?.toLocaleString() ?? '0'}
-        subtitle={`${stats?.documentsToday ?? 0} added today`}
+        subtitle={`오늘 ${stats?.documentsToday ?? 0}건 추가`}
         icon={
           <DocumentTextIcon className="h-5 w-5 text-primary-600 dark:text-primary-400" />
         }
         iconBg="bg-primary-50 dark:bg-primary-900/30"
       />
       <StatCard
-        title="Search Queries"
+        title="검색 횟수"
         value={stats?.totalSearches?.toLocaleString() ?? '0'}
-        subtitle={`${stats?.searchesToday ?? 0} today`}
+        subtitle={`오늘 ${stats?.searchesToday ?? 0}건`}
         icon={
           <MagnifyingGlassIcon className="h-5 w-5 text-success-600 dark:text-success-400" />
         }
         iconBg="bg-success-50 dark:bg-success-900/30"
       />
       <StatCard
-        title="Active Users"
+        title="활성 사용자"
         value={stats?.activeUsers?.toLocaleString() ?? '0'}
         icon={
           <UsersIcon className="h-5 w-5 text-accent-600 dark:text-accent-400" />
@@ -122,7 +122,7 @@ const StatsSection: React.FC = () => {
         iconBg="bg-accent-50 dark:bg-accent-900/30"
       />
       <StatCard
-        title="Avg Response Time"
+        title="평균 응답시간"
         value={`${stats?.indexingRate ?? 0}ms`}
         icon={
           <ClockIcon className="h-5 w-5 text-warning-600 dark:text-warning-400" />
@@ -148,7 +148,7 @@ const QuickSearchSection: React.FC = () => {
     <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-sm font-semibold text-gray-900 dark:text-white">
-          Quick Search
+          빠른 검색
         </h2>
         <ChartBarIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
       </div>
@@ -159,7 +159,7 @@ const QuickSearchSection: React.FC = () => {
       {/* Recent Searches (AC3) */}
       <div className="mt-4">
         <h3 className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
-          Recent Searches
+          최근 검색
         </h3>
         <RecentSearches
           searches={displaySearches}
@@ -197,7 +197,7 @@ const Dashboard: React.FC = () => {
           {/* Quick Stats Summary */}
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
             <h2 className="text-sm font-semibold text-gray-900 dark:text-white mb-4">
-              Getting Started
+              시작하기
             </h2>
             <ul className="space-y-3">
               <li className="flex items-start gap-3">
@@ -206,10 +206,10 @@ const Dashboard: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    Search Knowledge
+                    지식 검색
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Use the search bar above or navigate to the Search page for advanced queries.
+                    검색창에 질문을 입력하거나 검색 페이지에서 상세 검색을 이용하세요.
                   </p>
                 </div>
               </li>
@@ -219,10 +219,10 @@ const Dashboard: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    Browse Documents
+                    문서 탐색
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Explore the knowledge base from the Knowledge page.
+                    지식 베이스 페이지에서 등록된 문서를 탐색하고 관리하세요.
                   </p>
                 </div>
               </li>
@@ -232,10 +232,10 @@ const Dashboard: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    Collaborate
+                    협업
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Share and bookmark useful documents with your team.
+                    유용한 문서를 북마크하고 팀원들과 공유하세요.
                   </p>
                 </div>
               </li>

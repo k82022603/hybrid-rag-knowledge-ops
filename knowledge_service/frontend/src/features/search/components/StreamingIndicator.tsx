@@ -32,12 +32,12 @@ function getStatusMessage(
   reconnectInfo?: ReconnectInfo | null
 ): string {
   if (reconnectInfo) {
-    return `Reconnecting... (attempt ${reconnectInfo.attempt}/${reconnectInfo.maxRetries})`;
+    return `재연결 중... (${reconnectInfo.attempt}/${reconnectInfo.maxRetries}회 시도)`;
   }
   if (isConnecting) {
-    return 'Connecting...';
+    return '연결 중...';
   }
-  return 'Generating response...';
+  return '답변 생성 중...';
 }
 
 /**

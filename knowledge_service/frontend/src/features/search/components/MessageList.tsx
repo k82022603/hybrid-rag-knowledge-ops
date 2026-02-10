@@ -23,9 +23,11 @@ export interface MessageListProps {
 
 /** Default search suggestions for empty state */
 const SUGGESTIONS = [
-  'MSA 전환 프로젝트 진행 현황을 알려줘',
-  '최신 기술 가이드라인을 요약해줘',
-  '문서 업로드 절차가 어떻게 되나요?',
+  'Neo4j와 Elasticsearch의 역할 차이점은?',
+  'RAG Pipeline에서 BGE-M3 임베딩 모델의 역할은?',
+  'Strangler Fig 패턴을 활용한 점진적 마이그레이션 방법은?',
+  '대한민국 헌법에서 국민의 기본권은 어떻게 규정하고 있나요?',
+  'Agentic AI 에이전트 워크플로우 설계 패턴은?',
 ];
 
 /**

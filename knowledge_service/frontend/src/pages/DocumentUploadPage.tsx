@@ -398,13 +398,13 @@ const UploadFileItem: React.FC<{
           {/* Title */}
           <div>
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Title
+              제목
             </label>
             <input
               type="text"
               value={uploadFile.title}
               onChange={(e) => onUpdateTitle(uploadFile.id, e.target.value)}
-              placeholder="Document title (optional)"
+              placeholder="문서 제목 (선택사항)"
               className="w-full px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500"
             />
           </div>
@@ -412,27 +412,27 @@ const UploadFileItem: React.FC<{
           {/* Category */}
           <div>
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Category
+              카테고리
             </label>
             <select
               value={uploadFile.category}
               onChange={(e) => onUpdateCategory(uploadFile.id, e.target.value)}
               className="w-full px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500"
             >
-              <option value="">Select category</option>
-              <option value="technical">Technical Document</option>
-              <option value="guide">Guide / Manual</option>
-              <option value="policy">Policy / Regulation</option>
-              <option value="report">Report</option>
-              <option value="meeting">Meeting Notes</option>
-              <option value="other">Other</option>
+              <option value="">카테고리 선택</option>
+              <option value="technical">기술 문서</option>
+              <option value="guide">가이드 / 매뉴얼</option>
+              <option value="policy">정책 / 규정</option>
+              <option value="report">보고서</option>
+              <option value="meeting">회의록</option>
+              <option value="other">기타</option>
             </select>
           </div>
 
           {/* Tags */}
           <div>
             <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Tags
+              태그
             </label>
             <div className="flex flex-wrap gap-1.5 mb-2">
               {uploadFile.tags.map((tag) => (
@@ -457,7 +457,7 @@ const UploadFileItem: React.FC<{
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={handleTagKeyDown}
-                placeholder="Add a tag..."
+                placeholder="태그 추가..."
                 className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500"
               />
               <button

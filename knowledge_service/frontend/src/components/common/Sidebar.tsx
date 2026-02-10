@@ -34,40 +34,40 @@ interface MenuItem {
 
 const menuItems: MenuItem[] = [
   {
-    text: 'Dashboard',
+    text: '대시보드',
     icon: <HomeIcon className="h-5 w-5" />,
     path: '/dashboard',
   },
   {
-    text: 'Search',
+    text: '검색',
     icon: <MagnifyingGlassIcon className="h-5 w-5" />,
     path: '/search',
   },
   {
-    text: 'Knowledge',
+    text: '지식 관리',
     icon: <BookOpenIcon className="h-5 w-5" />,
     path: '/knowledge',
     roles: ['KNOWLEDGE_MANAGER', 'ADMIN'],
   },
   {
-    text: 'Upload',
+    text: '문서 업로드',
     icon: <ArrowUpTrayIcon className="h-5 w-5" />,
     path: '/upload',
     roles: ['KNOWLEDGE_MANAGER', 'ADMIN'],
   },
   {
-    text: 'Bookmarks',
+    text: '북마크',
     icon: <BookmarkIcon className="h-5 w-5" />,
     path: '/bookmarks',
     dividerBefore: true,
   },
   {
-    text: 'Profile',
+    text: '프로필',
     icon: <UserIcon className="h-5 w-5" />,
     path: '/profile',
   },
   {
-    text: 'Admin',
+    text: '관리자',
     icon: <Cog6ToothIcon className="h-5 w-5" />,
     path: '/admin',
     roles: ['ADMIN'],

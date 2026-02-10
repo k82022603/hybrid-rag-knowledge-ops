@@ -291,9 +291,9 @@ const BookmarkPage: React.FC = () => {
     <div className="space-y-6" data-testid="bookmark-page">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Bookmarks</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">북마크</h1>
         <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-          Save and organize your favorite documents
+          자주 찾는 문서를 저장하고 관리하세요
         </p>
       </div>
 
@@ -342,7 +342,7 @@ const BookmarkPage: React.FC = () => {
                 type="text"
                 value={searchQuery}
                 onChange={handleSearchChange}
-                placeholder="Search bookmarks..."
+                placeholder="북마크 검색..."
                 className="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                 aria-label="Search bookmarks"
               />

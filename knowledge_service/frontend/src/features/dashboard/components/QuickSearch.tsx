@@ -23,7 +23,7 @@ export interface QuickSearchProps {
  */
 const QuickSearch: React.FC<QuickSearchProps> = ({
   onSearch,
-  placeholder = 'Search knowledge base... (Ctrl+K)',
+  placeholder = '지식 베이스 검색... (Ctrl+K)',
 }) => {
   const [query, setQuery] = useState('');
   const navigate = useNavigate();
