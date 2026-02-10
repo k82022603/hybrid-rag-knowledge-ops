@@ -2,7 +2,7 @@
 
 **HRKP vs RAGChatbotServer 성능 비교 평가 프레임워크**
 
-**Version**: 1.0 | **Updated**: 2026-02-10 | **Author**: MLRag
+**Version**: 1.1 | **Updated**: 2026-02-10 | **Author**: MLRag
 
 ---
 
@@ -31,6 +31,119 @@ HRKP(Hybrid RAG Knowledge Platform)에 구현된 RAGAS 평가 프레임워크를
 | **Answer Relevancy** | 답변이 질문과 관련 있는지 | >= 0.85 | question, answer |
 | **Context Precision** | 검색된 컨텍스트가 정확한지 | >= 0.8 | question, **contexts** |
 | **Context Recall** | 필요한 정보가 검색되었는지 | >= 0.7 | question, **contexts**, ground_truth |
+
+### 1.4 평가 환경 (확정)
+
+| 항목 | HRKP | RAGChatbotServer |
+|------|------|------------------|
+| **벡터 DB** | Elasticsearch 8.x | **Elasticsearch 8.x** (동일) |
+| **검색 모드** | Hybrid (BM25 + Dense + Graph) | custom-hybrid (BM25 + Dense) |
+| **Docker 구성** | kp-elasticsearch (기존) | docker-compose-es.yml |
+
+> **참고**: RAGChatbotServer는 ES/OpenSearch/PGVector 중 선택 가능하나, HRKP와 동일한 **Elasticsearch** 기반으로 평가하여 벡터 DB 변수를 제거한다.
+
+---
+
+## 1.5 예상 성능 비교표
+
+### 1.5.1 시스템 아키텍처 비교
+
+```mermaid
+flowchart LR
+    subgraph HRKP_Arch["HRKP (로컬 추론)"]
+        direction TB
+        Q1["Query"] --> S1["Hybrid Search<br/>BM25 + Dense + Graph"]
+        S1 --> RRF["RRF Fusion<br/>(3-way merge)"]
+        RRF --> R1["Reranker"]
+        R1 --> LLM1["DeepSeek V3.2<br/>(API, 저비용)"]
+        LLM1 --> A1["Answer"]
+    end
+
+    subgraph RCSV_Arch["RAGChatbotServer (클라우드 API)"]
+        direction TB
+        Q2["Query"] --> S2["Custom Hybrid<br/>BM25 + Dense"]
+        S2 --> R2["LangChain<br/>Retriever (alpha=0.6)"]
+        R2 --> LLM2["GPT-4o-mini<br/>(OpenAI API)"]
+        LLM2 --> A2["Answer"]
+    end
+
+    style HRKP_Arch fill:#e3f2fd
+    style RCSV_Arch fill:#fff3e0
+```
+
+### 1.5.2 검색 파이프라인 상세 비교
+
+| 항목 | HRKP | RAGChatbotServer | 예상 영향 |
+|------|------|------------------|----------|
+| **검색 채널** | 3채널 (Dense + BM25 + Graph) | 2채널 (Dense + BM25) | HRKP의 Graph 검색이 multi-hop 질의에서 우위 |
+| **결과 융합** | RRF (Reciprocal Rank Fusion) | LangChain alpha=0.6 가중합 | RRF가 이론적으로 더 robust한 fusion |
+| **Reranker** | 있음 (검색 후 재정렬) | 없음 | HRKP의 Context Precision 우위 예상 |
+| **임베딩 모델** | BGE-M3 (1024d, 다국어) | OpenAI text-embedding-3-small (1536d) | OpenAI 임베딩 품질 약간 우위 가능 |
+| **임베딩 위치** | 로컬 ONNX (CPU) | OpenAI API (클라우드) | RCSV 임베딩 latency 낮음 (API 최적화) |
+| **청킹** | SemanticChunker (600자, 100 overlap) | RecursiveCharacter (2000자, 300 overlap) | HRKP 청크가 세밀, RCSV 청크가 풍부한 맥락 |
+| **메타데이터** | 구조화 (PostgreSQL SSOT) | LLM 생성 (level1/2/3, summary) | RCSV의 LLM 메타데이터가 BM25에 유리 |
+| **Knowledge Graph** | Neo4j (엔티티/관계) | 없음 | HRKP 고유 강점 (관계 추론) |
+
+### 1.5.3 RAGAS 메트릭 예상 점수
+
+> 아래 예상치는 시스템 아키텍처 분석, 코드 리뷰, 기존 벤치마크 자료를 기반으로 추론한 값입니다. **실측 후 업데이트 예정.**
+
+| 메트릭 | HRKP 예상 | RCSV 예상 | 예상 우위 | 근거 |
+|--------|:---------:|:---------:|:---------:|------|
+| **Faithfulness** | 0.75~0.85 | **0.80~0.90** | RCSV | GPT-4o-mini의 instruction following이 DeepSeek 대비 우수, 환각 제어 강점 |
+| **Answer Relevancy** | 0.70~0.80 | **0.75~0.85** | RCSV | GPT-4o-mini의 자연어 생성 품질이 높고, 질문-답변 정합성 우수 |
+| **Context Precision** | **0.75~0.85** | 0.65~0.75 | HRKP | 3채널 Hybrid + RRF + Reranker로 검색 정밀도 우위 |
+| **Context Recall** | **0.70~0.80** | 0.60~0.70 | HRKP | Graph 검색이 누락 정보 보완, BM25+Dense+Graph 3중 커버리지 |
+| **종합 평균** | **0.73~0.83** | **0.70~0.80** | 근소 HRKP | 검색 품질 우위가 생성 품질 열위를 보완 |
+
+### 1.5.4 성능(Latency) 예상 비교
+
+| 항목 | HRKP 예상 | RCSV 예상 | 근거 |
+|------|:---------:|:---------:|------|
+| **임베딩 (쿼리)** | 50~200ms (로컬 CPU) | 30~80ms (OpenAI API) | API 호출이 최적화된 서버에서 처리 |
+| **ES 검색** | 50~150ms | 50~150ms | 동일 ES, 유사 검색 방식 |
+| **Graph 검색** | 100~300ms | N/A | HRKP에만 있음 (추가 latency) |
+| **RRF 융합** | 10~30ms | N/A | HRKP에만 있음 |
+| **Reranker** | 100~500ms | N/A | HRKP에만 있음 |
+| **LLM 생성** | 1~3s (DeepSeek API) | 0.5~2s (GPT-4o-mini) | GPT-4o-mini가 약간 빠름 |
+| **E2E P50** | **1.5~3s** | **0.8~2s** | RCSV가 파이프라인 단순하여 빠름 |
+| **E2E P95** | **3~5s** | **1.5~3s** | HRKP Graph+Reranker 추가 비용 |
+
+### 1.5.5 비용 비교 (1,000 쿼리 기준)
+
+| 항목 | HRKP | RCSV | 비고 |
+|------|-----:|-----:|------|
+| **LLM 추론** | $0.05 | $0.15 | DeepSeek $0.14/1M vs GPT-4o-mini $0.15/1M input |
+| **임베딩** | $0.00 | $0.002 | 로컬 BGE-M3 vs OpenAI $0.02/1M tokens |
+| **인프라 (Docker)** | $0.00* | $0.00* | 둘 다 로컬 Docker (*전기 제외) |
+| **총 비용/1K 쿼리** | **~$0.05** | **~$0.15** | HRKP 약 3배 저렴 |
+
+> *DeepSeek V3.2 비용: input $0.14/1M, output $0.28/1M (GPT-4o-mini 대비 95% 절감)*
+
+### 1.5.6 강점/약점 예상 요약
+
+| 시스템 | 강점 | 약점 |
+|--------|------|------|
+| **HRKP** | 3채널 Hybrid + Graph + RRF + Reranker로 검색 품질 우수, 비용 효율적, 메타데이터 구조화 | 파이프라인 복잡도로 latency 높음, 로컬 임베딩 CPU 병목 |
+| **RCSV** | GPT-4o-mini 생성 품질, 단순한 파이프라인으로 빠른 응답, OpenAI 임베딩 품질 | Graph 검색 없음, Reranker 없음, LLM 메타데이터 의존, API 비용 |
+
+### 1.5.7 메트릭별 예상 승패 매트릭스
+
+```
+                    HRKP 우위          RCSV 우위
+                    ◄────────────────►
+Faithfulness       ■■■■■■■■■■■■████████████  ← RCSV (LLM 품질)
+Answer Relevancy   ■■■■■■■■■■■████████████  ← RCSV (LLM 품질)
+Context Precision  ████████████████■■■■■■■  ← HRKP (검색 품질)
+Context Recall     ███████████████■■■■■■■■  ← HRKP (Graph+3채널)
+─────────────────────────────────────────
+E2E Latency        ■■■■■■■■■████████████   ← RCSV (단순 파이프라인)
+Cost/Query         ██████████████████■■■■   ← HRKP (로컬 추론)
+
+■ = 열위  █ = 우위
+```
+
+> **핵심 인사이트**: HRKP는 **검색(Retrieval)** 품질에서, RCSV는 **생성(Generation)** 품질에서 각각 강점을 가질 것으로 예상. 이는 각 시스템의 설계 철학(HRKP=정교한 검색 파이프라인, RCSV=강력한 LLM)을 반영한다.
 
 ---
 
