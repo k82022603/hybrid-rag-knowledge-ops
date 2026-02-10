@@ -5,11 +5,11 @@
 
 ### Recent Commits
 ```
+8aefee0 [DOCS] 비교표에 Document Parsing(Docling) 영향 분석 추가
+ca68696 [DOCS] RAGAS 크로스 시스템 평가 가이드에 예상 성능 비교표 추가
+0d5b914 [DOCS] RAGAS 크로스 시스템 비교 평가 가이드 + STORY-111 백로그
 143f01b [CHORE] .gitignore에 RAGChatbotServer/ 제외 추가
 dceef22 [DOCS] 운영매뉴얼 v3.2 실측 데이터 반영 + 세션로그 업데이트
-d6f5545 [FEAT] 병렬 워커 임베딩 튜닝 - max-text-length/workers/batch-timeout
-9683323 [DOCS] 일일 마무리 - 임베딩 배치 50% + Scroll 최적화 + Architect 합류 + 스탠드업
-0a2202c [DOCS] 일일 마무리 - 문서 적재 38/38 (100%) 완료 + 배치 로더 스크립트
 ```
 
 ## Work Log Status
