@@ -350,25 +350,30 @@ class SearchService:
                     elif isinstance(result, Exception):
                         logger.warning(f"Graph search failed: {result}")
 
-            # 2. RRF 융합 (활성화된 소스만)
+            # 2. RRF 융합 (활성화된 소스만, 채널별 가중치 적용)
             result_lists = []
             source_names = []
+            source_weights = []
 
             if use_vector and vector_results:
                 result_lists.append(vector_results)
                 source_names.append("vector")
+                source_weights.append(settings.rrf_weight_vector)
 
             if keyword_results:
                 result_lists.append(keyword_results)
                 source_names.append("keyword")
+                source_weights.append(settings.rrf_weight_keyword)
 
             if use_graph and graph_results:
                 result_lists.append(graph_results)
                 source_names.append("graph")
+                source_weights.append(settings.rrf_weight_graph)
 
             fused_results = self._rrf_fusion(
                 result_lists=result_lists,
                 source_names=source_names,
+                weights=source_weights,
                 k=settings.rrf_k,
             )
 
@@ -771,9 +776,13 @@ class SearchService:
             if entity_names:
                 records = await self._neo4j_query(cypher, params)
 
-            results = [
-                SearchResult(
-                    chunk_id=str(record.get("chunk_id", str(uuid4()))),
+            results = []
+            for record in records:
+                # chunk_id가 None인 경우 고유 UUID 생성 (RRF 점수 합산 버그 방지)
+                raw_chunk_id = record.get("chunk_id")
+                chunk_id = str(raw_chunk_id) if raw_chunk_id else str(uuid4())
+                results.append(SearchResult(
+                    chunk_id=chunk_id,
                     document_id=str(record.get("document_id", "")),
                     content=str(record.get("content", "")),
                     score=float(record.get("score", 0.0)),
@@ -785,9 +794,7 @@ class SearchService:
                             "matched_entities", []
                         ),
                     },
-                )
-                for record in records
-            ]
+                ))
 
             logger.info(f"Graph search complete - Results: {len(results)}")
             return results
@@ -800,17 +807,19 @@ class SearchService:
         self,
         result_lists: List[List[SearchResult]],
         source_names: Optional[List[str]] = None,
+        weights: Optional[List[float]] = None,
         k: int = 60,
     ) -> List[SearchResult]:
         """
         RRF (Reciprocal Rank Fusion) 융합
 
         여러 검색 소스의 결과를 RRF 알고리즘으로 융합합니다.
-        score = sum(1 / (k + rank_i)) for each source i
+        score = sum(weight_i / (k + rank_i)) for each source i
 
         Args:
             result_lists: 각 소스의 검색 결과 리스트
             source_names: 소스 이름 리스트 (디버깅용)
+            weights: 소스별 가중치 리스트 (None이면 모두 1.0)
             k: RRF 파라미터 (기본값 60, 높을수록 하위 순위 영향 감소)
 
         Returns:
@@ -821,13 +830,15 @@ class SearchService:
         source_ranks: Dict[str, Dict[str, int]] = {}  # chunk_id -> {source: rank}
 
         names = source_names or [f"source_{i}" for i in range(len(result_lists))]
+        effective_weights = weights or [1.0] * len(result_lists)
 
         for source_idx, result_list in enumerate(result_lists):
             source_name = names[source_idx] if source_idx < len(names) else f"source_{source_idx}"
+            weight = effective_weights[source_idx] if source_idx < len(effective_weights) else 1.0
 
             for rank, result in enumerate(result_list):
                 chunk_id = result.chunk_id
-                rrf_score = 1.0 / (k + rank + 1)
+                rrf_score = weight * (1.0 / (k + rank + 1))
 
                 scores[chunk_id] = scores.get(chunk_id, 0.0) + rrf_score
 
@@ -842,6 +853,17 @@ class SearchService:
         # 점수 기준 정렬
         sorted_ids = sorted(scores.keys(), key=lambda x: scores[x], reverse=True)
 
+        # 소스별 가중치 점수 추적용
+        source_weighted_scores: Dict[str, Dict[str, float]] = {}
+        for source_idx, result_list in enumerate(result_lists):
+            source_name = names[source_idx] if source_idx < len(names) else f"source_{source_idx}"
+            w = effective_weights[source_idx] if source_idx < len(effective_weights) else 1.0
+            for rank, result in enumerate(result_list):
+                cid = result.chunk_id
+                if cid not in source_weighted_scores:
+                    source_weighted_scores[cid] = {}
+                source_weighted_scores[cid][source_name] = w * (1.0 / (k + rank + 1))
+
         fused_results: List[SearchResult] = []
         for chunk_id in sorted_ids:
             result = results_map[chunk_id]
@@ -851,18 +873,22 @@ class SearchService:
             ranks = source_ranks.get(chunk_id, {})
             result.metadata["source_ranks"] = ranks
 
-            # Primary source: 가장 높은 순위(낮은 rank 숫자) 소스로 결정
-            if ranks:
-                primary_source = min(ranks, key=ranks.get)
+            # Primary source: 가중치 적용된 RRF 점수가 가장 높은 소스로 결정
+            chunk_src_scores = source_weighted_scores.get(chunk_id, {})
+            if chunk_src_scores:
+                primary_source = max(chunk_src_scores, key=chunk_src_scores.get)
                 result.source = primary_source
-                # metadata.search_source도 함께 갱신 (프론트엔드 전달용)
                 result.metadata["search_source"] = primary_source
+                result.metadata["source_scores"] = {
+                    s: round(v, 6) for s, v in chunk_src_scores.items()
+                }
 
             fused_results.append(result)
 
         logger.debug(
             f"RRF fusion - Input sources: {len(result_lists)}, "
-            f"Unique results: {len(fused_results)}"
+            f"Unique results: {len(fused_results)}, "
+            f"weights: {dict(zip(names, effective_weights))}"
         )
 
         return fused_results

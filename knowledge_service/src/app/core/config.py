@@ -151,6 +151,9 @@ class Settings(BaseSettings):
     max_gleanings: int = Field(default=1, description="Gleaning 최대 반복 횟수")
     retrieval_top_k: int = Field(default=10, description="검색 결과 상위 K개")
     rrf_k: int = Field(default=60, description="RRF 융합 파라미터")
+    rrf_weight_vector: float = Field(default=1.0, description="RRF Vector 채널 가중치")
+    rrf_weight_keyword: float = Field(default=1.0, description="RRF Keyword 채널 가중치")
+    rrf_weight_graph: float = Field(default=0.3, description="RRF Graph 채널 가중치 (과점유 방지)")
 
     # Ragas 품질 목표
     ragas_faithfulness_target: float = Field(default=0.9, description="Faithfulness 목표")
