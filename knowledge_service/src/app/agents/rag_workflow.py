@@ -108,6 +108,92 @@ CONTEXT_CHUNK_TEMPLATE = """### [출처{index}] {title}
 """
 
 
+def assess_context_quality(
+    search_results: List[SearchResult],
+    high_threshold: float = 0.3,
+    partial_threshold: float = 0.1,
+    min_score_cutoff: float = 0.05,
+    min_high_count: int = 2,
+) -> Dict[str, Any]:
+    """
+    검색 결과의 품질을 판단하여 컨텍스트 등급을 결정
+
+    등급:
+        HIGH: 고품질 결과가 min_high_count개 이상 → 컨텍스트 기반 답변
+        PARTIAL: 일부 결과만 임계값 이상 → 컨텍스트 + 일반 지식 보충
+        NONE: 모든 결과가 임계값 미만 → 일반 지식 기반 답변
+
+    Args:
+        search_results: 검색 결과 목록
+        high_threshold: HIGH 등급 임계값
+        partial_threshold: PARTIAL 등급 임계값
+        min_score_cutoff: 최소 점수 컷오프 (이하 제거)
+        min_high_count: HIGH 판정에 필요한 최소 고품질 결과 수
+
+    Returns:
+        {"grade": "HIGH"|"PARTIAL"|"NONE",
+         "filtered_results": 컷오프 이상 결과 목록,
+         "high_count": 고품질 결과 수,
+         "max_score": 최고 점수,
+         "avg_score": 평균 점수,
+         "dropped_count": 컷오프 미만으로 제외된 결과 수}
+    """
+    if not search_results:
+        return {
+            "grade": "NONE",
+            "filtered_results": [],
+            "high_count": 0,
+            "max_score": 0.0,
+            "avg_score": 0.0,
+            "dropped_count": 0,
+        }
+
+    # 점수 기반 필터링: min_score_cutoff 미만 결과 제거
+    filtered = [r for r in search_results if r.score >= min_score_cutoff]
+    dropped_count = len(search_results) - len(filtered)
+
+    if not filtered:
+        return {
+            "grade": "NONE",
+            "filtered_results": [],
+            "high_count": 0,
+            "max_score": max(r.score for r in search_results) if search_results else 0.0,
+            "avg_score": sum(r.score for r in search_results) / len(search_results) if search_results else 0.0,
+            "dropped_count": dropped_count,
+        }
+
+    scores = [r.score for r in filtered]
+    high_count = sum(1 for s in scores if s >= high_threshold)
+    partial_count = sum(1 for s in scores if s >= partial_threshold)
+
+    max_score = max(scores)
+    avg_score = sum(scores) / len(scores)
+
+    if high_count >= min_high_count:
+        grade = "HIGH"
+    elif partial_count > 0 or len(filtered) > 0:
+        # cutoff 이상 결과가 있으면 최소 PARTIAL로 판정
+        # (cutoff~partial 사이 결과도 컨텍스트로 활용)
+        grade = "PARTIAL"
+    else:
+        grade = "NONE"
+
+    logger.debug(
+        "Context quality: grade=%s, high=%d, partial=%d, "
+        "max=%.4f, avg=%.4f, dropped=%d",
+        grade, high_count, partial_count, max_score, avg_score, dropped_count,
+    )
+
+    return {
+        "grade": grade,
+        "filtered_results": filtered,
+        "high_count": high_count,
+        "max_score": max_score,
+        "avg_score": avg_score,
+        "dropped_count": dropped_count,
+    }
+
+
 def build_context_from_results(
     search_results: List[SearchResult],
     max_chunks: int = 10,
@@ -440,6 +526,27 @@ class RAGWorkflow:
         })
 
         # ------------------------------------------------------------------
+        # Stage 2.5: Quality Gate (품질 판단)
+        # ------------------------------------------------------------------
+        quality_start = time.monotonic()
+        quality = assess_context_quality(
+            search_results=search_results,
+            high_threshold=settings.context_quality_high_threshold,
+            partial_threshold=settings.context_quality_partial_threshold,
+            min_score_cutoff=settings.context_min_score_cutoff,
+            min_high_count=settings.context_quality_min_high_count,
+        )
+        pipeline_stages["quality_gate"] = {
+            "grade": quality["grade"],
+            "high_count": quality["high_count"],
+            "max_score": round(quality["max_score"], 4),
+            "avg_score": round(quality["avg_score"], 4),
+            "filtered_count": len(quality["filtered_results"]),
+            "dropped_count": quality["dropped_count"],
+            "latency_ms": round((time.monotonic() - quality_start) * 1000, 2),
+        }
+
+        # ------------------------------------------------------------------
         # Stage 3: Generate (답변 합성)
         # ------------------------------------------------------------------
         generate_start = time.monotonic()
@@ -593,9 +700,14 @@ class RAGWorkflow:
         conversation_context: str = "",
     ) -> tuple:
         """
-        Stage 3: 답변 합성
+        Stage 3: 답변 합성 (품질 판단 레이어 포함)
 
-        Reranked 검색 결과를 컨텍스트로 변환하고 LLM으로 답변을 생성합니다.
+        검색 결과를 품질 판단하고, 등급에 따라 적응형 프롬프트로 LLM 답변을 생성합니다.
+
+        품질 등급별 동작:
+            HIGH: 컨텍스트 기반 답변 (출처 표기)
+            PARTIAL: 컨텍스트 + 일반 지식 보충 안내
+            NONE: 컨텍스트 미제공, 일반 지식 기반 답변 안내
 
         Args:
             query: 사용자 질의
@@ -606,32 +718,68 @@ class RAGWorkflow:
         Returns:
             (answer, context, selected_results) 튜플
         """
-        # 컨텍스트 구성
-        context, selected_results = build_context_from_results(
+        # ── 품질 판단 (Quality Gate) ──
+        quality = assess_context_quality(
             search_results=search_results,
-            max_chunks=self._max_context_chunks,
-            max_length=self._max_context_length,
+            high_threshold=settings.context_quality_high_threshold,
+            partial_threshold=settings.context_quality_partial_threshold,
+            min_score_cutoff=settings.context_min_score_cutoff,
+            min_high_count=settings.context_quality_min_high_count,
+        )
+        grade = quality["grade"]
+        filtered_results = quality["filtered_results"]
+
+        logger.info(
+            "Quality gate - grade=%s, filtered=%d/%d, max_score=%.4f, dropped=%d",
+            grade, len(filtered_results), len(search_results),
+            quality["max_score"], quality["dropped_count"],
         )
 
-        # 대화 이력 컨텍스트 통합 (STORY-057)
-        if conversation_context:
-            # 대화 이력을 검색 컨텍스트 앞에 추가
-            context = f"{conversation_context}\n\n---\n\n{context}" if context else conversation_context
-
-        # 컨텍스트 없으면 폴백
-        if not context.strip():
-            logger.warning("Generate stage - No context, returning fallback")
-            return (
-                "죄송합니다. 질문과 관련된 정보를 찾을 수 없습니다. "
-                "다른 키워드로 검색해 주시거나, 질문을 더 구체적으로 작성해 주세요.",
-                "",
-                [],
+        # ── 등급별 컨텍스트 구성 ──
+        if grade == "NONE":
+            # 쓸 만한 컨텍스트 없음 → LLM에 컨텍스트를 주지 않고 일반 지식 요청
+            context = ""
+            selected_results = []
+            quality_instruction = (
+                "[시스템 안내] 검색된 문서에서 관련 정보를 찾지 못했습니다. "
+                "사용자 질문에 대해 일반 지식을 기반으로 도움이 되는 답변을 제공해주세요. "
+                "답변 시 '검색된 문서에서 직접적인 정보를 찾지 못했습니다'라고 먼저 안내한 후, "
+                "일반 지식 기반 답변임을 명확히 밝혀주세요."
+            )
+        else:
+            # HIGH 또는 PARTIAL → 필터링된 결과로 컨텍스트 구성
+            context, selected_results = build_context_from_results(
+                search_results=filtered_results,
+                max_chunks=self._max_context_chunks,
+                max_length=self._max_context_length,
             )
 
+            if grade == "HIGH":
+                quality_instruction = (
+                    "[시스템 안내] 검색된 컨텍스트의 품질이 양호합니다. "
+                    "컨텍스트를 근거로 정확하게 답변하고, 출처를 [출처N] 형태로 표기해주세요."
+                )
+            else:  # PARTIAL
+                quality_instruction = (
+                    "[시스템 안내] 검색된 컨텍스트에서 관련 정보를 찾았습니다. "
+                    "컨텍스트의 내용을 적극 활용하여 답변하세요. "
+                    "출처가 있는 내용은 [출처N] 형태로 표기하고, "
+                    "컨텍스트 정보만으로 부족한 부분은 일반 지식으로 자연스럽게 보충하여 "
+                    "완성도 높은 답변을 제공하세요."
+                )
+
+        # ── 대화 이력 컨텍스트 통합 (STORY-057) ──
+        if conversation_context:
+            context = f"{conversation_context}\n\n---\n\n{context}" if context else conversation_context
+
+        # ── 최종 프롬프트 구성 ──
+        augmented_query = f"{quality_instruction}\n\n{query}"
+
+        # 컨텍스트가 완전히 비어있고 대화 이력도 없는 경우에도 LLM 호출 (일반 지식 답변)
         # LLM 호출 (Adapter 사용)
         answer = await self.llm_adapter.generate(
-            prompt=query,
-            context=context,
+            prompt=augmented_query,
+            context=context if context.strip() else "",
             use_reasoner=use_reasoner,
         )
 

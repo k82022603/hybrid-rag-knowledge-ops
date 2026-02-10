@@ -10,6 +10,7 @@ Hybrid RAG 검색 및 처리 파이프라인 구현
 - extractor: Gleaning 기반 엔티티 추출
 """
 
+from app.rag.bge_reranker import BGEReranker, get_reranker, reset_reranker
 from app.rag.retriever import (
     ElasticsearchRetriever,
     HybridRetriever,
@@ -19,6 +20,9 @@ from app.rag.retriever import (
 )
 
 __all__ = [
+    "BGEReranker",
+    "get_reranker",
+    "reset_reranker",
     "ElasticsearchRetriever",
     "Neo4jRetriever",
     "HybridRetriever",

@@ -93,6 +93,7 @@ class ChatResponse(BaseModel):
     conversationId: Optional[str] = Field(description="대화 세션 ID (STORY-057)")
     latencyMs: Optional[float] = Field(default=None, description="처리 소요 시간 (ms)")
     turnCount: Optional[int] = Field(default=None, description="대화 턴 수 (STORY-057)")
+    pipelineStages: Optional[Dict[str, Any]] = Field(default=None, description="파이프라인 단계별 정보 (Quality Gate 포함)")
 
     model_config = {"populate_by_name": True}
 
@@ -392,14 +393,29 @@ async def chat_search(
 
     try:
         from app.agents.rag_workflow import get_rag_workflow
+        from app.rag import get_hybrid_retriever, get_reranker
         from app.services.conversation_history import get_conversation_history_service
         from app.services.search import get_search_service as _get_svc
 
         # 서비스 초기화
         search_svc = _get_svc()
         conversation_svc = get_conversation_history_service()
+
+        # Reranker + HybridRetriever 초기화 (STORY-032)
+        try:
+            reranker = get_reranker()
+            hybrid_retriever = get_hybrid_retriever(
+                search_service=search_svc,
+                reranker=reranker,
+            )
+            logger.info("HybridRetriever with BGEReranker initialized")
+        except Exception as reranker_err:
+            logger.warning("Reranker init failed, using SearchService fallback: %s", reranker_err)
+            hybrid_retriever = None
+
         workflow = get_rag_workflow(
             search_service=search_svc,
+            hybrid_retriever=hybrid_retriever,
             conversation_history_service=conversation_svc,
         )
 
@@ -434,6 +450,7 @@ async def chat_search(
             conversationId=conversation_id,
             latencyMs=response.latency_ms,
             turnCount=turn_count,
+            pipelineStages=response.pipeline_stages,
         )
 
     except (
