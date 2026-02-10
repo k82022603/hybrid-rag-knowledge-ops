@@ -5,11 +5,11 @@
 
 ### Recent Commits
 ```
+143f01b [CHORE] .gitignore에 RAGChatbotServer/ 제외 추가
+dceef22 [DOCS] 운영매뉴얼 v3.2 실측 데이터 반영 + 세션로그 업데이트
+d6f5545 [FEAT] 병렬 워커 임베딩 튜닝 - max-text-length/workers/batch-timeout
 9683323 [DOCS] 일일 마무리 - 임베딩 배치 50% + Scroll 최적화 + Architect 합류 + 스탠드업
 0a2202c [DOCS] 일일 마무리 - 문서 적재 38/38 (100%) 완료 + 배치 로더 스크립트
-e365405 [DOCS] 일일 마무리 - 문서 적재 1차 완료 + 2차 진행 + 운영매뉴얼 + 스탠드업
-9656b29 [FIX] Dockerfile UID 근본 수정 + STORY-091/092/099 + 운영매뉴얼
-59b9df4 [FEAT] Neo4j subgraph 쿼리 Full-Text Index 전환
 ```
 
 ## Work Log Status
