@@ -108,3 +108,6 @@ test-results/
 /backup/
 *.backup
 *.dump
+
+# External reference projects
+RAGChatbotServer/
