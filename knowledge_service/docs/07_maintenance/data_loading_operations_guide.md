@@ -1029,16 +1029,17 @@ docker exec kp-ai-service python3 /app/scripts/embedding_full_cycle.py \
 #### 병렬 워커 + 텍스트 절단 (법률문서 최적화)
 
 ```bash
-# 2워커 병렬, 텍스트 4000자 절단, 배치 타임아웃 300초
-docker exec kp-ai-service python3 /app/scripts/embedding_full_cycle.py \
-  --mode all --workers 2 --max-text-length 4000 --batch-size 4 \
-  --batch-timeout 300 --stop-service
+# CPU 최적 실행 (실측 확정값)
+docker exec kp-ai-service bash -c 'python3 /app/scripts/embedding_full_cycle.py \
+  --mode all --batch-size 4 --max-text-length 1000 \
+  --batch-timeout 300 --stop-service > /tmp/embedding_batch.log 2>&1 &'
 ```
 
-> **v3.2 추가 (2026-02-10)**: 법률 문서 구간에서 420초/배치 발생 → 텍스트 절단 + 병렬 처리로 해결.
-> - `--max-text-length 4000`: 4000자(≈1000토큰)로 절단 → O(n²) 어텐션 감소로 420초 → ~5초
-> - `--workers 2`: 2개 프로세스가 독립적으로 모델 로드 + 배치 처리 (메모리: ~6GB)
+> **v3.3 최종 확정 (2026-02-10)**:
+> - `--max-text-length 1000`: **최종 권장값**. 1500자는 메모리 7.3GB+OOM 위험, 1000자는 2.9GB+0.7chunks/s 안정
+> - `--workers 1`: CPU 경합으로 2워커는 효과 없음 (1워커 확정)
 > - `--batch-timeout 300`: 배치가 300초 초과 시 스킵 → 무한 대기 방지
+> - `--stop-service`: uvicorn 중지로 메모리 확보
 
 ### 13.3 실행 모드 상세
 
@@ -1076,7 +1077,7 @@ usage: embedding_full_cycle.py [-h] --mode {all,document,file,reprocess}
   --dry-run           실제 업데이트 없이 대상 건수만 확인
   --stop-service      임베딩 전 uvicorn 웹 서비스 중지 (메모리 확보)
   --resume            체크포인트 파일 경로로 이전 작업 재개
-  --max-text-length   텍스트 최대 길이 절단 (기본: 0=무제한, 권장: 4000)
+  --max-text-length   텍스트 최대 길이 절단 (기본: 0=무제한, 권장: 1000)
   --workers           병렬 워커 수 (기본: 1, 2 이상이면 멀티프로세스 모드)
   --batch-timeout     배치별 타임아웃 초 (기본: 300, 0=무제한)
 ```
@@ -1121,11 +1122,17 @@ WSL 12GB 메모리 환경에서의 안전한 실행:
 > sentence-transformers는 CPU에서 텍스트를 순차 처리하므로, 큰 배치 = 긴 단일 연산 시간.
 > GPU 환경에서만 큰 batch_size의 병렬화 이점이 있습니다.
 
-| 환경 | 권장 batch_size | 권장 max_text_length | 예상 속도 | 비고 |
-|------|----------------|---------------------|----------|------|
-| CPU (WSL/Docker) | **4** | **1500** | ~0.2-0.5 texts/s | 실측 최적값 (2/10 확정) |
-| CPU (네이티브) | 4 | 1500~4000 | ~0.5-1.0 texts/s | OS 오버헤드 적음 |
-| GPU (CUDA) | 16~32 | 0 (무제한) | ~10+ texts/s | 병렬 처리 이점 |
+| 환경 | 권장 batch_size | 권장 max_text_length | 예상 속도 | 메모리 | 비고 |
+|------|----------------|---------------------|----------|--------|------|
+| CPU (WSL/Docker) | **4** | **1000** | **~0.7 texts/s** | ~2.9GB | 실측 최적값 (2/10 최종 확정) |
+| CPU (WSL/Docker) | 4 | 1500 | ~0.1-0.2 texts/s | ~7.3GB | OOM 위험, 비권장 |
+| CPU (네이티브) | 4 | 1000~1500 | ~0.5-1.0 texts/s | - | OS 오버헤드 적음 |
+| GPU (CUDA) | 16~32 | 0 (무제한) | ~10+ texts/s | - | 병렬 처리 이점 |
+
+> **2026-02-10 최종 실측**: `max-text-length 1500` → `1000` 변경으로 **속도 7배 향상 + 메모리 60% 감소**.
+> - 1500자: 0.1 chunks/s, 메모리 7.3GB (OOM 위험)
+> - 1000자: 0.7 chunks/s, 메모리 2.9GB (안정)
+> - **결론**: CPU 환경에서는 `1000`이 속도/메모리/안정성 모두 최적.
 
 ### 13.7 작업 이력 (결과 JSON)
 
@@ -1359,14 +1366,17 @@ flowchart TB
 | 텍스트 길이 | 토큰 수 (약) | CPU 배치 시간 | 비고 |
 |------------|-------------|-------------|------|
 | ~1,000자 | ~250 | ~5초 | 일반 기술 문서 |
-| ~1,500자 | ~375 | 6~7초 | **권장 절단 기준** |
+| ~1,000자 | ~250 | **~5초** | **최종 권장 절단 기준** |
+| ~1,500자 | ~375 | 29~113초 | 메모리 7.3GB, OOM 위험 |
 | ~4,000자 | ~1,000 | ~60초 | 이전 절단 기준 (효과 부족) |
 | ~16,000자 | ~4,000 | ~420초 | 법률 문서 (문제 구간) |
 
-> **2026-02-10 실측**: `--max-text-length 4000`은 법률 문서에서 여전히 60초/배치 소요.
-> `--max-text-length 1500`으로 변경 시 **6~35초/배치**로 안정화 (기존 대비 12~70배 개선).
+> **2026-02-10 최종 실측**:
+> - `--max-text-length 4000`: 법률 문서에서 60초/배치, 메모리 폭증 → 비권장
+> - `--max-text-length 1500`: 29~113초/배치, 메모리 7.3GB → OOM 발생 (인시던트 §16.7)
+> - `--max-text-length 1000`: **5.5초/배치, 메모리 2.9GB** → 속도 7배, 메모리 60% 감소
 
-**권장**: `--max-text-length 1500` (CPU 환경 최적값)
+**권장**: `--max-text-length 1000` (CPU 환경 최종 최적값)
 
 > **트레이드오프**: 절단된 부분의 의미는 임베딩에 반영되지 않습니다. 그러나 첫 1500자(≈375토큰)에 문서의 핵심 내용이 포함되는 경우가 대부분이며, 검색 품질 저하는 미미합니다.
 
@@ -1887,7 +1897,7 @@ Out of memory: Killed process 55680 (python3)
 |------|------|------|
 | 모니터링 간격 단축 | 30분 → 10분 | ✅ 완료 |
 | 모니터 스크립트 정식 등록 | `scripts/embedding_monitor.sh` | ✅ 완료 |
-| `--max-text-length 1500` | 긴 텍스트 절단으로 메모리 피크 방지 | ✅ 적용 중 |
+| `--max-text-length 1000` | 긴 텍스트 절단 (1500→1000 변경, 속도 7배+메모리 60%↓) | ✅ 최종 확정 |
 | `--stop-service` | uvicorn 중지로 메모리 확보 | ✅ 적용 중 |
 | OOM 감지 자동화 | 모니터 스크립트에서 프로세스 중단 시 Slack 즉시 알림 | ✅ 포함 |
 
