@@ -1,0 +1,1305 @@
+{
+  "metadata": {
+    "test_date": "2026-02-10 12:24:28",
+    "api_url": "http://localhost:8000",
+    "top_k": 10,
+    "warmup_rounds": 1,
+    "measurement_repeats": 2,
+    "total_queries": 10,
+    "total_elapsed_ms": 14089.94
+  },
+  "results": [
+    {
+      "query": "Neo4j와 Elasticsearch의 역할 차이점은?",
+      "type": "entity_relation",
+      "graph_enabled": {
+        "latency_ms": 6.98,
+        "server_latency_ms": 1.92,
+        "total_results": 10,
+        "from_cache": true,
+        "top5": [
+          {
+            "rank": 1,
+            "score": 0.152966,
+            "source_type": "graph",
+            "title": "딥러닝과 RAG를 활용한 AI 응용 기초과정-20250516-강의배포용",
+            "snippet": "## Chapter 11. 프로그램따라해보기  - __11.1 Chroma DB - Vector DB - ____11.1.1 Chroma DB 설치 - ____11.1.2 프로그램...",
+            "chunk_id": "None"
+          },
+          {
+            "rank": 2,
+            "score": 0.016393,
+            "source_type": "vector",
+            "title": "딥러닝과 RAG를 활용한 AI 응용 기초과정-20250516-강의배포용",
+            "snippet": "Elasticsearch는 정형 데이터 검색, 전문(Full-text) 검색, 벡터 검색 기능을 모두 제공하기 때문에 하이브리드 RAG 시스템 구현에 매우 적합합니다. Elasti...",
+            "chunk_id": "ca28da64-f126-44db-9aaa-8bf2b07582b4"
+          },
+          {
+            "rank": 3,
+            "score": 0.016129,
+            "source_type": "vector",
+            "title": "딥러닝과 RAG를 활용한 AI 응용 기초과정-20250516-강의배포용",
+            "snippet": "시스템은 Docker 를통해 Elasticsearch 와 Kibana 를컨테이너로실행하며 , LangChain 과같은프레임워크를활용하여 구현합니다 .  ## 3. Elasticse...",
+            "chunk_id": "2cf3bc18-2162-4cf3-9d9f-1fe8086359c7"
+          },
+          {
+            "rank": 4,
+            "score": 0.015873,
+            "source_type": "vector",
+            "title": "딥러닝과 RAG를 활용한 AI 응용 기초과정-20250516-강의배포용",
+            "snippet": "| 비교항목   | pgvector                              | Elasticsearch                     | |--------|---...",
+            "chunk_id": "a9826266-dc32-4fbe-b9b1-2734468b40d5"
+          },
+          {
+            "rank": 5,
+            "score": 0.015625,
+            "source_type": "vector",
+            "title": "Reranking",
+            "snippet": "We'll discuss that later in the article.  TLDR If you ask yourself where is the difference to an emb...",
+            "chunk_id": "403a2832-7627-41e4-8456-7817bd36b0cb"
+          }
+        ],
+        "source_distribution": {
+          "graph": 1,
+          "vector": 9
+        },
+        "latency_samples_ms": [
+          5.31,
+          8.66
+        ]
+      },
+      "graph_disabled": {
+        "latency_ms": 3.16,
+        "server_latency_ms": 0.91,
+        "total_results": 10,
+        "from_cache": true,
+        "top5": [
+          {
+            "rank": 1,
+            "score": 0.016393,
+            "source_type": "vector",
+            "title": "딥러닝과 RAG를 활용한 AI 응용 기초과정-20250516-강의배포용",
+            "snippet": "Elasticsearch는 정형 데이터 검색, 전문(Full-text) 검색, 벡터 검색 기능을 모두 제공하기 때문에 하이브리드 RAG 시스템 구현에 매우 적합합니다. Elasti...",
+            "chunk_id": "ca28da64-f126-44db-9aaa-8bf2b07582b4"
+          },
+          {
+            "rank": 2,
+            "score": 0.016129,
+            "source_type": "vector",
+            "title": "딥러닝과 RAG를 활용한 AI 응용 기초과정-20250516-강의배포용",
+            "snippet": "시스템은 Docker 를통해 Elasticsearch 와 Kibana 를컨테이너로실행하며 , LangChain 과같은프레임워크를활용하여 구현합니다 .  ## 3. Elasticse...",
+            "chunk_id": "2cf3bc18-2162-4cf3-9d9f-1fe8086359c7"
+          },
+          {
+            "rank": 3,
+            "score": 0.015873,
+            "source_type": "vector",
+            "title": "딥러닝과 RAG를 활용한 AI 응용 기초과정-20250516-강의배포용",
+            "snippet": "| 비교항목   | pgvector                              | Elasticsearch                     | |--------|---...",
+            "chunk_id": "a9826266-dc32-4fbe-b9b1-2734468b40d5"
+          },
+          {
+            "rank": 4,
+            "score": 0.015625,
+            "source_type": "vector",
+            "title": "Reranking",
+            "snippet": "We'll discuss that later in the article.  TLDR If you ask yourself where is the difference to an emb...",
+            "chunk_id": "403a2832-7627-41e4-8456-7817bd36b0cb"
+          },
+          {
+            "rank": 5,
+            "score": 0.015385,
+            "source_type": "vector",
+            "title": "딥러닝과 RAG를 활용한 AI 응용 기초과정-20250516-강의배포용",
+            "snippet": "| 단계      | 핵심특징                                                  | 주요기술...",
+            "chunk_id": "9da283fe-b475-466c-940a-83be0a463e5e"
+          }
+        ],
+        "source_distribution": {
+          "vector": 10
+        },
+        "latency_samples_ms": [
+          2.67,
+          3.66
+        ]
+      },
+      "comparison": {
+        "latency_diff_ms": 3.82,
+        "graph_unique_results": 1,
+        "no_graph_unique_results": 1,
+        "overlap_results": 9,
+        "top1_same": false,
+        "avg_top5_score_graph": 0.043397,
+        "avg_top5_score_no_graph": 0.015881
+      }
+    },
+    {
+      "query": "LangGraph와 LangChain 중 어떤 것을 사용해야 하나요?",
+      "type": "entity_relation",
+      "graph_enabled": {
+        "latency_ms": 6.91,
+        "server_latency_ms": 1.47,
+        "total_results": 10,
+        "from_cache": true,
+        "top5": [
+          {
+            "rank": 1,
+            "score": 0.285609,
+            "source_type": "graph",
+            "title": "AI_에이전트_통합_마스터_클래스",
+            "snippet": "``` mindmap root(\"AI 에이전트 마스터링 LangChain 0.3 LCEL 새로운 체인 구성 도구 통합 LangGraph 상태 관리 ```",
+            "chunk_id": "None"
+          },
+          {
+            "rank": 2,
+            "score": 0.016393,
+            "source_type": "vector",
+            "title": "AI_Agent_Workflows_A_Complete_Guide_on_Whether_to_Build_With_LangGraph_or_LangChain",
+            "snippet": "but also want to manage complex task flows using LangGraphʼs non-linear orchestration. Using both fr...",
+            "chunk_id": "60dedc15-0a7b-4476-96e0-74d4b992f240"
+          },
+          {
+            "rank": 3,
+            "score": 0.016129,
+            "source_type": "vector",
+            "title": "AI_Agent_Workflows_A_Complete_Guide_on_Whether_to_Build_With_LangGraph_or_LangChain",
+            "snippet": "In general, LangChain require less of a learning curve than LangGraph. There are more abstractions a...",
+            "chunk_id": "ce47ab40-0415-4187-8ed4-48aede9082a0"
+          },
+          {
+            "rank": 4,
+            "score": 0.015873,
+            "source_type": "vector",
+            "title": "AI_Agent_Workflows_A_Complete_Guide_on_Whether_to_Build_With_LangGraph_or_LangChain",
+            "snippet": "## The Difference Between How Each Framework Handles Core Functionality  LangGraph and LangChain ove...",
+            "chunk_id": "d24e53bf-1a9b-43be-9835-9f4a66307a7a"
+          },
+          {
+            "rank": 5,
+            "score": 0.015625,
+            "source_type": "vector",
+            "title": "AI_Agent_Workflows_A_Complete_Guide_on_Whether_to_Build_With_LangGraph_or_LangChain",
+            "snippet": "You can use LangChain without LangGraph, LangGraph without LangChain, or both together! Itʼs also co...",
+            "chunk_id": "af54268d-e5a5-4518-98b4-ff8cfc7bd96e"
+          }
+        ],
+        "source_distribution": {
+          "graph": 1,
+          "vector": 9
+        },
+        "latency_samples_ms": [
+          6.36,
+          7.46
+        ]
+      },
+      "graph_disabled": {
+        "latency_ms": 4.2,
+        "server_latency_ms": 0.87,
+        "total_results": 10,
+        "from_cache": true,
+        "top5": [
+          {
+            "rank": 1,
+            "score": 0.016393,
+            "source_type": "vector",
+            "title": "AI_Agent_Workflows_A_Complete_Guide_on_Whether_to_Build_With_LangGraph_or_LangChain",
+            "snippet": "but also want to manage complex task flows using LangGraphʼs non-linear orchestration. Using both fr...",
+            "chunk_id": "60dedc15-0a7b-4476-96e0-74d4b992f240"
+          },
+          {
+            "rank": 2,
+            "score": 0.016129,
+            "source_type": "vector",
+            "title": "AI_Agent_Workflows_A_Complete_Guide_on_Whether_to_Build_With_LangGraph_or_LangChain",
+            "snippet": "In general, LangChain require less of a learning curve than LangGraph. There are more abstractions a...",
+            "chunk_id": "ce47ab40-0415-4187-8ed4-48aede9082a0"
+          },
+          {
+            "rank": 3,
+            "score": 0.015873,
+            "source_type": "vector",
+            "title": "AI_Agent_Workflows_A_Complete_Guide_on_Whether_to_Build_With_LangGraph_or_LangChain",
+            "snippet": "## The Difference Between How Each Framework Handles Core Functionality  LangGraph and LangChain ove...",
+            "chunk_id": "d24e53bf-1a9b-43be-9835-9f4a66307a7a"
+          },
+          {
+            "rank": 4,
+            "score": 0.015625,
+            "source_type": "vector",
+            "title": "AI_Agent_Workflows_A_Complete_Guide_on_Whether_to_Build_With_LangGraph_or_LangChain",
+            "snippet": "You can use LangChain without LangGraph, LangGraph without LangChain, or both together! Itʼs also co...",
+            "chunk_id": "af54268d-e5a5-4518-98b4-ff8cfc7bd96e"
+          },
+          {
+            "rank": 5,
+            "score": 0.015385,
+            "source_type": "vector",
+            "title": "AI_Agent_Workflows_A_Complete_Guide_on_Whether_to_Build_With_LangGraph_or_LangChain",
+            "snippet": "## AI Agent Workflows: A Complete Guide on Whether to Build With LangGraph or LangChain  ## AI Agent...",
+            "chunk_id": "e589958d-edfa-48d1-b29f-4f41c0ace0cd"
+          }
+        ],
+        "source_distribution": {
+          "vector": 10
+        },
+        "latency_samples_ms": [
+          4.55,
+          3.85
+        ]
+      },
+      "comparison": {
+        "latency_diff_ms": 2.72,
+        "graph_unique_results": 1,
+        "no_graph_unique_results": 1,
+        "overlap_results": 9,
+        "top1_same": false,
+        "avg_top5_score_graph": 0.069926,
+        "avg_top5_score_no_graph": 0.015881
+      }
+    },
+    {
+      "query": "RAG Pipeline에서 BGE-M3 임베딩 모델의 역할은?",
+      "type": "multi_hop",
+      "graph_enabled": {
+        "latency_ms": 3.46,
+        "server_latency_ms": 0.5,
+        "total_results": 10,
+        "from_cache": true,
+        "top5": [
+          {
+            "rank": 1,
+            "score": 0.285609,
+            "source_type": "graph",
+            "title": "Retrieval-Augmented Generation Approaches, State of the Art, and Optimization Strategies",
+            "snippet": "이 문서는 다양한 RAG 최적화 방법을 설명하며, 특히 지식 집약적 응용 프로그램에서의 효과적인 활용법에 중점을 두고 있습니다.  이 그림은 Retrieval-Augmented G...",
+            "chunk_id": "None"
+          },
+          {
+            "rank": 2,
+            "score": 0.016393,
+            "source_type": "vector",
+            "title": "AI_에이전트_통합_마스터_클래스",
+            "snippet": "## 3.4 도구와 RAG 통합",
+            "chunk_id": "59ac144e-882a-4c52-a06c-d48fef2dab8e"
+          },
+          {
+            "rank": 3,
+            "score": 0.016393,
+            "source_type": "keyword",
+            "title": "AI 클라우드 기반의 데이터셋과 SLM 모델 구축_GENCON_20240920",
+            "snippet": "## AI 클라우드 기반의 데이터셋과 SLM 모델 구축  GENCON 20240920 Microsoft 김대근 https://github.com/daekeun-ml 발표 자료 작성...",
+            "chunk_id": "aaf65a65-078b-4243-83f8-d4dbfa43597d"
+          },
+          {
+            "rank": 4,
+            "score": 0.016129,
+            "source_type": "vector",
+            "title": "s3 - You Don’t Need That Much Data to Train a Search Agent via RL-2505.14146v1",
+            "snippet": "## Our main contributions are:  - We introduce s3 , a modular, RL-based search framework that optimi...",
+            "chunk_id": "352b1ce2-dd69-468f-a245-feff4c29c332"
+          },
+          {
+            "rank": 5,
+            "score": 0.016129,
+            "source_type": "keyword",
+            "title": "AI 클라우드 기반의 데이터셋과 SLM 모델 구축_GENCON_20240920",
+            "snippet": "-  과거와 다르게 동시다발 생겨나는 다양한 모델들에 대한 '평가 기반' 개발 파이프라인 구축 필요  ## 주제 :  PoC/Prototype(Proof of Concept/Pr...",
+            "chunk_id": "de04f411-c27d-40af-b96b-4dd0446845b4"
+          }
+        ],
+        "source_distribution": {
+          "graph": 1,
+          "vector": 5,
+          "keyword": 4
+        },
+        "latency_samples_ms": [
+          4.19,
+          2.72
+        ]
+      },
+      "graph_disabled": {
+        "latency_ms": 3.44,
+        "server_latency_ms": 0.6,
+        "total_results": 10,
+        "from_cache": true,
+        "top5": [
+          {
+            "rank": 1,
+            "score": 0.016393,
+            "source_type": "vector",
+            "title": "AI_에이전트_통합_마스터_클래스",
+            "snippet": "## 3.4 도구와 RAG 통합",
+            "chunk_id": "59ac144e-882a-4c52-a06c-d48fef2dab8e"
+          },
+          {
+            "rank": 2,
+            "score": 0.016393,
+            "source_type": "keyword",
+            "title": "AI 클라우드 기반의 데이터셋과 SLM 모델 구축_GENCON_20240920",
+            "snippet": "## AI 클라우드 기반의 데이터셋과 SLM 모델 구축  GENCON 20240920 Microsoft 김대근 https://github.com/daekeun-ml 발표 자료 작성...",
+            "chunk_id": "aaf65a65-078b-4243-83f8-d4dbfa43597d"
+          },
+          {
+            "rank": 3,
+            "score": 0.016129,
+            "source_type": "vector",
+            "title": "s3 - You Don’t Need That Much Data to Train a Search Agent via RL-2505.14146v1",
+            "snippet": "## Our main contributions are:  - We introduce s3 , a modular, RL-based search framework that optimi...",
+            "chunk_id": "352b1ce2-dd69-468f-a245-feff4c29c332"
+          },
+          {
+            "rank": 4,
+            "score": 0.016129,
+            "source_type": "keyword",
+            "title": "AI 클라우드 기반의 데이터셋과 SLM 모델 구축_GENCON_20240920",
+            "snippet": "-  과거와 다르게 동시다발 생겨나는 다양한 모델들에 대한 '평가 기반' 개발 파이프라인 구축 필요  ## 주제 :  PoC/Prototype(Proof of Concept/Pr...",
+            "chunk_id": "de04f411-c27d-40af-b96b-4dd0446845b4"
+          },
+          {
+            "rank": 5,
+            "score": 0.015873,
+            "source_type": "vector",
+            "title": "s3 - You Don’t Need That Much Data to Train a Search Agent via RL-2505.14146v1",
+            "snippet": "RAG-BM25 and RAG-E5 (Lewis et al., 2020). These are naive retrieval-augmented generation baselines w...",
+            "chunk_id": "4ea50566-14a6-438c-97ca-a1e89cd0b007"
+          }
+        ],
+        "source_distribution": {
+          "vector": 5,
+          "keyword": 5
+        },
+        "latency_samples_ms": [
+          3.73,
+          3.15
+        ]
+      },
+      "comparison": {
+        "latency_diff_ms": 0.02,
+        "graph_unique_results": 1,
+        "no_graph_unique_results": 1,
+        "overlap_results": 9,
+        "top1_same": false,
+        "avg_top5_score_graph": 0.070131,
+        "avg_top5_score_no_graph": 0.016183
+      }
+    },
+    {
+      "query": "Kubernetes에서 Spring Boot 마이크로서비스 배포 방법",
+      "type": "multi_hop",
+      "graph_enabled": {
+        "latency_ms": 3.5,
+        "server_latency_ms": 0.6,
+        "total_results": 10,
+        "from_cache": true,
+        "top5": [
+          {
+            "rank": 1,
+            "score": 0.18094,
+            "source_type": "graph",
+            "title": "AI 클라우드 기반의 데이터셋과 SLM 모델 구축_GENCON_20240920",
+            "snippet": "- ① Azure Storage Account : 데이터저장소로사용됩니다 . - ② Azure Container Registry : 도커컨테이너이미지를저장하고관리합니다 . - ③...",
+            "chunk_id": "None"
+          },
+          {
+            "rank": 2,
+            "score": 0.016393,
+            "source_type": "vector",
+            "title": "AI_오케스트레이션이_풀린다_2025년을_위한_무엇_왜_어떻게",
+            "snippet": "이는 클라우드 환경에서 오케스트레이션을 위한 기반을 제공하며 , 특히 마이크로서비스와 분산 애플리케이션을 관리하는 데 유용합니다 .  쿠버네티스는 AI 워크로드를 관리하고 , AI...",
+            "chunk_id": "6041b5b7-d037-485a-82eb-470daaf2ec8c"
+          },
+          {
+            "rank": 3,
+            "score": 0.016129,
+            "source_type": "vector",
+            "title": "AI-900_Examtopics_Kor",
+            "snippet": "권한 부여를 위해 게시된 파이프라인과 연결된 기본 키가 필요합니다 .  REST 엔드포인트 : 추론 파이프라인을 게시하면 REST API 를 통해 액세스할 수 있는 웹 서비스가 됩...",
+            "chunk_id": "70fe3862-839b-4b67-9841-cd5bb64739ab"
+          },
+          {
+            "rank": 4,
+            "score": 0.015873,
+            "source_type": "vector",
+            "title": "Agentic AI-Build a Tech Research Agent",
+            "snippet": "## Clone the repository.",
+            "chunk_id": "e938acad-21d9-42d0-bd54-2472452a3fa0"
+          },
+          {
+            "rank": 5,
+            "score": 0.015625,
+            "source_type": "vector",
+            "title": "AI_오케스트레이션이_풀린다_2025년을_위한_무엇_왜_어떻게",
+            "snippet": "효과적인 AI 오케스트레이션을 위한 주요 도구 목록은 다음과 같습니다 .  ## Smyth OS  SmythOS 는 사용자가 코드 없이 드래그 앤 드롭 인터페이스를 사용하여 손쉽...",
+            "chunk_id": "043d7e55-dcd6-4658-b84f-ab8fda69edc1"
+          }
+        ],
+        "source_distribution": {
+          "graph": 1,
+          "vector": 9
+        },
+        "latency_samples_ms": [
+          4.12,
+          2.88
+        ]
+      },
+      "graph_disabled": {
+        "latency_ms": 2.69,
+        "server_latency_ms": 0.47,
+        "total_results": 10,
+        "from_cache": true,
+        "top5": [
+          {
+            "rank": 1,
+            "score": 0.016393,
+            "source_type": "vector",
+            "title": "AI_오케스트레이션이_풀린다_2025년을_위한_무엇_왜_어떻게",
+            "snippet": "이는 클라우드 환경에서 오케스트레이션을 위한 기반을 제공하며 , 특히 마이크로서비스와 분산 애플리케이션을 관리하는 데 유용합니다 .  쿠버네티스는 AI 워크로드를 관리하고 , AI...",
+            "chunk_id": "6041b5b7-d037-485a-82eb-470daaf2ec8c"
+          },
+          {
+            "rank": 2,
+            "score": 0.016129,
+            "source_type": "vector",
+            "title": "AI-900_Examtopics_Kor",
+            "snippet": "권한 부여를 위해 게시된 파이프라인과 연결된 기본 키가 필요합니다 .  REST 엔드포인트 : 추론 파이프라인을 게시하면 REST API 를 통해 액세스할 수 있는 웹 서비스가 됩...",
+            "chunk_id": "70fe3862-839b-4b67-9841-cd5bb64739ab"
+          },
+          {
+            "rank": 3,
+            "score": 0.015873,
+            "source_type": "vector",
+            "title": "Agentic AI-Build a Tech Research Agent",
+            "snippet": "## Clone the repository.",
+            "chunk_id": "e938acad-21d9-42d0-bd54-2472452a3fa0"
+          },
+          {
+            "rank": 4,
+            "score": 0.015625,
+            "source_type": "vector",
+            "title": "AI_오케스트레이션이_풀린다_2025년을_위한_무엇_왜_어떻게",
+            "snippet": "효과적인 AI 오케스트레이션을 위한 주요 도구 목록은 다음과 같습니다 .  ## Smyth OS  SmythOS 는 사용자가 코드 없이 드래그 앤 드롭 인터페이스를 사용하여 손쉽...",
+            "chunk_id": "043d7e55-dcd6-4658-b84f-ab8fda69edc1"
+          },
+          {
+            "rank": 5,
+            "score": 0.015385,
+            "source_type": "vector",
+            "title": "AI_Orchestration_Explained_The_What_Why__How_for_2024",
+            "snippet": "Want to hear the CTO of Smyth OS talk about orchestration? Check out this episode of our Built Right...",
+            "chunk_id": "caf6f0cf-d378-4ef0-9e7f-b73b7b7129fe"
+          }
+        ],
+        "source_distribution": {
+          "vector": 10
+        },
+        "latency_samples_ms": [
+          2.58,
+          2.79
+        ]
+      },
+      "comparison": {
+        "latency_diff_ms": 0.81,
+        "graph_unique_results": 1,
+        "no_graph_unique_results": 1,
+        "overlap_results": 9,
+        "top1_same": false,
+        "avg_top5_score_graph": 0.048992,
+        "avg_top5_score_no_graph": 0.015881
+      }
+    },
+    {
+      "query": "Docker Compose 설정 방법",
+      "type": "keyword",
+      "graph_enabled": {
+        "latency_ms": 4.81,
+        "server_latency_ms": 1.14,
+        "total_results": 10,
+        "from_cache": true,
+        "top5": [
+          {
+            "rank": 1,
+            "score": 0.167051,
+            "source_type": "graph",
+            "title": "AI_에이전트_통합_마스터_클래스",
+            "snippet": "``` class CICDPipeline: def __init__(self): self.github = GitHubIntegration() self.jenkins = Jenkins...",
+            "chunk_id": "None"
+          },
+          {
+            "rank": 2,
+            "score": 0.016393,
+            "source_type": "vector",
+            "title": "LLM 기반 AI 에이전트 기초와 실습-20250516-강의배포용",
+            "snippet": "Docker Desktop 환경에서 PostgreSQL 컨테이너와 MCP 서버를 설정하여, Claude가 자연어 질문을 SQL 쿼리로 변환하고 결과를 분석할 수 있게 합니다. 이...",
+            "chunk_id": "5948330f-28a3-4d2b-8923-896459989a00"
+          },
+          {
+            "rank": 3,
+            "score": 0.016129,
+            "source_type": "vector",
+            "title": "LLM 기반 AI 에이전트 기초와 실습-20250516-강의배포용",
+            "snippet": "사용자의자연어질문을 SQL 쿼리로변환하고 , 데이터베이스에서가져온 결과를 AI 가이해할수있는형태로구조화하여전달합니다 . 이를통해사용자는 SQL 지식 없이도데이터베이스에질의할수있습니...",
+            "chunk_id": "59cd82ec-7f22-4678-bd09-8159a8d2f6f8"
+          },
+          {
+            "rank": 4,
+            "score": 0.015873,
+            "source_type": "vector",
+            "title": "딥러닝과 RAG를 활용한 AI 응용 기초과정-20250516-강의배포용",
+            "snippet": "주요기능으로는주소검색 (Geocoding), 장소 찾기 (Places), 거리계산 (Distance Matrix), 경로안내 (Directions) 등이있습니다 .  ## 2. 설...",
+            "chunk_id": "b652532e-58a9-4b29-883a-21816132f250"
+          },
+          {
+            "rank": 5,
+            "score": 0.015625,
+            "source_type": "vector",
+            "title": "LLM 기반 AI 에이전트 기초와 실습-20250516-강의배포용",
+            "snippet": "## 3. 시스템아키텍처  - Windows 호스트컴퓨터에서 Docker Desktop 실행 - Docker 내부에 PostgreSQL 컨테이너와 MCP 서버컨테이너구동 - Cla...",
+            "chunk_id": "2026aadf-f80f-478c-8f43-485ea89f12e8"
+          }
+        ],
+        "source_distribution": {
+          "graph": 1,
+          "vector": 9
+        },
+        "latency_samples_ms": [
+          4.68,
+          4.94
+        ]
+      },
+      "graph_disabled": {
+        "latency_ms": 4.29,
+        "server_latency_ms": 0.67,
+        "total_results": 10,
+        "from_cache": true,
+        "top5": [
+          {
+            "rank": 1,
+            "score": 0.016393,
+            "source_type": "vector",
+            "title": "LLM 기반 AI 에이전트 기초와 실습-20250516-강의배포용",
+            "snippet": "Docker Desktop 환경에서 PostgreSQL 컨테이너와 MCP 서버를 설정하여, Claude가 자연어 질문을 SQL 쿼리로 변환하고 결과를 분석할 수 있게 합니다. 이...",
+            "chunk_id": "5948330f-28a3-4d2b-8923-896459989a00"
+          },
+          {
+            "rank": 2,
+            "score": 0.016129,
+            "source_type": "vector",
+            "title": "LLM 기반 AI 에이전트 기초와 실습-20250516-강의배포용",
+            "snippet": "사용자의자연어질문을 SQL 쿼리로변환하고 , 데이터베이스에서가져온 결과를 AI 가이해할수있는형태로구조화하여전달합니다 . 이를통해사용자는 SQL 지식 없이도데이터베이스에질의할수있습니...",
+            "chunk_id": "59cd82ec-7f22-4678-bd09-8159a8d2f6f8"
+          },
+          {
+            "rank": 3,
+            "score": 0.015873,
+            "source_type": "vector",
+            "title": "딥러닝과 RAG를 활용한 AI 응용 기초과정-20250516-강의배포용",
+            "snippet": "주요기능으로는주소검색 (Geocoding), 장소 찾기 (Places), 거리계산 (Distance Matrix), 경로안내 (Directions) 등이있습니다 .  ## 2. 설...",
+            "chunk_id": "b652532e-58a9-4b29-883a-21816132f250"
+          },
+          {
+            "rank": 4,
+            "score": 0.015625,
+            "source_type": "vector",
+            "title": "LLM 기반 AI 에이전트 기초와 실습-20250516-강의배포용",
+            "snippet": "## 3. 시스템아키텍처  - Windows 호스트컴퓨터에서 Docker Desktop 실행 - Docker 내부에 PostgreSQL 컨테이너와 MCP 서버컨테이너구동 - Cla...",
+            "chunk_id": "2026aadf-f80f-478c-8f43-485ea89f12e8"
+          },
+          {
+            "rank": 5,
+            "score": 0.015385,
+            "source_type": "vector",
+            "title": "AI_에이전트_통합_마스터_클래스",
+            "snippet": "``` commit_result = await self.github.commit_change s( implementation['code'] ) # 2. CI 파이프라인 트리거 bu...",
+            "chunk_id": "be7917e1-5589-4bcc-93b0-9f4b40fcd818"
+          }
+        ],
+        "source_distribution": {
+          "vector": 10
+        },
+        "latency_samples_ms": [
+          5.19,
+          3.39
+        ]
+      },
+      "comparison": {
+        "latency_diff_ms": 0.52,
+        "graph_unique_results": 1,
+        "no_graph_unique_results": 1,
+        "overlap_results": 9,
+        "top1_same": false,
+        "avg_top5_score_graph": 0.046214,
+        "avg_top5_score_no_graph": 0.015881
+      }
+    },
+    {
+      "query": "환경변수 설정 가이드",
+      "type": "keyword",
+      "graph_enabled": {
+        "latency_ms": 7.4,
+        "server_latency_ms": 1.17,
+        "total_results": 10,
+        "from_cache": true,
+        "top5": [
+          {
+            "rank": 1,
+            "score": 0.032522,
+            "source_type": "graph",
+            "title": "AI 클라우드 기반의 데이터셋과 SLM 모델 구축_GENCON_20240920",
+            "snippet": "https://github.com/Azure/slm-innovator-lab/  ## Key Elements of Azure ML  ## Fine-tuning on Azure  A...",
+            "chunk_id": "None"
+          },
+          {
+            "rank": 2,
+            "score": 0.016393,
+            "source_type": "vector",
+            "title": "AI 클라우드 기반의 데이터셋과 SLM 모델 구축_GENCON_20240920",
+            "snippet": "여기에는학습데이터경로 , 배치 크기 , 학습률등의설정이포함됩니다 . - Define the Environment ( 환경정의 ): 학습에사용할 도커이미지 나 컨테이너 환경을정의하여...",
+            "chunk_id": "24cbcf56-4d7e-4aa6-9ee3-7cdb871556e6"
+          },
+          {
+            "rank": 3,
+            "score": 0.016129,
+            "source_type": "vector",
+            "title": "AI-900_Examtopics_Kor",
+            "snippet": "참고 : 올바른 선택은 각각 1 점의 가치가 있습니다 .  ## Answer Area  ## Select task and settings  Select the machine lea...",
+            "chunk_id": "006950ae-5f59-4ea8-98da-8d3ff1fdad59"
+          },
+          {
+            "rank": 4,
+            "score": 0.015873,
+            "source_type": "vector",
+            "title": "Agentic_Mesh_The_Future_of_Generative_AI-Enabled_Autonomous_Agent_Ecosystems",
+            "snippet": "This configuration describes metadata for the agent, defining what it can do, who owns it, and what...",
+            "chunk_id": "bc374ad1-f467-4275-b42e-995e045be051"
+          },
+          {
+            "rank": 5,
+            "score": 0.015625,
+            "source_type": "vector",
+            "title": "LLM 기반 AI 에이전트 기초와 실습-20250516-강의배포용",
+            "snippet": "AI Agent Start\\02.AutoGen.ipynb from typing import Dict, List, Tuple, Any, TypedDict, Annotated impo...",
+            "chunk_id": "220d8601-4305-4afc-9d9d-2e86cdb32573"
+          }
+        ],
+        "source_distribution": {
+          "graph": 1,
+          "vector": 9
+        },
+        "latency_samples_ms": [
+          9.7,
+          5.11
+        ]
+      },
+      "graph_disabled": {
+        "latency_ms": 5.89,
+        "server_latency_ms": 1.27,
+        "total_results": 10,
+        "from_cache": true,
+        "top5": [
+          {
+            "rank": 1,
+            "score": 0.016393,
+            "source_type": "vector",
+            "title": "AI 클라우드 기반의 데이터셋과 SLM 모델 구축_GENCON_20240920",
+            "snippet": "여기에는학습데이터경로 , 배치 크기 , 학습률등의설정이포함됩니다 . - Define the Environment ( 환경정의 ): 학습에사용할 도커이미지 나 컨테이너 환경을정의하여...",
+            "chunk_id": "24cbcf56-4d7e-4aa6-9ee3-7cdb871556e6"
+          },
+          {
+            "rank": 2,
+            "score": 0.016129,
+            "source_type": "vector",
+            "title": "AI-900_Examtopics_Kor",
+            "snippet": "참고 : 올바른 선택은 각각 1 점의 가치가 있습니다 .  ## Answer Area  ## Select task and settings  Select the machine lea...",
+            "chunk_id": "006950ae-5f59-4ea8-98da-8d3ff1fdad59"
+          },
+          {
+            "rank": 3,
+            "score": 0.015873,
+            "source_type": "vector",
+            "title": "Agentic_Mesh_The_Future_of_Generative_AI-Enabled_Autonomous_Agent_Ecosystems",
+            "snippet": "This configuration describes metadata for the agent, defining what it can do, who owns it, and what...",
+            "chunk_id": "bc374ad1-f467-4275-b42e-995e045be051"
+          },
+          {
+            "rank": 4,
+            "score": 0.015625,
+            "source_type": "vector",
+            "title": "LLM 기반 AI 에이전트 기초와 실습-20250516-강의배포용",
+            "snippet": "AI Agent Start\\02.AutoGen.ipynb from typing import Dict, List, Tuple, Any, TypedDict, Annotated impo...",
+            "chunk_id": "220d8601-4305-4afc-9d9d-2e86cdb32573"
+          },
+          {
+            "rank": 5,
+            "score": 0.015385,
+            "source_type": "vector",
+            "title": "LLM 기반 AI 에이전트 기초와 실습-20250516-강의배포용",
+            "snippet": "from typing import Dict, List, Tuple, Any from langchain.agents import AgentType, initialize_agent f...",
+            "chunk_id": "a0f67832-53cb-43e6-9773-39c8d4e0f918"
+          }
+        ],
+        "source_distribution": {
+          "vector": 10
+        },
+        "latency_samples_ms": [
+          4.13,
+          7.66
+        ]
+      },
+      "comparison": {
+        "latency_diff_ms": 1.51,
+        "graph_unique_results": 1,
+        "no_graph_unique_results": 1,
+        "overlap_results": 9,
+        "top1_same": false,
+        "avg_top5_score_graph": 0.019308,
+        "avg_top5_score_no_graph": 0.015881
+      }
+    },
+    {
+      "query": "대규모 문서를 효율적으로 처리하는 방법",
+      "type": "semantic",
+      "graph_enabled": {
+        "latency_ms": 5.07,
+        "server_latency_ms": 1.4,
+        "total_results": 10,
+        "from_cache": true,
+        "top5": [
+          {
+            "rank": 1,
+            "score": 0.032522,
+            "source_type": "graph",
+            "title": "민사소송법(법률)(제20003호)(20250301)",
+            "snippet": "- 제24조(지식재산권 등에 관한 특별재판적) ①특허권, 실용신안권, 디자인권, 상표권, 품종보호권(이하 '특허권등'이라 한다)을 제외한 지식재산권과 국제거래에 관한 소를 제기하는...",
+            "chunk_id": "None"
+          },
+          {
+            "rank": 2,
+            "score": 0.016393,
+            "source_type": "vector",
+            "title": "Reranking",
+            "snippet": "The system prioritizes the most relevant documents, which improves precision (ensuring the top resul...",
+            "chunk_id": "9c10fb72-cf39-4df4-b963-c0c38ea2c775"
+          },
+          {
+            "rank": 3,
+            "score": 0.016393,
+            "source_type": "keyword",
+            "title": "pg_sync_test.txt",
+            "snippet": "PG Sync 검증용 테스트 문서 - Sat Feb  7 17:26:56 KST 2026",
+            "chunk_id": "6a86a66f-8f15-4a01-bc1b-e5a588c6569b"
+          },
+          {
+            "rank": 4,
+            "score": 0.016129,
+            "source_type": "vector",
+            "title": "아키텍처팀 AI프로젝트 이해 워크샵-20250108",
+            "snippet": "## 청킹(Chunking) 작업이 필요한 이유  랭체인 프레임워크를 이용한 RAG(검색 증강 생성) 구현에서 청킹(Chunking) 작업은 다음과 같은 이유로 필요합니다:  1....",
+            "chunk_id": "78149379-e39e-4750-9e87-3be4cbb15213"
+          },
+          {
+            "rank": 5,
+            "score": 0.015873,
+            "source_type": "vector",
+            "title": "딥러닝과 RAG를 활용한 AI 응용 기초과정-20250516-강의배포용",
+            "snippet": "## 청킹(Chunking) 작업이 필요한 이유  랭체인 프레임워크를 이용한 RAG(검색 증강 생성) 구현에서 청킹(Chunking) 작업은 다음과 같은 이유로 필요합니다:  1....",
+            "chunk_id": "d6a087e3-4222-49ed-9d2d-fe313f3ac44a"
+          }
+        ],
+        "source_distribution": {
+          "graph": 1,
+          "vector": 8,
+          "keyword": 1
+        },
+        "latency_samples_ms": [
+          2.65,
+          7.48
+        ]
+      },
+      "graph_disabled": {
+        "latency_ms": 6.25,
+        "server_latency_ms": 0.75,
+        "total_results": 10,
+        "from_cache": true,
+        "top5": [
+          {
+            "rank": 1,
+            "score": 0.016393,
+            "source_type": "vector",
+            "title": "Reranking",
+            "snippet": "The system prioritizes the most relevant documents, which improves precision (ensuring the top resul...",
+            "chunk_id": "9c10fb72-cf39-4df4-b963-c0c38ea2c775"
+          },
+          {
+            "rank": 2,
+            "score": 0.016393,
+            "source_type": "keyword",
+            "title": "pg_sync_test.txt",
+            "snippet": "PG Sync 검증용 테스트 문서 - Sat Feb  7 17:26:56 KST 2026",
+            "chunk_id": "6a86a66f-8f15-4a01-bc1b-e5a588c6569b"
+          },
+          {
+            "rank": 3,
+            "score": 0.016129,
+            "source_type": "vector",
+            "title": "아키텍처팀 AI프로젝트 이해 워크샵-20250108",
+            "snippet": "## 청킹(Chunking) 작업이 필요한 이유  랭체인 프레임워크를 이용한 RAG(검색 증강 생성) 구현에서 청킹(Chunking) 작업은 다음과 같은 이유로 필요합니다:  1....",
+            "chunk_id": "78149379-e39e-4750-9e87-3be4cbb15213"
+          },
+          {
+            "rank": 4,
+            "score": 0.015873,
+            "source_type": "vector",
+            "title": "딥러닝과 RAG를 활용한 AI 응용 기초과정-20250516-강의배포용",
+            "snippet": "## 청킹(Chunking) 작업이 필요한 이유  랭체인 프레임워크를 이용한 RAG(검색 증강 생성) 구현에서 청킹(Chunking) 작업은 다음과 같은 이유로 필요합니다:  1....",
+            "chunk_id": "d6a087e3-4222-49ed-9d2d-fe313f3ac44a"
+          },
+          {
+            "rank": 5,
+            "score": 0.015625,
+            "source_type": "vector",
+            "title": "Reranking",
+            "snippet": "- Retrieval ( Higher recall and lower precision) The system scans a large dataset, stored as embeddi...",
+            "chunk_id": "17b4c026-a15a-4b79-a340-e78c8740fb5c"
+          }
+        ],
+        "source_distribution": {
+          "vector": 9,
+          "keyword": 1
+        },
+        "latency_samples_ms": [
+          8.57,
+          3.94
+        ]
+      },
+      "comparison": {
+        "latency_diff_ms": -1.19,
+        "graph_unique_results": 1,
+        "no_graph_unique_results": 1,
+        "overlap_results": 9,
+        "top1_same": false,
+        "avg_top5_score_graph": 0.019462,
+        "avg_top5_score_no_graph": 0.016083
+      }
+    },
+    {
+      "query": "검색 성능을 최적화하려면 어떻게 해야 하나요?",
+      "type": "semantic",
+      "graph_enabled": {
+        "latency_ms": 3.98,
+        "server_latency_ms": 0.76,
+        "total_results": 10,
+        "from_cache": true,
+        "top5": [
+          {
+            "rank": 1,
+            "score": 0.138681,
+            "source_type": "graph",
+            "title": "Retrieval-Augmented Generation Approaches, State of the Art, and Optimization Strategies",
+            "snippet": "RAG 파이프라인 최적화 전략  1. 하이브리드 검색 탐색: 키워드 기반 검색, 의미적 및 벡터 검색을 지능적으로 활용하여 성능 최적화를 달성합니다. 2. 재귀 검색 및 쿼리 엔진...",
+            "chunk_id": "None"
+          },
+          {
+            "rank": 2,
+            "score": 0.016393,
+            "source_type": "vector",
+            "title": "Retrieval-Augmented Generation Approaches, State of the Art, and Optimization Strategies",
+            "snippet": "GLYPH(cmap:d83e) To optimize RAG Pipeline:  📜 Hybrid Search Exploration : Performance optimization b...",
+            "chunk_id": "c4a003a9-25f4-43fa-b410-d0b06079eeaf"
+          },
+          {
+            "rank": 3,
+            "score": 0.016129,
+            "source_type": "vector",
+            "title": "Retrieval-Augmented Generation Approaches, State of the Art, and Optimization Strategies",
+            "snippet": "RAG 파이프라인 최적화 전략  1. 하이브리드 검색 탐색: 키워드 기반 검색, 의미적 및 벡터 검색을 지능적으로 활용하여 성능 최적화를 달성합니다. 2. 재귀 검색 및 쿼리 엔진...",
+            "chunk_id": "07baf829-90e1-4328-93c3-385ef7d9300d"
+          },
+          {
+            "rank": 4,
+            "score": 0.015873,
+            "source_type": "vector",
+            "title": "s3 - You Don’t Need That Much Data to Train a Search Agent via RL-2505.14146v1",
+            "snippet": "To improve training efficiency, we precompute the baseline accuracy term Acc ( G ( Q, D RAG ) , A )...",
+            "chunk_id": "7fa308a5-908c-404b-be9b-293826923fe2"
+          },
+          {
+            "rank": 5,
+            "score": 0.015625,
+            "source_type": "vector",
+            "title": "AI_Agents_Are_All_You_Need_(Korean)",
+            "snippet": "AI 하드웨어에 대한 노트 : 우리의 AI 알고리즘을 실행하는 하드웨어 이해하기  외부 메모리는 유한한 주의력 범위의 문제를 해결할 수 있습니다 . 표준적인 방법은 임베딩 벡터 (...",
+            "chunk_id": "e39755b0-697d-454d-8690-802601721eb6"
+          }
+        ],
+        "source_distribution": {
+          "graph": 1,
+          "vector": 9
+        },
+        "latency_samples_ms": [
+          3.93,
+          4.04
+        ]
+      },
+      "graph_disabled": {
+        "latency_ms": 8.47,
+        "server_latency_ms": 1.46,
+        "total_results": 10,
+        "from_cache": true,
+        "top5": [
+          {
+            "rank": 1,
+            "score": 0.016393,
+            "source_type": "vector",
+            "title": "Retrieval-Augmented Generation Approaches, State of the Art, and Optimization Strategies",
+            "snippet": "GLYPH(cmap:d83e) To optimize RAG Pipeline:  📜 Hybrid Search Exploration : Performance optimization b...",
+            "chunk_id": "c4a003a9-25f4-43fa-b410-d0b06079eeaf"
+          },
+          {
+            "rank": 2,
+            "score": 0.016129,
+            "source_type": "vector",
+            "title": "Retrieval-Augmented Generation Approaches, State of the Art, and Optimization Strategies",
+            "snippet": "RAG 파이프라인 최적화 전략  1. 하이브리드 검색 탐색: 키워드 기반 검색, 의미적 및 벡터 검색을 지능적으로 활용하여 성능 최적화를 달성합니다. 2. 재귀 검색 및 쿼리 엔진...",
+            "chunk_id": "07baf829-90e1-4328-93c3-385ef7d9300d"
+          },
+          {
+            "rank": 3,
+            "score": 0.015873,
+            "source_type": "vector",
+            "title": "s3 - You Don’t Need That Much Data to Train a Search Agent via RL-2505.14146v1",
+            "snippet": "To improve training efficiency, we precompute the baseline accuracy term Acc ( G ( Q, D RAG ) , A )...",
+            "chunk_id": "7fa308a5-908c-404b-be9b-293826923fe2"
+          },
+          {
+            "rank": 4,
+            "score": 0.015625,
+            "source_type": "vector",
+            "title": "AI_Agents_Are_All_You_Need_(Korean)",
+            "snippet": "AI 하드웨어에 대한 노트 : 우리의 AI 알고리즘을 실행하는 하드웨어 이해하기  외부 메모리는 유한한 주의력 범위의 문제를 해결할 수 있습니다 . 표준적인 방법은 임베딩 벡터 (...",
+            "chunk_id": "e39755b0-697d-454d-8690-802601721eb6"
+          },
+          {
+            "rank": 5,
+            "score": 0.015385,
+            "source_type": "vector",
+            "title": "딥러닝과 RAG를 활용한 AI 응용 기초과정-20250516-강의배포용",
+            "snippet": "## RAG 파이프라인 최적화 전략  - 하이브리드 검색 탐색 : 키워드 기반 검색, 의미적 및 벡터 검색을 지능적으로 활용하여 성능 최적화를 달성합니다. - 재귀 검색 및 쿼리...",
+            "chunk_id": "30034e33-61f2-466f-8713-1bef1058a29c"
+          }
+        ],
+        "source_distribution": {
+          "vector": 10
+        },
+        "latency_samples_ms": [
+          8.43,
+          8.51
+        ]
+      },
+      "comparison": {
+        "latency_diff_ms": -4.49,
+        "graph_unique_results": 1,
+        "no_graph_unique_results": 1,
+        "overlap_results": 9,
+        "top1_same": false,
+        "avg_top5_score_graph": 0.04054,
+        "avg_top5_score_no_graph": 0.015881
+      }
+    },
+    {
+      "query": "FastAPI와 PostgreSQL 연동하여 RAGAS 평가하기",
+      "type": "entity_relation",
+      "graph_enabled": {
+        "latency_ms": 7.83,
+        "server_latency_ms": 1.47,
+        "total_results": 10,
+        "from_cache": true,
+        "top5": [
+          {
+            "rank": 1,
+            "score": 0.285609,
+            "source_type": "graph",
+            "title": "AI_Agents_Are_All_You_Need_(Korean)",
+            "snippet": "Sub Querying in action  ## 도구 사용 에이전트 (Tool Using Agents)  이는 도구나 API 를 사용할 수 있고 , 해당 도구를 실행하는 데 필요한...",
+            "chunk_id": "None"
+          },
+          {
+            "rank": 2,
+            "score": 0.016393,
+            "source_type": "vector",
+            "title": "AI_에이전트_통합_마스터_클래스",
+            "snippet": "## 3.4 도구와 RAG 통합",
+            "chunk_id": "59ac144e-882a-4c52-a06c-d48fef2dab8e"
+          },
+          {
+            "rank": 3,
+            "score": 0.016129,
+            "source_type": "vector",
+            "title": "AI_에이전트_통합_마스터_클래스",
+            "snippet": "## 3.2 RAG 구현",
+            "chunk_id": "e74ed222-4373-42ed-bda6-8a47d18750b2"
+          },
+          {
+            "rank": 4,
+            "score": 0.015873,
+            "source_type": "vector",
+            "title": "딥러닝과 RAG를 활용한 AI 응용 기초과정-20250516-강의배포용",
+            "snippet": "| 단계      | 핵심특징                                                  | 주요기술...",
+            "chunk_id": "9da283fe-b475-466c-940a-83be0a463e5e"
+          },
+          {
+            "rank": 5,
+            "score": 0.015625,
+            "source_type": "vector",
+            "title": "딥러닝과 RAG를 활용한 AI 응용 기초과정-20250516-강의배포용",
+            "snippet": "## 벡터 스토어 API의 예시  FAISS, Elasticsearch와 같은 기술이 벡터 스토어 API의 대표적인 예시입니다. 이러한 기술들은 고성능의 유사도 검색 기능을 제공하...",
+            "chunk_id": "021c5646-69ad-4e70-a330-4efb299f65e7"
+          }
+        ],
+        "source_distribution": {
+          "graph": 1,
+          "vector": 9
+        },
+        "latency_samples_ms": [
+          7.35,
+          8.31
+        ]
+      },
+      "graph_disabled": {
+        "latency_ms": 5.25,
+        "server_latency_ms": 0.59,
+        "total_results": 10,
+        "from_cache": true,
+        "top5": [
+          {
+            "rank": 1,
+            "score": 0.016393,
+            "source_type": "vector",
+            "title": "AI_에이전트_통합_마스터_클래스",
+            "snippet": "## 3.4 도구와 RAG 통합",
+            "chunk_id": "59ac144e-882a-4c52-a06c-d48fef2dab8e"
+          },
+          {
+            "rank": 2,
+            "score": 0.016129,
+            "source_type": "vector",
+            "title": "AI_에이전트_통합_마스터_클래스",
+            "snippet": "## 3.2 RAG 구현",
+            "chunk_id": "e74ed222-4373-42ed-bda6-8a47d18750b2"
+          },
+          {
+            "rank": 3,
+            "score": 0.015873,
+            "source_type": "vector",
+            "title": "딥러닝과 RAG를 활용한 AI 응용 기초과정-20250516-강의배포용",
+            "snippet": "| 단계      | 핵심특징                                                  | 주요기술...",
+            "chunk_id": "9da283fe-b475-466c-940a-83be0a463e5e"
+          },
+          {
+            "rank": 4,
+            "score": 0.015625,
+            "source_type": "vector",
+            "title": "딥러닝과 RAG를 활용한 AI 응용 기초과정-20250516-강의배포용",
+            "snippet": "## 벡터 스토어 API의 예시  FAISS, Elasticsearch와 같은 기술이 벡터 스토어 API의 대표적인 예시입니다. 이러한 기술들은 고성능의 유사도 검색 기능을 제공하...",
+            "chunk_id": "021c5646-69ad-4e70-a330-4efb299f65e7"
+          },
+          {
+            "rank": 5,
+            "score": 0.015385,
+            "source_type": "vector",
+            "title": "딥러닝과 RAG를 활용한 AI 응용 기초과정-20250516-강의배포용",
+            "snippet": "\"7  \"  外  ## RAG  ## 2.  是  召  ## 1.  ## 3.  ## Agent  百M007I  ## Agent 引  - ·Tool - ol· - · - · - ·...",
+            "chunk_id": "0746cd15-bc23-4ab0-98ba-2705efc786c8"
+          }
+        ],
+        "source_distribution": {
+          "vector": 10
+        },
+        "latency_samples_ms": [
+          7.7,
+          2.8
+        ]
+      },
+      "comparison": {
+        "latency_diff_ms": 2.57,
+        "graph_unique_results": 1,
+        "no_graph_unique_results": 1,
+        "overlap_results": 9,
+        "top1_same": false,
+        "avg_top5_score_graph": 0.069926,
+        "avg_top5_score_no_graph": 0.015881
+      }
+    },
+    {
+      "query": "Agentic AI 에이전트 워크플로우 설계 패턴",
+      "type": "multi_hop",
+      "graph_enabled": {
+        "latency_ms": 5.6,
+        "server_latency_ms": 1.22,
+        "total_results": 10,
+        "from_cache": true,
+        "top5": [
+          {
+            "rank": 1,
+            "score": 0.285609,
+            "source_type": "graph",
+            "title": "AI 클라우드 기반의 데이터셋과 SLM 모델 구축_GENCON_20240920",
+            "snippet": "AI Project 는실제로 AI 모델을사용하여작업을수행하는프로젝트환경입니다 . Prompt Flow 와 LangChain 을통해작업이수행되며 , 다음과같은기능들이포함됩니다 :...",
+            "chunk_id": "None"
+          },
+          {
+            "rank": 2,
+            "score": 0.016393,
+            "source_type": "vector",
+            "title": "AI_Agents_in_Action_Interaction_and_Workflow_Dynamics",
+            "snippet": "Agentic AI systems draw from distinct 'design patternsˮ to optimize task handling. Each pattern is u...",
+            "chunk_id": "6b0d208d-a5c1-49d9-ae33-40778be504c6"
+          },
+          {
+            "rank": 3,
+            "score": 0.016393,
+            "source_type": "keyword",
+            "title": "Agentic AI-Build a Tech Research Agent",
+            "snippet": "## Agentic AI: Build a Tech Research Agent  ## Using a custom data pipeline with millions of texts...",
+            "chunk_id": "876bbd6c-8a9e-422b-957b-d6628d94fc56"
+          },
+          {
+            "rank": 4,
+            "score": 0.016129,
+            "source_type": "vector",
+            "title": "딥러닝과 RAG를 활용한 AI 응용 기초과정-20250516-강의배포용",
+            "snippet": "- ReAct 패턴 : Reasoning( 추론 ) 과 Action( 행동 ) 을번갈아가며수행하는방식으로 , 복잡한 문제를단계적으로해결합니다 . - Supervisor-Worker...",
+            "chunk_id": "4887edbc-d077-44e5-a6fc-e323e802278e"
+          },
+          {
+            "rank": 5,
+            "score": 0.016129,
+            "source_type": "keyword",
+            "title": "Agentic AI-Build a Tech Research Agent",
+            "snippet": "What we'll do here though will be a researcher that can do research in tech up to 6 months back in t...",
+            "chunk_id": "e462efb6-e85e-4d59-a844-43bfe6640046"
+          }
+        ],
+        "source_distribution": {
+          "graph": 1,
+          "vector": 5,
+          "keyword": 4
+        },
+        "latency_samples_ms": [
+          2.71,
+          8.49
+        ]
+      },
+      "graph_disabled": {
+        "latency_ms": 7.74,
+        "server_latency_ms": 1.3,
+        "total_results": 10,
+        "from_cache": true,
+        "top5": [
+          {
+            "rank": 1,
+            "score": 0.016393,
+            "source_type": "vector",
+            "title": "AI_Agents_in_Action_Interaction_and_Workflow_Dynamics",
+            "snippet": "Agentic AI systems draw from distinct 'design patternsˮ to optimize task handling. Each pattern is u...",
+            "chunk_id": "6b0d208d-a5c1-49d9-ae33-40778be504c6"
+          },
+          {
+            "rank": 2,
+            "score": 0.016393,
+            "source_type": "keyword",
+            "title": "Agentic AI-Build a Tech Research Agent",
+            "snippet": "## Agentic AI: Build a Tech Research Agent  ## Using a custom data pipeline with millions of texts...",
+            "chunk_id": "876bbd6c-8a9e-422b-957b-d6628d94fc56"
+          },
+          {
+            "rank": 3,
+            "score": 0.016129,
+            "source_type": "vector",
+            "title": "딥러닝과 RAG를 활용한 AI 응용 기초과정-20250516-강의배포용",
+            "snippet": "- ReAct 패턴 : Reasoning( 추론 ) 과 Action( 행동 ) 을번갈아가며수행하는방식으로 , 복잡한 문제를단계적으로해결합니다 . - Supervisor-Worker...",
+            "chunk_id": "4887edbc-d077-44e5-a6fc-e323e802278e"
+          },
+          {
+            "rank": 4,
+            "score": 0.016129,
+            "source_type": "keyword",
+            "title": "Agentic AI-Build a Tech Research Agent",
+            "snippet": "What we'll do here though will be a researcher that can do research in tech up to 6 months back in t...",
+            "chunk_id": "e462efb6-e85e-4d59-a844-43bfe6640046"
+          },
+          {
+            "rank": 5,
+            "score": 0.015873,
+            "source_type": "vector",
+            "title": "LLM Agent 강의교안",
+            "snippet": "## DocumentLoader  ## Agentic pattern design  ## 주요 Agentic Patterns  ## Agentic RAG  - 단순한검색후응답생성이아...",
+            "chunk_id": "5ef49119-b7b5-4799-a5ad-969bad8aa9fc"
+          }
+        ],
+        "source_distribution": {
+          "vector": 5,
+          "keyword": 5
+        },
+        "latency_samples_ms": [
+          8.08,
+          7.4
+        ]
+      },
+      "comparison": {
+        "latency_diff_ms": -2.14,
+        "graph_unique_results": 1,
+        "no_graph_unique_results": 1,
+        "overlap_results": 9,
+        "top1_same": false,
+        "avg_top5_score_graph": 0.070131,
+        "avg_top5_score_no_graph": 0.016183
+      }
+    }
+  ],
+  "summary": {
+    "total_queries": 10,
+    "successful_queries": 10,
+    "failed_queries": 0,
+    "overall": {
+      "avg_latency_graph_ms": 5.55,
+      "avg_latency_no_graph_ms": 5.14,
+      "avg_latency_diff_ms": 0.42,
+      "total_graph_unique_results": 10,
+      "top1_same_rate_pct": 0.0
+    },
+    "by_query_type": {
+      "entity_relation": {
+        "count": 3,
+        "avg_latency_graph_ms": 7.24,
+        "avg_latency_no_graph_ms": 4.2,
+        "avg_latency_diff_ms": 3.04,
+        "total_graph_unique_results": 3,
+        "top1_same_rate": 0.0
+      },
+      "multi_hop": {
+        "count": 3,
+        "avg_latency_graph_ms": 4.19,
+        "avg_latency_no_graph_ms": 4.62,
+        "avg_latency_diff_ms": -0.44,
+        "total_graph_unique_results": 3,
+        "top1_same_rate": 0.0
+      },
+      "keyword": {
+        "count": 2,
+        "avg_latency_graph_ms": 6.11,
+        "avg_latency_no_graph_ms": 5.09,
+        "avg_latency_diff_ms": 1.02,
+        "total_graph_unique_results": 2,
+        "top1_same_rate": 0.0
+      },
+      "semantic": {
+        "count": 2,
+        "avg_latency_graph_ms": 4.53,
+        "avg_latency_no_graph_ms": 7.36,
+        "avg_latency_diff_ms": -2.83,
+        "total_graph_unique_results": 2,
+        "top1_same_rate": 0.0
+      }
+    }
+  }
+}

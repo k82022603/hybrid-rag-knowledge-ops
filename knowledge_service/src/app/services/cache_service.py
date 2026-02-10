@@ -585,17 +585,22 @@ class SearchCacheService:
         filters: Optional[Dict[str, Any]] = None,
         top_k: int = 10,
         search_type: str = "hybrid",
+        use_graph: bool = True,
+        use_vector: bool = True,
     ) -> str:
         """
         검색 쿼리를 캐시 키로 변환
 
-        쿼리, 필터, top_k, 검색 타입을 조합하여 SHA256 해시 생성
+        쿼리, 필터, top_k, 검색 타입, use_graph/use_vector를
+        조합하여 SHA256 해시 생성
 
         Args:
             query: 검색 쿼리
             filters: 필터 조건
             top_k: 반환 결과 수
             search_type: 검색 유형 (hybrid, semantic, keyword)
+            use_graph: Graph 검색 사용 여부
+            use_vector: Vector 검색 사용 여부
 
         Returns:
             캐시 키 (SHA256 해시)
@@ -610,8 +615,11 @@ class SearchCacheService:
             ensure_ascii=False,
         )
 
-        # 캐시 키 구성요소 조합
-        key_components = f"{search_type}:{normalized_query}:{normalized_filters}:{top_k}"
+        # 캐시 키 구성요소 조합 (use_graph/use_vector 포함)
+        key_components = (
+            f"{search_type}:{normalized_query}:{normalized_filters}"
+            f":{top_k}:g={use_graph}:v={use_vector}"
+        )
 
         # SHA256 해싱
         cache_key = hashlib.sha256(key_components.encode("utf-8")).hexdigest()
