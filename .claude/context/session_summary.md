@@ -1,4 +1,4 @@
-# Session Summary - 2026-02-10 06:22
+# Session Summary - 2026-02-10 19:03
 
 ## Commits This Session
 ```
@@ -7,16 +7,16 @@
 
 ## Files Modified
 ```
-.claude/agents/software-architect.md
 .claude/context/session_context.md
-.claude/context/session_summary.md
-CLAUDE.md
-PLAN.md
-README.md
-backlog/sprints/sprint-08.md
-backlog/stories/STORY-091-rrf-fusion-search-source-metadata-loss.md
-backlog/stories/STORY-092-document-download-link.md
-backlog/stories/STORY-093-content-viewer-modal.md
+knowledge_service/docs/07_maintenance/data_loading_operations_guide.md
+knowledge_service/docs/results/ragas/hrkp_vs_rcsv_2026-02-10.json
+knowledge_service/docs/results/ragas/hrkp_vs_rcsv_2026-02-10_v2.json
+knowledge_service/docs/results/ragas/hrkp_vs_rcsv_report_2026-02-10.md
+knowledge_service/docs/results/ragas/hrkp_vs_rcsv_report_2026-02-10_v2.md
+knowledge_service/docs/results/ragas/ragas_cross_system_2026-02-10.json
+knowledge_service/docs/results/ragas/ragas_cross_system_report_2026-02-10.md
+knowledge_service/docs/results/smoke_test/smoke_test_search_2026-02-10.json
+knowledge_service/docs/results/smoke_test/smoke_test_search_report_2026-02-10.md
 ```
 
 ---

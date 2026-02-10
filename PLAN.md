@@ -2,9 +2,9 @@
 
 > Claude Code 세션 간 컨텍스트 유지를 위한 계획 문서
 >
-> **Last Updated**: 2026-02-09 21:42 KST (Sprint 08 Day 5 마감)
-> **Current Phase**: Phase 5 배포 완료 ✅ → Sprint 08 UAT + 안정화 + 임베딩 배치 ~50%
-> **Sprint 08**: Graph Search, Source Type, Graph Panel, 문서 적재 100%, 임베딩 배치 진행 중
+> **Last Updated**: 2026-02-10 00:56 KST (Sprint 08 Day 3 마감)
+> **Current Phase**: Phase 5 배포 완료 ✅ → Sprint 08 RAG v3 개선 + RAGAS v5 평가 + 한글화
+> **Sprint 08**: RRF 버그 수정, RAG v3 파이프라인, 50쿼리 RAGAS 평가, Frontend 한글화
 > **Frontend 전략 변경**: Tailwind + Antigravity + Stitch MCP 도입 결정 (2026-01-25)
 > **소스코드 리뷰**: 72.5/100 B+ (Gateway 65, Backend 72, AI Service 78, Frontend 75)
 
@@ -939,6 +939,20 @@ CI/CD Pipeline (GitHub Actions)
 ---
 
 ## Session Notes
+
+### 2026-02-10 (Sprint 08 Day 3 - RRF 버그 수정 + RAGAS v5 + 한글화)
+
+- **RRF Graph 과점유 버그 3건 수정**: chunk_id NULL, 채널 가중치 미적용, primary_source 판정 오류
+- **효과**: context_precision +38% (0.367→0.508), HRKP vs RCSV 0:3 → 2:2 동점
+- **RAG v3 파이프라인**: BGE Reranker + Quality Gate + System Prompt v2
+- **50쿼리 RAGAS v5 평가**: 7개 도메인, Q1-Q42 유효 (Q43-Q50 JWT 만료)
+  - HIGH 35.7%, PARTIAL 38.1%, NONE 26.2%
+  - 법률 도메인 강점: 7개 중 5개 HIGH (평균 max_score=0.84)
+  - v3-RAW: faithfulness +73%, context_recall +80% (vs v2)
+- **Frontend 한글화**: 10개 파일 전체 한글화 완료
+- **CPU 임베딩 최적값 확정**: batch_size=4, max_text_length=1000, workers=1
+- **마감 스탠드업**: 상용 LLM vs 로컬 LLM 토론, 하이브리드 전략 유지 합의
+- **커밋**: 5건
 
 ### 2026-02-07 (Sprint 08 Day 2 - Graph Search + Graph Panel + 디버깅)
 

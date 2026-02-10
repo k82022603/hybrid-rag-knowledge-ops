@@ -5,11 +5,11 @@
 
 ### Recent Commits
 ```
-8aefee0 [DOCS] 비교표에 Document Parsing(Docling) 영향 분석 추가
-ca68696 [DOCS] RAGAS 크로스 시스템 평가 가이드에 예상 성능 비교표 추가
-0d5b914 [DOCS] RAGAS 크로스 시스템 비교 평가 가이드 + STORY-111 백로그
-143f01b [CHORE] .gitignore에 RAGChatbotServer/ 제외 추가
-dceef22 [DOCS] 운영매뉴얼 v3.2 실측 데이터 반영 + 세션로그 업데이트
+3c8316f [FIX] RRF Graph 과점유 버그 수정 + RAGAS 크로스시스템 평가 (STORY-111)
+ff6cab9 [DOCS] 스모크 테스트 결과를 docs/results/smoke_test/ 폴더로 정리
+cbfccbb [FIX] Graph RAG 검색 Cypher 경로 수정 + 캐시 키 분리 + 스모크 테스트
+04e9cd7 [DOCS] 운영매뉴얼 v3.3 - max-text-length 1000 최종 확정 (속도 7배+메모리 60%↓)
+e1016eb [FEAT] 임베딩 모니터 정식 스크립트 + OOM Kill 인시던트 기록
 ```
 
 ## Work Log Status
