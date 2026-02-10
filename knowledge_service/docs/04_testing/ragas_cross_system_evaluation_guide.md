@@ -71,7 +71,33 @@ flowchart LR
     style RCSV_Arch fill:#fff3e0
 ```
 
-### 1.5.2 검색 파이프라인 상세 비교
+### 1.5.2 전체 파이프라인 상세 비교
+
+#### A. 문서 파싱 (Document Parsing) - RAG 품질의 근본
+
+| 항목 | HRKP (Docling) | RCSV (pdfplumber) | 예상 영향 |
+|------|----------------|-------------------|----------|
+| **파싱 엔진** | Docling (IBM, AI 기반) | pdfplumber / pypdf / unstructured | Docling이 구조 인식 정확도 우수 |
+| **표(Table) 처리** | 구조 보존 (TableCell 모델, 행/열/헤더 분리) | 텍스트 평탄화 (구조 소실) | 표 데이터 질의 시 HRKP 정확도 높음 |
+| **섹션 구조** | Section 계층 보존 → 청킹 경계로 활용 | 페이지 단위 평탄 텍스트 | HRKP 청크가 의미 단위로 깨끗 |
+| **OCR 지원** | 내장 (스캔 문서 처리) | 미지원 (기본) | 스캔 PDF 처리 시 HRKP만 가능 |
+| **이미지 처리** | 추출 + ImageRef 참조 보존 | 무시 (텍스트만) | 이미지 캡션 정보 HRKP만 보존 |
+| **지원 형식** | PDF, DOCX, PPTX | PDF only | HRKP 다형식 지원 |
+
+> **영향 체인**: `파싱 품질 → 청킹 품질 → 임베딩 품질 → 검색 품질 → 답변 품질`
+>
+> Docling의 구조 보존은 Context Precision(+0.05~0.10)과 Context Recall(+0.03~0.07)에 직접적 영향을 미치며, 이는 HRKP 검색 품질 우위의 근본 원인 중 하나이다.
+
+#### B. 청킹 전략
+
+| 항목 | HRKP | RCSV | 예상 영향 |
+|------|------|------|----------|
+| **청킹 방식** | SemanticChunker (문장/섹션 경계) | RecursiveCharacterTextSplitter (문자 수) | HRKP가 의미 단위 보존, RCSV는 문맥 중간 절단 가능 |
+| **청크 크기** | 600자 (100 overlap) | 2000자 (300 overlap) | HRKP 세밀한 검색, RCSV 풍부한 맥락 |
+| **특수 블록** | 테이블/코드 블록 보존 | 문자 수 기반 분할 (블록 절단 가능) | HRKP가 구조화 데이터 검색에 유리 |
+| **한국어 지원** | 한국어 문장 종결어미 패턴 인식 | 범용 분리자 (언어 무관) | 한국어 문서에서 HRKP 유리 |
+
+#### C. 검색 파이프라인
 
 | 항목 | HRKP | RAGChatbotServer | 예상 영향 |
 |------|------|------------------|----------|
@@ -80,7 +106,6 @@ flowchart LR
 | **Reranker** | 있음 (검색 후 재정렬) | 없음 | HRKP의 Context Precision 우위 예상 |
 | **임베딩 모델** | BGE-M3 (1024d, 다국어) | OpenAI text-embedding-3-small (1536d) | OpenAI 임베딩 품질 약간 우위 가능 |
 | **임베딩 위치** | 로컬 ONNX (CPU) | OpenAI API (클라우드) | RCSV 임베딩 latency 낮음 (API 최적화) |
-| **청킹** | SemanticChunker (600자, 100 overlap) | RecursiveCharacter (2000자, 300 overlap) | HRKP 청크가 세밀, RCSV 청크가 풍부한 맥락 |
 | **메타데이터** | 구조화 (PostgreSQL SSOT) | LLM 생성 (level1/2/3, summary) | RCSV의 LLM 메타데이터가 BM25에 유리 |
 | **Knowledge Graph** | Neo4j (엔티티/관계) | 없음 | HRKP 고유 강점 (관계 추론) |
 
@@ -92,9 +117,9 @@ flowchart LR
 |--------|:---------:|:---------:|:---------:|------|
 | **Faithfulness** | 0.75~0.85 | **0.80~0.90** | RCSV | GPT-4o-mini의 instruction following이 DeepSeek 대비 우수, 환각 제어 강점 |
 | **Answer Relevancy** | 0.70~0.80 | **0.75~0.85** | RCSV | GPT-4o-mini의 자연어 생성 품질이 높고, 질문-답변 정합성 우수 |
-| **Context Precision** | **0.75~0.85** | 0.65~0.75 | HRKP | 3채널 Hybrid + RRF + Reranker로 검색 정밀도 우위 |
-| **Context Recall** | **0.70~0.80** | 0.60~0.70 | HRKP | Graph 검색이 누락 정보 보완, BM25+Dense+Graph 3중 커버리지 |
-| **종합 평균** | **0.73~0.83** | **0.70~0.80** | 근소 HRKP | 검색 품질 우위가 생성 품질 열위를 보완 |
+| **Context Precision** | **0.75~0.85** | 0.60~0.70 | HRKP | Docling 구조 보존 + SemanticChunker + RRF + Reranker 4중 효과 |
+| **Context Recall** | **0.70~0.80** | 0.55~0.65 | HRKP | Docling 표/이미지 추출 + Graph 검색 + 3채널 커버리지 |
+| **종합 평균** | **0.73~0.83** | **0.68~0.78** | HRKP | 파싱+검색 품질 우위가 생성 품질 열위를 보완 |
 
 ### 1.5.4 성능(Latency) 예상 비교
 
@@ -124,8 +149,8 @@ flowchart LR
 
 | 시스템 | 강점 | 약점 |
 |--------|------|------|
-| **HRKP** | 3채널 Hybrid + Graph + RRF + Reranker로 검색 품질 우수, 비용 효율적, 메타데이터 구조화 | 파이프라인 복잡도로 latency 높음, 로컬 임베딩 CPU 병목 |
-| **RCSV** | GPT-4o-mini 생성 품질, 단순한 파이프라인으로 빠른 응답, OpenAI 임베딩 품질 | Graph 검색 없음, Reranker 없음, LLM 메타데이터 의존, API 비용 |
+| **HRKP** | Docling 구조 파싱 + SemanticChunker + 3채널 Hybrid + Graph + RRF + Reranker로 검색 품질 우수, 비용 효율적 | 파이프라인 복잡도로 latency 높음, 로컬 임베딩 CPU 병목 |
+| **RCSV** | GPT-4o-mini 생성 품질, 단순한 파이프라인으로 빠른 응답, OpenAI 임베딩 품질 | pdfplumber 구조 소실 + 문자 수 청킹으로 의미 절단, Graph/Reranker 없음, API 비용 |
 
 ### 1.5.7 메트릭별 예상 승패 매트릭스
 
@@ -134,16 +159,18 @@ flowchart LR
                     ◄────────────────►
 Faithfulness       ■■■■■■■■■■■■████████████  ← RCSV (LLM 품질)
 Answer Relevancy   ■■■■■■■■■■■████████████  ← RCSV (LLM 품질)
-Context Precision  ████████████████■■■■■■■  ← HRKP (검색 품질)
-Context Recall     ███████████████■■■■■■■■  ← HRKP (Graph+3채널)
+Context Precision  █████████████████■■■■■■  ← HRKP (Docling+Reranker+RRF)
+Context Recall     ████████████████■■■■■■■  ← HRKP (Docling+Graph+3채널)
 ─────────────────────────────────────────
+Parsing Quality    ██████████████████■■■■■  ← HRKP (Docling vs pdfplumber)
+Chunking Quality   ████████████████■■■■■■■  ← HRKP (Semantic vs Character)
 E2E Latency        ■■■■■■■■■████████████   ← RCSV (단순 파이프라인)
 Cost/Query         ██████████████████■■■■   ← HRKP (로컬 추론)
 
 ■ = 열위  █ = 우위
 ```
 
-> **핵심 인사이트**: HRKP는 **검색(Retrieval)** 품질에서, RCSV는 **생성(Generation)** 품질에서 각각 강점을 가질 것으로 예상. 이는 각 시스템의 설계 철학(HRKP=정교한 검색 파이프라인, RCSV=강력한 LLM)을 반영한다.
+> **핵심 인사이트**: HRKP는 **파싱+검색(Parsing+Retrieval)** 품질에서, RCSV는 **생성(Generation)** 품질에서 각각 강점을 가질 것으로 예상. Docling에 의한 구조 보존 → SemanticChunker → 깨끗한 청크 → 정밀한 검색이라는 파이프라인 전체의 품질 체인이 HRKP의 검색 우위를 형성한다.
 
 ---
 
