@@ -178,8 +178,10 @@ spring:
     oauth2:
       resourceserver:
         jwt:
-          issuer-uri: http://keycloak:8080/realms/${KEYCLOAK_REALM:knowledge-platform}
-          jwk-set-uri: http://keycloak:8080/realms/${KEYCLOAK_REALM:knowledge-platform}/protocol/openid-connect/certs
+          # issuer-uri: Token issuer must match what browser sees (localhost:8180)
+          # jwk-set-uri: Key fetch uses internal Docker network (keycloak:8080)
+          issuer-uri: ${KEYCLOAK_EXTERNAL_URL:http://localhost:8180}/realms/${KEYCLOAK_REALM:hybrid-rag}
+          jwk-set-uri: http://keycloak:8080/realms/${KEYCLOAK_REALM:hybrid-rag}/protocol/openid-connect/certs
 
 ai-service:
   url: http://ai-service:8000

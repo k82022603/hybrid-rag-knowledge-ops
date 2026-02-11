@@ -140,7 +140,8 @@ public class SecurityConfig {
             String gatewayRoles = headers.getFirst("X-Auth-User-Roles");
             String authMethod = headers.getFirst("X-Auth-Method");
 
-            if (gatewayUserId != null && gatewayEmail != null && "direct".equals(authMethod)) {
+            if (gatewayUserId != null && gatewayEmail != null
+                    && ("direct".equals(authMethod) || "keycloak".equals(authMethod))) {
                 // Gateway has already validated the token, trust the headers
                 Set<String> roles = gatewayRoles != null && !gatewayRoles.isEmpty()
                     ? Set.of(gatewayRoles.split(","))
