@@ -313,8 +313,8 @@ flowchart LR
 
 - [STORY-024 상세](../../backlog/stories/STORY-024-direct-login-api.md)
 - [테스트 계획서 템플릿](../../knowledge_service/docs/04_testing/unit_integration_test_plan.md)
-- [Backend 상세 설계서](../../knowledge_service/docs/02_design/backend_detailed_design.md)
-- [인증/인가 설계서](../../knowledge_service/docs/02_design/authentication_authorization_detailed_design.md)
+- [Backend 상세 설계서](../../knowledge_service/docs/02_design/06_backend_detailed_design.md)
+- [인증/인가 설계서](../../knowledge_service/docs/02_design/03_authentication_authorization_detailed_design.md)
 
 ---
 

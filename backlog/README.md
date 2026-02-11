@@ -108,4 +108,4 @@ vi backlog/stories/STORY-001-file-upload.md
 ## 참고
 
 - [02_스프린트_실행_계획서.md](../docs/02_스프린트_실행_계획서.md)
-- [개발자 통합 가이드](../knowledge_service/docs/05_development/developer_integration_guide.md)
+- [개발자 통합 가이드](../knowledge_service/docs/05_development/02_developer_integration_guide.md)

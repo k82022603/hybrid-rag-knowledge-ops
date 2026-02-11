@@ -34,6 +34,8 @@ export interface Source {
     relatedEntities: string[];
     community: string;
   };
+  /** Whether this chunk has a computed embedding (SCRUM-97) */
+  hasEmbedding?: boolean;
 }
 
 /** Chat message */

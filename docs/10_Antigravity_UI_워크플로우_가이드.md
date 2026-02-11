@@ -451,9 +451,9 @@ Stitch MCP가 동작하지 않을 경우, Claude Code에 직접 요청:
 ## 6. 관련 문서
 
 - [08_Antigravity_설정_가이드.md](./08_Antigravity_설정_가이드.md) - 사전 설정
-- [Frontend 상세 설계서](../knowledge_service/docs/02_design/frontend_detailed_design.md)
-- [MUI to Tailwind 마이그레이션](../knowledge_service/docs/05_development/mui_to_tailwind_migration.md)
-- [개발자 에이전트 가이드](../knowledge_service/docs/05_development/developer_agent_guide.md)
+- [Frontend 상세 설계서](../knowledge_service/docs/02_design/02_frontend_detailed_design.md)
+- [MUI to Tailwind 마이그레이션](../knowledge_service/docs/05_development/06_mui_to_tailwind_migration.md)
+- [개발자 에이전트 가이드](../knowledge_service/docs/05_development/01_developer_agent_guide.md)
 - [세션 로그: 2026-01-25](../work_logs/session_logs/2026-01-25_antigravity_login_form.md)
 
 ---

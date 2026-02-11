@@ -298,13 +298,17 @@ def build_sources_from_results(
     for idx, result in enumerate(search_results):
         doc_id = result.document_id
 
+        # SCRUM-101: graph가 기여한 결과는 source_type="graph"로 우선 표시
+        contributing = result.metadata.get("contributing_sources", [])
+        effective_source = "graph" if "graph" in contributing else result.source
+
         source_info: Dict[str, Any] = {
             "index": idx + 1,
             "chunk_id": result.chunk_id,
             "document_id": doc_id,
             "title": result.metadata.get("title", "문서"),
             "score": round(result.score, 4),
-            "source_type": result.source,
+            "source_type": effective_source,
             "snippet": (
                 result.content[:200] + "..."
                 if len(result.content) > 200
@@ -520,10 +524,25 @@ class RAGWorkflow:
             }
 
         retrieve_latency = (time.monotonic() - retrieve_start) * 1000
-        pipeline_stages["retrieve"] = pipeline_stages.get("retrieve", {
-            "result_count": len(search_results),
-            "latency_ms": round(retrieve_latency, 2),
-        })
+        if "retrieve" not in pipeline_stages:
+            # SCRUM-103: reranker 경유 정보 포함
+            reranker_used = (
+                self._hybrid_retriever is not None
+                and getattr(self._hybrid_retriever, "_reranker", None) is not None
+            )
+            retrieve_info: Dict[str, Any] = {
+                "result_count": len(search_results),
+                "latency_ms": round(retrieve_latency, 2),
+                "reranker_used": reranker_used,
+            }
+            if search_results:
+                retrieve_info["max_score"] = round(max(r.score for r in search_results), 4)
+                # reranker 경유 시 메타데이터에서 원본/리랭크 점수 추출
+                first = search_results[0]
+                if hasattr(first, "metadata") and "rerank_score" in first.metadata:
+                    retrieve_info["rerank_top_score"] = round(first.metadata["rerank_score"], 4)
+                    retrieve_info["original_top_score"] = round(first.metadata.get("original_score", 0.0), 4)
+            pipeline_stages["retrieve"] = retrieve_info
 
         # ------------------------------------------------------------------
         # Stage 2.5: Quality Gate (품질 판단)
@@ -738,6 +757,7 @@ class RAGWorkflow:
         # ── 등급별 컨텍스트 구성 ──
         if grade == "NONE":
             # 쓸 만한 컨텍스트 없음 → LLM에 컨텍스트를 주지 않고 일반 지식 요청
+            # sources도 비움 → UI에서 "관련 결과 없음" 안내
             context = ""
             selected_results = []
             quality_instruction = (
@@ -851,6 +871,11 @@ def get_rag_workflow(
             llm_adapter=llm_adapter,
             conversation_history_service=conversation_history_service,
         )
+    else:
+        # SCRUM-103: 싱글톤에 hybrid_retriever가 누락된 경우 업데이트
+        if hybrid_retriever is not None and _workflow._hybrid_retriever is None:
+            _workflow._hybrid_retriever = hybrid_retriever
+            logger.info("RAGWorkflow singleton updated with HybridRetriever")
     return _workflow
 
 

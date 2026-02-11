@@ -242,6 +242,6 @@ class HybridRetriever:
 
 ## 참고 자료
 
-- [상세 설계서 v2.4](../../knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md)
+- [상세 설계서 v2.4](../../knowledge_service/docs/02_design/01_hybrid_rag_platform_detailed_design.md)
 - [Elasticsearch Python Client](https://elasticsearch-py.readthedocs.io/en/latest/async.html)
 - [Neo4j Python Driver](https://neo4j.com/docs/python-manual/current/)

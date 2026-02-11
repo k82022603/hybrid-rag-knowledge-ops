@@ -58,7 +58,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 # Build wheels for additional required packages
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip wheel --wheel-dir=/build/wheels \
-    email-validator python-multipart
+    email-validator python-multipart onnxruntime onnxscript
 
 # Install all packages from pre-built wheels (fast - no download needed)
 RUN pip install --no-index --find-links=/build/wheels \
@@ -67,7 +67,7 @@ RUN pip install --no-index --find-links=/build/wheels \
     pip install --no-index --find-links=/build/wheels \
     -r requirements.txt && \
     pip install --no-index --find-links=/build/wheels \
-    email-validator python-multipart
+    email-validator python-multipart onnxruntime onnxscript
 
 # Verify Docling installation
 RUN pip show docling && python -c "import docling; print('Docling imported successfully')"

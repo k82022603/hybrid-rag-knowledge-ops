@@ -98,5 +98,5 @@ And 로그인 및 토큰 발급이 가능하다
 
 ## 참고 자료
 
-- [인증/인가 설계서](../../knowledge_service/docs/02_design/authentication_authorization_detailed_design.md)
+- [인증/인가 설계서](../../knowledge_service/docs/02_design/03_authentication_authorization_detailed_design.md)
 - [Keycloak 공식 문서](https://www.keycloak.org/documentation)

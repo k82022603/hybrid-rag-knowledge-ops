@@ -16,7 +16,7 @@
 
 | 카테고리 | 파일/문서 | 상태 | 비고 |
 |----------|----------|------|------|
-| **마이그레이션 가이드** | [mui_to_tailwind_migration.md](../../../knowledge_service/docs/05_development/mui_to_tailwind_migration.md) | ✅ 완료 | 컴포넌트 매핑, Headless UI 활용 가이드 |
+| **마이그레이션 가이드** | [mui_to_tailwind_migration.md](../../../knowledge_service/docs/05_development/06_mui_to_tailwind_migration.md) | ✅ 완료 | 컴포넌트 매핑, Headless UI 활용 가이드 |
 | **설계 문서** | frontend_detailed_design.md | ✅ 완료 | v2.0 Tailwind 버전 |
 | **설계 문서** | ui_design_system_guide.md | ✅ 완료 | Heroicons, Tailwind 테마 |
 | **설계 문서** | integrated_detailed_design.md | ✅ 완료 | Tech Stack 다이어그램 |
@@ -31,7 +31,7 @@
 ### 생성된 핵심 문서
 
 #### 1. MUI to Tailwind 마이그레이션 가이드
-- **경로**: `knowledge_service/docs/05_development/mui_to_tailwind_migration.md`
+- **경로**: `knowledge_service/docs/05_development/06_mui_to_tailwind_migration.md`
 - **내용**:
   - 컴포넌트 매핑 테이블 (레이아웃, 입력, 데이터 표시, 피드백, 네비게이션)
   - Headless UI 필수/권장 컴포넌트 가이드

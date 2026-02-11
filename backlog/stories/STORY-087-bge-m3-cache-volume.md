@@ -64,4 +64,4 @@ volumes:
 
 ## References
 
-- [Infrastructure Design](../../knowledge_service/docs/02_design/infrastructure_detailed_design.md)
+- [Infrastructure Design](../../knowledge_service/docs/02_design/10_infrastructure_detailed_design.md)

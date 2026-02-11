@@ -63,6 +63,7 @@ class SearchResult(BaseModel):
     score: float = Field(description="관련성 점수")
     source: str = Field(description="검색 소스 (vector, graph)")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="메타데이터")
+    has_embedding: Optional[bool] = Field(default=None, description="임베딩 벡터 존재 여부 (SCRUM-96)")
 
 
 class AgentState(TypedDict, total=False):

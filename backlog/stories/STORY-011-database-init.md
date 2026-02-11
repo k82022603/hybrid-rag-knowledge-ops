@@ -112,4 +112,4 @@ CREATE INDEX chunk_document IF NOT EXISTS FOR (c:Chunk) ON (c.document_id);
 
 ## 참고 자료
 
-- [인프라 설계서](../../knowledge_service/docs/02_design/infrastructure_detailed_design.md)
+- [인프라 설계서](../../knowledge_service/docs/02_design/10_infrastructure_detailed_design.md)

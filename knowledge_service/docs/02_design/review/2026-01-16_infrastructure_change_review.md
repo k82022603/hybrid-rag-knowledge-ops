@@ -36,7 +36,7 @@
 | 파일 | 변경 유형 | 설명 |
 |------|-----------|------|
 | `infrastructure_detailed_design.md` | **전면 재작성** | K8s → Docker Compose 기반 |
-| `technical_assessment/infrastructure_k8s_reference_design.md` | **신규 (백업)** | 기존 K8s 설계서 보관 |
+| `technical_assessment/04_infrastructure_k8s_reference_design.md` | **신규 (백업)** | 기존 K8s 설계서 보관 |
 
 ### 2.2 infrastructure_detailed_design.md 변경 상세
 
@@ -292,7 +292,7 @@ flowchart LR
 | 문서 | 경로 |
 |------|------|
 | Docker Compose 인프라 설계서 | [infrastructure_detailed_design.md](../infrastructure_detailed_design.md) |
-| K8s 참조 설계서 (백업) | [technical_assessment/infrastructure_k8s_reference_design.md](../technical_assessment/infrastructure_k8s_reference_design.md) |
+| K8s 참조 설계서 (백업) | [technical_assessment/04_infrastructure_k8s_reference_design.md](../technical_assessment/04_infrastructure_k8s_reference_design.md) |
 | 플랫폼 상세 설계서 | [hybrid_rag_platform_detailed_design.md](../hybrid_rag_platform_detailed_design.md) |
 | 백엔드 상세 설계서 | [backend_detailed_design.md](../backend_detailed_design.md) |
 | 데이터 암호화 설계서 | [data_encryption_design.md](../data_encryption_design.md) |

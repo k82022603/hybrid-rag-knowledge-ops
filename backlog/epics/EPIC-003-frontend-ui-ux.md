@@ -18,7 +18,7 @@
 React 18 + **Tailwind CSS** 기반의 지식 검색 플랫폼 프론트엔드 구현. Keycloak 연동 인증, 대시보드, 채팅 모드 검색, SSE 스트리밍 응답 등 핵심 UI 컴포넌트 개발.
 
 > **전환 공지** (2026-01-25): MUI에서 Tailwind CSS + Headless UI로 전환 결정.
-> 마이그레이션 가이드: [MUI to Tailwind 마이그레이션 가이드](../../knowledge_service/docs/05_development/mui_to_tailwind_migration.md)
+> 마이그레이션 가이드: [MUI to Tailwind 마이그레이션 가이드](../../knowledge_service/docs/05_development/06_mui_to_tailwind_migration.md)
 
 ---
 
@@ -147,6 +147,6 @@ React 18 + **Tailwind CSS** 기반의 지식 검색 플랫폼 프론트엔드 �
 
 ## 참고 자료
 
-- [Frontend 상세 설계서](../../knowledge_service/docs/02_design/frontend_detailed_design.md)
+- [Frontend 상세 설계서](../../knowledge_service/docs/02_design/02_frontend_detailed_design.md)
 - [UI Storyboard](../../knowledge_service/docs/02_design/ui_storyboard/)
 - [Keycloak JS Adapter](https://www.keycloak.org/docs/latest/securing_apps/#_javascript_adapter)

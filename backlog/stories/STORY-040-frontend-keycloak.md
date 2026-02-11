@@ -259,4 +259,4 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 ## 참고 자료
 
 - [Keycloak JS Adapter](https://www.keycloak.org/docs/latest/securing_apps/#_javascript_adapter)
-- [Frontend 상세 설계서](../../knowledge_service/docs/02_design/frontend_detailed_design.md)
+- [Frontend 상세 설계서](../../knowledge_service/docs/02_design/02_frontend_detailed_design.md)

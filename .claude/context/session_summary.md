@@ -1,4 +1,4 @@
-# Session Summary - 2026-02-10 19:03
+# Session Summary - 2026-02-11 08:14
 
 ## Commits This Session
 ```
@@ -8,15 +8,15 @@
 ## Files Modified
 ```
 .claude/context/session_context.md
-knowledge_service/docs/07_maintenance/data_loading_operations_guide.md
-knowledge_service/docs/results/ragas/hrkp_vs_rcsv_2026-02-10.json
-knowledge_service/docs/results/ragas/hrkp_vs_rcsv_2026-02-10_v2.json
-knowledge_service/docs/results/ragas/hrkp_vs_rcsv_report_2026-02-10.md
-knowledge_service/docs/results/ragas/hrkp_vs_rcsv_report_2026-02-10_v2.md
-knowledge_service/docs/results/ragas/ragas_cross_system_2026-02-10.json
-knowledge_service/docs/results/ragas/ragas_cross_system_report_2026-02-10.md
-knowledge_service/docs/results/smoke_test/smoke_test_search_2026-02-10.json
-knowledge_service/docs/results/smoke_test/smoke_test_search_report_2026-02-10.md
+.claude/context/session_summary.md
+PLAN.md
+README.md
+knowledge_service/docs/07_maintenance/rag_quality_improvement_manual.md
+"knowledge_service/docs/results/ragas/RAGAS_v5_50\354\277\274\353\246\254_\355\217\211\352\260\200\352\262\260\352\263\274.md"
+"knowledge_service/docs/results/ragas/RAGAS_\355\217\211\352\260\200_\354\264\235\355\217\211.md"
+knowledge_service/docs/results/ragas/hrkp_vs_rcsv_2026-02-10_v3.json
+knowledge_service/docs/results/ragas/hrkp_vs_rcsv_2026-02-10_v4.json
+knowledge_service/docs/results/ragas/hrkp_vs_rcsv_report_2026-02-10_v3.md
 ```
 
 ---

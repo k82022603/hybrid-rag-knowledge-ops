@@ -53,6 +53,8 @@ export interface SearchResult {
     relatedEntities: string[];
     community: string;
   };
+  /** Whether this chunk has a computed embedding (SCRUM-97) */
+  hasEmbedding?: boolean;
 }
 
 export interface SearchResponse {
@@ -129,6 +131,7 @@ export const searchService = {
               ? { relatedEntities: meta.matched_entities as string[], community: meta.community as string | undefined }
               : undefined
           ),
+          hasEmbedding: r.has_embedding ?? r.hasEmbedding ?? true,
         };
       }),
       totalCount: data.total ?? data.totalCount ?? 0,
@@ -186,6 +189,34 @@ export const searchService = {
     client.connect();
 
     return client;
+  },
+
+  /**
+   * Chat search (synchronous POST) - 비스트리밍 대화형 검색
+   * POST /search/chat → JSON 응답 (answer + sources 포함)
+   */
+  async chatSearch(params: {
+    query: string;
+    conversationId?: string;
+    topK?: number;
+    conversationHistory?: Array<{ role: 'user' | 'assistant'; content: string }>;
+  }): Promise<{
+    answer: string;
+    sources: Array<Record<string, unknown>>;
+    conversationId: string;
+    latencyMs?: number;
+    turnCount?: number;
+    pipelineStages?: Record<string, unknown>;
+  }> {
+    const requestBody = {
+      query: params.query,
+      conversationId: params.conversationId || undefined,
+      topK: params.topK ?? 5,
+      useReasoner: false,
+    };
+
+    const response = await api.post('/search/chat', requestBody);
+    return response.data;
   },
 
   /**

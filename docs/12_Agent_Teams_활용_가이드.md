@@ -855,8 +855,8 @@ git diff  # 변경 사항 확인
 |------|------|
 | [CLAUDE.md](../CLAUDE.md) | 프로젝트 개발 규칙 및 에이전트 목록 |
 | [PLAN.md](../PLAN.md) | 프로젝트 계획 및 현재 상태 |
-| [developer_agent_guide.md](../knowledge_service/docs/05_development/developer_agent_guide.md) | 에이전트 도구 사용법 |
-| [developer_integration_guide.md](../knowledge_service/docs/05_development/developer_integration_guide.md) | MCP/Agent/Skills 설정 |
+| [developer_agent_guide.md](../knowledge_service/docs/05_development/01_developer_agent_guide.md) | 에이전트 도구 사용법 |
+| [developer_integration_guide.md](../knowledge_service/docs/05_development/02_developer_integration_guide.md) | MCP/Agent/Skills 설정 |
 | [.claude/agents/](../.claude/agents/) | 12개 에이전트 정의 파일 |
 | [.claude/settings.json](../.claude/settings.json) | Agent Teams 활성화 설정 |
 | [Claude Code 공식 문서](https://code.claude.com/docs/en/agent-teams) | Agent Teams 공식 가이드 |

@@ -544,17 +544,17 @@ PM 승인: [PM Agent]
 
 - [PLAN.md](./PLAN.md) - 프로젝트 계획 및 현재 상태
 - [README.md](./README.md) - 프로젝트 소개 및 설치 가이드
-- [상세 설계서 v2.4](./knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md) - Gleaning 포함
-- [API 통합 설계서](./knowledge_service/docs/02_design/api_integration_design.md)
-- [백엔드 상세 설계서](./knowledge_service/docs/02_design/backend_detailed_design.md)
-- [인프라 설계서](./knowledge_service/docs/02_design/infrastructure_detailed_design.md) - Docker Compose 기반 (18개 컨테이너)
-- [Observability 설계서](./knowledge_service/docs/02_design/observability_detailed_design.md) - Prometheus/Grafana/Kibana/Jaeger
-- [Kibana 사용자 가이드](./knowledge_service/docs/07_maintenance/kibana_user_guide.md) - ES 데이터 시각화/쿼리 ⭐
+- [상세 설계서 v2.4](./knowledge_service/docs/02_design/01_hybrid_rag_platform_detailed_design.md) - Gleaning 포함
+- [API 통합 설계서](./knowledge_service/docs/02_design/04_api_integration_design.md)
+- [백엔드 상세 설계서](./knowledge_service/docs/02_design/06_backend_detailed_design.md)
+- [인프라 설계서](./knowledge_service/docs/02_design/10_infrastructure_detailed_design.md) - Docker Compose 기반 (18개 컨테이너)
+- [Observability 설계서](./knowledge_service/docs/02_design/14_observability_detailed_design.md) - Prometheus/Grafana/Kibana/Jaeger
+- [Kibana 사용자 가이드](./knowledge_service/docs/07_maintenance/02_kibana_user_guide.md) - ES 데이터 시각화/쿼리 ⭐
 - [기술 검토 문서](./knowledge_service/docs/02_design/technical_assessment/) - Gleaning, K8s 백업 등
 - [Claude Commands README](./.claude/commands/README.md) - 설치된 명령어 전체 목록
-- [개발자 에이전트 가이드](./knowledge_service/docs/05_development/developer_agent_guide.md) - AI 에이전트 도구 사용법 ⭐
-- [개발자 통합 가이드](./knowledge_service/docs/05_development/developer_integration_guide.md) - MCP/Agent/Skills 설정 ⭐
+- [개발자 에이전트 가이드](./knowledge_service/docs/05_development/01_developer_agent_guide.md) - AI 에이전트 도구 사용법 ⭐
+- [개발자 통합 가이드](./knowledge_service/docs/05_development/02_developer_integration_guide.md) - MCP/Agent/Skills 설정 ⭐
 - [Agent Teams 활용 가이드](./docs/12_Agent_Teams_활용_가이드.md) - 멀티-에이전트 협업 ⭐
-- [테스트 계획서](./knowledge_service/docs/04_testing/unit_integration_test_plan.md) - TDD/Test-Along 기준
+- [테스트 계획서](./knowledge_service/docs/04_testing/test_plans/00_unit_integration_test_plan.md) - TDD/Test-Along 기준
 - [백로그 관리 가이드](./backlog/README.md) - Jira-free 백로그 관리
-- [ALM 완전가이드](./docs/claude_code_virtual_team_alm_guide/) - 가상팀 협업 가이드 (4개 문서)
+- [ALM 완전가이드](./docs/technical_assessment/claude_code_virtual_team_alm_guide/) - 가상팀 협업 가이드 (4개 문서)

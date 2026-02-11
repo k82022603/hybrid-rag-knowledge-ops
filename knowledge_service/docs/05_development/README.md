@@ -8,15 +8,18 @@ Hybrid RAG Knowledge Operations Platform의 개발 관련 가이드 문서 모�
 
 ```
 05_development/
-├── README.md                          # 본 문서
-├── development_environment_setup.md   # 개발 환경 설정 가이드 (NEW)
-├── quick_start_guide.md               # 빠른 시작 가이드 (NEW)
-├── development_conventions.md         # 개발 컨벤션 (NEW)
-├── developer_agent_guide.md           # 개발자 에이전트 도구 가이드
-├── developer_integration_guide.md     # 개발자 통합 가이드
-├── mui_to_tailwind_migration.md       # MUI → Tailwind 마이그레이션 가이드
-├── playwright_setup_guide.md          # Playwright E2E 테스트 설정 가이드
-└── ragas_evaluation_guide.md          # RAGAS RAG 평가 가이드
+├── README.md                                  # 본 문서
+├── 01_developer_agent_guide.md                # 개발자 에이전트 도구 가이드
+├── 02_developer_integration_guide.md          # 개발자 통합 가이드
+├── 03_development_conventions.md              # 개발 컨벤션
+├── 04_development_environment_setup.md        # 개발 환경 설정 가이드
+├── 05_quick_start_guide.md                    # 빠른 시작 가이드
+├── 06_mui_to_tailwind_migration.md            # MUI → Tailwind 마이그레이션 가이드
+├── 07_playwright_setup_guide.md               # Playwright E2E 테스트 설정 가이드
+├── 08_ragas_evaluation_guide.md               # RAGAS RAG 평가 가이드
+├── 09_issue_report_bge_m3_cache_volume.md     # BGE-M3 캐시 볼륨 이슈 리포트
+├── 10_retriever_benchmark_manual.md           # Retriever 벤치마크 매뉴얼
+└── 11_initial_data_loader_dedup_review.md     # 초기 데이터 로더 중복 검토
 ```
 
 ---
@@ -25,15 +28,18 @@ Hybrid RAG Knowledge Operations Platform의 개발 관련 가이드 문서 모�
 
 | 문서 | 설명 | 대상 | 버전 |
 |------|------|------|------|
-| [development_environment_setup.md](./development_environment_setup.md) | 로컬 개발 환경 설정, Docker Compose 실행 | 개발자 | 1.0 |
-| [quick_start_guide.md](./quick_start_guide.md) | 5분 만에 개발 환경 구축 | 개발자 | 1.0 |
-| [development_conventions.md](./development_conventions.md) | 코드 스타일, 커밋 규칙, PR 가이드 | 개발자 | 1.0 |
-| [developer_agent_guide.md](./developer_agent_guide.md) | Claude Code 개발자 에이전트 도구 가이드 | AI 에이전트 | 1.0 |
-| [developer_integration_guide.md](./developer_integration_guide.md) | Jira, Slack, GitHub 연동 가이드 | 개발자 | 1.0 |
+| [01_developer_agent_guide.md](./01_developer_agent_guide.md) | Claude Code 개발자 에이전트 도구 가이드 | AI 에이전트 | 1.0 |
+| [02_developer_integration_guide.md](./02_developer_integration_guide.md) | Jira, Slack, GitHub 연동 가이드 | 개발자 | 1.0 |
+| [03_development_conventions.md](./03_development_conventions.md) | 코드 스타일, 커밋 규칙, PR 가이드 | 개발자 | 1.0 |
+| [04_development_environment_setup.md](./04_development_environment_setup.md) | 로컬 개발 환경 설정, Docker Compose 실행 | 개발자 | 1.0 |
+| [05_quick_start_guide.md](./05_quick_start_guide.md) | 5분 만에 개발 환경 구축 | 개발자 | 1.0 |
 | [Agent Teams 활용 가이드](../../../../docs/12_Agent_Teams_활용_가이드.md) | Agent Teams 멀티-에이전트 협업 가이드 (→ docs/ 이동) | AI 에이전트 운영자 | 1.0 |
-| [mui_to_tailwind_migration.md](./mui_to_tailwind_migration.md) | MUI → Tailwind CSS 마이그레이션 가이드 | Frontend 개발자 | 1.0 |
-| [playwright_setup_guide.md](./playwright_setup_guide.md) | Playwright E2E 테스트 환경 설정 | QA, Frontend 개발자 | 1.0 |
-| [ragas_evaluation_guide.md](./ragas_evaluation_guide.md) | RAGAS 기반 RAG 품질 평가 가이드 | RAG 엔지니어, QA | 1.0 |
+| [06_mui_to_tailwind_migration.md](./06_mui_to_tailwind_migration.md) | MUI → Tailwind CSS 마이그레이션 가이드 | Frontend 개발자 | 1.0 |
+| [07_playwright_setup_guide.md](./07_playwright_setup_guide.md) | Playwright E2E 테스트 환경 설정 | QA, Frontend 개발자 | 1.0 |
+| [08_ragas_evaluation_guide.md](./08_ragas_evaluation_guide.md) | RAGAS 기반 RAG 품질 평가 가이드 | RAG 엔지니어, QA | 1.0 |
+| [09_issue_report_bge_m3_cache_volume.md](./09_issue_report_bge_m3_cache_volume.md) | BGE-M3 캐시 볼륨 이슈 리포트 | Infra, RAG 엔지니어 | 1.0 |
+| [10_retriever_benchmark_manual.md](./10_retriever_benchmark_manual.md) | Retriever 벤치마크 매뉴얼 | RAG 엔지니어, QA | 1.0 |
+| [11_initial_data_loader_dedup_review.md](./11_initial_data_loader_dedup_review.md) | 초기 데이터 로더 중복 검토 | ETL, Backend | 1.0 |
 
 ---
 
@@ -89,20 +95,23 @@ Hybrid RAG Knowledge Operations Platform의 개발 관련 가이드 문서 모�
 
 - [CLAUDE.md](../../../CLAUDE.md) - 프로젝트 개발 규칙
 - [.claude/commands/README.md](../../../.claude/commands/README.md) - 설치된 명령어 전체 목록
-- [단위/통합 테스트 계획서](../04_testing/unit_integration_test_plan.md) - 테스트 접근 방식 가이드
+- [단위/통합 테스트 계획서](../04_testing/01_unit_integration_test_plan.md) - 테스트 접근 방식 가이드
 
 ---
 
 ## 버전 정보
 
-| 문서 | 버전 | 최종 수정 |
-|------|------|----------|
-| development_environment_setup | 1.0 | 2026-01-20 |
-| quick_start_guide | 1.0 | 2026-01-20 |
-| development_conventions | 1.0 | 2026-01-20 |
-| developer_agent_guide | 1.0 | 2026-01-17 |
-| developer_integration_guide | 1.0 | 2026-01-18 |
+| 문서 | 버전 | 생성일 |
+|------|------|--------|
+| 01_developer_agent_guide | 1.0 | 2026-01-17 |
+| 02_developer_integration_guide | 1.0 | 2026-01-18 |
+| 03_development_conventions | 1.0 | 2026-01-20 |
+| 04_development_environment_setup | 1.0 | 2026-01-20 |
+| 05_quick_start_guide | 1.0 | 2026-01-20 |
 | agent_teams_guide (→ docs/12) | 1.0 | 2026-02-06 |
-| mui_to_tailwind_migration | 1.0 | 2026-01-25 |
-| playwright_setup_guide | 1.0 | 2026-01-29 |
-| ragas_evaluation_guide | 1.0 | 2026-01-30 |
+| 06_mui_to_tailwind_migration | 1.0 | 2026-01-25 |
+| 07_playwright_setup_guide | 1.0 | 2026-01-26 |
+| 08_ragas_evaluation_guide | 1.0 | 2026-02-04 |
+| 09_issue_report_bge_m3_cache_volume | 1.0 | 2026-02-06 |
+| 10_retriever_benchmark_manual | 1.0 | 2026-02-06 |
+| 11_initial_data_loader_dedup_review | 1.0 | 2026-02-08 |

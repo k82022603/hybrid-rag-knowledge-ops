@@ -172,7 +172,7 @@ jwt:
 
 ## 참고 자료
 
-- [인증/인가 상세 설계서](../../knowledge_service/docs/02_design/authentication_authorization_detailed_design.md)
+- [인증/인가 상세 설계서](../../knowledge_service/docs/02_design/03_authentication_authorization_detailed_design.md)
 - [Frontend authSlice.ts](../../knowledge_service/frontend/src/store/slices/authSlice.ts) - API 호출 명세 참조
 - [Spring Security OAuth2](https://docs.spring.io/spring-security/reference/)
 - STORY-022: JWT 인증 필터 (Keycloak JWT 검증)

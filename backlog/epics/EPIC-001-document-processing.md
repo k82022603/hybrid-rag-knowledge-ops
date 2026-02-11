@@ -132,6 +132,6 @@
 
 ## 참고 자료
 
-- [상세 설계서 v2.4](../../knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md)
+- [상세 설계서 v2.4](../../knowledge_service/docs/02_design/01_hybrid_rag_platform_detailed_design.md)
 - [ETL 파이프라인 설계](../../knowledge_service/docs/02_design/)
 - [Docling 공식 문서](https://github.com/DS4SD/docling)

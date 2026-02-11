@@ -311,4 +311,4 @@ class RAGWorkflow:
 ## 참고 자료
 
 - [LangGraph 공식 문서](https://langchain-ai.github.io/langgraph/)
-- [상세 설계서 v2.4](../../knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md)
+- [상세 설계서 v2.4](../../knowledge_service/docs/02_design/01_hybrid_rag_platform_detailed_design.md)

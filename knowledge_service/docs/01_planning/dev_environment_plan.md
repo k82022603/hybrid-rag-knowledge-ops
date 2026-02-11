@@ -12,7 +12,7 @@
 | **작성일** | 2026-01-14 |
 | **작성자** | Claude Code (Opus 4.5) |
 | **상태** | 초안 |
-| **참조 문서** | [상세 설계서](../02_design/hybrid_rag_platform_detailed_design.md), [DevOps 계획서](./devops_alm_plan.md) |
+| **참조 문서** | [상세 설계서](../02_design/01_hybrid_rag_platform_detailed_design.md), [DevOps 계획서](./devops_alm_plan.md) |
 
 ---
 

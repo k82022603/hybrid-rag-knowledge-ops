@@ -124,4 +124,4 @@ def bootstrap_pipeline():
 - Sprint 03 완료 리뷰에서 도출 - 이중 파이프라인 통합 필요
 - [STORY-030 HybridRetriever](./STORY-030-hybrid-retriever.md)
 - [STORY-033 LangGraph Workflow](./STORY-033-langgraph-workflow.md)
-- [상세 설계서 v2.4](../../knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md)
+- [상세 설계서 v2.4](../../knowledge_service/docs/02_design/01_hybrid_rag_platform_detailed_design.md)

@@ -249,8 +249,8 @@ curl http://localhost:9200/_cluster/health  # Elasticsearch
 
 ## Related Documents
 
-- [Infrastructure Detailed Design](../knowledge_service/docs/02_design/infrastructure_detailed_design.md)
-- [API Integration Design](../knowledge_service/docs/02_design/api_integration_design.md)
+- [Infrastructure Detailed Design](../knowledge_service/docs/02_design/10_infrastructure_detailed_design.md)
+- [API Integration Design](../knowledge_service/docs/02_design/04_api_integration_design.md)
 - [Database Schema](./database/postgres/schema.sql)
 
 ---

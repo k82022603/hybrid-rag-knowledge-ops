@@ -366,7 +366,7 @@ unset ANTHROPIC_AUTH_TOKEN
 
 - [Antigravity Claude Proxy 검토 결과](./technical_assessment/Guides/검토결과_05_Antigravity_Claude_Proxy.md)
 - [Tailwind Antigravity Stitch 도입 영향도 분석](./technical_assessment/Guides/04.Tailwind_Antigravity_Stitch_도입_영향도_분석.md)
-- [MUI to Tailwind 마이그레이션 가이드](../knowledge_service/docs/05_development/mui_to_tailwind_migration.md)
+- [MUI to Tailwind 마이그레이션 가이드](../knowledge_service/docs/05_development/06_mui_to_tailwind_migration.md)
 - [GitHub: antigravity-claude-proxy](https://github.com/badrisnarayanan/antigravity-claude-proxy)
 
 ---

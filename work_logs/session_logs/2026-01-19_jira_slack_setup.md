@@ -38,7 +38,7 @@ docs/technical_assessment/
 
 #### 1.3 개발자 통합 가이드 검토
 
-**검토 파일**: `knowledge_service/docs/05_development/developer_integration_guide.md`
+**검토 파일**: `knowledge_service/docs/05_development/02_developer_integration_guide.md`
 
 **보완 필요 사항**:
 - 계정 생성 및 초기 설정 과정이 없음
@@ -265,7 +265,7 @@ SLACK_CHANNEL_ALERTS=#proj-hrkp-alerts
 - `docs/05_Jira_Agile_프로젝트_관리_가이드.md` - Jira 사용법
 - `docs/06_Slack_프로젝트_커뮤니케이션_가이드.md` - Slack 사용법
 - `docs/07_Jira_Slack_초기설정_퀵스타트_가이드.md` - 초기 설정 가이드
-- `knowledge_service/docs/05_development/developer_integration_guide.md` - 개발자 통합 가이드
+- `knowledge_service/docs/05_development/02_developer_integration_guide.md` - 개발자 통합 가이드
 
 ---
 

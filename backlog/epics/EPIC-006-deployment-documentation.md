@@ -151,6 +151,6 @@ Staging/Production 환경 배포, 운영 문서화, 사용자 매뉴얼 작성, 
 
 ## 참고 자료
 
-- [인프라 상세 설계서](../../knowledge_service/docs/02_design/infrastructure_detailed_design.md)
+- [인프라 상세 설계서](../../knowledge_service/docs/02_design/10_infrastructure_detailed_design.md)
 - [스프린트 실행 계획서](../../docs/02_스프린트_실행_계획서.md)
 - [Blue-Green Deployment](https://martinfowler.com/bliki/BlueGreenDeployment.html)

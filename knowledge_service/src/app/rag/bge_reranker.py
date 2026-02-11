@@ -10,7 +10,7 @@ BAAI/bge-reranker-v2-m3 기반 크로스 인코더 리랭커입니다.
     - 배치 처리 최적화 (batch_size=32)
     - CPU/GPU 자동 감지
     - 입력 최대 길이: 512 토큰
-    - 50개 문서 기준 500ms 이내 응답
+    - ONNX Runtime 지원으로 CPU 2~5x 속도 향상 (SCRUM-102)
     - asyncio.to_thread() 래핑으로 이벤트루프 비블로킹 (STORY-052)
 
 Architecture:
@@ -19,12 +19,15 @@ Architecture:
 
 STORY-032: BGE Reranker 통합 구현
 STORY-052: Reranker async 전환 (asyncio.to_thread 래핑)
+SCRUM-102: ONNX Runtime 최적화 (CPU 추론 가속)
 """
 
 import asyncio
 import logging
+import os
 import time
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
@@ -138,6 +141,13 @@ class BGEReranker:
         self._model: Optional[Any] = None
         self._tokenizer: Optional[Any] = None
 
+        # SCRUM-102: ONNX Runtime 세션 (PyTorch 대체)
+        self._onnx_session: Optional[Any] = None
+        self._use_onnx: bool = False
+        self._onnx_cache_dir = Path(
+            os.environ.get("TRANSFORMERS_CACHE", "/app/.cache/huggingface")
+        ).parent / "onnx"
+
         logger.info(
             "BGEReranker initialized - model=%s, device=%s, "
             "batch_size=%d, max_length=%d",
@@ -146,7 +156,9 @@ class BGEReranker:
 
     @property
     def is_loaded(self) -> bool:
-        """모델 로딩 완료 여부"""
+        """모델 로딩 완료 여부 (PyTorch 또는 ONNX)"""
+        if self._use_onnx:
+            return self._onnx_session is not None and self._tokenizer is not None
         return self._model is not None and self._tokenizer is not None
 
     # ------------------------------------------------------------------
@@ -173,8 +185,8 @@ class BGEReranker:
         """
         모델 및 토크나이저 로딩
 
-        HuggingFace transformers를 사용하여 크로스 인코더 모델을
-        로딩합니다. 이미 로딩된 경우 중복 로딩하지 않습니다.
+        SCRUM-102: ONNX Runtime을 우선 시도, 실패 시 PyTorch fallback.
+        ONNX 모델이 캐시에 없으면 PyTorch 모델에서 자동 변환합니다.
 
         Raises:
             RuntimeError: 모델 로딩 실패
@@ -186,27 +198,147 @@ class BGEReranker:
         start_time = time.monotonic()
 
         try:
-            import torch
-            from transformers import AutoModelForSequenceClassification, AutoTokenizer
-
+            from transformers import AutoTokenizer
             self._tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+
+            # SCRUM-102: ONNX Runtime 우선 시도
+            if self._try_load_onnx():
+                elapsed_ms = (time.monotonic() - start_time) * 1000
+                logger.info(
+                    "Reranker ONNX model loaded in %.1fms",
+                    elapsed_ms,
+                )
+                return
+
+            # Fallback: PyTorch 모델 로딩
+            import torch
+            from transformers import AutoModelForSequenceClassification
+
             self._model = AutoModelForSequenceClassification.from_pretrained(
                 self.model_name
             )
             self._model.to(self.device)
             self._model.eval()
 
+            # ONNX 변환 시도 (백그라운드, 실패해도 무시)
+            self._try_export_onnx()
+
             elapsed_ms = (time.monotonic() - start_time) * 1000
             logger.info(
-                "Reranker model loaded in %.1fms (device=%s)",
+                "Reranker PyTorch model loaded in %.1fms (device=%s)",
                 elapsed_ms, self.device,
             )
 
         except Exception as e:
             self._model = None
             self._tokenizer = None
+            self._onnx_session = None
             logger.error("Failed to load reranker model: %s", e)
             raise RuntimeError(f"Reranker model loading failed: {e}") from e
+
+    def _try_load_onnx(self) -> bool:
+        """
+        ONNX 모델 로딩 시도
+
+        SCRUM-102: 캐시된 ONNX 모델이 있으면 ONNX Runtime으로 로딩.
+
+        Returns:
+            True: ONNX 로딩 성공, False: 실패 (PyTorch fallback 필요)
+        """
+        try:
+            import onnxruntime as ort
+
+            onnx_path = self._onnx_cache_dir / f"{self.model_name.replace('/', '_')}.onnx"
+            if not onnx_path.exists():
+                return False
+
+            sess_options = ort.SessionOptions()
+            sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+            sess_options.intra_op_num_threads = max(os.cpu_count() or 1, 1)
+            sess_options.inter_op_num_threads = 1
+
+            self._onnx_session = ort.InferenceSession(
+                str(onnx_path),
+                sess_options,
+                providers=["CPUExecutionProvider"],
+            )
+            self._use_onnx = True
+            logger.info("ONNX Runtime session loaded: %s", onnx_path)
+            return True
+
+        except ImportError:
+            logger.debug("onnxruntime not installed, skipping ONNX")
+            return False
+        except Exception as e:
+            logger.warning("ONNX model load failed, using PyTorch: %s", e)
+            self._onnx_session = None
+            self._use_onnx = False
+            return False
+
+    def _try_export_onnx(self) -> None:
+        """
+        PyTorch 모델을 ONNX로 변환 (일회성, 이후 ONNX 캐시 사용)
+
+        SCRUM-102: 최초 1회만 실행되며, 변환된 모델은 캐시 디렉토리에 저장.
+        변환 실패 시 PyTorch를 계속 사용.
+        """
+        try:
+            import onnxruntime  # noqa: F401 - 설치 확인
+            import torch
+
+            if self._model is None or self._tokenizer is None:
+                return
+
+            onnx_path = self._onnx_cache_dir / f"{self.model_name.replace('/', '_')}.onnx"
+            if onnx_path.exists():
+                return
+
+            self._onnx_cache_dir.mkdir(parents=True, exist_ok=True)
+
+            # 더미 입력 생성 (모델에 맞는 입력 키 자동 감지)
+            dummy_input = self._tokenizer(
+                [["query", "document"]],
+                padding=True,
+                truncation=True,
+                max_length=self.max_length,
+                return_tensors="pt",
+            )
+            input_names = list(dummy_input.keys())
+            dynamic_axes = {name: {0: "batch", 1: "seq"} for name in input_names}
+            dynamic_axes["logits"] = {0: "batch"}
+
+            export_start = time.monotonic()
+
+            # ONNX export (opset 18: PyTorch 2.5+ 권장)
+            torch.onnx.export(
+                self._model,
+                tuple(dummy_input.values()),
+                str(onnx_path),
+                input_names=input_names,
+                output_names=["logits"],
+                dynamic_axes=dynamic_axes,
+                opset_version=18,
+                do_constant_folding=True,
+            )
+
+            export_ms = (time.monotonic() - export_start) * 1000
+            onnx_size_mb = onnx_path.stat().st_size / (1024 * 1024)
+            logger.info(
+                "ONNX model exported: %s (%.1fMB, %.1fms)",
+                onnx_path, onnx_size_mb, export_ms,
+            )
+
+            # 바로 ONNX 세션으로 전환
+            if self._try_load_onnx():
+                # ONNX 로딩 성공 → PyTorch 모델 해제하여 메모리 절약
+                self._model = None
+                torch.cuda.empty_cache() if torch.cuda.is_available() else None
+                logger.info("Switched to ONNX Runtime, PyTorch model released")
+
+        except ImportError:
+            logger.debug("onnxruntime not installed, skipping ONNX export")
+        except Exception as e:
+            logger.warning("ONNX export failed (non-critical): %s", e)
 
     # ------------------------------------------------------------------
     # Public API
@@ -499,6 +631,7 @@ class BGEReranker:
         """
         쿼리-문서 쌍의 관련성 점수 계산
 
+        SCRUM-102: ONNX Runtime 우선 사용, 실패 시 PyTorch fallback.
         크로스 인코더를 사용하여 각 쌍의 관련성 점수를 계산합니다.
         Sigmoid 함수로 0~1 범위로 정규화합니다.
 
@@ -517,6 +650,15 @@ class BGEReranker:
         if not pairs:
             return []
 
+        # SCRUM-102: ONNX Runtime 경로
+        if self._use_onnx and self._onnx_session is not None:
+            return self._compute_scores_onnx(pairs)
+
+        # PyTorch 경로
+        return self._compute_scores_pytorch(pairs)
+
+    def _compute_scores_pytorch(self, pairs: List[List[str]]) -> List[float]:
+        """PyTorch 모델로 점수 계산"""
         import torch
 
         with torch.no_grad():
@@ -530,13 +672,42 @@ class BGEReranker:
 
             outputs = self._model(**inputs)
 
-            # Sigmoid 정규화 (0~1)
             logits = outputs.logits
             if logits.dim() > 1:
                 logits = logits.squeeze(-1)
             scores = torch.sigmoid(logits)
 
             return scores.cpu().tolist()
+
+    def _compute_scores_onnx(self, pairs: List[List[str]]) -> List[float]:
+        """SCRUM-102: ONNX Runtime으로 점수 계산 (CPU 최적화)"""
+        import numpy as np
+
+        inputs = self._tokenizer(
+            pairs,
+            padding=True,
+            truncation=True,
+            max_length=self.max_length,
+            return_tensors="np",
+        )
+
+        ort_inputs = {
+            "input_ids": inputs["input_ids"].astype(np.int64),
+            "attention_mask": inputs["attention_mask"].astype(np.int64),
+        }
+        # token_type_ids가 있으면 추가 (BERT 계열)
+        if "token_type_ids" in inputs:
+            ort_inputs["token_type_ids"] = inputs["token_type_ids"].astype(np.int64)
+
+        outputs = self._onnx_session.run(None, ort_inputs)
+        logits = outputs[0]
+
+        # Sigmoid 정규화 (numpy)
+        if logits.ndim > 1:
+            logits = logits.squeeze(-1)
+        scores = 1.0 / (1.0 + np.exp(-logits))
+
+        return scores.tolist()
 
     def _batch_process(
         self,
@@ -582,6 +753,7 @@ class BGEReranker:
             "is_loaded": self.is_loaded,
             "batch_size": self.batch_size,
             "max_length": self.max_length,
+            "backend": "onnx" if self._use_onnx else "pytorch",
         }
 
 

@@ -183,5 +183,5 @@ docker exec -it neo4j cypher-shell -u neo4j -p password "MATCH (n) DETACH DELETE
 
 ## 참고 문서
 
-- [인프라 상세 설계서](../../../knowledge_service/docs/02_design/infrastructure_detailed_design.md)
-- [플랫폼 상세 설계서](../../../knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md)
+- [인프라 상세 설계서](../../../knowledge_service/docs/02_design/10_infrastructure_detailed_design.md)
+- [플랫폼 상세 설계서](../../../knowledge_service/docs/02_design/01_hybrid_rag_platform_detailed_design.md)

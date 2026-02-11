@@ -272,6 +272,7 @@ class SearchService:
                             score=r.get("score", 0.0),
                             source=r.get("source", "cached"),
                             metadata=r.get("metadata", {}),
+                            has_embedding=r.get("has_embedding"),
                         )
                         for r in cached_results_data
                     ]
@@ -400,6 +401,7 @@ class SearchService:
                         "score": r.score,
                         "source": r.source,
                         "metadata": r.metadata,
+                        "has_embedding": r.has_embedding,
                     }
                     for r in final_results
                 ]
@@ -575,10 +577,9 @@ class SearchService:
                     "multi_match": {
                         "query": query,
                         "fields": [
-                            "text^3",
-                            "text.standard^2",
+                            "content^3",
+                            "heading^2",
                             "metadata.title^2",
-                            "metadata.summary",
                         ],
                         "type": "best_fields",
                         "fuzziness": "AUTO",
@@ -597,7 +598,7 @@ class SearchService:
                     "size": top_k,
                     "highlight": {
                         "fields": {
-                            "text": {
+                            "content": {
                                 "fragment_size": 200,
                                 "number_of_fragments": 3,
                             }
@@ -696,8 +697,10 @@ class SearchService:
                      count(DISTINCT ename) AS match_count
                 ORDER BY match_count DESC
                 LIMIT $top_k
-                RETURN c.chunk_id AS chunk_id, c.content AS content,
-                       c.knowledge_id AS document_id, d.title AS title,
+                RETURN COALESCE(c.chunk_id, c.id) AS chunk_id,
+                       c.content AS content,
+                       COALESCE(c.knowledge_id, d.id) AS document_id,
+                       d.title AS title,
                        match_count AS score, matched_entities
                 """
                 params = {"entity_names": entity_names, "top_k": top_k}
@@ -735,8 +738,10 @@ class SearchService:
                      count(DISTINCT ename) AS match_count
                 ORDER BY match_count DESC
                 LIMIT $top_k
-                RETURN c.chunk_id AS chunk_id, c.content AS content,
-                       c.knowledge_id AS document_id, d.title AS title,
+                RETURN COALESCE(c.chunk_id, c.id) AS chunk_id,
+                       c.content AS content,
+                       COALESCE(c.knowledge_id, d.id) AS document_id,
+                       d.title AS title,
                        match_count AS score, matched_entities
                 """
                 params = {
@@ -762,8 +767,10 @@ class SearchService:
                         c.content CONTAINS word)
                     WITH c, d
                     LIMIT $top_k
-                    RETURN c.chunk_id AS chunk_id, c.content AS content,
-                           c.knowledge_id AS document_id, d.title AS title,
+                    RETURN COALESCE(c.chunk_id, c.id) AS chunk_id,
+                           c.content AS content,
+                           COALESCE(c.knowledge_id, d.id) AS document_id,
+                           d.title AS title,
                            1 AS score, [] AS matched_entities
                     """
                     records = await self._neo4j_query(
@@ -882,6 +889,8 @@ class SearchService:
                 result.metadata["source_scores"] = {
                     s: round(v, 6) for s, v in chunk_src_scores.items()
                 }
+                # SCRUM-101: 기여한 전체 소스 목록 추적 (graph 태깅용)
+                result.metadata["contributing_sources"] = list(chunk_src_scores.keys())
 
             fused_results.append(result)
 
@@ -995,6 +1004,9 @@ class SearchService:
             # 둘 다 확인하여 누락 방지.
             chunk_content = src.get("text", "") or src.get("content", "")
 
+            # SCRUM-96: dense_vector 존재 여부 체크
+            has_embedding = "dense_vector" in src
+
             result = SearchResult(
                 chunk_id=hit.get("_id", str(uuid4())),
                 document_id=str(src.get("document_id", "") or metadata.get("document_id", "")),
@@ -1002,6 +1014,7 @@ class SearchService:
                 score=float(hit.get("_score", 0.0)),
                 source=source,
                 metadata=metadata,
+                has_embedding=has_embedding,
             )
             results.append(result)
 

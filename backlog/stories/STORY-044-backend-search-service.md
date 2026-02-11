@@ -266,6 +266,6 @@ resilience4j:
 
 ## 참고 자료
 
-- [API 통합 설계서](../../knowledge_service/docs/02_design/api_integration_design.md)
-- [Backend 상세 설계서](../../knowledge_service/docs/02_design/backend_detailed_design.md)
+- [API 통합 설계서](../../knowledge_service/docs/02_design/04_api_integration_design.md)
+- [Backend 상세 설계서](../../knowledge_service/docs/02_design/06_backend_detailed_design.md)
 - [Resilience4j 가이드](https://resilience4j.readme.io/)

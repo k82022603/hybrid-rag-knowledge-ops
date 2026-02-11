@@ -16,19 +16,17 @@
  * - AC5: User cancel/abort support
  *
  * Layout: Left (chat) + Right (graph panel, conditional)
- * Composed of: MessageList, ChatInput, StreamingIndicator, SourceCitation, GraphPanel
- * Uses: useStreamingSearch hook for SSE lifecycle management
+ * Composed of: MessageList, ChatInput, SourceCitation, GraphPanel
+ * Uses: useChatSearch hook for synchronous POST /search/chat
  */
 import React, { useState, useCallback } from 'react';
 import {
   ExclamationTriangleIcon,
-  StopIcon,
 } from '@heroicons/react/24/outline';
 import MessageList from './components/MessageList';
 import ChatInput from './components/ChatInput';
-import StreamingIndicator from './components/StreamingIndicator';
 import GraphPanel from './components/GraphPanel';
-import { useStreamingSearch } from './hooks/useStreamingSearch';
+import { useChatSearch } from './hooks/useChatSearch';
 import { LiveRegion } from '@/components/common';
 import type { Source } from './types';
 
@@ -40,15 +38,12 @@ const ChatSearch: React.FC = () => {
     query,
     setQuery,
     messages,
-    isStreaming,
-    isConnecting,
+    isLoading,
     error,
-    reconnectInfo,
     sendMessage,
-    cancelStream,
     clearMessages,
     dismissError,
-  } = useStreamingSearch();
+  } = useChatSearch();
 
   // Graph panel state
   const [showGraphPanel, setShowGraphPanel] = useState(false);
@@ -90,8 +85,7 @@ const ChatSearch: React.FC = () => {
 
   // Generate status message for screen readers
   const getStatusMessage = () => {
-    if (isConnecting) return '검색 서비스에 연결 중...';
-    if (isStreaming) return '답변 생성 중...';
+    if (isLoading) return '답변 생성 중...';
     if (error) return `오류: ${error}`;
     if (messages.length > 0) {
       const lastMessage = messages[messages.length - 1];
@@ -130,23 +124,11 @@ const ChatSearch: React.FC = () => {
           onDownloadClick={handleDownloadClick}
         />
 
-        {/* Streaming Indicator + Cancel Button */}
-        {isStreaming && (
-          <div className="flex items-center justify-between border-t border-gray-100 dark:border-gray-700/50">
-            <StreamingIndicator
-              isStreaming={isStreaming}
-              isConnecting={isConnecting}
-              reconnectInfo={reconnectInfo}
-            />
-            <button
-              onClick={cancelStream}
-              className="flex items-center gap-1.5 mr-4 px-3 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-error-600 dark:hover:text-error-400 hover:bg-error-50 dark:hover:bg-error-900/20 rounded-lg transition-colors"
-              aria-label="Cancel streaming response"
-              data-testid="cancel-stream-button"
-            >
-              <StopIcon className="h-3.5 w-3.5" />
-              <span>중지</span>
-            </button>
+        {/* Loading Indicator */}
+        {isLoading && (
+          <div className="flex items-center gap-2 px-4 py-2 border-t border-gray-100 dark:border-gray-700/50">
+            <div className="h-4 w-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs text-gray-500 dark:text-gray-400">답변 생성 중...</span>
           </div>
         )}
 
@@ -180,7 +162,7 @@ const ChatSearch: React.FC = () => {
           onChange={setQuery}
           onSubmit={() => sendMessage()}
           onClear={clearMessages}
-          isLoading={isStreaming}
+          isLoading={isLoading}
           showClear={messages.length > 0}
         />
       </div>

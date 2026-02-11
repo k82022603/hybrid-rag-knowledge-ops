@@ -121,6 +121,6 @@ spring:
 
 ## 참고 자료
 
-- [API 통합 설계서](../../knowledge_service/docs/02_design/api_integration_design.md)
+- [API 통합 설계서](../../knowledge_service/docs/02_design/04_api_integration_design.md)
 - [Spring Cloud Gateway 문서](https://spring.io/projects/spring-cloud-gateway)
 - [Resilience4j Circuit Breaker](https://resilience4j.readme.io/docs/circuitbreaker)

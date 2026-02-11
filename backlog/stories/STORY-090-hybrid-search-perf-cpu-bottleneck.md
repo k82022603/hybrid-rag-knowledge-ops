@@ -90,6 +90,6 @@ In production GPU environment:
 
 ## References
 
-- [Performance Requirements](../../knowledge_service/docs/02_design/rag_performance_test_design.md)
+- [Performance Requirements](../../knowledge_service/docs/02_design/12_rag_performance_test_design.md)
 - [STORY-081 Performance Baseline Testing](./STORY-081-performance-baseline.md)
 - [Sprint 07](../sprints/sprint-07.md)

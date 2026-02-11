@@ -432,7 +432,7 @@ print_summary() {
         echo -e "${RED}VALIDATION FAILED${NC}"
         echo ""
         echo "Please ensure all required secrets are set before deployment."
-        echo "See: docs/06_deployment/secrets_management_guide.md"
+        echo "See: docs/06_deployment/09_secrets_management_guide.md"
         echo ""
 
         if [[ "$CI_MODE" == "true" ]]; then

@@ -12,7 +12,7 @@
 | **작성일** | 2026-01-14 |
 | **작성자** | Claude Code (Opus 4.5) |
 | **상태** | 초안 |
-| **참조 문서** | [상세 설계서](../02_design/hybrid_rag_platform_detailed_design.md), [프론트엔드 구현 계획서](./frontend_implementation_plan.md) |
+| **참조 문서** | [상세 설계서](../02_design/01_hybrid_rag_platform_detailed_design.md), [프론트엔드 구현 계획서](./frontend_implementation_plan.md) |
 
 ---
 
@@ -987,7 +987,7 @@ Response (200 OK):
 
 ### 5.2 PostgreSQL 스키마
 
-> 상세 DDL은 [상세 설계서](../02_design/hybrid_rag_platform_detailed_design.md)의 4.1절 참조
+> 상세 DDL은 [상세 설계서](../02_design/01_hybrid_rag_platform_detailed_design.md)의 4.1절 참조
 
 **주요 테이블:**
 
@@ -1962,7 +1962,7 @@ async def test_entity_extraction():
 
 ### C. 참고 자료
 
-- [상세 설계서](../02_design/hybrid_rag_platform_detailed_design.md)
+- [상세 설계서](../02_design/01_hybrid_rag_platform_detailed_design.md)
 - [프론트엔드 구현 계획서](./frontend_implementation_plan.md)
 - [요구사항 명세서](./requirements_specification.md)
 - [Spring Cloud 문서](https://spring.io/projects/spring-cloud)

@@ -157,9 +157,9 @@ Progress: [=====================] 100% COMPLETE!
 - [x] README.md 업데이트 - 문서 링크 추가
 
 **Output Files**:
-- `knowledge_service/docs/05_development/development_environment_setup.md`
-- `knowledge_service/docs/05_development/quick_start_guide.md`
-- `knowledge_service/docs/05_development/development_conventions.md`
+- `knowledge_service/docs/05_development/04_development_environment_setup.md`
+- `knowledge_service/docs/05_development/05_quick_start_guide.md`
+- `knowledge_service/docs/05_development/03_development_conventions.md`
 - `README.md` (업데이트)
 
 ---

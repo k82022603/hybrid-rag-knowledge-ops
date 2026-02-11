@@ -164,4 +164,4 @@ Ragas 프레임워크 기반 RAG 품질 평가, 검색 품질 메트릭 측정, 
 - [Ragas 공식 문서](https://docs.ragas.io/)
 - [k6 성능 테스트](https://k6.io/docs/)
 - [OWASP Top 10](https://owasp.org/www-project-top-ten/)
-- [테스트 계획서](../../knowledge_service/docs/04_testing/unit_integration_test_plan.md)
+- [테스트 계획서](../../knowledge_service/docs/04_testing/01_unit_integration_test_plan.md)

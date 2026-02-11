@@ -12,7 +12,7 @@
 | **작성일** | 2026-01-14 |
 | **작성자** | Claude Code (Opus 4.5) |
 | **상태** | 초안 |
-| **참조 문서** | [PLAN.md](../../../PLAN.md), [상세 설계서](../02_design/hybrid_rag_platform_detailed_design.md) |
+| **참조 문서** | [PLAN.md](../../../PLAN.md), [상세 설계서](../02_design/01_hybrid_rag_platform_detailed_design.md) |
 
 ---
 
@@ -1743,7 +1743,7 @@ SENTRY_DSN=https://xxx@sentry.io/xxx
 ### B. 참고 자료
 
 - [PLAN.md](../../../PLAN.md) - 프로젝트 전체 계획
-- [상세 설계서](../02_design/hybrid_rag_platform_detailed_design.md)
+- [상세 설계서](../02_design/01_hybrid_rag_platform_detailed_design.md)
 - [백엔드 구현 계획서](./backend_implementation_plan.md)
 - [프론트엔드 구현 계획서](./frontend_implementation_plan.md)
 - [GitHub Actions 문서](https://docs.github.com/en/actions)

@@ -36,8 +36,8 @@
 
 | 검토 대상 | 버전 | 파일 경로 |
 |----------|------|----------|
-| 에러 코드 표준 | 1.1 | `02_design/error_code_standards.md` |
-| 통합 상세 설계서 | 1.1 | `02_design/integrated_detailed_design.md` |
+| 에러 코드 표준 | 1.1 | `02_design/08_error_code_standards.md` |
+| 통합 상세 설계서 | 1.1 | `02_design/11_integrated_detailed_design.md` |
 | 관련 설계서 | - | api_integration_design.md, backend_detailed_design.md, glossary.md, hybrid_rag_platform_detailed_design.md, authentication_authorization_detailed_design.md, observability_detailed_design.md, infrastructure_detailed_design.md |
 
 ### 1.3 검토 기준

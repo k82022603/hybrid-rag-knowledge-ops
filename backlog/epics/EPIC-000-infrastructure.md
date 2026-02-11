@@ -152,5 +152,5 @@ DEEPSEEK_API_KEY=
 ## 참고 자료
 
 - [스프린트 실행 계획서](../../docs/02_스프린트_실행_계획서.md)
-- [인프라 설계서](../../knowledge_service/docs/02_design/infrastructure_detailed_design.md)
+- [인프라 설계서](../../knowledge_service/docs/02_design/10_infrastructure_detailed_design.md)
 - [Docker Compose 공식 문서](https://docs.docker.com/compose/)

@@ -55,7 +55,7 @@
 - Slack 알림: #proj-hrkp-dev
 
 ### 5. InitialDataLoader 중복 방지 검토
-- `docs/05_development/initial_data_loader_dedup_review.md` 작성
+- `docs/05_development/11_initial_data_loader_dedup_review.md` 작성
 - file_hash (SHA-256) 기반 dedup 권장 (P1)
 
 ---

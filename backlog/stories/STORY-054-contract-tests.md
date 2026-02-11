@@ -125,5 +125,5 @@ Sprint 03에서 3개 서비스(Backend, AI Service, Knowledge Service)를 독립
 ## 참고 자료
 
 - Sprint 03 완료 리뷰에서 도출 - 서비스 간 인터페이스 불일치 문제
-- [API 통합 설계서](../../knowledge_service/docs/02_design/api_integration_design.md)
+- [API 통합 설계서](../../knowledge_service/docs/02_design/04_api_integration_design.md)
 - [Pact Contract Testing](https://docs.pact.io/)

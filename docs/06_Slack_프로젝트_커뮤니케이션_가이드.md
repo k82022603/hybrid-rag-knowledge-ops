@@ -795,7 +795,7 @@ flowchart TB
 ### 프로젝트 내 문서
 - [Jira & Agile 프로젝트 관리 가이드](./05_Jira_Agile_프로젝트_관리_가이드.md)
 - [외부솔루션 연동 설정 가이드](./04_외부솔루션_연동_설정_가이드.md)
-- [개발자 통합 가이드](../knowledge_service/docs/05_development/developer_integration_guide.md)
+- [개발자 통합 가이드](../knowledge_service/docs/05_development/02_developer_integration_guide.md)
 
 ### 템플릿 다운로드
 - [스탠드업 템플릿](#62-스탠드업-템플릿)

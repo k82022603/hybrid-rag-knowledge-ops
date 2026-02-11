@@ -60,6 +60,7 @@ class SearchResult(BaseModel):
     score: float = Field(description="관련성 점수")
     source_type: Optional[str] = Field(default=None, description="검색 소스 (vector, keyword, graph)")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="메타데이터")
+    has_embedding: Optional[bool] = Field(default=None, description="임베딩 벡터 존재 여부 (SCRUM-96)")
 
 
 class SearchResponse(BaseModel):
@@ -208,8 +209,13 @@ async def hybrid_search(
                     document_id=r.document_id,
                     content=r.content,
                     score=r.score,
-                    source_type=getattr(r, "source", None) or r.metadata.get("search_source"),
+                    # SCRUM-101: graph 기여 시 source_type="graph" 우선 표시
+                    source_type=(
+                        "graph" if "graph" in r.metadata.get("contributing_sources", [])
+                        else getattr(r, "source", None) or r.metadata.get("search_source")
+                    ),
                     metadata=r.metadata,
+                    has_embedding=getattr(r, "has_embedding", None),
                 )
                 for r in result.get("results", [])
             ],
@@ -273,6 +279,7 @@ async def semantic_search(
                     score=r.score,
                     source_type="vector",
                     metadata=r.metadata,
+                    has_embedding=getattr(r, "has_embedding", None),
                 )
                 for r in result.get("results", [])
             ],
@@ -335,6 +342,7 @@ async def keyword_search(
                     score=r.score,
                     source_type="keyword",
                     metadata=r.metadata,
+                    has_embedding=getattr(r, "has_embedding", None),
                 )
                 for r in result.get("results", [])
             ],
@@ -522,14 +530,29 @@ async def chat_stream(
             start_time = _time.monotonic()
 
             from app.agents.rag_workflow import get_rag_workflow
+            from app.rag import get_hybrid_retriever, get_reranker
             from app.services.conversation_history import get_conversation_history_service
             from app.services.search import get_search_service as _get_svc
 
             # 서비스 초기화
             search_svc = _get_svc()
             conversation_svc = get_conversation_history_service()
+
+            # Reranker + HybridRetriever 초기화 (SCRUM-103: streaming에서도 Reranker 경유)
+            try:
+                reranker = get_reranker()
+                hybrid_retriever = get_hybrid_retriever(
+                    search_service=search_svc,
+                    reranker=reranker,
+                )
+                logger.info("Stream: HybridRetriever with BGEReranker initialized")
+            except Exception as reranker_err:
+                logger.warning("Stream: Reranker init failed, using SearchService fallback: %s", reranker_err)
+                hybrid_retriever = None
+
             workflow = get_rag_workflow(
                 search_service=search_svc,
+                hybrid_retriever=hybrid_retriever,
                 conversation_history_service=conversation_svc,
             )
 

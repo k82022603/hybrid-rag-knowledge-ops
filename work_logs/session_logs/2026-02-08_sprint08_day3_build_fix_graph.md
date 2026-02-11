@@ -59,7 +59,7 @@ Frontend 빌드 인프라 3가지 문제 근본 해결 + API URL 수정 + Graph 
 
 | 문서 | 위치 | 작성자 |
 |------|------|--------|
-| Neo4j 쿼리 최적화 | `docs/02_design/technical_assessment/neo4j_subgraph_query_optimization.md` | 클로드 |
+| Neo4j 쿼리 최적화 | `docs/02_design/technical_assessment/05_neo4j_subgraph_query_optimization.md` | 클로드 |
 | UI 테스트 방법론 | `docs/04_testing/frontend_ui_test_methodology.md` | QA |
 | Chrome Claude Code 조사 | UI 테스트 방법론 문서 내 포함 | QA |
 

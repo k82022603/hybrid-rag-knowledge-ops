@@ -12,7 +12,7 @@
 | **작성일** | 2026-01-14 |
 | **작성자** | Claude Code (Opus 4.5) |
 | **상태** | 초안 |
-| **참조 문서** | [상세 설계서](../02_design/hybrid_rag_platform_detailed_design.md), [백엔드 구현 계획서](./backend_implementation_plan.md) |
+| **참조 문서** | [상세 설계서](../02_design/01_hybrid_rag_platform_detailed_design.md), [백엔드 구현 계획서](./backend_implementation_plan.md) |
 
 ---
 
@@ -452,7 +452,7 @@ ai-service/
 
 ## 7. API 명세 요약
 
-> 상세 API 스펙은 [상세 설계서 섹션 5](../02_design/hybrid_rag_platform_detailed_design.md#5-api-설계)를 참조하세요.
+> 상세 API 스펙은 [상세 설계서 섹션 5](../02_design/01_hybrid_rag_platform_detailed_design.md#5-api-설계)를 참조하세요.
 
 ### 7.1 엔드포인트 목록
 
@@ -604,7 +604,7 @@ HybridSearchResponse:
 
 | 문서 | 위치 | 내용 |
 |------|------|------|
-| **상세 설계서** | [hybrid_rag_platform_detailed_design.md](../02_design/hybrid_rag_platform_detailed_design.md) | 아키텍처, 데이터 모델, 코드 예시 |
+| **상세 설계서** | [hybrid_rag_platform_detailed_design.md](../02_design/01_hybrid_rag_platform_detailed_design.md) | 아키텍처, 데이터 모델, 코드 예시 |
 | **백엔드 구현 계획서** | [backend_implementation_plan.md](./backend_implementation_plan.md) | SpringBoot 구현 계획 |
 | **테스트 계획서** | [test_plan.md](./test_plan.md) | 테스트 전략 및 시나리오 |
 | **DevOps 계획서** | [devops_alm_plan.md](./devops_alm_plan.md) | CI/CD, 인프라 구성 |

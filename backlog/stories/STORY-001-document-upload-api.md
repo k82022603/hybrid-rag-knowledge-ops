@@ -86,5 +86,5 @@ async def upload_document(
 
 ## 참고 자료
 
-- [API 통합 설계서](../../knowledge_service/docs/02_design/api_integration_design.md)
+- [API 통합 설계서](../../knowledge_service/docs/02_design/04_api_integration_design.md)
 - [MinIO Python SDK](https://min.io/docs/minio/linux/developers/python/API.html)

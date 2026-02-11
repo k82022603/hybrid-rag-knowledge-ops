@@ -197,4 +197,4 @@ services:
 
 - [Neo4j Python Driver](https://neo4j.com/docs/python-manual/current/)
 - [Elasticsearch Python Client](https://elasticsearch-py.readthedocs.io/)
-- [인프라 설계서](../../knowledge_service/docs/02_design/infrastructure_detailed_design.md)
+- [인프라 설계서](../../knowledge_service/docs/02_design/10_infrastructure_detailed_design.md)

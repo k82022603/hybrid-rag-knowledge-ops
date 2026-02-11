@@ -109,24 +109,24 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 |------|------|
 | [CLAUDE.md](./CLAUDE.md) | Claude Code 프로젝트 규칙 v2.24 |
 | [PLAN.md](./PLAN.md) | 프로젝트 전체 계획 및 AI 에이전트 협업 구조 |
-| [통합 설계서](./knowledge_service/docs/02_design/integrated_detailed_design.md) | 전체 시스템 통합 설계 |
+| [통합 설계서](./knowledge_service/docs/02_design/11_integrated_detailed_design.md) | 전체 시스템 통합 설계 |
 
 ### 설계 문서 (02_design)
 
 | 문서 | 설명 |
 |------|------|
-| [플랫폼 상세 설계서 v2.4](./knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md) | Gleaning 포함 핵심 설계 |
-| [API 통합 설계서](./knowledge_service/docs/02_design/api_integration_design.md) | OpenAPI 3.0 스펙 |
-| [백엔드 상세 설계서](./knowledge_service/docs/02_design/backend_detailed_design.md) | SpringBoot 17개 섹션 |
-| [인프라 상세 설계서](./knowledge_service/docs/02_design/infrastructure_detailed_design.md) | Docker Compose 기반 |
-| [Observability 설계서](./knowledge_service/docs/02_design/observability_detailed_design.md) | 모니터링/트레이싱/로깅 |
+| [플랫폼 상세 설계서 v2.4](./knowledge_service/docs/02_design/01_hybrid_rag_platform_detailed_design.md) | Gleaning 포함 핵심 설계 |
+| [API 통합 설계서](./knowledge_service/docs/02_design/04_api_integration_design.md) | OpenAPI 3.0 스펙 |
+| [백엔드 상세 설계서](./knowledge_service/docs/02_design/06_backend_detailed_design.md) | SpringBoot 17개 섹션 |
+| [인프라 상세 설계서](./knowledge_service/docs/02_design/10_infrastructure_detailed_design.md) | Docker Compose 기반 |
+| [Observability 설계서](./knowledge_service/docs/02_design/14_observability_detailed_design.md) | 모니터링/트레이싱/로깅 |
 
 ### 테스트 및 개발 (04_testing, 05_development)
 
 | 문서 | 설명 |
 |------|------|
-| [단위/통합 테스트 계획서](./knowledge_service/docs/04_testing/unit_integration_test_plan.md) | TDD/Test-Along 기준 포함 ⭐ |
-| [개발자 에이전트 가이드](./knowledge_service/docs/05_development/developer_agent_guide.md) | AI 에이전트 도구 사용법 ⭐ |
+| [단위/통합 테스트 계획서](./knowledge_service/docs/04_testing/01_unit_integration_test_plan.md) | TDD/Test-Along 기준 포함 ⭐ |
+| [개발자 에이전트 가이드](./knowledge_service/docs/05_development/01_developer_agent_guide.md) | AI 에이전트 도구 사용법 ⭐ |
 | [Agent Teams 활용 가이드](./docs/12_Agent_Teams_활용_가이드.md) | 멀티-에이전트 협업 가이드 ⭐ |
 
 ## 📅 Next Steps (다음 작업)
@@ -227,7 +227,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 | ✅ | **Kibana 컨테이너 추가** | Elasticsearch 데이터 시각화/쿼리 도구 (포트 5601) |
 | ✅ | **18개 컨테이너 구축 완료** | 코어 + 모니터링 전체 인프라 |
 | ✅ | **설계 문서 업데이트** | infrastructure_detailed_design, observability_detailed_design에 Kibana 반영 |
-| ✅ | **Kibana 사용자 가이드** | docs/07_maintenance/kibana_user_guide.md 작성 |
+| ✅ | **Kibana 사용자 가이드** | docs/07_maintenance/02_kibana_user_guide.md 작성 |
 
 ### ✅ 완료된 작업 (2026-01-18)
 
@@ -332,7 +332,7 @@ claude-code "원하는 작업 설명"
 ### 개발자 에이전트 도구
 
 AI 에이전트가 사용할 수 있는 도구 가이드:
-- [개발자 에이전트 가이드](./knowledge_service/docs/05_development/developer_agent_guide.md)
+- [개발자 에이전트 가이드](./knowledge_service/docs/05_development/01_developer_agent_guide.md)
 
 ### 테스트 접근법
 
@@ -340,7 +340,7 @@ AI 에이전트가 사용할 수 있는 도구 가이드:
 - **Test-Along**: 단순 CRUD, UI 컴포넌트
 - **Test-First**: 버그 수정 시 재현 테스트
 
-자세한 내용: [테스트 계획서](./knowledge_service/docs/04_testing/unit_integration_test_plan.md)
+자세한 내용: [테스트 계획서](./knowledge_service/docs/04_testing/01_unit_integration_test_plan.md)
 
 ### 작업 일지
 

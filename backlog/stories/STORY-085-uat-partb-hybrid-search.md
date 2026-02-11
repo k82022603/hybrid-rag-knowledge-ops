@@ -70,5 +70,5 @@ After PPTX documents were uploaded and processed (STORY-083), this story validat
 
 ## References
 
-- [Hybrid RAG Search Design](../../knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md)
-- [RAG Performance Test Design](../../knowledge_service/docs/02_design/rag_performance_test_design.md)
+- [Hybrid RAG Search Design](../../knowledge_service/docs/02_design/01_hybrid_rag_platform_detailed_design.md)
+- [RAG Performance Test Design](../../knowledge_service/docs/02_design/12_rag_performance_test_design.md)

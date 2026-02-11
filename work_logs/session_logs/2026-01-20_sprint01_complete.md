@@ -213,7 +213,7 @@ git log -5
 ### Modified Files
 - `.claude/agents/*.md` (9개 에이전트 알림 규칙 강화)
 - `.claude/commands/README.md`
-- `knowledge_service/docs/05_development/developer_integration_guide.md`
+- `knowledge_service/docs/05_development/02_developer_integration_guide.md`
 - `PLAN.md`
 - `CLAUDE.md`
 

@@ -7,7 +7,7 @@
 GitHub Branch Protection Rules를 설정하여 코드 품질과 배포 안정성을 보장하기 위한 가이드입니다.
 main 브랜치에 대한 force push, 삭제 차단 및 PR 머지 전 CI 통과를 강제합니다.
 
-> **상세 가이드**: [Branch Protection 설정 가이드 v1.0](../knowledge_service/docs/06_deployment/branch_protection_guide.md) — gh CLI 설정, CODEOWNERS, 긴급 Bypass 등 포함
+> **상세 가이드**: [Branch Protection 설정 가이드 v1.0](../knowledge_service/docs/06_deployment/01_branch_protection_guide.md) — gh CLI 설정, CODEOWNERS, 긴급 Bypass 등 포함
 
 ---
 
@@ -151,6 +151,6 @@ Repository → Settings → Branches → Add branch protection rule
 
 ## 8. 참고 문서
 
-- [Branch Protection 상세 가이드 v1.0](../knowledge_service/docs/06_deployment/branch_protection_guide.md) — gh CLI, CODEOWNERS, Bypass 절차 포함
-- [GitHub Actions CI/CD 운영 가이드 v2.0](../knowledge_service/docs/07_maintenance/github_actions_cicd_guide.md)
+- [Branch Protection 상세 가이드 v1.0](../knowledge_service/docs/06_deployment/01_branch_protection_guide.md) — gh CLI, CODEOWNERS, Bypass 절차 포함
+- [GitHub Actions CI/CD 운영 가이드 v2.0](../knowledge_service/docs/07_maintenance/03_github_actions_cicd_guide.md)
 - [GitHub Branch Protection Rules](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches)

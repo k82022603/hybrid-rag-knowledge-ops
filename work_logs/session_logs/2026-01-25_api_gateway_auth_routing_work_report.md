@@ -348,6 +348,6 @@ git checkout HEAD~1 -- knowledge_service/frontend/vite.config.ts
 
 ## 참고 문서
 
-- [API Gateway 설계서](../../knowledge_service/docs/02_design/api_integration_design.md)
-- [인프라 설계서](../../knowledge_service/docs/02_design/infrastructure_detailed_design.md)
-- [Backend 상세 설계서](../../knowledge_service/docs/02_design/backend_detailed_design.md)
+- [API Gateway 설계서](../../knowledge_service/docs/02_design/04_api_integration_design.md)
+- [인프라 설계서](../../knowledge_service/docs/02_design/10_infrastructure_detailed_design.md)
+- [Backend 상세 설계서](../../knowledge_service/docs/02_design/06_backend_detailed_design.md)

@@ -160,6 +160,6 @@ Prometheus/Grafana 메트릭, Loki 로깅, Jaeger 트레이싱으로 구성된 O
 
 ## 참고 자료
 
-- [인프라 상세 설계서](../../knowledge_service/docs/02_design/infrastructure_detailed_design.md)
+- [인프라 상세 설계서](../../knowledge_service/docs/02_design/10_infrastructure_detailed_design.md)
 - [Prometheus Best Practices](https://prometheus.io/docs/practices/)
 - [Grafana Dashboard Examples](https://grafana.com/grafana/dashboards/)

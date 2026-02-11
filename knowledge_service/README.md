@@ -63,24 +63,24 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 | 문서 | 설명 |
 |------|------|
 | [AI Service 구현 계획](./docs/01_planning/ai_service_implementation_plan.md) | AI Service 구현 계획 v2.0 |
-| [플랫폼 상세 설계서](./docs/02_design/hybrid_rag_platform_detailed_design.md) | 상세 설계서 v2.4 (Gleaning 포함) |
-| [API 통합 설계서](./docs/02_design/api_integration_design.md) | OpenAPI 3.0 스펙 |
-| [통합 설계서](./docs/02_design/integrated_detailed_design.md) | 프로젝트 전체 통합 설계 |
+| [플랫폼 상세 설계서](./docs/02_design/01_hybrid_rag_platform_detailed_design.md) | 상세 설계서 v2.4 (Gleaning 포함) |
+| [API 통합 설계서](./docs/02_design/04_api_integration_design.md) | OpenAPI 3.0 스펙 |
+| [통합 설계서](./docs/02_design/11_integrated_detailed_design.md) | 프로젝트 전체 통합 설계 |
 
 ### 테스트 및 개발
 
 | 문서 | 설명 |
 |------|------|
-| [단위/통합 테스트 계획서](./docs/04_testing/unit_integration_test_plan.md) | TDD/Test-Along 기준 포함 |
-| [개발자 에이전트 가이드](./docs/05_development/developer_agent_guide.md) | AI 에이전트 도구 사용법 ⭐ |
-| [RAG 성능 테스트 설계](./docs/02_design/rag_performance_test_design.md) | RAG 파이프라인 성능 테스트 |
+| [단위/통합 테스트 계획서](./docs/04_testing/01_unit_integration_test_plan.md) | TDD/Test-Along 기준 포함 |
+| [개발자 에이전트 가이드](./docs/05_development/01_developer_agent_guide.md) | AI 에이전트 도구 사용법 ⭐ |
+| [RAG 성능 테스트 설계](./docs/02_design/12_rag_performance_test_design.md) | RAG 파이프라인 성능 테스트 |
 
 ### 운영
 
 | 문서 | 설명 |
 |------|------|
-| [Observability 설계서](./docs/02_design/observability_detailed_design.md) | 모니터링/트레이싱/로깅 |
-| [에러 코드 표준](./docs/02_design/error_code_standards.md) | 에러 코드 체계 |
+| [Observability 설계서](./docs/02_design/14_observability_detailed_design.md) | 모니터링/트레이싱/로깅 |
+| [에러 코드 표준](./docs/02_design/08_error_code_standards.md) | 에러 코드 체계 |
 
 ## 🛠 기술 스택
 
@@ -107,9 +107,9 @@ pytest tests/test_search.py
 pytest --cov=app --cov-report=html
 ```
 
-테스트 접근 방식은 [테스트 계획서](./docs/04_testing/unit_integration_test_plan.md)를 참조하세요.
+테스트 접근 방식은 [테스트 계획서](./docs/04_testing/01_unit_integration_test_plan.md)를 참조하세요.
 
 ## 🛠 개발 규칙
 
 - [CLAUDE.md](../CLAUDE.md) - 프로젝트 전체 개발 규칙
-- [개발자 에이전트 가이드](./docs/05_development/developer_agent_guide.md) - AI 에이전트 도구 사용법
+- [개발자 에이전트 가이드](./docs/05_development/01_developer_agent_guide.md) - AI 에이전트 도구 사용법

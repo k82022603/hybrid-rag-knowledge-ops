@@ -98,5 +98,5 @@ Required Flow:
 
 ## References
 
-- [API Integration Design](../../knowledge_service/docs/02_design/api_integration_design.md)
-- [Backend Detailed Design](../../knowledge_service/docs/02_design/backend_detailed_design.md)
+- [API Integration Design](../../knowledge_service/docs/02_design/04_api_integration_design.md)
+- [Backend Detailed Design](../../knowledge_service/docs/02_design/06_backend_detailed_design.md)

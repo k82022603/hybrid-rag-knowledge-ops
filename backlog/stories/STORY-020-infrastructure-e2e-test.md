@@ -155,7 +155,7 @@ pytest tests/e2e/infrastructure/ -v --html=report.html
 
 ## Test Plan Reference
 
-- [Infrastructure E2E Test Plan](../../knowledge_service/docs/04_testing/e2e_test_plan_sprint02.md)
+- [Infrastructure E2E Test Plan](../../knowledge_service/docs/04_testing/e2e/01_e2e_test_plan_sprint02.md)
 
 ---
 
@@ -194,4 +194,4 @@ pytest tests/e2e/infrastructure/ -v --html=report.html
 
 - [Sprint 01 Backlog](../sprints/sprint-01.md)
 - [Docker Compose Configuration](../../infrastructure/docker/docker-compose.yml)
-- [Unit/Integration Test Plan](../../knowledge_service/docs/04_testing/unit_integration_test_plan.md)
+- [Unit/Integration Test Plan](../../knowledge_service/docs/04_testing/01_unit_integration_test_plan.md)

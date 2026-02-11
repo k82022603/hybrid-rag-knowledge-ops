@@ -54,7 +54,7 @@ Docker 환경에서 Keycloak realm을 자동 설정하여 E2E 테스트 100% 통
 
 **생성된 문서**:
 - `infrastructure/docker/keycloak/README.md` - Keycloak 설정 가이드
-- `knowledge_service/docs/07_maintenance/keycloak_admin_guide.md` - 관리자 가이드
+- `knowledge_service/docs/07_maintenance/06_keycloak_admin_guide.md` - 관리자 가이드
 
 ---
 

@@ -83,6 +83,8 @@ export interface SearchResult {
     summary?: string;
   };
   graphContext?: GraphContext;
+  /** Whether this chunk has a computed embedding (SCRUM-97) */
+  hasEmbedding?: boolean;
 }
 
 export interface Category {

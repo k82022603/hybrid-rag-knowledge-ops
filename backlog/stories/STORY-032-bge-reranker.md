@@ -206,4 +206,4 @@ class HybridRetriever:
 ## 참고 자료
 
 - [BGE Reranker HuggingFace](https://huggingface.co/BAAI/bge-reranker-v2-m3)
-- [상세 설계서 v2.4](../../knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md)
+- [상세 설계서 v2.4](../../knowledge_service/docs/02_design/01_hybrid_rag_platform_detailed_design.md)

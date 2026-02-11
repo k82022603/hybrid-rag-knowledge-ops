@@ -416,5 +416,5 @@ knowledge_service/docs/
 
 - [Sprint 05 완료 보고서](./sprint-05.md)
 - [Sprint 03 기술 부채](../tech-debt/sprint-03-tech-debt.md)
-- [Netty 에러 분석 보고서](../../knowledge_service/docs/07_maintenance/issue_report_2026-02-04_netty_channel_error.md)
-- [E2E 테스트 결과](../../knowledge_service/docs/04_testing/frontend_e2e_test_results_2026-02-02.md)
+- [Netty 에러 분석 보고서](../../knowledge_service/docs/07_maintenance/09_issue_report_2026-02-04_netty_channel_error.md)
+- [E2E 테스트 결과](../../knowledge_service/docs/04_testing/e2e/15_frontend_e2e_test_results_2026-02-02.md)

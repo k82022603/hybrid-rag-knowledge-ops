@@ -45,8 +45,8 @@
 ## 기술 노트
 
 ### 검토 대상 설계 문서
-- `knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md`
-- `knowledge_service/docs/02_design/api_integration_design.md`
+- `knowledge_service/docs/02_design/01_hybrid_rag_platform_detailed_design.md`
+- `knowledge_service/docs/02_design/04_api_integration_design.md`
 - `PLAN.md` (UI 관련 섹션)
 - `backlog/stories/STORY-040-frontend-keycloak.md`
 - `backlog/stories/STORY-041-dashboard-ui.md`
@@ -69,5 +69,5 @@
 
 ## 참고 자료
 
-- [상세 설계서](../../knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md)
-- [API 통합 설계서](../../knowledge_service/docs/02_design/api_integration_design.md)
+- [상세 설계서](../../knowledge_service/docs/02_design/01_hybrid_rag_platform_detailed_design.md)
+- [API 통합 설계서](../../knowledge_service/docs/02_design/04_api_integration_design.md)

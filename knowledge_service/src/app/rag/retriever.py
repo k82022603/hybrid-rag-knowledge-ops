@@ -349,6 +349,8 @@ class HybridRetriever:
                 and len(fused_results) > top_k
             ):
                 rerank_start = time.monotonic()
+                rerank_input_count = min(len(fused_results), 50)
+                before_max_score = max((r.score for r in fused_results), default=0.0)
                 try:
                     fused_results = await self._reranker.rerank_search_results(
                         query=query,
@@ -356,11 +358,15 @@ class HybridRetriever:
                         top_k=top_k,
                     )
                     rerank_ms = (time.monotonic() - rerank_start) * 1000
+                    after_max_score = max((r.score for r in fused_results), default=0.0)
                     logger.info(
                         "Reranking applied - input=%d, output=%d, "
+                        "before_max_score=%.4f, after_max_score=%.4f, "
                         "rerank_latency=%.1fms",
-                        min(len(fused_results), 50),
+                        rerank_input_count,
                         len(fused_results),
+                        before_max_score,
+                        after_max_score,
                         rerank_ms,
                     )
                 except Exception as rerank_err:
@@ -369,6 +375,11 @@ class HybridRetriever:
                     )
                     fused_results = fused_results[:top_k]
             else:
+                if use_reranking and self._reranker is not None:
+                    logger.debug(
+                        "Reranking skipped - fused_results(%d) <= top_k(%d)",
+                        len(fused_results), top_k,
+                    )
                 fused_results = fused_results[:top_k]
 
             latency_ms = (time.monotonic() - start_time) * 1000
@@ -598,6 +609,11 @@ def get_hybrid_retriever(
             search_service=search_service,
             reranker=reranker,
         )
+    else:
+        # SCRUM-103: 싱글톤에 reranker가 누락된 경우 업데이트
+        if reranker is not None and _retriever._reranker is None:
+            _retriever._reranker = reranker
+            logger.info("HybridRetriever singleton updated with reranker")
     return _retriever
 
 

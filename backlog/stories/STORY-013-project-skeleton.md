@@ -119,5 +119,5 @@ hybrid-rag-knowledge-ops/
 ## 참고 자료
 
 - [스프린트 실행 계획서 - 프로젝트 골격](../../docs/02_스프린트_실행_계획서.md#14-프로젝트-골격-생성)
-- [백엔드 상세 설계서](../../knowledge_service/docs/02_design/backend_detailed_design.md)
-- [프론트엔드 상세 설계서](../../knowledge_service/docs/02_design/frontend_detailed_design.md)
+- [백엔드 상세 설계서](../../knowledge_service/docs/02_design/06_backend_detailed_design.md)
+- [프론트엔드 상세 설계서](../../knowledge_service/docs/02_design/02_frontend_detailed_design.md)

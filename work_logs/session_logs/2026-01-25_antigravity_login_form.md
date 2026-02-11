@@ -211,6 +211,6 @@ Antigravity는 Anthropic의 AI 기반 UI 생성 도구로, Stitch MCP를 통해 
 ## 7. 관련 문서
 
 - [CLAUDE.md](../../CLAUDE.md) - 프로젝트 개발 규칙
-- [Frontend 상세 설계서](../../knowledge_service/docs/02_design/frontend_detailed_design.md)
-- [개발자 에이전트 가이드](../../knowledge_service/docs/05_development/developer_agent_guide.md)
+- [Frontend 상세 설계서](../../knowledge_service/docs/02_design/02_frontend_detailed_design.md)
+- [개발자 에이전트 가이드](../../knowledge_service/docs/05_development/01_developer_agent_guide.md)
 - [Antigravity 워크플로우 스킬](../../.claude/commands/antigravity/workflow.md)

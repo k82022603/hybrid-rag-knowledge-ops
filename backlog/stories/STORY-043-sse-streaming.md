@@ -53,7 +53,7 @@
 >
 > **참고**: SSE 유틸리티, 훅 로직은 UI 독립적이므로 변경 없음.
 >
-> 전환 가이드: [MUI to Tailwind 마이그레이션 가이드](../../knowledge_service/docs/05_development/mui_to_tailwind_migration.md)
+> 전환 가이드: [MUI to Tailwind 마이그레이션 가이드](../../knowledge_service/docs/05_development/06_mui_to_tailwind_migration.md)
 
 ### SSE 유틸리티 (공통 - 변경 없음)
 
@@ -479,4 +479,4 @@ export const ChatSearch: React.FC = () => {
 ## 참고 자료
 
 - [Server-Sent Events MDN](https://developer.mozilla.org/en-US/docs/Web/API/Server-sent_events)
-- [Frontend 상세 설계서](../../knowledge_service/docs/02_design/frontend_detailed_design.md)
+- [Frontend 상세 설계서](../../knowledge_service/docs/02_design/02_frontend_detailed_design.md)

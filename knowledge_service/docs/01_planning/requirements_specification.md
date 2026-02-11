@@ -63,7 +63,7 @@
 ### 1.4 참조 문서
 
 - [프론트엔드 구현 계획서](./frontend_implementation_plan.md)
-- [상세 설계서](../02_design/hybrid_rag_platform_detailed_design.md)
+- [상세 설계서](../02_design/01_hybrid_rag_platform_detailed_design.md)
 - [구축 계획서](./hybrid_rag_knowledge_platform_plan.md)
 
 ---

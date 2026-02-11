@@ -514,5 +514,5 @@ knowledge_service/docs/06_deployment/
 
 - [Sprint 06 Completion Report](./sprint-06.md)
 - [Deployment Plan](../../knowledge_service/docs/06_deployment/deployment_plan.md)
-- [Infrastructure Design](../../knowledge_service/docs/02_design/infrastructure_detailed_design.md)
-- [DevOps Design](../../knowledge_service/docs/02_design/devops_detailed_design.md)
+- [Infrastructure Design](../../knowledge_service/docs/02_design/10_infrastructure_detailed_design.md)
+- [DevOps Design](../../knowledge_service/docs/02_design/07_devops_detailed_design.md)

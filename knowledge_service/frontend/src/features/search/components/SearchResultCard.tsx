@@ -135,6 +135,17 @@ const SearchResultCard: React.FC<SearchResultCardProps> = ({
 
       {/* Metadata badges */}
       <div className="flex flex-wrap items-center gap-2">
+        {/* Embedding status badge (SCRUM-97) */}
+        <span
+          className={`inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-medium ${
+            result.hasEmbedding !== false
+              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
+              : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
+          }`}
+          aria-label={result.hasEmbedding !== false ? 'AI 검색 가능' : '키워드 검색만 가능'}
+        >
+          {result.hasEmbedding !== false ? 'AI 검색' : '키워드'}
+        </span>
         {result.metadata?.documentType && (
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300">
             {result.metadata.documentType}

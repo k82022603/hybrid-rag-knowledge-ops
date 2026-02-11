@@ -96,7 +96,7 @@ Sprint 2 완료 항목 (필수):
 - [x] **Headless UI 설치** ✅ (2.2.9, 접근성 지원 컴포넌트)
 - [x] **Heroicons 설치** ✅ (2.2.0, MUI Icons 대체)
 - [ ] Zustand 상태관리 설정
-- [ ] 마이그레이션 가이드 참조: [MUI to Tailwind](../../knowledge_service/docs/05_development/mui_to_tailwind_migration.md)
+- [ ] 마이그레이션 가이드 참조: [MUI to Tailwind](../../knowledge_service/docs/05_development/06_mui_to_tailwind_migration.md)
 
 ### 데이터
 - [ ] 초기 문서 수집 (~65개)
@@ -342,4 +342,4 @@ frontend/tests/
 - [EPIC-002: Hybrid RAG Search](../epics/EPIC-002-hybrid-rag-search.md)
 - [EPIC-003: Frontend UI/UX](../epics/EPIC-003-frontend-ui-ux.md)
 - [스프린트 실행 계획서](../../docs/02_스프린트_실행_계획서.md)
-- [상세 설계서 v2.4](../../knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md)
+- [상세 설계서 v2.4](../../knowledge_service/docs/02_design/01_hybrid_rag_platform_detailed_design.md)

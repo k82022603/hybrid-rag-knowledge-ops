@@ -170,7 +170,7 @@
 ## Phase 2: Design (설계) - 100% ✅ 완료
 
 ### 완료된 작업
-- [x] **상세 설계서 v2.4** (`docs/02_design/hybrid_rag_platform_detailed_design.md`) ✅ Gleaning 통합
+- [x] **상세 설계서 v2.4** (`docs/02_design/01_hybrid_rag_platform_detailed_design.md`) ✅ Gleaning 통합
 - [x] **서비스 분리 아키텍처** (SpringBoot ↔ AI Service) ✅
 - [x] **설계서 리뷰 완료** (`docs/02_design/review/`) ✅
 - [x] VIP 3단계 LLM 아키텍처
@@ -178,20 +178,20 @@
 - [x] Hybrid 검색 엔진 설계
 - [x] 데이터 모델 설계 (PostgreSQL, Neo4j, Elasticsearch)
 - [x] 비용 분석
-- [x] **Frontend 상세 설계서** (`docs/02_design/frontend_detailed_design.md`) ✅
-- [x] **인증/권한 관리 설계서** (`docs/02_design/authentication_authorization_detailed_design.md`) ✅
+- [x] **Frontend 상세 설계서** (`docs/02_design/02_frontend_detailed_design.md`) ✅
+- [x] **인증/권한 관리 설계서** (`docs/02_design/03_authentication_authorization_detailed_design.md`) ✅
 - [x] **UI Storyboard** (`docs/02_design/ui_storyboard/`) ✅
 - [x] **프레젠테이션 자료 생성** (6개 PPT, 58장) ✅
-- [x] **통합 API 설계서** (`docs/02_design/api_integration_design.md`) ✅
-- [x] **Backend 상세 설계서** (`docs/02_design/backend_detailed_design.md`) ✅
-- [x] **민감 데이터 암호화 설계서** (`docs/02_design/data_encryption_design.md`) ✅
-- [x] **인프라 상세 설계서** (`docs/02_design/infrastructure_detailed_design.md`) ✅ 2026-01-16
+- [x] **통합 API 설계서** (`docs/02_design/04_api_integration_design.md`) ✅
+- [x] **Backend 상세 설계서** (`docs/02_design/06_backend_detailed_design.md`) ✅
+- [x] **민감 데이터 암호화 설계서** (`docs/02_design/05_data_encryption_design.md`) ✅
+- [x] **인프라 상세 설계서** (`docs/02_design/10_infrastructure_detailed_design.md`) ✅ 2026-01-16
   - Docker Compose 기반 (K8s에서 변경, 86% 비용 절감)
-- [x] **DevOps 상세 설계서** (`docs/02_design/devops_detailed_design.md`) ✅ 2026-01-16
-- [x] **에러 코드 표준** (`docs/02_design/error_code_standards.md`) ✅ 2026-01-16
-- [x] **용어사전 v2.1** (`docs/02_design/glossary.md`) ✅ Gleaning 용어 추가
-- [x] **UI 디자인 시스템 가이드** (`docs/02_design/ui_design_system_guide.md`) ✅ 2026-01-16
-- [x] **RAG 성능 테스트 설계** (`docs/02_design/rag_performance_test_design.md`) ✅ 2026-01-16
+- [x] **DevOps 상세 설계서** (`docs/02_design/07_devops_detailed_design.md`) ✅ 2026-01-16
+- [x] **에러 코드 표준** (`docs/02_design/08_error_code_standards.md`) ✅ 2026-01-16
+- [x] **용어사전 v2.1** (`docs/02_design/09_glossary.md`) ✅ Gleaning 용어 추가
+- [x] **UI 디자인 시스템 가이드** (`docs/02_design/13_ui_design_system_guide.md`) ✅ 2026-01-16
+- [x] **RAG 성능 테스트 설계** (`docs/02_design/12_rag_performance_test_design.md`) ✅ 2026-01-16
 - [x] **기술 검토 문서** (`docs/02_design/technical_assessment/`) ✅ 2026-01-16
   - Gleaning 지식 그래프 품질 검토 (+33% Entity Recall)
   - K8s 참조 설계서 백업 (향후 확장용)
@@ -1050,8 +1050,8 @@ CI/CD Pipeline (GitHub Actions)
 - **테스트 수정**: RRF 객체 공유 문제, AsyncMock 적용
 - **최종 테스트 결과**: 626/627 (99.8%) - Passed: 626, Skipped: 1, Failed: 0
 - **문서 작성**:
-  - DeepSeek API 연동 가이드 (`docs/07_maintenance/deepseek_api_integration_guide.md`)
-  - WSL2 환경 트러블슈팅 (`docs/07_maintenance/wsl2_python_environment_guide.md`)
+  - DeepSeek API 연동 가이드 (`docs/07_maintenance/07_deepseek_api_integration_guide.md`)
+  - WSL2 환경 트러블슈팅 (`docs/07_maintenance/08_wsl2_python_environment_guide.md`)
 - **WSL2 환경 문제 해결**: pyarrow/torch Windows wheel 호환성 → Linux wheel 재설치
 - **보안 이슈 대응**: API 키 실수 노출 → git amend + force push로 히스토리 수정
 - **커밋**: 7건 (`5114295`, `b8bed23`, `a303c92`, `68fa6e4`, `62ded91`, `f9a05bf`, `443d77a`)
@@ -1377,7 +1377,7 @@ cd knowledge_service && poetry run pytest
 
 ## References
 
-- [상세 설계서](./knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md)
+- [상세 설계서](./knowledge_service/docs/02_design/01_hybrid_rag_platform_detailed_design.md)
 - [구축 계획서](./knowledge_service/docs/01_planning/hybrid_rag_knowledge_platform_plan.md)
 - [프론트엔드 구현 계획서](./knowledge_service/docs/01_planning/frontend_implementation_plan.md)
 - [코드 리뷰](./knowledge_service/docs/02_design/review/2026-01-14_detailed_code_review.md)

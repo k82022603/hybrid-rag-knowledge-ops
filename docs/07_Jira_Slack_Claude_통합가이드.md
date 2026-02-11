@@ -671,7 +671,7 @@ claude
 |------|------|------|
 | 이 가이드 | 전체 설정 | docs/07_Jira_Slack_Claude_통합가이드.md |
 | Slack 가이드 | Slack 사용법 | docs/06_Slack_프로젝트_커뮤니케이션_가이드.md |
-| 개발자 통합 가이드 | 연동 상세 | knowledge_service/docs/05_development/developer_integration_guide.md |
+| 개발자 통합 가이드 | 연동 상세 | knowledge_service/docs/05_development/02_developer_integration_guide.md |
 
 ### 7.3 첫 스프린트 준비
 
@@ -1600,7 +1600,7 @@ echo "=== Check Complete ==="
 ### 프로젝트 내 문서
 - [Slack 커뮤니케이션 가이드](./06_Slack_프로젝트_커뮤니케이션_가이드.md)
 - [Jira & Agile 가이드](./05_Jira_Agile_프로젝트_관리_가이드.md)
-- [개발자 통합 가이드](../knowledge_service/docs/05_development/developer_integration_guide.md)
+- [개발자 통합 가이드](../knowledge_service/docs/05_development/02_developer_integration_guide.md)
 
 ### 공식 문서
 - [Jira REST API v3](https://developer.atlassian.com/cloud/jira/platform/rest/v3/)

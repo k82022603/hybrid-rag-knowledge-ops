@@ -64,5 +64,5 @@ Gateway `application.yml` had incorrect route predicates for Keycloak SSO endpoi
 
 ## References
 
-- [Backend Detailed Design](../../knowledge_service/docs/02_design/backend_detailed_design.md)
-- [Authentication Design](../../knowledge_service/docs/02_design/authentication_authorization_detailed_design.md)
+- [Backend Detailed Design](../../knowledge_service/docs/02_design/06_backend_detailed_design.md)
+- [Authentication Design](../../knowledge_service/docs/02_design/03_authentication_authorization_detailed_design.md)

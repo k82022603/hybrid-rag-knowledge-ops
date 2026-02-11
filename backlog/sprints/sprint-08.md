@@ -467,4 +467,4 @@ knowledge_service/src/app/tools/
 - [Sprint 07 Completion Report](./sprint-07.md)
 - [PLAN.md](../../PLAN.md)
 - [UAT Test Plan](../../knowledge_service/docs/04_testing/)
-- [Infrastructure Design](../../knowledge_service/docs/02_design/infrastructure_detailed_design.md)
+- [Infrastructure Design](../../knowledge_service/docs/02_design/10_infrastructure_detailed_design.md)

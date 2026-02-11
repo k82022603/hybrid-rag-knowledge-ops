@@ -60,7 +60,7 @@
 > 아래에 MUI 코드(레거시)와 Tailwind 코드(권장) 두 버전이 제공됩니다.
 > **신규 구현 시 Tailwind 버전을 사용하세요.**
 >
-> 전환 가이드: [MUI to Tailwind 마이그레이션 가이드](../../knowledge_service/docs/05_development/mui_to_tailwind_migration.md)
+> 전환 가이드: [MUI to Tailwind 마이그레이션 가이드](../../knowledge_service/docs/05_development/06_mui_to_tailwind_migration.md)
 
 ### ChatSearch 페이지 (Tailwind - 권장)
 
@@ -576,5 +576,5 @@ export const SourceCitation: React.FC<{ source: Source }> = ({ source }) => {
 
 ## 참고 자료
 
-- [Frontend 상세 설계서](../../knowledge_service/docs/02_design/frontend_detailed_design.md)
+- [Frontend 상세 설계서](../../knowledge_service/docs/02_design/02_frontend_detailed_design.md)
 - [UI Storyboard](../../knowledge_service/docs/02_design/ui_storyboard/)

@@ -126,6 +126,6 @@ public class JwtClaimsExtractor {
 
 ## 참고 자료
 
-- [인증/인가 상세 설계서](../../knowledge_service/docs/02_design/authentication_authorization_detailed_design.md)
+- [인증/인가 상세 설계서](../../knowledge_service/docs/02_design/03_authentication_authorization_detailed_design.md)
 - [Spring Security OAuth2 Resource Server](https://docs.spring.io/spring-security/reference/servlet/oauth2/resource-server/index.html)
 - [Keycloak Token Validation](https://www.keycloak.org/docs/latest/securing_apps/#validating-access-tokens)

@@ -89,4 +89,4 @@ Currently, the system operates in **degraded mode** - Hybrid Search (vector + ke
 
 - [STORY-006 Neo4j ES Storage](./STORY-006-neo4j-es-storage.md)
 - [TECH-DEBT-001 Neo4j Strategy Pattern](../tech-debt/sprint-03-tech-debt.md)
-- [Hybrid RAG Design](../../knowledge_service/docs/02_design/hybrid_rag_platform_detailed_design.md)
+- [Hybrid RAG Design](../../knowledge_service/docs/02_design/01_hybrid_rag_platform_detailed_design.md)

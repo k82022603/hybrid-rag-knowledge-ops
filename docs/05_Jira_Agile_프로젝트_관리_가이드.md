@@ -813,4 +813,4 @@ HRKP 프로젝트에 Story 이슈 생성해줘"
 - [EPIC-001: Document Processing](../../backlog/epics/EPIC-001-document-processing.md)
 - [Sprint 01 계획서](../../backlog/sprints/sprint-01.md)
 - [외부솔루션 연동 설정 가이드](../04_외부솔루션_연동_설정_가이드.md)
-- [개발자 통합 가이드](../../knowledge_service/docs/05_development/developer_integration_guide.md)
+- [개발자 통합 가이드](../../knowledge_service/docs/05_development/02_developer_integration_guide.md)

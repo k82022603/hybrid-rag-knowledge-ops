@@ -153,20 +153,20 @@ class Settings(BaseSettings):
     rrf_k: int = Field(default=60, description="RRF 융합 파라미터")
     rrf_weight_vector: float = Field(default=1.0, description="RRF Vector 채널 가중치")
     rrf_weight_keyword: float = Field(default=1.0, description="RRF Keyword 채널 가중치")
-    rrf_weight_graph: float = Field(default=0.3, description="RRF Graph 채널 가중치 (과점유 방지)")
+    rrf_weight_graph: float = Field(default=0.8, description="RRF Graph 채널 가중치 (엔티티 관계 기반)")
 
     # 컨텍스트 품질 판단 설정 (Quality Gate)
     context_quality_high_threshold: float = Field(
-        default=0.3, description="HIGH 품질 임계값 (이 점수 이상 결과가 있으면 '충분한 컨텍스트'로 판단)"
+        default=0.1, description="HIGH 품질 임계값 (Reranker 0.1+ 또는 RRF 상위권)"
     )
     context_quality_partial_threshold: float = Field(
-        default=0.1, description="PARTIAL 품질 임계값 (이 점수 이상이면 '부분 컨텍스트'로 판단)"
+        default=0.01, description="PARTIAL 품질 임계값 (RRF 점수 0.01+ 이면 부분 컨텍스트)"
     )
     context_min_score_cutoff: float = Field(
-        default=0.03, description="최소 점수 컷오프 (이 점수 미만 결과는 컨텍스트에서 제외)"
+        default=0.005, description="최소 점수 컷오프 (RRF 최저 범위인 0.005 미만만 제거)"
     )
     context_quality_min_high_count: int = Field(
-        default=2, description="HIGH 판정에 필요한 최소 고품질 결과 수"
+        default=1, description="HIGH 판정에 필요한 최소 고품질 결과 수"
     )
 
     # Ragas 품질 목표

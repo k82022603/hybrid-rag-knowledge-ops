@@ -81,4 +81,4 @@ Results: 5 documents found (984ms total)
 
 ## References
 
-- [RAG Performance Test Design](../../knowledge_service/docs/02_design/rag_performance_test_design.md)
+- [RAG Performance Test Design](../../knowledge_service/docs/02_design/12_rag_performance_test_design.md)

@@ -36,7 +36,7 @@
 - [ ] UI 기능 개선 완료 (STORY-092~096)
 
 ### 분석 보고서
-- [Graph RAG 효과성 분석 보고서](../../knowledge_service/docs/04_testing/graph_rag_effectiveness_analysis.md)
+- [Graph RAG 효과성 분석 보고서](../../knowledge_service/docs/04_testing/ragas/03_graph_rag_effectiveness_analysis.md)
 
 ---
 
@@ -85,6 +85,6 @@
 
 ## References
 
-- [Graph RAG 효과성 분석 보고서](../../knowledge_service/docs/04_testing/graph_rag_effectiveness_analysis.md)
+- [Graph RAG 효과성 분석 보고서](../../knowledge_service/docs/04_testing/ragas/03_graph_rag_effectiveness_analysis.md)
 - Microsoft GraphRAG Paper (2024)
 - Cormack et al., "Reciprocal Rank Fusion" (2009)
