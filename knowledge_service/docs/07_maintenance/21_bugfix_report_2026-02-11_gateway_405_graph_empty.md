@@ -5,11 +5,11 @@
 | 항목 | 내용 |
 |------|------|
 | **보고일** | 2026-02-11 |
-| **최종 수정일** | 2026-02-11 (Phase 2 추가) |
+| **최종 수정일** | 2026-02-11 (Phase 3 추가) |
 | **수정자** | Agent Teams (TechLead 분석 → RAG/Frontend/Backend 구현) |
 | **우선순위** | High |
-| **상태** | Phase 1: 완료, Phase 2: 수정 중 |
-| **커밋** | Phase 1: `eb40cda`, `b4278fa` / Phase 2: 미커밋 |
+| **상태** | Phase 1: 완료, Phase 2: 완료, Phase 3: 완료 |
+| **커밋** | Phase 1: `eb40cda`, `b4278fa` / Phase 2: `c097c74` / Phase 3: `7b9f326` |
 | **영향 범위** | Chat/Keyword 검색 그래프 시각화, Gateway Fallback, Subgraph API |
 | **관련 이슈** | ISSUE-011 (그래프 패널 엔티티명), SCRUM-101 (graph 소스 태깅) |
 
@@ -17,7 +17,7 @@
 
 ## 버그 요약
 
-이 보고서는 그래프 시각화 관련 **7건의 버그**를 2단계(Phase)에 걸쳐 다룹니다.
+이 보고서는 그래프 시각화 관련 **8건의 버그**를 3단계(Phase)에 걸쳐 다룹니다.
 
 | # | 버그 | 증상 | 근본 원인 | Phase |
 |---|------|------|-----------|-------|
@@ -25,9 +25,10 @@
 | 2 | 그래프 빈 결과 (RRF 융합) | Chat 검색 → 빈 그래프 | RRF 융합에서 `matched_entities` 유실 | 1 |
 | 3 | Lucene 특수문자 파싱 오류 | `CI/CD` → 500 Error | Fulltext 쿼리에 Lucene 특수문자 미이스케이프 | 1 |
 | 4 | AI Service 503 Timeout | Chat 검색 → 503 | Gateway 타임아웃(60s) < AI 처리시간(91s) | 1 |
-| **5** | **Fulltext 인덱스 라벨 불일치** | **Keyword 검색 → 빈 그래프** | **인덱스 `:Entity` vs 실제 `:Person/:Topic/...`** | **2** |
-| **6** | **ChatSearch entity 추출 미흡** | **Chat 검색 → 문서제목 전달** | **ChatSearch 2단계 fallback (KeywordSearch 4단계와 불일치)** | **2** |
-| **7** | **Document fallback 관계 패턴** | **3단계 fallback 항상 실패** | **쿼리 패턴 ≠ 실제 그래프 구조** | **2** |
+| 5 | Fulltext 인덱스 라벨 불일치 | Keyword 검색 → 빈 그래프 | 인덱스 `:Entity` vs 실제 `:Person/:Topic/...` | 2 |
+| 6 | ChatSearch entity 추출 미흡 | Chat 검색 → 문서제목 전달 | ChatSearch 2단계 fallback (KeywordSearch 4단계와 불일치) | 2 |
+| 7 | Document fallback 관계 패턴 | 3단계 fallback 항상 실패 | 쿼리 패턴 ≠ 실제 그래프 구조 | 2 |
+| **8** | **Graph 배지 UX 모순** | **Graph 버튼 클릭 → 빈 그래프** | **`matched_entities` 없는데 `source_type: "graph"` 반환** | **3** |
 
 ### Phase 간 관계
 
@@ -405,6 +406,77 @@ Phase 1에서 Chat 검색으로만 검증하여 Keyword 검색 경로의 문제�
 ### 3. Fallback 체인의 각 단계 독립 검증
 3단계 fallback이 존재하더라도 각 단계가 독립적으로 실패할 수 있음.
 **각 fallback 단계의 개별 동작을 단위 테스트로 검증.**
+
+### 4. API 응답이 UI의 진실 소스 (Phase 3 교훈)
+UI 버그로 보이더라도 먼저 API 응답 데이터의 정합성을 확인해야 함.
+`source_type: "graph"`를 API가 잘못 내려보내면 Frontend는 신뢰하고 Graph 버튼을 표시할 수밖에 없음.
+**데이터 소스(API)를 먼저 의심하고, UI는 그 다음에 검증.**
+
+---
+
+## Phase 3 버그 상세
+
+### Bug #8: Graph 배지 UX 모순 (가장 근본적)
+
+**증상**: "도서관법" Keyword 검색 → 결과에 Graph 버튼 표시 → 클릭 시 빈 그래프
+
+**근본 원인**: AI Service API가 `matched_entities`가 비어있는데도 `source_type: "graph"`를 반환
+
+```mermaid
+flowchart TB
+    subgraph Backend["AI Service (routes/search.py)"]
+        GS["Graph Search"] -->|"entity 매칭 실패"| CF["Content Fallback<br/>matched_entities: []"]
+        CF -->|"contributing_sources에<br/>'graph' 포함"| ST["source_type: 'graph'<br/>(잘못된 판별)"]
+    end
+
+    subgraph Frontend["Frontend"]
+        ST -->|"sourceType === 'graph'"| BTN["Graph 버튼 표시"]
+        BTN -->|"클릭"| API["Subgraph API 호출"]
+        API -->|"entity 없음"| EMPTY["빈 그래프"]
+    end
+
+    style ST fill:#f66,color:#fff
+    style EMPTY fill:#f66,color:#fff
+```
+
+**수정 2건**:
+
+| Fix | 파일 | 내용 |
+|-----|------|------|
+| Fix 1 | `src/app/api/routes/search.py` | `source_type: "graph"` 설정 시 `matched_entities` 비어있지 않은지 확인 |
+| Fix 2 | `frontend/.../KeywordSearch.tsx`, `SourceCitation.tsx` | Graph 버튼 표시 조건을 `relatedEntities` 존재 여부로 제한 |
+
+**수정 코드 (Backend - 핵심)**:
+```python
+# 수정 전: contributing_sources만 확인
+source_type=(
+    "graph" if "graph" in r.metadata.get("contributing_sources", [])
+    else ...
+)
+
+# 수정 후: matched_entities + contributing_sources 둘 다 확인
+source_type=(
+    "graph" if bool(r.metadata.get("matched_entities"))
+    and "graph" in r.metadata.get("contributing_sources", [])
+    else ...
+)
+```
+
+**검증**: QA 4/4 PASS
+- "도서관법" 검색 → source_type ≠ "graph" (matched_entities 없음) ✅
+- "AI" subgraph → nodes=38, edges=111 정상 ✅
+
+---
+
+## 전체 수정 파일 목록 (Phase 3 추가)
+
+### Phase 3 (커밋: `7b9f326`)
+
+| 파일 | 변경 | 버그 |
+|------|------|------|
+| `src/app/api/routes/search.py` | `source_type` 판별 시 `matched_entities` 체크 추가 | #8 |
+| `frontend/.../KeywordSearch.tsx` | `hasGraphData` 조건을 `relatedEntities` 기반으로 제한 | #8 |
+| `frontend/.../SourceCitation.tsx` | Graph 버튼 조건을 `relatedEntities` 기반으로 변경 | #8 |
 
 ---
 
