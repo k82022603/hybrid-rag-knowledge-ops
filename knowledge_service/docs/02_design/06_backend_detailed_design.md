@@ -12,7 +12,7 @@
 | **수정일** | 2026-01-22 |
 | **작성자** | Claude Code (Opus 4.5) |
 | **상태** | Approved |
-| **관련 문서** | [API 통합 설계서](./api_integration_design.md), [인증/권한 설계서](./authentication_authorization_detailed_design.md), [암호화 설계서](./data_encryption_design.md), [백엔드 구현 계획서](../01_planning/backend_implementation_plan.md) |
+| **관련 문서** | [API 통합 설계서](./api_integration_design.md), [인증/권한 설계서](./authentication_authorization_detailed_design.md), [암호화 설계서](./data_encryption_design.md), [백엔드 구현 계획서](../01_planning/04_backend_implementation_plan.md) |
 
 ---
 
@@ -5200,8 +5200,8 @@ providers:
 | API 통합 설계서 | `./api_integration_design.md` | API 명세 |
 | 인증/권한 설계서 | `./authentication_authorization_detailed_design.md` | 보안 설계 |
 | 암호화 설계서 | `./data_encryption_design.md` | 데이터 보호 |
-| 백엔드 구현 계획서 | `../01_planning/backend_implementation_plan.md` | 구현 계획 |
-| AI 서비스 구현 계획서 | `../01_planning/ai_service_implementation_plan.md` | AI 연동 |
+| 백엔드 구현 계획서 | `../01_planning/04_backend_implementation_plan.md` | 구현 계획 |
+| AI 서비스 구현 계획서 | `../01_planning/05_ai_service_implementation_plan.md` | AI 연동 |
 
 ### B. 기술 참고 자료
 

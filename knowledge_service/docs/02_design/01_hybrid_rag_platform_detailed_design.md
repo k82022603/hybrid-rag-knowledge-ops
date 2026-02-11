@@ -12,7 +12,7 @@
 | **수정일** | 2026-01-17 |
 | **작성자** | Claude AI |
 | **상태** | Review 완료 (코드 검증됨) |
-| **관련 문서** | [구축 계획서](../01_planning/hybrid_rag_knowledge_platform_plan.md), [에러 코드 표준](./error_code_standards.md), [용어사전](./glossary.md) |
+| **관련 문서** | [구축 계획서](../01_planning/01_hybrid_rag_knowledge_platform_plan.md), [에러 코드 표준](./error_code_standards.md), [용어사전](./glossary.md) |
 
 ---
 
@@ -319,7 +319,7 @@ AI Service 장애 시 SpringBoot의 Circuit Breaker 패턴으로 graceful degrad
 | **장애** | Fallback 실행 | 캐시된 결과 또는 기본 검색 |
 | **복구** | Half-Open 시도 | 자동 복구 |
 
-> **상세 구현**: [AI Service 구현 계획서](../01_planning/ai_service_implementation_plan.md) 참조
+> **상세 구현**: [AI Service 구현 계획서](../01_planning/05_ai_service_implementation_plan.md) 참조
 
 ### 3.3 VIP 3단계 LLM 아키텍처
 
@@ -4420,8 +4420,8 @@ python-multipart = "^0.0.6"
 
 | 문서 | 링크 |
 |------|------|
-| 구축 계획서 | [hybrid_rag_knowledge_platform_plan.md](../01_planning/hybrid_rag_knowledge_platform_plan.md) |
-| 문서 파싱 기술 비교 | [02.Document parsing embedding comparison.md](../01_planning/technical_assessment/02.Document%20parsing%20embedding%20comparison.md) |
+| 구축 계획서 | [01_hybrid_rag_knowledge_platform_plan.md](../01_planning/01_hybrid_rag_knowledge_platform_plan.md) |
+| 문서 파싱 기술 비교 | [02_document_parsing_embedding_comparison.md](../01_planning/technical_assessment/02_document_parsing_embedding_comparison.md) |
 | Docling GitHub | https://github.com/DS4SD/docling |
 | Docling 문서 | https://ds4sd.github.io/docling/ |
 | DeepSeek API | https://platform.deepseek.com/api-docs |

@@ -331,7 +331,7 @@ flowchart LR
 
 ## 11. 참고 자료
 
-- [RAGAS 평가 리포트 (2026-02-04)](../results/ragas/ragas_evaluation_2026-02-04_022522.md)
+- [RAGAS 평가 리포트 (2026-02-04)](results/01_ragas_evaluation_2026-02-04_022522.md)
 - [성능 벤치마크 (2026-02-06)](../results/perf_benchmark_2026-02-06.md)
 - [Graph Search 구현 문서 (2026-02-07)](../03_implementation/graph_search_implementation_2026-02-07.md)
 - [ISSUE-010: Graph Search 0건 반환](./issues/ISSUE-010_graph_search_zero_results.md)

@@ -18,7 +18,7 @@
 | **작성일** | 2026-01-16 |
 | **작성자** | Claude Code (Opus 4.5) |
 | **상태** | Draft |
-| **관련 문서** | [상세 설계서](./hybrid_rag_platform_detailed_design.md), [백엔드 구현 계획서](../01_planning/backend_implementation_plan.md), [AI 서비스 구현 계획서](../01_planning/ai_service_implementation_plan.md), [인증/권한 설계서](./authentication_authorization_detailed_design.md), [에러 코드 표준](./error_code_standards.md), [용어사전](./glossary.md) |
+| **관련 문서** | [상세 설계서](./hybrid_rag_platform_detailed_design.md), [백엔드 구현 계획서](../01_planning/04_backend_implementation_plan.md), [AI 서비스 구현 계획서](../01_planning/05_ai_service_implementation_plan.md), [인증/권한 설계서](./authentication_authorization_detailed_design.md), [에러 코드 표준](./error_code_standards.md), [용어사전](./glossary.md) |
 
 ---
 
@@ -2827,8 +2827,8 @@ X-API-Successor: /api/v2/knowledge
 | 문서 | 위치 |
 |------|------|
 | 상세 설계서 | [hybrid_rag_platform_detailed_design.md](./hybrid_rag_platform_detailed_design.md) |
-| 백엔드 구현 계획서 | [backend_implementation_plan.md](../01_planning/backend_implementation_plan.md) |
-| AI 서비스 구현 계획서 | [ai_service_implementation_plan.md](../01_planning/ai_service_implementation_plan.md) |
+| 백엔드 구현 계획서 | [04_backend_implementation_plan.md](../01_planning/04_backend_implementation_plan.md) |
+| AI 서비스 구현 계획서 | [05_ai_service_implementation_plan.md](../01_planning/05_ai_service_implementation_plan.md) |
 | 인증/권한 설계서 | [authentication_authorization_detailed_design.md](./authentication_authorization_detailed_design.md) |
 | 에러 코드 표준 | [error_code_standards.md](./error_code_standards.md) |
 | 용어사전 | [glossary.md](./glossary.md) |

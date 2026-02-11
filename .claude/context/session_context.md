@@ -5,11 +5,11 @@
 
 ### Recent Commits
 ```
+30e837c [DOCS] 프로젝트 문서 전체 정리 + RAGAS v6 평가 완료
 197cd6a [DOCS] RAGAS v5 50쿼리 평가 결과 보고서 작성
 b78c2a8 [DOCS] README.md + Session 3 로그 추가
 a0a7d0d [DOCS] 2026-02-10 일일 마무리 - 작업일지, 바이브로그, 문서 현행화
 7ef7915 [FEAT] Frontend 전체 한글화 (10개 파일)
-75e9c10 [FEAT] RAG 파이프라인 v3 개선 + 50쿼리 RAGAS v5 평가 (STORY-111)
 ```
 
 ## Work Log Status

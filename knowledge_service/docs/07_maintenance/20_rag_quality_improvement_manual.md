@@ -1015,10 +1015,10 @@ flowchart LR
 | 파일 경로 | 역할 |
 |----------|------|
 | `docs/07_maintenance/20_rag_quality_improvement_manual.md` | **이 문서** |
-| `docs/results/ragas/RAGAS_평가_총평.md` | RAGAS 평가 전체 요약 |
-| `docs/results/ragas/RAGAS_v5_50쿼리_평가결과.md` | v5 50쿼리 평가 결과 분석 |
-| `docs/results/ragas/RAGAS_크로스시스템_최종분석.md` | 크로스시스템 최종 분석 |
-| `docs/results/ragas/hrkp_vs_rcsv_report_2026-02-10_v4.md` | v4 크로스시스템 평가 상세 |
+| `docs/04_testing/ragas/results/07_RAGAS_평가_총평.md` | RAGAS 평가 전체 요약 |
+| `docs/04_testing/ragas/results/08_RAGAS_v5_50쿼리_평가결과.md` | v5 50쿼리 평가 결과 분석 |
+| `docs/04_testing/ragas/results/09_RAGAS_크로스시스템_최종분석.md` | 크로스시스템 최종 분석 |
+| `docs/04_testing/ragas/results/05_hrkp_vs_rcsv_report_2026-02-10_v4.md` | v4 크로스시스템 평가 상세 |
 | `docs/02_design/01_hybrid_rag_platform_detailed_design.md` | 전체 시스템 상세설계서 |
 
 ### 12.4 테스트/평가 스크립트

@@ -58,21 +58,23 @@ Hybrid RAG Knowledge Operations Platform의 테스트 관련 문서 모음입니
 │   ├── 03_graph_rag_effectiveness_analysis.md         # Graph RAG 효과성 분석
 │   ├── 04_ragas_cross_system_evaluation_guide.md      # RAGAS 크로스 시스템 평가 가이드
 │   └── results/                                       # RAGAS 평가 실행 결과 *from results/ragas/*
-│       ├── RAGAS_v5_50쿼리_평가결과.md                # v5 50쿼리 평가 결과 분석 (STORY-111)
-│       ├── RAGAS_크로스시스템_최종분석.md              # 크로스시스템 최종 분석
-│       ├── RAGAS_평가_총평.md                         # 7회 평가 이력 종합 분석
-│       ├── hrkp_vs_rcsv_2026-02-10.json               # v1 비교 결과 (JSON)
-│       ├── hrkp_vs_rcsv_2026-02-10_v2.json            # v2 비교 결과 (JSON)
-│       ├── hrkp_vs_rcsv_2026-02-10_v3.json            # v3 비교 결과 (JSON)
-│       ├── hrkp_vs_rcsv_2026-02-10_v4.json            # v4 비교 결과 (JSON, 50쿼리)
-│       ├── hrkp_vs_rcsv_report_2026-02-10.md          # v1 비교 리포트
-│       ├── hrkp_vs_rcsv_report_2026-02-10_v2.md       # v2 비교 리포트
-│       ├── hrkp_vs_rcsv_report_2026-02-10_v3.md       # v3 비교 리포트
-│       ├── hrkp_vs_rcsv_report_2026-02-10_v4.md       # v4 비교 리포트 (50쿼리)
-│       ├── ragas_cross_system_2026-02-10.json          # 크로스시스템 원본 (JSON)
-│       ├── ragas_cross_system_report_2026-02-10.md     # 크로스시스템 리포트
-│       ├── ragas_evaluation_2026-02-04_022522.json     # 초기 평가 원본 (JSON)
-│       └── ragas_evaluation_2026-02-04_022522.md       # 초기 평가 리포트
+│       ├── 01_ragas_evaluation_2026-02-04_022522.json  # 초기 평가 원본 (JSON)
+│       ├── 01_ragas_evaluation_2026-02-04_022522.md   # 초기 평가 리포트
+│       ├── 02_hrkp_vs_rcsv_2026-02-10.json            # v1 비교 결과 (JSON)
+│       ├── 02_hrkp_vs_rcsv_report_2026-02-10.md       # v1 비교 리포트
+│       ├── 03_hrkp_vs_rcsv_2026-02-10_v2.json         # v2 비교 결과 (JSON)
+│       ├── 03_hrkp_vs_rcsv_report_2026-02-10_v2.md    # v2 비교 리포트
+│       ├── 04_hrkp_vs_rcsv_2026-02-10_v3.json         # v3 비교 결과 (JSON)
+│       ├── 04_hrkp_vs_rcsv_report_2026-02-10_v3.md    # v3 비교 리포트
+│       ├── 05_hrkp_vs_rcsv_2026-02-10_v4.json         # v4 비교 결과 (JSON, 50쿼리)
+│       ├── 05_hrkp_vs_rcsv_report_2026-02-10_v4.md    # v4 비교 리포트 (50쿼리)
+│       ├── 06_ragas_cross_system_2026-02-10.json       # 크로스시스템 원본 (JSON)
+│       ├── 06_ragas_cross_system_report_2026-02-10.md  # 크로스시스템 리포트
+│       ├── 07_RAGAS_평가_총평.md                      # 7회 평가 이력 종합 분석
+│       ├── 08_RAGAS_v5_50쿼리_평가결과.md             # v5 50쿼리 평가 결과 분석 (STORY-111)
+│       ├── 09_RAGAS_크로스시스템_최종분석.md           # 크로스시스템 최종 분석
+│       ├── 10_hrkp_ragas_v6_2026-02-11.json           # v6 평가 결과 (JSON, 50쿼리)
+│       └── 10_hrkp_ragas_v6_report_2026-02-11.md      # v6 평가 리포트
 │
 ├── analysis/                                          # 분석/감사 보고서
 │   ├── 01_docling_parser_test_report.md               # Docling Parser 테스트 보고서
@@ -139,7 +141,7 @@ Hybrid RAG Knowledge Operations Platform의 테스트 관련 문서 모음입니
 | 인프라 E2E | `infrastructure_e2e/` | 6 | 인프라 레벨 E2E 테스트 |
 | UAT | `user_acceptance_tests/` | 10 | 사용자 인수 테스트 |
 | RAGAS 평가 (가이드) | `ragas/` | 4 | RAG 품질 평가 기준/가이드 |
-| RAGAS 결과 | `ragas/results/` | 15 | RAGAS 평가 실행 결과 (JSON + MD) |
+| RAGAS 결과 | `ragas/results/` | 17 | RAGAS 평가 실행 결과 (JSON + MD) |
 | 스모크 테스트 | `smoke_test/` | 2 | 검색 품질 스모크 테스트 |
 | 분석/보고서 | `analysis/` | 13 | 감사, 분석, 성능 보고서 |
 | Staging | `staging/` | 2 | Staging 환경 검증 |

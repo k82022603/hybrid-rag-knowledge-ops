@@ -974,7 +974,7 @@ DeepSeek 비용:
 ### 프로젝트 내부 문서
 
 10. [상세 설계서](../hybrid_rag_platform_detailed_design.md)
-11. [AI Service 구현 계획서](../../01_planning/ai_service_implementation_plan.md)
+11. [AI Service 구현 계획서](../../01_planning/05_ai_service_implementation_plan.md)
 12. [통합 상세 설계서](../integrated_detailed_design.md)
 
 ---

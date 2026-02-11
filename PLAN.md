@@ -154,16 +154,16 @@
 ## Phase 1: Planning (기획) - 100% ✅ 완료
 
 ### 완료된 작업
-- [x] 구축 계획서 작성 (`docs/01_planning/hybrid_rag_knowledge_platform_plan.md`)
-- [x] 요구사항 정의 (`docs/01_planning/requirements_specification.md`)
+- [x] 구축 계획서 작성 (`docs/01_planning/01_hybrid_rag_knowledge_platform_plan.md`)
+- [x] 요구사항 정의 (`docs/01_planning/03_requirements_specification.md`)
 - [x] 기술 스택 선정
-- [x] 프론트엔드 구현 계획서 (`docs/01_planning/frontend_implementation_plan.md`)
-- [x] **백엔드 구현 계획서** (`docs/01_planning/backend_implementation_plan.md`) ✅
-- [x] **AI Service 구현 계획서 v2.0** (`docs/01_planning/ai_service_implementation_plan.md`) ✅
-- [x] **개발환경 구축 계획** (`docs/01_planning/dev_environment_plan.md`) ✅
-- [x] **테스트 전략 및 계획** (`docs/01_planning/test_plan.md`) ✅
-- [x] **DevOps + ALM 통합 계획** (`docs/01_planning/devops_alm_plan.md`) ✅
-- [x] **기획 문서 리뷰 완료** (`docs/01_planning/review/2026-01-14_planning_review_report.md`) ✅
+- [x] 프론트엔드 구현 계획서 (`docs/01_planning/02_frontend_implementation_plan.md`)
+- [x] **백엔드 구현 계획서** (`docs/01_planning/04_backend_implementation_plan.md`) ✅
+- [x] **AI Service 구현 계획서 v2.0** (`docs/01_planning/05_ai_service_implementation_plan.md`) ✅
+- [x] **개발환경 구축 계획** (`docs/01_planning/06_dev_environment_plan.md`) ✅
+- [x] **테스트 전략 및 계획** (`docs/01_planning/08_test_plan.md`) ✅
+- [x] **DevOps + ALM 통합 계획** (`docs/01_planning/07_devops_alm_plan.md`) ✅
+- [x] **기획 문서 리뷰 완료** (`docs/01_planning/review/01_2026-01-14_planning_review_report.md`) ✅
 - [x] **AI 에이전트 역할 명확화** (개발 에이전트 vs 런타임 LLM) ✅
 - [x] **문서 일관성 확보** (PLAN.md, CLAUDE.md, devops_alm_plan.md) ✅
 
@@ -589,13 +589,14 @@ Versioning: Semantic Versioning (SemVer)
 ```
 docs/
 ├── 01_planning/                         # 기획 문서
-│   ├── hybrid_rag_knowledge_platform_plan.md    ✅ 완료
-│   ├── frontend_implementation_plan.md          ✅ 완료
-│   ├── backend_implementation_plan.md           ✅ 완료
-│   ├── ai_service_implementation_plan.md        ✅ 완료 v2.0
-│   ├── dev_environment_plan.md                  ✅ 완료
-│   ├── test_plan.md                             ✅ 완료
-│   ├── devops_alm_plan.md                       ✅ 완료
+│   ├── 01_hybrid_rag_knowledge_platform_plan.md ✅ 완료
+│   ├── 02_frontend_implementation_plan.md       ✅ 완료
+│   ├── 03_requirements_specification.md         ✅ 완료
+│   ├── 04_backend_implementation_plan.md        ✅ 완료
+│   ├── 05_ai_service_implementation_plan.md     ✅ 완료 v2.0
+│   ├── 06_dev_environment_plan.md               ✅ 완료
+│   ├── 07_devops_alm_plan.md                    ✅ 완료
+│   ├── 08_test_plan.md                          ✅ 완료
 │   └── review/
 │       └── 2026-01-14_planning_review_report.md ✅ 완료
 │
@@ -1378,7 +1379,7 @@ cd knowledge_service && poetry run pytest
 ## References
 
 - [상세 설계서](./knowledge_service/docs/02_design/01_hybrid_rag_platform_detailed_design.md)
-- [구축 계획서](./knowledge_service/docs/01_planning/hybrid_rag_knowledge_platform_plan.md)
-- [프론트엔드 구현 계획서](./knowledge_service/docs/01_planning/frontend_implementation_plan.md)
+- [구축 계획서](./knowledge_service/docs/01_planning/01_hybrid_rag_knowledge_platform_plan.md)
+- [프론트엔드 구현 계획서](./knowledge_service/docs/01_planning/02_frontend_implementation_plan.md)
 - [코드 리뷰](./knowledge_service/docs/02_design/review/2026-01-14_detailed_code_review.md)
 - [CLAUDE.md](./CLAUDE.md) - 개발 가이드라인

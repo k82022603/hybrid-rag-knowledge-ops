@@ -35,8 +35,8 @@ flowchart TB
     end
 
     subgraph Results["평가 결과"]
-        V5["RAGAS_v5_50쿼리_평가결과.md"]
-        RP["RAGAS_평가_총평.md"]
+        V5["08_RAGAS_v5_50쿼리_평가결과.md"]
+        RP["07_RAGAS_평가_총평.md"]
     end
 
     EC --> CG
@@ -532,7 +532,7 @@ ls -la knowledge_service/docs/results/ragas/
 | JSON 원본 | `docs/results/ragas/` | `hrkp_eval_YYYY-MM-DD_vN.json` |
 | Markdown 리포트 | `docs/results/ragas/` | `hrkp_eval_report_YYYY-MM-DD_vN.md` |
 | 비교 리포트 | `docs/results/ragas/` | `comparison_YYYY-MM-DD_vN.md` |
-| 총평 | `docs/results/ragas/` | `RAGAS_평가_총평.md` (누적 업데이트) |
+| 총평 | `docs/04_testing/ragas/results/` | `07_RAGAS_평가_총평.md` (누적 업데이트) |
 
 ### 8.3 필수 기록 항목
 
@@ -607,8 +607,8 @@ ls -la knowledge_service/docs/results/ragas/
 | 문서 | 경로 | 설명 |
 |------|------|------|
 | 크로스 시스템 평가 가이드 | `docs/04_testing/ragas_cross_system_evaluation_guide.md` | HRKP vs RCSV 비교 평가 방법 |
-| v5 50쿼리 평가 결과 | `docs/results/ragas/RAGAS_v5_50쿼리_평가결과.md` | 최신 평가 결과 상세 |
-| RAGAS 평가 총평 | `docs/results/ragas/RAGAS_평가_총평.md` | 7회 평가 이력 종합 분석 |
+| v5 50쿼리 평가 결과 | `docs/04_testing/ragas/results/08_RAGAS_v5_50쿼리_평가결과.md` | 최신 평가 결과 상세 |
+| RAGAS 평가 총평 | `docs/04_testing/ragas/results/07_RAGAS_평가_총평.md` | 7회 평가 이력 종합 분석 |
 | 테스트 데이터셋 설계서 | `docs/04_testing/rag_test_dataset_plan.md` | 100개 쿼리셋 설계 계획 |
 | RAGAS 공식 문서 | https://docs.ragas.io/ | RAGAS 프레임워크 공식 레퍼런스 |
 

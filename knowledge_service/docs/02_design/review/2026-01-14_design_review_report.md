@@ -490,9 +490,9 @@ grep -A 5 "deepagents" pyproject.toml
 | 문서명 | 경로 | 버전 |
 |--------|------|------|
 | **설계서 v2.1** | `docs/02_design/01_hybrid_rag_platform_detailed_design.md` | ✅ 최신 |
-| **구축계획서 v2.3** | `docs/01_planning/hybrid_rag_knowledge_platform_plan.md` | ✅ 유지 |
-| **Deep Agents 전략** | `docs/01_planning/technical_assessment/08.Deep Agents hybrid orchestration strategy.md` | ✅ 참고 |
-| **Phase 2-3 영향도** | `docs/01_planning/technical_assessment/08-1.Deep Agents Phase2-3 impact analysis.md` | ✅ 참고 |
+| **구축계획서 v2.3** | `docs/01_planning/01_hybrid_rag_knowledge_platform_plan.md` | ✅ 유지 |
+| **Deep Agents 전략** | `docs/01_planning/technical_assessment/08_deep_agents_hybrid_orchestration_strategy.md` | ✅ 참고 |
+| **Phase 2-3 영향도** | `docs/01_planning/technical_assessment/08-1_deep_agents_phase2_3_impact_analysis.md` | ✅ 참고 |
 | **이전 리뷰 (v2.0)** | `docs/02_design/review/2026-01-13_design_review_report.md` | 참고 |
 
 ---

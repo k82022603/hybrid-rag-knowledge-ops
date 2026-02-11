@@ -52,7 +52,7 @@ RAGAS v6 50쿼리 평가 실행 (JWT 자동 갱신으로 v5 ERR 이슈 해결) +
 - graph_entity: 35.3% (6/17) ← 개선 필요
 - keyword: 33.3% (1/3)
 
-**결과 파일**: `04_testing/ragas/results/hrkp_ragas_v6_report_2026-02-11.md`
+**결과 파일**: `04_testing/ragas/results/10_hrkp_ragas_v6_report_2026-02-11.md`
 
 ### 2. rag_quality_improvement_manual.md v4.0 업데이트
 
@@ -112,8 +112,8 @@ RAGAS v6 50쿼리 평가 실행 (JWT 자동 갱신으로 v5 ERR 이슈 해결) +
 
 ### 신규 파일
 - `knowledge_service/scripts/rcsv_comparison_eval_v4.py` - RAGAS v6 평가 스크립트
-- `04_testing/ragas/results/hrkp_ragas_v6_2026-02-11.json` - 평가 결과 JSON
-- `04_testing/ragas/results/hrkp_ragas_v6_report_2026-02-11.md` - 평가 보고서
+- `04_testing/ragas/results/10_hrkp_ragas_v6_2026-02-11.json` - 평가 결과 JSON
+- `04_testing/ragas/results/10_hrkp_ragas_v6_report_2026-02-11.md` - 평가 보고서
 - `work_logs/session_logs/2026-02-11_ragas_v6_doc_cleanup.md` - 본 세션 로그
 
 ### 수정 파일

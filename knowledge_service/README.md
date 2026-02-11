@@ -62,7 +62,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 | 문서 | 설명 |
 |------|------|
-| [AI Service 구현 계획](./docs/01_planning/ai_service_implementation_plan.md) | AI Service 구현 계획 v2.0 |
+| [AI Service 구현 계획](./docs/01_planning/05_ai_service_implementation_plan.md) | AI Service 구현 계획 v2.0 |
 | [플랫폼 상세 설계서](./docs/02_design/01_hybrid_rag_platform_detailed_design.md) | 상세 설계서 v2.4 (Gleaning 포함) |
 | [API 통합 설계서](./docs/02_design/04_api_integration_design.md) | OpenAPI 3.0 스펙 |
 | [통합 설계서](./docs/02_design/11_integrated_detailed_design.md) | 프로젝트 전체 통합 설계 |

@@ -7,7 +7,7 @@
 **상태**: Approved
 **주요 변경**: MUI → Tailwind CSS 전환 (Antigravity + Stitch MCP 협업)
 **관련 문서**:
-- [프론트엔드 구현 계획서](../01_planning/frontend_implementation_plan.md)
+- [프론트엔드 구현 계획서](../01_planning/02_frontend_implementation_plan.md)
 - [인증/권한 설계서](./authentication_authorization_detailed_design.md)
 - [에러 코드 표준](./error_code_standards.md)
 - [용어사전](./glossary.md)

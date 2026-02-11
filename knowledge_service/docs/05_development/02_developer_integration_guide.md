@@ -1127,6 +1127,6 @@ echo "=== Check Complete ==="
 **문서 버전**: 1.4
 **최종 수정**: 2026-01-26
 **관련 문서**:
-- [개발 환경 구축 계획서](../01_planning/dev_environment_plan.md)
+- [개발 환경 구축 계획서](../01_planning/06_dev_environment_plan.md)
 - [도구 가이드](../../../docs/03_도구_가이드.md)
 - [CLAUDE.md](../../../CLAUDE.md)

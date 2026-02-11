@@ -6,8 +6,8 @@
 **수정일**: 2026-01-17
 **상태**: Draft
 **관련 문서**:
-- [백엔드 구현 계획서](../01_planning/backend_implementation_plan.md) 섹션 7
-- [프론트엔드 구현 계획서](../01_planning/frontend_implementation_plan.md) 섹션 2.3, 3.6
+- [백엔드 구현 계획서](../01_planning/04_backend_implementation_plan.md) 섹션 7
+- [프론트엔드 구현 계획서](../01_planning/02_frontend_implementation_plan.md) 섹션 2.3, 3.6
 - [상세 설계서](./hybrid_rag_platform_detailed_design.md) 섹션 3.6
 - [에러 코드 표준](./error_code_standards.md)
 - [용어사전](./glossary.md)
