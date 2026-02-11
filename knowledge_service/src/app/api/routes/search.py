@@ -213,8 +213,10 @@ async def hybrid_search(
                     content=r.content,
                     score=r.score,
                     # SCRUM-101: graph 기여 시 source_type="graph" 우선 표시
+                    # Bug #8: matched_entities가 있을 때만 "graph" (빈 그래프 방지)
                     source_type=(
-                        "graph" if "graph" in r.metadata.get("contributing_sources", [])
+                        "graph" if bool(r.metadata.get("matched_entities"))
+                        and "graph" in r.metadata.get("contributing_sources", [])
                         else getattr(r, "source", None) or r.metadata.get("search_source")
                     ),
                     contributing_sources=r.metadata.get("contributing_sources"),
