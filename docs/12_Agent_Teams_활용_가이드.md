@@ -7,9 +7,9 @@
 | 항목 | 내용 |
 |------|------|
 | **문서명** | Agent Teams 활용 가이드 |
-| **버전** | 2.0 |
+| **버전** | 3.0 |
 | **작성일** | 2026-02-06 |
-| **최종 수정** | 2026-02-08 |
+| **최종 수정** | 2026-02-11 |
 | **작성자** | Claude Code (Opus 4.6) |
 | **대상** | 프로젝트 관리자, 개발자, AI 에이전트 운영자 |
 | **목적** | Agent Teams 기능의 이해와 프로젝트 적용 가이드 |
@@ -22,10 +22,13 @@
 |------|------|--------|----------|
 | 1.0 | 2026-02-06 | Claude Code | 초안 작성 - Opus 4.6 Agent Teams 도입 |
 | 2.0 | 2026-02-08 | Claude Code | **전면 개편** - As-Is/To-Be 분석, TeamCreate 실적용, 팀 구성 문서화 |
+| 3.0 | 2026-02-11 | Code Documenter | **협업 프로세스 매뉴얼 통합** - 세션 표준 프로세스, 역할 정의, 안티패턴, Sprint 09 사례 |
 
 ---
 
 ## 목차
+
+### Part 1: 개념 및 도구 (v2.0)
 
 1. [개요](#1-개요)
 2. [As-Is vs To-Be 비교](#2-as-is-vs-to-be-비교) (+ Agent Teams vs 개별 위임 비교)
@@ -39,6 +42,14 @@
 10. [비용 가이드](#10-비용-가이드)
 11. [제한사항 및 트러블슈팅](#11-제한사항-및-트러블슈팅)
 12. [관련 문서](#12-관련-문서)
+
+### Part 2: 협업 프로세스 매뉴얼 (v3.0)
+
+13. [세션 표준 프로세스 (5 Phases)](#13-세션-표준-프로세스)
+14. [역할 정의 및 권한](#14-역할-정의-및-권한)
+15. [안티패턴](#15-안티패턴)
+16. [실제 사례: Sprint 09 (2026-02-11)](#16-실제-사례-sprint-09)
+17. [CLAUDE.md 삽입용 요약](#17-claudemd-삽입용-요약)
 
 ---
 
@@ -940,4 +951,374 @@ TeamDelete()
 
 ---
 
-*문서 끝 | Agent Teams 활용 가이드 v2.0 | 2026-02-08*
+---
+
+# Part 2: 협업 프로세스 매뉴얼
+
+> 이 파트는 **매 세션에서 동일하게 따라야 할 표준 프로세스**를 정의합니다.
+> Part 1이 "Agent Teams란 무엇인가?"라면, Part 2는 "매 세션에서 어떻게 하는가?"입니다.
+
+---
+
+## 13. 세션 표준 프로세스
+
+모든 세션에서 아래 5단계를 동일하게 적용합니다.
+
+### 전체 흐름
+
+```mermaid
+flowchart TB
+    P1["Phase 1: 세션 초기화<br/>(클로드 Main)"]
+    P2["Phase 2: 작업 계획<br/>(PM)"]
+    P3["Phase 3: 실행<br/>(팀원 에이전트)"]
+    P4["Phase 4: 검증 + 보고<br/>(QA + PM)"]
+    P5["Phase 5: 정리<br/>(클로드 Main)"]
+
+    P1 --> P2 --> P3 --> P4 --> P5
+
+    style P1 fill:#e1f5fe
+    style P2 fill:#fff3e0
+    style P3 fill:#e8f5e9
+    style P4 fill:#f3e5f5
+    style P5 fill:#fce4ec
+```
+
+### Phase 1: 세션 초기화 (클로드 Main)
+
+클로드(Main)는 사용자의 소통 창구입니다. 직접 코딩/배포/테스트를 하지 않습니다.
+
+| 단계 | 행동 | 비고 |
+|------|------|------|
+| 1-1 | 사용자 요청 수신 및 파악 | 무엇을, 어디에, 왜 |
+| 1-2 | TeamCreate 실행 | 세션당 1회 |
+| 1-3 | PM 에이전트 소환 (항상 첫 번째) | `subagent_type: "project-manager"` |
+| 1-4 | 사용자 요청을 PM에게 위임 | SendMessage로 전달 |
+| 1-5 | PM의 팀 구성 요청에 따라 팀원 소환 | PM이 결정, 클로드가 spawn |
+| 1-6 | Slack에 세션 시작 알림 (MCP) | `*[클로드]* 작업 시작: ...` |
+
+```
+# 예시
+TeamCreate("hrkp-sprint-09")
+
+# 1) PM 소환 (항상 첫 번째)
+Task(subagent_type="project-manager", team_name="hrkp-sprint-09", name="pm",
+     prompt="PM입니다. 다음 작업을 분석하고 팀을 조율하세요: {사용자 요청}")
+
+# 2) PM이 팀 구성을 결정하면, 클로드(Main)가 팀원 소환
+Task(subagent_type="infra-engineer", team_name="hrkp-sprint-09", name="infra", ...)
+Task(subagent_type="qa-engineer", team_name="hrkp-sprint-09", name="qa", ...)
+```
+
+> **중요**: 에이전트 spawn/shutdown은 Task tool이 필요하므로 **클로드(Main)만 실행 가능**합니다.
+> PM은 어떤 팀원이 필요한지 결정하고 클로드에게 요청합니다.
+
+### Phase 2: 작업 계획 (PM)
+
+PM이 백로그를 관리하고, 작업을 분해하여 팀원에게 할당합니다.
+
+| 단계 | 행동 | 비고 |
+|------|------|------|
+| 2-1 | 사용자 요청 분석 | 영향 범위, Jira 이슈 확인 |
+| 2-2 | 작업 분해 (Task Breakdown) | 1작업 = 1에이전트, 3~10분 단위 |
+| 2-3 | TaskCreate + 의존성 설정 | blockedBy로 순서 제어 |
+| 2-4 | 팀 구성 결정 → 클로드(Main)에 소환 요청 | 필요한 팀원만 (비용 최적화) |
+| 2-5 | Slack 작업 시작 알림 | `send_slack.sh dev PM "..."` |
+
+```
+# 예시 (PM이 실행)
+TaskCreate(subject="Backend 컨테이너 배포", description="...", activeForm="배포 중")
+TaskCreate(subject="E2E 테스트", description="...", activeForm="E2E 테스트 중")
+TaskUpdate(taskId="2", addBlockedBy=["1"])  # 배포 완료 후 테스트
+
+# PM이 클로드(Main)에게 소환 요청 (PM은 Task tool 접근 불가)
+SendMessage(recipient="team-lead", content="Infra, QA 에이전트 소환을 요청합니다")
+```
+
+> **중요**: 팀원 소환(spawn)은 클로드(Main)만 실행 가능합니다.
+> PM은 어떤 팀원이 필요한지 결정하고 `SendMessage`로 클로드에게 요청합니다.
+
+### Phase 3: 실행 (팀원 에이전트)
+
+각 팀원은 할당된 태스크를 자율적으로 수행합니다.
+
+| 단계 | 행동 | 비고 |
+|------|------|------|
+| 3-1 | Slack 작업 시작 알림 | `send_slack.sh dev {이름} "작업 시작: ..."` |
+| 3-2 | TaskList 확인 → 내 태스크 claim | `TaskUpdate(status: "in_progress")` |
+| 3-3 | 작업 수행 | Read, Edit, Write, Bash 등 |
+| 3-4 | TaskUpdate → completed | 완료 처리 |
+| 3-5 | PM에게 완료 보고 | `SendMessage(recipient: "pm", ...)` |
+| 3-6 | Slack 작업 완료 알림 | `send_slack.sh dev {이름} "작업 완료: ..."` |
+| 3-7 | 다음 태스크 확인 or idle | TaskList 재확인 |
+
+**블로커 발생 시**: 즉시 PM에게 SendMessage + Slack alerts 채널 알림
+
+### Phase 4: 검증 + 보고 (QA + PM)
+
+| 단계 | 행동 | 비고 |
+|------|------|------|
+| 4-1 | QA가 테스트 수행 | `TEST_MODE=docker` 필수 |
+| 4-2 | QA → PM 결과 보고 | SendMessage |
+| 4-3 | PM이 전체 TaskList 검증 | 모든 태스크 completed 확인 |
+| 4-4 | PM → 클로드(Main) 결과 보고 | SendMessage |
+| 4-5 | 클로드(Main) → 사용자 최종 보고 | 변경 파일, 테스트 결과 포함 |
+
+### Phase 5: 정리 (클로드 Main)
+
+| 단계 | 행동 | 비고 |
+|------|------|------|
+| 5-1 | PM의 완료 보고 확인 | 모든 태스크 완료 여부 |
+| 5-2 | 불필요한 팀원 shutdown | `SendMessage(type: "shutdown_request")` |
+| 5-3 | Slack 완료 알림 (MCP) | dev 채널 |
+| 5-4 | PM에게 Jira 업데이트 요청 (해당 시) | PM이 Jira 상태 전환 |
+
+> **중요**: shutdown은 Task tool이 필요하므로 클로드(Main)가 실행합니다.
+> PM은 어떤 팀원을 정리할지 결정하고 클로드에게 요청합니다.
+
+### Phase별 체크리스트
+
+```
+Phase 1 (클로드 Main):
+  [ ] TeamCreate 실행
+  [ ] PM 소환 (항상 첫 번째)
+  [ ] 사용자 요청을 PM에게 위임
+  [ ] PM 요청에 따라 팀원 소환
+  [ ] Slack 시작 알림 (MCP)
+
+Phase 2 (PM):
+  [ ] 작업 분해 완료 (3~10분 단위)
+  [ ] TaskCreate + 의존성 설정 완료
+  [ ] 1파일 = 1에이전트 원칙 준수
+  [ ] 필요한 팀원 결정 → 클로드에게 소환 요청
+
+Phase 3 (팀원):
+  [ ] Slack 시작/완료 알림
+  [ ] TaskUpdate (in_progress → completed)
+  [ ] PM에게 완료 보고 (SendMessage)
+
+Phase 4 (QA + PM):
+  [ ] QA 테스트 완료 (TEST_MODE=docker)
+  [ ] 모든 태스크 completed 확인
+  [ ] 클로드(Main)에게 결과 보고
+
+Phase 5 (클로드 Main):
+  [ ] 팀원 shutdown
+  [ ] Slack 완료 알림 (MCP)
+```
+
+---
+
+## 14. 역할 정의 및 권한
+
+### 14.1 3계층 구조
+
+```mermaid
+flowchart LR
+    U["사용자"] -->|"요청"| M["클로드 Main<br/>(소통 창구)"]
+    M -->|"PM 소환 + 위임<br/>팀원 spawn/shutdown"| PM["PM 에이전트<br/>(조율자)"]
+    PM -->|"TaskCreate + 할당<br/>소환 요청"| T["팀원 에이전트들<br/>(실행자)"]
+    T -->|"완료 보고"| PM
+    PM -->|"결과 보고"| M
+    M -->|"최종 보고"| U
+```
+
+### 14.2 역할별 허용/금지
+
+#### 클로드(Main) - 사용자 소통 창구
+
+| 허용 | 금지 |
+|------|------|
+| 사용자 요청 수신 및 응답 | 소스코드 직접 수정 |
+| TeamCreate / TeamDelete | Docker 컨테이너 조작 |
+| 에이전트 spawn / shutdown (Task tool) | git commit / push |
+| Slack 알림 (MCP) | 설정 파일 수정 |
+| 최종 결과를 사용자에게 전달 | TaskCreate / 팀원 직접 할당 |
+
+#### PM 에이전트 - 백로그 관리 + 팀 조율
+
+| 허용 | 금지 |
+|------|------|
+| 작업 분해 (Task Breakdown) | 소스코드 직접 수정 |
+| TaskCreate / TaskUpdate | Docker 빌드/배포 |
+| 팀 구성 결정 + 클로드에게 소환 요청 | git commit / push |
+| Slack 알림 (send_slack.sh) | 에이전트 spawn/shutdown (Task tool 없음) |
+| Jira 상태 업데이트 | 설정 파일 수정 |
+| 진행 모니터링 (TaskList) | DB 스키마 변경, API 구현 |
+
+#### 개발자 에이전트 - 실행자
+
+| 에이전트 | 담당 영역 | 작업 공간 |
+|---------|----------|----------|
+| Backend | SpringBoot API, Gateway | `backend/`, `gateway/` |
+| Frontend | React UI, 컴포넌트 | `frontend/` |
+| RAG | RAG 파이프라인, AI Service | `ai_service/`, `knowledge_service/` |
+| ETL | ETL 파이프라인, 데이터 | `knowledge_service/src/app/services/` |
+| DB | 스키마, 쿼리 최적화 | PostgreSQL/Neo4j/ES |
+| Infra | Docker Compose | `infrastructure/` |
+| DevOps | CI/CD, Observability | `.github/`, `scripts/` |
+
+#### QA 에이전트 - 검증자
+
+| 허용 | 금지 |
+|------|------|
+| 테스트 코드 작성/실행 | 프로덕션 코드 수정 |
+| RAGAS 평가 | Docker 컨테이너 조작 |
+| 품질 보고서 작성 | 설정 파일 수정 |
+| `TEST_MODE=docker` 필수 | Mock 모드 테스트 절대 금지 |
+
+### 14.3 작업 유형별 담당 결정표
+
+| 작업 유형 | Primary | Secondary | PM 역할 |
+|----------|---------|-----------|--------|
+| API Gateway 변경 | Backend | Infra | 할당 + 모니터링 |
+| React 컴포넌트 | Frontend | WebDesigner | 할당 + 모니터링 |
+| Docker Compose | Infra | DevOps | 할당 + 모니터링 |
+| CI/CD 파이프라인 | DevOps | Infra | 할당 + 모니터링 |
+| DB 변경 | DB | Backend | 할당 + 모니터링 |
+| RAG 파이프라인 | RAG | ETL | 할당 + 모니터링 |
+| E2E 테스트 | QA | 해당 개발자 | 할당 + 모니터링 |
+| 문서화 | Doc | 해당 개발자 | 할당 + 모니터링 |
+| 설계서 | Architect | TechLead | 할당 + 모니터링 |
+| 코드 리뷰 | TechLead | 피어 개발자 | 요청 + 결과 공유 |
+
+---
+
+## 15. 안티패턴
+
+### 15.1 클로드(Main) 안티패턴
+
+| 안티패턴 | 왜 문제인가 | 올바른 행동 |
+|---------|-----------|-----------|
+| 직접 코드 수정 | 역할 위반, 팀 구조 무시 | PM 소환 -> PM이 팀원에게 위임 |
+| PM 없이 직접 팀원 할당 | PM 역할 침범 | PM을 먼저 소환하여 조율 위임 |
+| 모든 팀원 동시 소환 | 비용 N배, 불필요 | PM 판단에 따라 필요한 팀원만 소환 |
+| Slack 알림 미전송 | 사용자 가시성 부재 | 시작/완료 시 MCP로 전송 |
+
+### 15.2 PM 안티패턴
+
+| 안티패턴 | 왜 문제인가 | 올바른 행동 |
+|---------|-----------|-----------|
+| 직접 코드 수정 | 역할 위반 | 해당 에이전트에게 위임 |
+| Docker 직접 조작 | 역할 위반 | Infra/DevOps에게 위임 |
+| 직접 팀원 소환 시도 | Task tool 접근 불가 | 클로드(Main)에게 소환 요청 |
+| broadcast 남용 | 비용 N배 | DM (message) 사용 |
+| "~할까요?" 질문 | 불필요한 지연 | 판단 가능하면 즉시 실행 후 보고 |
+
+### 15.3 팀원 안티패턴
+
+| 안티패턴 | 왜 문제인가 | 올바른 행동 |
+|---------|-----------|-----------|
+| 다른 에이전트 담당 파일 수정 | 파일 충돌, 역할 침범 | 자기 담당 파일만 수정 |
+| 블로커 미보고 | PM이 상황 파악 불가 | 즉시 SendMessage + Slack 보고 |
+| Slack 알림 미전송 | 사용자 가시성 부재 | 시작/완료 시 필수 전송 |
+| Mock 모드 테스트 | 의미 없는 수치 | `TEST_MODE=docker` 필수 |
+| TaskUpdate 없이 작업 | 진행 상황 추적 불가 | in_progress -> completed 순서 |
+| 완료 보고 시 파일 정보 누락 | 검증 불가 | 변경 파일 + 라인 번호 포함 |
+
+### 15.4 공통 안티패턴
+
+| 안티패턴 | 올바른 행동 |
+|---------|-----------|
+| API 키 하드코딩 | `os.getenv("KEY")` 사용 |
+| 에러 발생 시 같은 방법 재시도 | 대안 즉시 시도 |
+| 역할 경계 무시 (PM이 코딩 등) | 14.2 권한 매트릭스 준수 |
+
+---
+
+## 16. 실제 사례: Sprint 09 (2026-02-11)
+
+### 16.1 사용자 요청
+
+```
+"Sprint 09 Day 1: Audit Log 기능 배포 + E2E 테스트 + 지식관리 페이지 현행화 + 프로세스 매뉴얼 작성"
+```
+
+### 16.2 프로세스 적용
+
+```mermaid
+sequenceDiagram
+    participant U as 사용자
+    participant M as 클로드 Main
+    participant PM as PM Agent
+    participant Infra as Infra
+    participant QA as QA
+    participant FE as Frontend
+    participant Doc as Documenter
+
+    U->>M: Sprint 09 작업 요청
+    M->>M: TeamCreate("hrkp-sprint-09")
+    M->>PM: PM 소환 + 작업 위임
+
+    PM->>PM: 작업 분해 (4개 태스크)
+    Note over PM: #1 Backend 배포 (Infra)<br/>#2 E2E 테스트 (QA, blockedBy: #1)<br/>#3 페이지 현행화 (Frontend)<br/>#4 매뉴얼 작성 (Doc)
+
+    PM->>M: 팀원 소환 요청 (Infra, QA, FE, Doc)
+    M->>Infra: 소환 (spawn)
+    M->>QA: 소환 (spawn)
+    M->>FE: 소환 (spawn)
+    M->>Doc: 소환 (spawn)
+    PM->>Infra: Task #1 할당
+    PM->>QA: Task #2 할당
+    PM->>FE: Task #3 할당
+    PM->>Doc: Task #4 할당
+
+    Infra->>Infra: 컨테이너 배포
+    Infra->>PM: Task #1 completed
+
+    Note over QA: blockedBy #1 해소
+    QA->>QA: E2E 테스트 수행
+    FE->>FE: 페이지 현행화 (병렬)
+    Doc->>Doc: 매뉴얼 작성 (병렬)
+
+    Doc->>PM: Task #4 completed
+    QA->>PM: Task #2 completed
+    FE->>PM: Task #3 completed
+
+    PM->>M: 전체 완료 보고
+    M->>U: 최종 결과 보고
+```
+
+### 16.3 실제 TaskList 상태
+
+```
+#1 [completed] Backend 컨테이너 배포 (AuditService IP 검증 복원) → Infra
+#2 [completed] Audit Log 기능 E2E 테스트 → QA (blockedBy: #1)
+#3 [completed] 지식관리 페이지 현행화 및 버그 수정 → Frontend
+#4 [completed] Agent Teams 협업 프로세스 매뉴얼 작성 → Documenter
+```
+
+### 16.4 적용된 원칙 검증
+
+| 원칙 | 적용 사례 | 준수 |
+|------|----------|------|
+| 클로드(Main)는 소통 + spawn | 요청 수신 -> PM 소환 -> 팀원 spawn -> 결과 보고 | O |
+| PM이 조율 | 4개 태스크 생성, 의존성 설정, 팀원 결정 + 클로드에게 소환 요청 | O |
+| 배포는 Infra | 컨테이너 배포를 Infra 에이전트가 수행 | O |
+| 테스트는 QA | E2E 테스트를 QA 에이전트가 수행 | O |
+| 병렬 처리 | Frontend + Doc 작업이 Infra 배포와 병렬 진행 | O |
+| 순차 의존 | QA는 Infra 배포 완료 후 시작 (blockedBy) | O |
+| Slack 알림 | 각 에이전트가 시작/완료 알림 전송 | O |
+
+---
+
+## 17. CLAUDE.md 삽입용 요약
+
+> 아래 내용을 CLAUDE.md의 적절한 위치에 삽입하면, 모든 세션에서 동일한 프로세스가 적용됩니다.
+
+```markdown
+## Agent Teams 표준 프로세스 (모든 세션 필수)
+
+> 상세: [Agent Teams 활용 가이드 v3.0](./docs/12_Agent_Teams_활용_가이드.md)
+
+1. **클로드(Main) = 소통 + spawn/shutdown** - 사용자 창구, 팀원 소환/정리 (Task tool)
+2. **매 세션**: TeamCreate → PM spawn → PM이 TaskCreate + 팀 구성 결정 → 클로드가 팀원 spawn
+3. **PM 역할**: 백로그 관리, Jira/Slack, 작업 분해, 팀 조율 (코딩/spawn 금지)
+4. **배포**: DevOps/Infra가 담당 | **테스트**: QA 필수 협업 (TEST_MODE=docker)
+5. **소스코드 수정**: 해당 역할 에이전트만 수행 (1파일 = 1에이전트)
+6. **Slack 필수**: 시작/완료 알림 (Main=MCP, PM/Teammate=send_slack.sh)
+7. **능동적 실행**: "~할까요?" 금지, 판단 가능하면 즉시 실행 후 보고
+```
+
+---
+
+*문서 끝 | Agent Teams 활용 가이드 v3.0 | 2026-02-11*

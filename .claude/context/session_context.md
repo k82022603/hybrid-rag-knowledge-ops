@@ -5,11 +5,11 @@
 
 ### Recent Commits
 ```
-30e837c [DOCS] 프로젝트 문서 전체 정리 + RAGAS v6 평가 완료
-197cd6a [DOCS] RAGAS v5 50쿼리 평가 결과 보고서 작성
-b78c2a8 [DOCS] README.md + Session 3 로그 추가
-a0a7d0d [DOCS] 2026-02-10 일일 마무리 - 작업일지, 바이브로그, 문서 현행화
-7ef7915 [FEAT] Frontend 전체 한글화 (10개 파일)
+6914bad [FIX] Keycloak JWT → Backend 401 인증 수정
+f47ece2 [FIX] 503 Timeout 수정 + Admin 캐시 관리 + Stats 엔드포인트 구현
+88e7989 [DOCS] Bug Fix Report에 Bug #3 Lucene 특수문자 이스케이프 추가
+b4278fa [FIX] subgraph Lucene 특수문자 이스케이프 (CI/CD → 500 에러 수정)
+994e78b [DOCS] Bug Fix Report - Gateway 405 + 그래프 시각화 빈 결과 (2026-02-11)
 ```
 
 ## Work Log Status

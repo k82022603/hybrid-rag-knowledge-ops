@@ -323,11 +323,23 @@ mcp__slack__slack_post_message
 
 ---
 
-## 🤖 AI 에이전트 목록 (13개) - Agent Teams v2.0
+## 🔄 Agent Teams 운영 원칙 (매 세션 필수)
+
+> 상세: [Agent Teams 활용 가이드 v3.0](./docs/12_Agent_Teams_활용_가이드.md)
+
+1. **클로드(Main) = 소통 + spawn/shutdown** - 사용자 창구, 팀원 소환/정리 담당 (Task tool)
+2. **PM 에이전트 = 백로그 관리 + Jira/Slack + 팀 조율** - 매 세션 PM 먼저 spawn (spawn 자체는 클로드가 실행)
+3. **역할 분리 필수**: 배포→Infra/DevOps, 테스트→QA, 코딩→해당 Developer
+4. **표준 흐름**: TeamCreate → PM spawn → PM이 팀 구성 결정 → 클로드가 팀원 spawn → 모니터링 → 클로드가 shutdown
+5. **Slack 필수**: 작업 시작/완료 시 dev 채널 알림 (Lead=MCP, Teammate=send_slack.sh)
+
+---
+
+## 🤖 AI 에이전트 목록 (13개) - Agent Teams v3.0
 
 > **2026-02-08 전환**: 기존 서브에이전트(Task tool 일회성) → **Agent Teams(상주 팀원, 양방향 통신)** 전환 완료
 > - 팀 이름: `hrkp-sprint-08` | 공유 TaskList + SendMessage 기반 자율 협업
-> - 상세: [Agent Teams 활용 가이드 v2.0](./docs/12_Agent_Teams_활용_가이드.md)
+> - 상세: [Agent Teams 활용 가이드 v3.0](./docs/12_Agent_Teams_활용_가이드.md)
 
 프로젝트 특화 에이전트들이 `.claude/agents/`에 정의되어 있습니다.
 
@@ -554,7 +566,7 @@ PM 승인: [PM Agent]
 - [Claude Commands README](./.claude/commands/README.md) - 설치된 명령어 전체 목록
 - [개발자 에이전트 가이드](./knowledge_service/docs/05_development/01_developer_agent_guide.md) - AI 에이전트 도구 사용법 ⭐
 - [개발자 통합 가이드](./knowledge_service/docs/05_development/02_developer_integration_guide.md) - MCP/Agent/Skills 설정 ⭐
-- [Agent Teams 활용 가이드](./docs/12_Agent_Teams_활용_가이드.md) - 멀티-에이전트 협업 ⭐
+- [Agent Teams 활용 가이드 v3.0](./docs/12_Agent_Teams_활용_가이드.md) - 멀티-에이전트 협업 + 세션별 표준 워크플로우 ⭐
 - [테스트 계획서](./knowledge_service/docs/04_testing/test_plans/00_unit_integration_test_plan.md) - TDD/Test-Along 기준
 - [백로그 관리 가이드](./backlog/README.md) - Jira-free 백로그 관리
 - [ALM 완전가이드](./docs/technical_assessment/claude_code_virtual_team_alm_guide/) - 가상팀 협업 가이드 (4개 문서)
