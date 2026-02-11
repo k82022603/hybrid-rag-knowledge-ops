@@ -21,6 +21,7 @@ Pipeline:
 """
 
 import asyncio
+import hashlib
 import os
 import re
 import time
@@ -626,6 +627,74 @@ class InitialDataLoader:
         return bool(self._skip_regex.search(path_str))
 
     # ------------------------------------------------------------------
+    # Internal: Dedup (STORY-108)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _compute_file_hash(file_path: Path) -> str:
+        """파일 SHA-256 해시 계산
+
+        Args:
+            file_path: 파일 경로
+
+        Returns:
+            SHA-256 해시 문자열 (64자 hex)
+        """
+        sha256 = hashlib.sha256()
+        with open(file_path, "rb") as f:
+            for block in iter(lambda: f.read(8192), b""):
+                sha256.update(block)
+        return sha256.hexdigest()
+
+    async def _check_duplicate(self, file_hash: str, file_path: str) -> Optional[str]:
+        """PG에서 file_hash 기반 중복 문서 확인
+
+        Args:
+            file_hash: 파일 SHA-256 해시
+            file_path: 파일 경로 (로깅용)
+
+        Returns:
+            기존 document_id (중복 시) 또는 None (신규 시)
+        """
+        try:
+            from app.services.document_repository import get_document_repository
+
+            repo = await get_document_repository()
+
+            if repo._pool is None:
+                logger.warning("PG pool not available, skipping dedup check")
+                return None
+
+            async with repo._pool.acquire() as conn:
+                row = await conn.fetchrow(
+                    """
+                    SELECT id, file_path, processing_status
+                    FROM documents
+                    WHERE file_hash = $1
+                      AND processing_status = 'completed'
+                    LIMIT 1
+                    """,
+                    file_hash,
+                )
+
+                if row:
+                    logger.info(
+                        "Duplicate detected: file_hash=%s, existing_doc=%s, "
+                        "existing_path=%s, new_path=%s",
+                        file_hash[:16],
+                        str(row["id"])[:8],
+                        row["file_path"],
+                        file_path,
+                    )
+                    return str(row["id"])
+
+                return None
+
+        except Exception as e:
+            logger.warning("Dedup check failed (proceeding without): %s", e)
+            return None
+
+    # ------------------------------------------------------------------
     # Internal: File Processing Pipeline
     # ------------------------------------------------------------------
 
@@ -647,6 +716,25 @@ class InitialDataLoader:
         )
 
         start_time = time.monotonic()
+
+        # Step 0: 중복 검사 (STORY-108)
+        file_hash = self._compute_file_hash(file_info.file_path)
+        existing_doc_id = await self._check_duplicate(
+            file_hash=file_hash,
+            file_path=str(file_info.file_path),
+        )
+        if existing_doc_id:
+            result.status = LoadStatus.SKIPPED
+            result.document_id = existing_doc_id
+            result.error_message = f"Duplicate: file_hash matches doc {existing_doc_id[:8]}"
+            result.processing_time_ms = (time.monotonic() - start_time) * 1000
+            logger.info(
+                "Skipping duplicate file: %s (existing doc_id=%s, hash=%s)",
+                file_info.file_name,
+                existing_doc_id[:8],
+                file_hash[:16],
+            )
+            return result
 
         for attempt in range(self.max_retries):
             try:
@@ -714,6 +802,7 @@ class InitialDataLoader:
                     embeddings=embeddings,
                     entities=entities,
                     metadata=metadata,
+                    file_hash=file_hash,
                 )
 
                 result.document_id = effective_doc_id
@@ -1004,6 +1093,7 @@ class InitialDataLoader:
         embeddings: Optional[List[Any]],
         entities: List[Any],
         metadata: Dict[str, Any],
+        file_hash: Optional[str] = None,
     ) -> str:
         """문서 데이터를 저장소에 적재
 
@@ -1021,6 +1111,7 @@ class InitialDataLoader:
             embeddings: 임베딩 리스트 (선택)
             entities: 엔티티 리스트
             metadata: 메타데이터 딕셔너리
+            file_hash: SHA-256 파일 해시 (STORY-108 dedup용)
 
         Returns:
             실제 저장된 document_id (PG 우선)
@@ -1035,6 +1126,7 @@ class InitialDataLoader:
             file_info=file_info,
             chunks=chunks,
             metadata=metadata,
+            file_hash=file_hash,
         )
         # PG 저장 성공 시 PG ID 사용, 실패 시 원래 UUID 유지
         effective_doc_id = pg_doc_id or document_id
@@ -1064,6 +1156,7 @@ class InitialDataLoader:
         file_info: FileInfo,
         chunks: List[Any],
         metadata: Dict[str, Any],
+        file_hash: Optional[str] = None,
     ) -> Optional[str]:
         """PostgreSQL documents 테이블에 문서 레코드 저장 (SSOT)
 
@@ -1075,6 +1168,7 @@ class InitialDataLoader:
             file_info: 파일 정보
             chunks: 청크 리스트 (chunk_count 계산용)
             metadata: 메타데이터 딕셔너리
+            file_hash: SHA-256 파일 해시 (STORY-108 dedup용)
 
         Returns:
             저장된 document_id (성공 시) 또는 None (실패 시)
@@ -1094,6 +1188,7 @@ class InitialDataLoader:
                 "status": "completed",
                 "metadata": metadata,
                 "created_at": file_info.modified_at or datetime.utcnow(),
+                "file_hash": file_hash,
             }
 
             await repo.save(doc_record)

@@ -56,9 +56,11 @@ class SearchResult(BaseModel):
 
     chunk_id: str = Field(description="청크 ID")
     document_id: str = Field(description="문서 ID")
+    title: Optional[str] = Field(default=None, description="문서 제목")
     content: str = Field(description="청크 내용")
     score: float = Field(description="관련성 점수")
     source_type: Optional[str] = Field(default=None, description="검색 소스 (vector, keyword, graph)")
+    contributing_sources: Optional[List[str]] = Field(default=None, description="기여 소스 목록 (RRF 융합 시)")
     metadata: Dict[str, Any] = Field(default_factory=dict, description="메타데이터")
     has_embedding: Optional[bool] = Field(default=None, description="임베딩 벡터 존재 여부 (SCRUM-96)")
 
@@ -207,6 +209,7 @@ async def hybrid_search(
                 SearchResult(
                     chunk_id=r.chunk_id,
                     document_id=r.document_id,
+                    title=r.metadata.get("title") or r.metadata.get("file_name"),
                     content=r.content,
                     score=r.score,
                     # SCRUM-101: graph 기여 시 source_type="graph" 우선 표시
@@ -214,6 +217,7 @@ async def hybrid_search(
                         "graph" if "graph" in r.metadata.get("contributing_sources", [])
                         else getattr(r, "source", None) or r.metadata.get("search_source")
                     ),
+                    contributing_sources=r.metadata.get("contributing_sources"),
                     metadata=r.metadata,
                     has_embedding=getattr(r, "has_embedding", None),
                 )
@@ -275,6 +279,7 @@ async def semantic_search(
                 SearchResult(
                     chunk_id=r.chunk_id,
                     document_id=r.document_id,
+                    title=r.metadata.get("title") or r.metadata.get("file_name"),
                     content=r.content,
                     score=r.score,
                     source_type="vector",
@@ -338,6 +343,7 @@ async def keyword_search(
                 SearchResult(
                     chunk_id=r.chunk_id,
                     document_id=r.document_id,
+                    title=r.metadata.get("title") or r.metadata.get("file_name"),
                     content=r.content,
                     score=r.score,
                     source_type="keyword",

@@ -108,7 +108,7 @@ Key Objectives:
 | High | STORY-105 | SCRUM-98 | DOCS: RAGAS 평가 기준 문서 확정 | 3 | MLRag | To Do |
 | High | STORY-106 | - | TEST: 임베딩 유무별 검색 품질 비교 테스트 | 3 | QA | To Do |
 | Medium | STORY-107 | - | FEAT: 배치 작업용 Health Check + 자동 재시작 CI/CD | 3 | DevOps | To Do (Sprint 09) |
-| High | STORY-108 | - | FEAT: InitialDataLoader 중복 방지 (file_hash 기반) | 3 | Data | To Do |
+| High | STORY-108 | - | FEAT: InitialDataLoader 중복 방지 (file_hash 기반) | 3 | Data | Done |
 | Medium | STORY-109 | - | CHORE: docker-compose.yml ai-service 메모리 설정 현행화 | 1 | Infra | To Do |
 | Low | STORY-110 | - | DOCS: git push credential helper 수정 완료 문서화 | 1 | DevOps | To Do |
 
