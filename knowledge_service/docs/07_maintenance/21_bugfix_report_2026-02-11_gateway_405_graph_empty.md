@@ -8,21 +8,22 @@
 | **수정자** | Claude (AI Assistant) |
 | **우선순위** | High |
 | **상태** | 수정 완료, 검증 완료 |
-| **커밋** | `eb40cda`, `b4278fa` |
-| **영향 범위** | Chat 검색 (405 → 200), 그래프 시각화 (빈 결과 → 정상), Subgraph API (500 → 200) |
+| **커밋** | `eb40cda`, `b4278fa`, (Bug #4: 미커밋) |
+| **영향 범위** | Chat 검색 (405 → 200), 그래프 시각화 (빈 결과 → 정상), Subgraph API (500 → 200), Chat 503 Timeout → 200 |
 | **관련 이슈** | ISSUE-011 (그래프 패널 엔티티명), SCRUM-101 (graph 소스 태깅) |
 
 ---
 
 ## 버그 요약
 
-이 보고서는 동일 세션에서 발견/수정된 **연관된 3건의 버그**를 다룹니다.
+이 보고서는 동일 세션에서 발견/수정된 **연관된 4건의 버그**를 다룹니다.
 
 | # | 버그 | 증상 | 근본 원인 |
 |---|------|------|-----------|
 | 1 | Gateway 405 Method Not Allowed | POST `/api/v1/search/chat` → 405 | FallbackController 어노테이션 + Circuit Breaker 설정 |
 | 2 | 그래프 시각화 빈 결과 | 그래프 아이콘 클릭 → 빈 그래프 | RRF 융합에서 `matched_entities` 유실 |
 | 3 | Subgraph API Lucene 파싱 오류 | `CI/CD` → 500 Server Error | Neo4j Fulltext 쿼리에 Lucene 특수문자 미이스케이프 |
+| 4 | AI Service 503 Timeout | 특정 프롬프트에서 503 반환 | Gateway/Resilience4j 타임아웃(60s) < AI 처리시간(91s) |
 
 ---
 
@@ -421,6 +422,76 @@ POST /api/v1/graph/subgraph {"entity_name": "CI/CD"}
 
 ---
 
+## Bug #4: AI Service 503 Timeout (Chat 검색)
+
+### 증상
+
+```
+POST /api/v1/search/chat HTTP/1.1
+→ 503 Service Unavailable
+{
+  "error": "AI service is temporarily unavailable",
+  "message": "Search and RAG functionality is currently limited."
+}
+```
+
+특정 프롬프트에서 AI 서비스가 타임아웃으로 503 반환.
+
+### 원인 분석
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Nginx
+    participant Gateway
+    participant AI as AI Service
+
+    Note over AI: CPU 기반 처리 (GPU 없음)
+
+    Client->>Nginx: POST /api/v1/search/chat
+    Nginx->>Gateway: proxy_pass (120s timeout)
+    Gateway->>AI: forward (60s timeout)
+    AI->>AI: Embedding 모델 로드 (46s)
+    AI->>AI: Hybrid Search + Reranking (9s)
+    Note over Gateway: 60초 경과 → TimeLimiter timeout!
+    Gateway-->>Nginx: 503 (fallback)
+    Nginx-->>Client: 503 Service Unavailable
+    AI->>AI: LLM 생성 (35s) - 이미 끊김
+    Note over AI: 총 91초 소요 (Gateway는 60초에서 포기)
+```
+
+**근본 원인**: CPU 환경에서의 처리 시간이 Gateway/Resilience4j 타임아웃(60초)을 초과
+
+| 단계 | Cold Start | Warm |
+|------|-----------|------|
+| 임베딩 모델 로드 | **46초** | 0초 (캐시) |
+| Hybrid Search + Reranking | 9초 | 2초 (캐시) |
+| LLM 생성 | 35초 | 31초 |
+| **합계** | **91초** | **34초** |
+
+### 수정 내용
+
+4개 타임아웃을 120초로 통일 (Nginx `/api/v1/search`와 일치):
+
+| 설정 | 파일 | 변경 |
+|------|------|------|
+| Gateway `response-timeout` | gateway application.yml | 60s → **120s** |
+| Resilience4j `ai-service TimeLimiter` | gateway application.yml | 60s → **120s** |
+| Resilience4j `slow-call-duration-threshold` | gateway application.yml | 30s → **45s** |
+| Backend WebClient `ai-service.timeout` | backend application.yml | 60s → **120s** |
+
+### 검증
+
+```
+# Redis FLUSH + AI Service 재시작 (True Cold Start)
+POST /api/v1/search/chat → 200 OK, 62.2s
+
+# Warm (캐시 히트)
+POST /api/v1/search/chat → 200 OK, 33.7s
+```
+
+---
+
 ## 수정 파일 목록
 
 | 파일 | 변경 | 버그 |
@@ -431,6 +502,8 @@ POST /api/v1/graph/subgraph {"entity_name": "CI/CD"}
 | `src/app/agents/rag_workflow.py` | `_extract_entities_from_title()` 키워드 분리 | #2 |
 | `src/app/storage/neo4j_storage.py` | `query_subgraph` 3단계 fallback 추가 | #2 |
 | `src/app/storage/neo4j_storage.py` | `_escape_lucene()` 함수 추가, fulltext 쿼리 이스케이프 | #3 |
+| `gateway/.../application.yml` | `response-timeout` 60→120s, TimeLimiter 60→120s | #4 |
+| `backend/.../application.yml` | `ai-service.timeout` 60→120s | #4 |
 
 ---
 

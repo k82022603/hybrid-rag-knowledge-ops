@@ -179,6 +179,96 @@ export const adminService = {
     const response = await api.get<SystemStats>('/admin/stats');
     return response.data;
   },
+
+  // ============================================================
+  // Cache Management (AI Service)
+  // ============================================================
+
+  /**
+   * 캐시 통계 조회
+   */
+  async getCacheStats(): Promise<CacheStats> {
+    const response = await api.get<CacheStats>('/cache/stats');
+    return response.data;
+  },
+
+  /**
+   * 캐시 전체 삭제
+   */
+  async clearCache(): Promise<CacheClearResult> {
+    const response = await api.delete<CacheClearResult>('/cache/clear');
+    return response.data;
+  },
+
+  /**
+   * 패턴 기반 캐시 무효화
+   */
+  async invalidateCache(pattern?: string): Promise<CacheInvalidateResult> {
+    const response = await api.delete<CacheInvalidateResult>('/cache/invalidate', {
+      params: pattern ? { pattern } : {},
+    });
+    return response.data;
+  },
+
+  /**
+   * 캐시 상태 확인
+   */
+  async getCacheStatus(): Promise<CacheStatus> {
+    const response = await api.get<CacheStatus>('/cache/status');
+    return response.data;
+  },
+
+  /**
+   * 캐시 통계 초기화
+   */
+  async resetCacheStats(): Promise<{ success: boolean; message: string }> {
+    const response = await api.post<{ success: boolean; message: string }>('/cache/stats/reset');
+    return response.data;
+  },
 };
+
+/**
+ * 캐시 통계 인터페이스
+ */
+export interface CacheStats {
+  hits: number;
+  misses: number;
+  total_requests: number;
+  hit_rate: number;
+  miss_rate: number;
+  size: number;
+  max_size: number;
+  backend: string;
+  last_reset: string;
+  enabled: boolean;
+  ttl_seconds: number;
+}
+
+/**
+ * 캐시 삭제 결과
+ */
+export interface CacheClearResult {
+  deleted_count: number;
+  message: string;
+}
+
+/**
+ * 캐시 무효화 결과
+ */
+export interface CacheInvalidateResult {
+  deleted_count: number;
+  pattern: string | null;
+  message: string;
+}
+
+/**
+ * 캐시 상태
+ */
+export interface CacheStatus {
+  enabled: boolean;
+  backend: string;
+  status: string;
+  message: string;
+}
 
 export default adminService;

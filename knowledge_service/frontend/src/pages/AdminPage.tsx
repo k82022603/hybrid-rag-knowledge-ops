@@ -20,6 +20,8 @@ import {
   ClockIcon,
   ShieldCheckIcon,
   NoSymbolIcon,
+  ServerStackIcon,
+  TrashIcon,
 } from '@heroicons/react/24/outline';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
@@ -33,11 +35,12 @@ import {
 /**
  * Admin Tab type
  */
-type AdminTab = 'users' | 'settings' | 'audit-logs' | 'stats';
+type AdminTab = 'users' | 'settings' | 'audit-logs' | 'stats' | 'cache';
 
 const ADMIN_TABS: { key: AdminTab; label: string; icon: React.ReactNode }[] = [
   { key: 'stats', label: 'System Stats', icon: <ChartBarIcon className="h-5 w-5" /> },
   { key: 'users', label: 'User Management', icon: <UsersIcon className="h-5 w-5" /> },
+  { key: 'cache', label: 'Cache', icon: <ServerStackIcon className="h-5 w-5" /> },
   { key: 'settings', label: 'System Settings', icon: <Cog6ToothIcon className="h-5 w-5" /> },
   { key: 'audit-logs', label: 'Audit Logs', icon: <ClipboardDocumentListIcon className="h-5 w-5" /> },
 ];
@@ -601,6 +604,240 @@ const SystemSettingsPanel: React.FC = () => {
 };
 
 /**
+ * CacheManagementPanel - 캐시 관리 탭
+ */
+const CacheManagementPanel: React.FC = () => {
+  const queryClient = useQueryClient();
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [resultMsg, setResultMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [invalidatePattern, setInvalidatePattern] = useState('');
+
+  const { data: stats, isLoading, isError, refetch } = useQuery({
+    queryKey: ['admin', 'cache-stats'],
+    queryFn: () => adminService.getCacheStats(),
+    refetchInterval: 15000,
+  });
+
+  const { data: status } = useQuery({
+    queryKey: ['admin', 'cache-status'],
+    queryFn: () => adminService.getCacheStatus(),
+  });
+
+  const clearMutation = useMutation({
+    mutationFn: () => adminService.clearCache(),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'cache-stats'] });
+      setResultMsg({ type: 'success', text: data.message });
+      setConfirmClear(false);
+      setTimeout(() => setResultMsg(null), 5000);
+    },
+    onError: () => {
+      setResultMsg({ type: 'error', text: 'Failed to clear cache.' });
+      setTimeout(() => setResultMsg(null), 5000);
+    },
+  });
+
+  const invalidateMutation = useMutation({
+    mutationFn: (pattern?: string) => adminService.invalidateCache(pattern),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'cache-stats'] });
+      setResultMsg({ type: 'success', text: data.message });
+      setInvalidatePattern('');
+      setTimeout(() => setResultMsg(null), 5000);
+    },
+    onError: () => {
+      setResultMsg({ type: 'error', text: 'Failed to invalidate cache.' });
+      setTimeout(() => setResultMsg(null), 5000);
+    },
+  });
+
+  const resetStatsMutation = useMutation({
+    mutationFn: () => adminService.resetCacheStats(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin', 'cache-stats'] });
+      setResultMsg({ type: 'success', text: 'Cache statistics reset.' });
+      setTimeout(() => setResultMsg(null), 5000);
+    },
+  });
+
+  const hitRate = stats ? (stats.hit_rate * 100).toFixed(1) : '0';
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <ArrowPathIcon className="h-6 w-6 text-primary-500 animate-spin" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="text-center py-12">
+        <ExclamationTriangleIcon className="h-8 w-8 text-error-500 mx-auto mb-2" />
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">Failed to load cache stats.</p>
+        <button onClick={() => refetch()} className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700">
+          <ArrowPathIcon className="h-4 w-4" /> Retry
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6" data-testid="cache-management">
+      {/* Status Banner */}
+      <div className={`flex items-center gap-3 p-4 rounded-xl border ${
+        status?.status === 'available'
+          ? 'bg-success-50 dark:bg-success-900/20 border-success-200 dark:border-success-800'
+          : 'bg-warning-50 dark:bg-warning-900/20 border-warning-200 dark:border-warning-800'
+      }`}>
+        <ServerStackIcon className={`h-5 w-5 ${status?.status === 'available' ? 'text-success-600' : 'text-warning-600'}`} />
+        <div className="flex-1">
+          <p className="text-sm font-medium text-gray-900 dark:text-white">
+            Redis Cache — {status?.status === 'available' ? 'Online' : status?.status ?? 'Unknown'}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400">{status?.message}</p>
+        </div>
+        <button
+          onClick={() => refetch()}
+          className="p-1.5 rounded-lg hover:bg-white/50 dark:hover:bg-gray-700/50 text-gray-500"
+          title="Refresh"
+        >
+          <ArrowPathIcon className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <StatCard
+          title="Hit Rate"
+          value={`${hitRate}%`}
+          icon={<CheckCircleIcon className="h-5 w-5 text-success-600 dark:text-success-400" />}
+          color="bg-success-50 dark:bg-success-900/30"
+          subtitle={`${stats?.hits ?? 0} hits / ${stats?.misses ?? 0} misses`}
+        />
+        <StatCard
+          title="Total Requests"
+          value={stats?.total_requests?.toLocaleString() ?? '0'}
+          icon={<ChartBarIcon className="h-5 w-5 text-primary-600 dark:text-primary-400" />}
+          color="bg-primary-50 dark:bg-primary-900/30"
+        />
+        <StatCard
+          title="Cache Size"
+          value={stats?.size === -1 ? 'N/A (Redis)' : String(stats?.size ?? 0)}
+          icon={<ServerStackIcon className="h-5 w-5 text-accent-600 dark:text-accent-400" />}
+          color="bg-accent-50 dark:bg-accent-900/30"
+          subtitle={`Backend: ${stats?.backend ?? 'unknown'}`}
+        />
+        <StatCard
+          title="TTL"
+          value={`${Math.floor((stats?.ttl_seconds ?? 0) / 60)}min`}
+          icon={<ClockIcon className="h-5 w-5 text-warning-600 dark:text-warning-400" />}
+          color="bg-warning-50 dark:bg-warning-900/30"
+          subtitle={`${stats?.ttl_seconds ?? 0}s`}
+        />
+      </div>
+
+      {/* Actions */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 space-y-5">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white">Cache Actions</h3>
+
+        {/* Clear All Cache */}
+        <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+          <div>
+            <p className="text-sm font-medium text-gray-900 dark:text-white">Clear All Cache</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Remove all cached search results. This cannot be undone.</p>
+          </div>
+          {!confirmClear ? (
+            <button
+              onClick={() => setConfirmClear(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-error-600 rounded-lg hover:bg-error-700 transition-colors"
+            >
+              <TrashIcon className="h-4 w-4" />
+              Clear Cache
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setConfirmClear(false)}
+                className="px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => clearMutation.mutate()}
+                disabled={clearMutation.isPending}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-error-600 rounded-lg hover:bg-error-700 disabled:opacity-50"
+              >
+                {clearMutation.isPending && <ArrowPathIcon className="h-4 w-4 animate-spin" />}
+                Confirm Clear
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Pattern Invalidation */}
+        <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg space-y-3">
+          <div>
+            <p className="text-sm font-medium text-gray-900 dark:text-white">Invalidate by Pattern</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Delete cache entries matching a pattern (e.g., &quot;search_cache:*&quot;).</p>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={invalidatePattern}
+              onChange={(e) => setInvalidatePattern(e.target.value)}
+              placeholder="Pattern (e.g., search_cache:*)"
+              className="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500"
+            />
+            <button
+              onClick={() => invalidateMutation.mutate(invalidatePattern || undefined)}
+              disabled={invalidateMutation.isPending}
+              className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-warning-600 rounded-lg hover:bg-warning-700 disabled:opacity-50 whitespace-nowrap"
+            >
+              {invalidateMutation.isPending && <ArrowPathIcon className="h-4 w-4 animate-spin" />}
+              Invalidate
+            </button>
+          </div>
+        </div>
+
+        {/* Reset Stats */}
+        <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+          <div>
+            <p className="text-sm font-medium text-gray-900 dark:text-white">Reset Statistics</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Reset hit/miss counters to zero. Cache data is preserved.</p>
+          </div>
+          <button
+            onClick={() => resetStatsMutation.mutate()}
+            disabled={resetStatsMutation.isPending}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 disabled:opacity-50"
+          >
+            {resetStatsMutation.isPending && <ArrowPathIcon className="h-4 w-4 animate-spin" />}
+            Reset Stats
+          </button>
+        </div>
+      </div>
+
+      {/* Result Message */}
+      {resultMsg && (
+        <div className={`flex items-center gap-2 p-3 rounded-lg border ${
+          resultMsg.type === 'success'
+            ? 'bg-success-50 dark:bg-success-900/20 border-success-200 dark:border-success-800'
+            : 'bg-error-50 dark:bg-error-900/20 border-error-200 dark:border-error-800'
+        }`}>
+          {resultMsg.type === 'success'
+            ? <CheckCircleIcon className="h-5 w-5 text-success-500" />
+            : <ExclamationTriangleIcon className="h-5 w-5 text-error-500" />
+          }
+          <span className={`text-sm ${resultMsg.type === 'success' ? 'text-success-700 dark:text-success-300' : 'text-error-700 dark:text-error-300'}`}>
+            {resultMsg.text}
+          </span>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/**
  * AuditLogTable - 감사 로그 탭
  */
 const AuditLogTable: React.FC = () => {
@@ -772,6 +1009,7 @@ const AdminPage: React.FC = () => {
         <div className="flex-1 min-w-0">
           {activeTab === 'stats' && <SystemStatsPanel />}
           {activeTab === 'users' && <UserManagement />}
+          {activeTab === 'cache' && <CacheManagementPanel />}
           {activeTab === 'settings' && (
             <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6">
               <SystemSettingsPanel />

@@ -730,16 +730,24 @@ CONTEXT_QUALITY_MIN_HIGH_COUNT=1
 | high_threshold 설정 | 현재 0.3 | 0.5로 상향 |
 | 컨텍스트 구성 | build_context_from_results 로그 | max_chunks 조정 |
 
-#### 문제 3: 응답 시간 > 30초
+#### 문제 3: 응답 시간 > 30초 / 503 Timeout
 
 | 점검 항목 | 확인 방법 | 해결 |
 |----------|----------|------|
 | Reranker 레이턴시 | pipelineStages.retrieve.latency_ms | fetch_k 줄이기 (top_k*5 -> top_k*3) |
 | LLM 응답 시간 | pipelineStages.generate.latency_ms | llm_max_tokens 줄이기 |
 | 모델 첫 로딩 | 첫 요청 시 ~60초 | 사전 워밍업 |
-| **Frontend 타임아웃** | 브라우저 콘솔 Network 탭 | **axios timeout을 120초로 설정** (v5: 30→120초) |
+| **Gateway 타임아웃** | Gateway 로그 503 확인 | **response-timeout: 120s** (v5: 60→120s) |
+| **Resilience4j TimeLimiter** | CircuitBreaker fallback 로그 | **ai-timeout: 120s** (v5: 60→120s) |
+| **Backend WebClient** | Backend 로그 timeout 확인 | **ai-service.timeout: 120s** (v5: 60→120s) |
+| **Frontend 타임아웃** | 브라우저 콘솔 Network 탭 | **axios timeout: 120s** (v5: 30→120s) |
 
-> **v5 참고**: RAG 파이프라인(검색 10초 + LLM 생성 35초)이 총 45초 소요되는 경우가 있어, Frontend axios 타임아웃을 120초로 확대했습니다 (`frontend/src/services/api.ts`).
+> **v5 타임아웃 체인 (2026-02-11 수정)**: CPU 환경에서 Cold Start 시 총 91초(임베딩 로드 46s + Reranking 9s + LLM 35s) 소요되어, Nginx(120s) → Gateway(120s) → Resilience4j(120s) → Backend WebClient(120s) → Frontend axios(120s) 전 구간 120초로 통일했습니다.
+>
+> ```
+> Client → Nginx (120s) → Gateway response-timeout (120s) → Resilience4j TimeLimiter (120s)
+>        → Backend WebClient (120s) → AI Service (실제 처리: 34~91s)
+> ```
 
 #### 문제 4: Reranker 모델 로딩 실패
 

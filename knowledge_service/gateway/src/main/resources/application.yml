@@ -23,10 +23,11 @@ spring:
       # ==============================================
       # HttpClient Configuration (Connection Pool & Timeouts)
       # SCRUM-62: Netty Channel Error 대응
+      # Cold start: 임베딩 모델 로드(46s) + Reranking(9s) + LLM(35s) = 91s 대응
       # ==============================================
       httpclient:
         connect-timeout: 10000
-        response-timeout: 60s
+        response-timeout: 120s
         pool:
           type: elastic
           max-connections: 500
@@ -265,6 +266,26 @@ spring:
                 redis-rate-limiter.requestedTokens: 1
 
         # ==============================================
+        # Cache Management Routes (/api/v1/cache/**)
+        # Redis cache stats, clear, invalidate → AI Service
+        # ==============================================
+        - id: cache-service
+          uri: ${AI_SERVICE_URL:http://localhost:8000}
+          predicates:
+            - Path=/api/v1/cache/**
+          filters:
+            - TokenRelay=
+            - name: CircuitBreaker
+              args:
+                name: ai-service-circuit-breaker
+                fallbackUri: forward:/fallback/ai-service
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                redis-rate-limiter.requestedTokens: 1
+
+        # ==============================================
         # Backend API Routes (/api/v1/**)
         # Catch-all for other backend endpoints
         # ==============================================
@@ -391,7 +412,7 @@ resilience4j:
         permitted-number-of-calls-in-half-open-state: 3
         wait-duration-in-open-state: 10s
         failure-rate-threshold: 50
-        slow-call-duration-threshold: 30s
+        slow-call-duration-threshold: 45s  # CPU Reranking 38s 허용
         slow-call-rate-threshold: 90
     instances:
       auth-circuit-breaker:
@@ -409,7 +430,7 @@ resilience4j:
       default:
         timeout-duration: 30s
       ai-timeout:
-        timeout-duration: 60s
+        timeout-duration: 120s  # Cold start: 임베딩 로드(46s) + Reranking(9s) + LLM(35s) = 91s
     instances:
       auth-circuit-breaker:
         timeout-duration: 15s
@@ -420,7 +441,7 @@ resilience4j:
       user-circuit-breaker:
         timeout-duration: 15s
       ai-service-circuit-breaker:
-        timeout-duration: 60s
+        timeout-duration: 120s  # Cold start: 임베딩 로드(46s) + Reranking(9s) + LLM(35s) = 91s
 
 # ============================================================
 # Logging Configuration
@@ -480,10 +501,11 @@ spring:
       # ==============================================
       # HttpClient Configuration (Docker Profile)
       # SCRUM-62: Netty Channel Error 대응
+      # Cold start: 임베딩 모델 로드(46s) + Reranking(9s) + LLM(35s) = 91s 대응
       # ==============================================
       httpclient:
         connect-timeout: 10000
-        response-timeout: 60s
+        response-timeout: 120s
         pool:
           type: elastic
           max-connections: 500
@@ -680,6 +702,23 @@ spring:
               args:
                 redis-rate-limiter.replenishRate: 100
                 redis-rate-limiter.burstCapacity: 200
+                redis-rate-limiter.requestedTokens: 1
+
+        # Cache Management Routes (Docker)
+        - id: cache-service
+          uri: http://ai-service:8000
+          predicates:
+            - Path=/api/v1/cache/**
+          filters:
+            - TokenRelay=
+            - name: CircuitBreaker
+              args:
+                name: ai-service-circuit-breaker
+                fallbackUri: forward:/fallback/ai-service
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
                 redis-rate-limiter.requestedTokens: 1
 
         # Backend API (Docker)

@@ -1,6 +1,7 @@
 package com.knowledge.backend.service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -11,7 +12,9 @@ import com.knowledge.backend.api.dto.admin.SystemConfigResponse;
 import com.knowledge.backend.api.dto.user.UserProfileResponse;
 import com.knowledge.backend.domain.entity.SystemConfig;
 import com.knowledge.backend.domain.repository.AuditLogRepository;
+import com.knowledge.backend.domain.repository.DocumentRepository;
 import com.knowledge.backend.domain.repository.KnowledgeUserRepository;
+import com.knowledge.backend.domain.repository.SearchHistoryRepository;
 import com.knowledge.backend.domain.repository.SystemConfigRepository;
 import com.knowledge.backend.exception.ResourceNotFoundException;
 
@@ -34,6 +37,8 @@ public class AdminService {
     private final KnowledgeUserRepository knowledgeUserRepository;
     private final SystemConfigRepository systemConfigRepository;
     private final AuditLogRepository auditLogRepository;
+    private final DocumentRepository documentRepository;
+    private final SearchHistoryRepository searchHistoryRepository;
 
     // ========================================================================
     // User Management
@@ -135,6 +140,38 @@ public class AdminService {
                 )
                 .doOnComplete(() -> log.info("System config updated successfully"))
                 .map(SystemConfigResponse::from);
+    }
+
+    // ========================================================================
+    // System Statistics
+    // ========================================================================
+
+    /**
+     * Get system statistics (document count, user count, search count, etc.)
+     *
+     * @return Mono of stats map
+     */
+    public Mono<Map<String, Object>> getSystemStats() {
+        log.debug("Getting system statistics");
+
+        Mono<Long> totalDocs = documentRepository.countTotal().defaultIfEmpty(0L);
+        Mono<Long> totalUsers = knowledgeUserRepository.countTotal().defaultIfEmpty(0L);
+        Mono<Long> activeUsers = knowledgeUserRepository.countActive().defaultIfEmpty(0L);
+        Mono<Long> totalSearches = searchHistoryRepository.countTotal().defaultIfEmpty(0L);
+
+        return Mono.zip(totalDocs, totalUsers, activeUsers, totalSearches)
+                .map(tuple -> {
+                    Map<String, Object> stats = new HashMap<>();
+                    stats.put("totalDocuments", tuple.getT1());
+                    stats.put("totalUsers", tuple.getT2());
+                    stats.put("activeUsers", tuple.getT3());
+                    stats.put("totalSearches", tuple.getT4());
+                    stats.put("totalSearchesToday", 0);
+                    stats.put("storageUsed", "N/A");
+                    stats.put("indexingRate", 100);
+                    stats.put("avgResponseTime", 0);
+                    return stats;
+                });
     }
 
     // ========================================================================

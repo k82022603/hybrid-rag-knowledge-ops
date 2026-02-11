@@ -71,7 +71,7 @@ auth:
 # AI Service Configuration
 ai-service:
   url: ${AI_SERVICE_URL:http://localhost:8000}
-  timeout: 60s
+  timeout: 120s  # Cold start: 임베딩 로드(46s) + Reranking(9s) + LLM(35s) = 91s
 
 # Elasticsearch Configuration
 elasticsearch:
@@ -183,6 +183,7 @@ spring:
 
 ai-service:
   url: http://ai-service:8000
+  timeout: 120s  # Cold start: 임베딩 로드(46s) + Reranking(9s) + LLM(35s) = 91s
 
 elasticsearch:
   url: http://elasticsearch:9200

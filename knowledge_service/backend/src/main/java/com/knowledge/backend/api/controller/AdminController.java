@@ -1,5 +1,6 @@
 package com.knowledge.backend.api.controller;
 
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.http.ResponseEntity;
@@ -147,6 +148,17 @@ public class AdminController {
     ) {
         log.info("GET /admin/audit-logs - page={}, size={}", page, size);
         return adminService.getAuditLogs(page, size);
+    }
+
+    /**
+     * Get system statistics
+     *
+     * @return Mono of system stats map
+     */
+    @GetMapping("/stats")
+    public Mono<Map<String, Object>> getSystemStats() {
+        log.info("GET /admin/stats");
+        return adminService.getSystemStats();
     }
 
     /**
