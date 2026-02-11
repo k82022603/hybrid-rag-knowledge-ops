@@ -54,19 +54,23 @@ public class AdminController {
     private final AdminService adminService;
 
     /**
-     * Get paginated user list
+     * Get paginated user list with optional search and status filter
      *
-     * @param page page number (default 0)
-     * @param size page size (default 20)
+     * @param page     page number (default 0)
+     * @param size     page size (default 20)
+     * @param search   optional search keyword (username, email, displayName, department)
+     * @param isActive optional active status filter (true/false)
      * @return Flux of UserProfileResponse
      */
     @GetMapping("/users")
     public Flux<UserProfileResponse> getUsers(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(required = false) String search,
+            @RequestParam(required = false) Boolean isActive
     ) {
-        log.info("GET /admin/users - page={}, size={}", page, size);
-        return adminService.getUsers(page, size);
+        log.info("GET /admin/users - page={}, size={}, search={}, isActive={}", page, size, search, isActive);
+        return adminService.getUsers(page, size, search, isActive);
     }
 
     /**

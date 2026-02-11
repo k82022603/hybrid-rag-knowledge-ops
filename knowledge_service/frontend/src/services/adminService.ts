@@ -11,20 +11,25 @@ import api from './api';
 import type { User } from '@/types';
 
 /**
- * 사용자 목록 응답 인터페이스
+ * Backend UserProfileResponse 원본 인터페이스
  */
-export interface AdminUserListResponse {
-  users: AdminUser[];
-  totalCount: number;
-  page: number;
-  pageSize: number;
+interface BackendUserProfile {
+  id: string;
+  email: string;
+  displayName: string;
+  role: string;
+  isActive: boolean;
+  lastLoginAt?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /**
  * 관리자용 사용자 인터페이스
  */
 export interface AdminUser extends User {
-  status: 'active' | 'inactive' | 'locked';
+  role: string;
+  status: 'active' | 'inactive';
   lastLogin?: string;
   createdAt: string;
   updatedAt: string;
@@ -33,9 +38,27 @@ export interface AdminUser extends User {
 /**
  * 사용자 역할 변경 요청
  */
-export interface UpdateUserRolesRequest {
+export interface UpdateUserRoleRequest {
   userId: string;
-  roles: string[];
+  role: string;
+}
+
+/**
+ * Backend 응답을 Frontend AdminUser로 매핑
+ */
+function mapBackendUser(raw: BackendUserProfile): AdminUser {
+  return {
+    id: raw.id,
+    username: raw.email,
+    email: raw.email,
+    name: raw.displayName,
+    roles: [raw.role],
+    role: raw.role,
+    status: raw.isActive ? 'active' : 'inactive',
+    lastLogin: raw.lastLoginAt,
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
+  };
 }
 
 /**
@@ -54,27 +77,23 @@ export interface SystemSettings {
 
 /**
  * 감사 로그 인터페이스
+ *
+ * Backend: AuditLogResponse DTO (Flux<AuditLogResponse> = plain array)
+ * Fields: id, userId, action, resourceType, resourceId, ipAddress,
+ *         requestPath, status, errorMessage, durationMs, createdAt
  */
 export interface AuditLog {
   id: string;
-  userId: string;
-  userName: string;
+  userId: string | null;
   action: string;
-  resource: string;
-  resourceId?: string;
-  details?: string;
+  resourceType: string;
+  resourceId?: string | null;
   ipAddress: string;
-  timestamp: string;
-}
-
-/**
- * 감사 로그 목록 응답
- */
-export interface AuditLogListResponse {
-  logs: AuditLog[];
-  totalCount: number;
-  page: number;
-  pageSize: number;
+  requestPath: string;
+  status: string;
+  errorMessage?: string | null;
+  durationMs: number | null;
+  createdAt: string;
 }
 
 /**
@@ -97,42 +116,64 @@ export interface SystemStats {
 export const adminService = {
   /**
    * 사용자 목록 조회
+   *
+   * Backend: GET /api/v1/admin/users?page=0&size=20&search=...&isActive=true
+   * Returns: UserProfileResponse[] (plain array)
+   * Pagination: 0-based page
    */
   async getUsers(
     page = 1,
     pageSize = 20,
     search?: string,
     status?: string
-  ): Promise<AdminUserListResponse> {
-    const response = await api.get<AdminUserListResponse>('/admin/users', {
-      params: { page, pageSize, search, status },
+  ): Promise<AdminUser[]> {
+    // Convert status string to isActive boolean for Backend
+    let isActive: boolean | undefined;
+    if (status === 'active') isActive = true;
+    else if (status === 'inactive') isActive = false;
+
+    const response = await api.get<BackendUserProfile[]>('/admin/users', {
+      params: {
+        page: page - 1,  // Frontend 1-based → Backend 0-based
+        size: pageSize,
+        search: search || undefined,
+        isActive,
+      },
     });
-    return response.data;
+
+    const raw = Array.isArray(response.data) ? response.data : [];
+    return raw.map(mapBackendUser);
   },
 
   /**
    * 사용자 역할 변경
+   *
+   * Backend: PUT /api/v1/admin/users/{userId}/roles
+   * Body: { role: "admin" } (singular)
    */
-  async updateUserRoles(data: UpdateUserRolesRequest): Promise<AdminUser> {
-    const response = await api.put<AdminUser>(
+  async updateUserRole(data: UpdateUserRoleRequest): Promise<AdminUser> {
+    const response = await api.put<BackendUserProfile>(
       `/admin/users/${data.userId}/roles`,
-      { roles: data.roles }
+      { role: data.role }
     );
-    return response.data;
+    return mapBackendUser(response.data);
   },
 
   /**
    * 사용자 비활성화/활성화
+   *
+   * Backend: PUT /api/v1/admin/users/{userId}/status
+   * Body: { isActive: true/false }
    */
   async toggleUserStatus(
     userId: string,
-    status: 'active' | 'inactive'
+    active: boolean
   ): Promise<AdminUser> {
-    const response = await api.put<AdminUser>(
+    const response = await api.put<BackendUserProfile>(
       `/admin/users/${userId}/status`,
-      { status }
+      { isActive: active }
     );
-    return response.data;
+    return mapBackendUser(response.data);
   },
 
   /**
@@ -155,19 +196,17 @@ export const adminService = {
 
   /**
    * 감사 로그 조회
+   *
+   * Backend: GET /api/v1/admin/audit-logs?page=0&size=50
+   * Returns: AuditLog[] (plain array, no wrapper)
+   * Pagination: 0-based page, param name is "size" (not "pageSize")
    */
   async getAuditLogs(
-    page = 1,
-    pageSize = 50,
-    filters?: {
-      userId?: string;
-      action?: string;
-      dateFrom?: string;
-      dateTo?: string;
-    }
-  ): Promise<AuditLogListResponse> {
-    const response = await api.get<AuditLogListResponse>('/admin/audit-logs', {
-      params: { page, pageSize, ...filters },
+    page = 0,
+    size = 50
+  ): Promise<AuditLog[]> {
+    const response = await api.get<AuditLog[]>('/admin/audit-logs', {
+      params: { page, size },
     });
     return response.data;
   },

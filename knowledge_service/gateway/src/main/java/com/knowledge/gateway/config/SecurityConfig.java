@@ -139,6 +139,9 @@ public class SecurityConfig {
                 // Admin endpoints - admin role required
                 .pathMatchers("/api/v1/admin/**").hasRole("ADMIN")
 
+                // Cache management - admin role required
+                .pathMatchers("/api/v1/cache/**").hasRole("ADMIN")
+
                 // Debug endpoints - developer or admin
                 .pathMatchers("/api/v1/debug/**").hasAnyRole("DEVELOPER", "ADMIN")
 

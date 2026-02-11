@@ -1,137 +1,228 @@
 import api from './api';
 
-export interface Document {
-  id: string;
-  title: string;
-  content: string;
-  documentType: string;
-  projectName: string;
-  status: 'pending' | 'processing' | 'completed' | 'failed';
-  createdAt: string;
-  updatedAt: string;
-  metadata: {
-    author?: string;
-    department?: string;
-    tags?: string[];
-  };
-}
+/**
+ * Backend DocumentStatus enum values
+ * Matches: queued, processing, parsing, chunking, embedding, storing, extracting, completed, failed
+ */
+export type DocumentStatus =
+  | 'queued'
+  | 'processing'
+  | 'parsing'
+  | 'chunking'
+  | 'embedding'
+  | 'storing'
+  | 'extracting'
+  | 'completed'
+  | 'failed';
 
-export interface UploadDocumentRequest {
-  title: string;
-  content: string;
-  documentType: string;
-  projectName: string;
-  metadata?: {
-    author?: string;
-    department?: string;
-    tags?: string[];
-  };
-}
+/**
+ * Backend DocumentFormat enum values
+ */
+export type DocumentFormat =
+  | 'pdf'
+  | 'docx'
+  | 'hwp'
+  | 'pptx'
+  | 'md'
+  | 'txt'
+  | 'log'
+  | 'html'
+  | 'svg'
+  | 'ipynb';
 
-export interface DocumentListResponse {
-  documents: Document[];
-  totalCount: number;
-  page: number;
-  pageSize: number;
+/**
+ * DocumentListItem - matches backend DocumentListItem model
+ * GET /api/v1/documents response item
+ */
+export interface DocumentListItem {
+  document_id: string;
+  filename: string;
+  format: DocumentFormat;
+  size_bytes: number;
+  status: DocumentStatus;
+  created_at: string;
 }
 
 /**
- * KnowledgeService - 지식 관리 API 서비스
+ * DocumentListResponse - matches backend DocumentListResponse model
+ * GET /api/v1/documents response
+ */
+export interface DocumentListResponse {
+  documents: DocumentListItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
+}
+
+/**
+ * DocumentResponse - matches backend DocumentResponse model
+ * POST /api/v1/documents/upload response
+ */
+export interface DocumentUploadResponse {
+  document_id: string;
+  filename: string;
+  format: DocumentFormat;
+  size_bytes: number;
+  status: DocumentStatus;
+  status_url: string;
+  created_at: string;
+  metadata: {
+    title?: string;
+    description?: string;
+    tags?: string[];
+    project_name?: string;
+  } | null;
+}
+
+/**
+ * DocumentStatusResponse - matches backend DocumentStatusResponse model
+ * GET /api/v1/documents/{id}/status response
+ */
+export interface DocumentStatusResponse {
+  document_id: string;
+  status: DocumentStatus;
+  progress_percent: number;
+  error_message: string | null;
+  updated_at: string;
+}
+
+/**
+ * KnowledgeService - AI Service Document API
+ *
+ * All document endpoints route through Gateway to AI Service (FastAPI)
+ * Path prefix: /api/v1/documents
  */
 export const knowledgeService = {
   /**
-   * 문서 목록 조회
+   * List documents (paginated)
+   *
+   * Backend: GET /api/v1/documents?page=1&page_size=20&status=completed&format=pdf
    */
   async getDocuments(
     page = 1,
-    pageSize = 10,
-    filters?: { documentType?: string; projectName?: string }
+    pageSize = 20,
+    filters?: { status?: DocumentStatus; format?: DocumentFormat }
   ): Promise<DocumentListResponse> {
-    const response = await api.get<DocumentListResponse>('/documents', {
-      params: { page, pageSize, ...filters },
-    });
+    const params: Record<string, string | number> = {
+      page,
+      page_size: pageSize,
+    };
+    if (filters?.status) params.status = filters.status;
+    if (filters?.format) params.format = filters.format;
+
+    const response = await api.get<DocumentListResponse>('/documents', { params });
     return response.data;
   },
 
   /**
-   * 문서 상세 조회
+   * Get document processing status
+   *
+   * Backend: GET /api/v1/documents/{document_id}/status
    */
-  async getDocument(id: string): Promise<Document> {
-    const response = await api.get<Document>(`/documents/${id}`);
+  async getProcessingStatus(documentId: string): Promise<DocumentStatusResponse> {
+    const response = await api.get<DocumentStatusResponse>(
+      `/documents/${documentId}/status`
+    );
     return response.data;
   },
 
   /**
-   * 문서 업로드
-   */
-  async uploadDocument(data: UploadDocumentRequest): Promise<Document> {
-    const response = await api.post<Document>('/documents', data);
-    return response.data;
-  },
-
-  /**
-   * 파일 업로드
+   * Upload a file
+   *
+   * Backend: POST /api/v1/documents/upload
+   * - file: UploadFile (multipart)
+   * - metadata: optional JSON string form field
    */
   async uploadFile(
     file: File,
-    metadata?: { projectName?: string; documentType?: string }
-  ): Promise<Document> {
+    metadata?: { title?: string; project_name?: string; tags?: string[] }
+  ): Promise<DocumentUploadResponse> {
     const formData = new FormData();
     formData.append('file', file);
     if (metadata) {
       formData.append('metadata', JSON.stringify(metadata));
     }
 
-    const response = await api.post<Document>('/documents/upload', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+    const response = await api.post<DocumentUploadResponse>(
+      '/documents/upload',
+      formData,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      }
+    );
+    return response.data;
+  },
+
+  /**
+   * Trigger document processing
+   *
+   * Backend: POST /api/v1/documents/{document_id}/process
+   */
+  async processDocument(
+    documentId: string
+  ): Promise<{ document_id: string; status: string; message: string; status_url: string }> {
+    const response = await api.post(`/documents/${documentId}/process`);
+    return response.data;
+  },
+
+  /**
+   * Retry failed document processing
+   *
+   * Backend: POST /api/v1/documents/{document_id}/retry
+   */
+  async retryDocument(
+    documentId: string
+  ): Promise<{
+    document_id: string;
+    status: string;
+    message: string;
+    previous_status: string;
+    status_url: string;
+  }> {
+    const response = await api.post(`/documents/${documentId}/retry`);
+    return response.data;
+  },
+
+  /**
+   * Process all pending documents
+   *
+   * Backend: POST /api/v1/documents/process-pending?batch_size=5
+   */
+  async processPending(
+    batchSize = 5
+  ): Promise<{
+    count: number;
+    status: string;
+    message: string;
+    document_ids?: string[];
+  }> {
+    const response = await api.post('/documents/process-pending', null, {
+      params: { batch_size: batchSize },
     });
     return response.data;
   },
 
   /**
-   * 문서 수정
-   */
-  async updateDocument(
-    id: string,
-    data: Partial<UploadDocumentRequest>
-  ): Promise<Document> {
-    const response = await api.put<Document>(`/documents/${id}`, data);
-    return response.data;
-  },
-
-  /**
-   * 문서 삭제
-   */
-  async deleteDocument(id: string): Promise<void> {
-    await api.delete(`/documents/${id}`);
-  },
-
-  /**
-   * 문서 처리 상태 조회
-   */
-  async getProcessingStatus(id: string): Promise<{ status: string; progress: number }> {
-    const response = await api.get(`/documents/${id}/status`);
-    return response.data;
-  },
-
-  /**
-   * 실패 문서 재시도
-   */
-  async retryDocument(id: string): Promise<{ document_id: string; status: string; message: string }> {
-    const response = await api.post(`/documents/${id}/retry`);
-    return response.data;
-  },
-
-  /**
-   * 문서 처리 상태 SSE 스트림 URL 생성
+   * Download document (returns redirect URL)
    *
-   * EventSource에서 사용할 절대 URL을 반환합니다.
-   * api 인스턴스의 baseURL을 활용하여 프록시/개발 환경 모두 대응합니다.
+   * Backend: GET /api/v1/documents/{document_id}/download
    */
-  getProcessingStatusStreamUrl(id: string): string {
-    return `/api/v1/documents/${id}/status/stream`;
+  getDownloadUrl(documentId: string): string {
+    const baseURL = api.defaults.baseURL || '/api/v1';
+    return `${baseURL}/documents/${documentId}/download`;
+  },
+
+  /**
+   * SSE stream URL for processing status
+   *
+   * Backend: GET /api/v1/documents/{document_id}/status/stream
+   * Used with EventSource directly (not axios)
+   */
+  getProcessingStatusStreamUrl(documentId: string): string {
+    return `/api/v1/documents/${documentId}/status/stream`;
   },
 };
 

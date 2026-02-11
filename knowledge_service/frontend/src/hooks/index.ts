@@ -1,11 +1,9 @@
 export { useSearch, useExpertSearch } from './useSearch';
 export {
   useDocuments,
-  useDocument,
-  useUploadDocument,
+  useDocumentStatus,
   useUploadFile,
-  useUpdateDocument,
-  useDeleteDocument,
+  useRetryDocument,
 } from './useDocuments';
 export { useDirectAuth } from './useDirectAuth';
 

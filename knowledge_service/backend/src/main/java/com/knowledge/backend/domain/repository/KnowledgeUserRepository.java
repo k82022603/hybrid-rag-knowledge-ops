@@ -56,6 +56,52 @@ public interface KnowledgeUserRepository extends R2dbcRepository<KnowledgeUser, 
     Flux<KnowledgeUser> findAllPaged(int limit, long offset);
 
     /**
+     * Find users with search keyword and pagination
+     *
+     * @param search search keyword (matched against username, email, display_name, department)
+     * @param limit  page size
+     * @param offset page offset
+     * @return Flux of matching users
+     */
+    @Query("SELECT * FROM users WHERE " +
+           "(LOWER(username) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "OR LOWER(email) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "OR LOWER(display_name) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "OR LOWER(department) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "ORDER BY created_at DESC LIMIT :limit OFFSET :offset")
+    Flux<KnowledgeUser> findBySearchPaged(String search, int limit, long offset);
+
+    /**
+     * Find users filtered by active status with pagination
+     *
+     * @param isActive active status filter
+     * @param limit    page size
+     * @param offset   page offset
+     * @return Flux of filtered users
+     */
+    @Query("SELECT * FROM users WHERE is_active = :isActive " +
+           "ORDER BY created_at DESC LIMIT :limit OFFSET :offset")
+    Flux<KnowledgeUser> findByIsActivePaged(boolean isActive, int limit, long offset);
+
+    /**
+     * Find users with search keyword and active status filter with pagination
+     *
+     * @param search   search keyword
+     * @param isActive active status filter
+     * @param limit    page size
+     * @param offset   page offset
+     * @return Flux of matching and filtered users
+     */
+    @Query("SELECT * FROM users WHERE " +
+           "(LOWER(username) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "OR LOWER(email) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "OR LOWER(display_name) LIKE LOWER(CONCAT('%', :search, '%')) " +
+           "OR LOWER(department) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+           "AND is_active = :isActive " +
+           "ORDER BY created_at DESC LIMIT :limit OFFSET :offset")
+    Flux<KnowledgeUser> findBySearchAndIsActivePaged(String search, boolean isActive, int limit, long offset);
+
+    /**
      * Update user role
      *
      * @param userId the user UUID

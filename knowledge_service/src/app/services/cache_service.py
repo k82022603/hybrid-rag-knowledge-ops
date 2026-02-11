@@ -19,7 +19,7 @@ import time
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from threading import Lock
 from typing import Any, Dict, List, Optional, Union
 
@@ -341,6 +341,8 @@ class RedisCacheBackend(CacheBackend):
         self._default_ttl = default_ttl
         self._max_size = max_size
         self._client = None
+        self._cached_size: int = 0
+        self._size_initialized: bool = False
 
         logger.info(f"RedisCacheBackend initialized - url={redis_url[:30]}..., prefix={prefix}")
 
@@ -410,9 +412,16 @@ class RedisCacheBackend(CacheBackend):
             effective_ttl = ttl if ttl is not None else self._default_ttl
             client = await self._get_client()
             full_key = self._make_key(key)
-            data = json.dumps(value, ensure_ascii=False)
 
+            # 기존 키 존재 여부 확인 (카운터 정확도)
+            existed = await client.exists(full_key)
+
+            data = json.dumps(value, ensure_ascii=False)
             await client.set(full_key, data, ex=effective_ttl)
+
+            if not existed:
+                self._cached_size += 1
+
             return True
 
         except Exception as e:
@@ -433,6 +442,10 @@ class RedisCacheBackend(CacheBackend):
             client = await self._get_client()
             full_key = self._make_key(key)
             result = await client.delete(full_key)
+
+            if result > 0:
+                self._cached_size = max(0, self._cached_size - 1)
+
             return result > 0
 
         except Exception as e:
@@ -460,6 +473,7 @@ class RedisCacheBackend(CacheBackend):
                 if cursor == 0:
                     break
 
+            self._cached_size = 0
             return deleted
 
         except Exception as e:
@@ -497,9 +511,27 @@ class RedisCacheBackend(CacheBackend):
             return []
 
     def get_size(self) -> int:
-        """현재 캐시 크기 (비동기 호출 불가, 추정치 반환)"""
-        # 동기 컨텍스트에서 호출될 수 있으므로 -1 반환
-        return -1
+        """현재 캐시 크기 (내부 카운터 기반)"""
+        return self._cached_size
+
+    async def sync_size(self) -> int:
+        """Redis SCAN으로 정확한 캐시 크기를 동기화하고 반환"""
+        try:
+            client = await self._get_client()
+            pattern = self._make_key("*")
+            count = 0
+            cursor = 0
+            while True:
+                cursor, keys = await client.scan(cursor, match=pattern, count=100)
+                count += len(keys)
+                if cursor == 0:
+                    break
+            self._cached_size = count
+            self._size_initialized = True
+            return count
+        except Exception as e:
+            logger.warning(f"Redis sync_size failed: {e}")
+            return self._cached_size
 
     def get_max_size(self) -> int:
         """최대 캐시 크기 (Redis는 메모리 기반)"""
@@ -670,7 +702,9 @@ class SearchCacheService:
         # 캐시 저장 시 메타데이터 추가
         cached_value = {
             **value,
-            "_cached_at": datetime.now(timezone.utc).isoformat(),
+            "_cached_at": datetime.now(
+                tz=timezone(timedelta(hours=9))
+            ).isoformat(),
             "_ttl": effective_ttl,
         }
 
@@ -726,17 +760,18 @@ class SearchCacheService:
             logger.debug(f"Cache DELETE: {key[:16]}...")
         return success
 
-    def get_stats(self) -> CacheStats:
+    async def get_stats(self) -> CacheStats:
         """
         캐시 통계 조회
 
         Returns:
             CacheStats 객체
         """
-        # 현재 크기 갱신
-        current_size = self._backend.get_size()
-        if current_size >= 0:
-            self._stats.size = current_size
+        # Redis 백엔드인 경우 SCAN으로 정확한 크기 동기화
+        if isinstance(self._backend, RedisCacheBackend):
+            await self._backend.sync_size()
+
+        self._stats.size = self._backend.get_size()
         self._stats.max_size = self._backend.get_max_size()
         self._stats.backend = self._backend.get_backend_name()
 
@@ -746,7 +781,9 @@ class SearchCacheService:
         """통계 초기화"""
         self._stats.hits = 0
         self._stats.misses = 0
-        self._stats.last_reset = datetime.now(timezone.utc).isoformat()
+        self._stats.last_reset = datetime.now(
+            tz=timezone(timedelta(hours=9))
+        ).isoformat()
         logger.info("Cache stats reset")
 
 

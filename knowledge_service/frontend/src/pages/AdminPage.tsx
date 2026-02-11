@@ -166,7 +166,7 @@ const UserManagement: React.FC = () => {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [roleDialogUser, setRoleDialogUser] = useState<AdminUser | null>(null);
-  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
+  const [selectedRole, setSelectedRole] = useState<string>('');
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['admin', 'users', { page, search: searchQuery, status: statusFilter }],
@@ -174,35 +174,34 @@ const UserManagement: React.FC = () => {
   });
 
   const toggleStatusMutation = useMutation({
-    mutationFn: ({ userId, status }: { userId: string; status: 'active' | 'inactive' }) =>
-      adminService.toggleUserStatus(userId, status),
+    mutationFn: ({ userId, active }: { userId: string; active: boolean }) =>
+      adminService.toggleUserStatus(userId, active),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['admin', 'users'] }),
   });
 
-  const updateRolesMutation = useMutation({
-    mutationFn: ({ userId, roles }: { userId: string; roles: string[] }) =>
-      adminService.updateUserRoles({ userId, roles }),
+  const updateRoleMutation = useMutation({
+    mutationFn: ({ userId, role }: { userId: string; role: string }) =>
+      adminService.updateUserRole({ userId, role }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
       setRoleDialogUser(null);
     },
   });
 
-  const users = data?.users ?? [];
-  const totalPages = Math.ceil((data?.totalCount ?? 0) / 20);
+  // Backend returns plain array directly
+  const users = Array.isArray(data) ? data : [];
 
   const openRoleDialog = useCallback((user: AdminUser) => {
     setRoleDialogUser(user);
-    setSelectedRoles([...user.roles]);
+    setSelectedRole(user.role);
   }, []);
 
-  const AVAILABLE_ROLES = ['USER', 'KNOWLEDGE_MANAGER', 'ADMIN'];
+  const AVAILABLE_ROLES = ['admin', 'user', 'viewer'];
 
   const statusBadge = (status: string) => {
     const classes: Record<string, string> = {
       active: 'bg-success-50 text-success-700 dark:bg-success-900/30 dark:text-success-400',
       inactive: 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400',
-      locked: 'bg-error-50 text-error-700 dark:bg-error-900/30 dark:text-error-400',
     };
     return (
       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${classes[status] || classes.inactive}`}>
@@ -235,7 +234,6 @@ const UserManagement: React.FC = () => {
           <option value="">전체 상태</option>
           <option value="active">활성</option>
           <option value="inactive">비활성</option>
-          <option value="locked">Locked</option>
         </select>
       </div>
 
@@ -283,16 +281,9 @@ const UserManagement: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {user.roles.filter((r) => !r.startsWith('default-')).map((role) => (
-                          <span
-                            key={role}
-                            className="inline-flex items-center px-2 py-0.5 rounded text-2xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200"
-                          >
-                            {role}
-                          </span>
-                        ))}
-                      </div>
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-2xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200">
+                        {user.role}
+                      </span>
                     </td>
                     <td className="px-4 py-3">{statusBadge(user.status)}</td>
                     <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400">
@@ -312,7 +303,7 @@ const UserManagement: React.FC = () => {
                           onClick={() =>
                             toggleStatusMutation.mutate({
                               userId: user.id,
-                              status: user.status === 'active' ? 'inactive' : 'active',
+                              active: user.status !== 'active',
                             })
                           }
                           className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"
@@ -330,28 +321,26 @@ const UserManagement: React.FC = () => {
           </div>
 
           {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-              <p className="text-xs text-gray-500">{data?.totalCount ?? 0} users total</p>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50"
-                >
-                  Previous
-                </button>
-                <span className="text-xs text-gray-500">Page {page} of {totalPages}</span>
-                <button
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+            <p className="text-xs text-gray-500">{users.length} users on this page</p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <span className="text-xs text-gray-500">Page {page}</span>
+              <button
+                onClick={() => setPage((p) => p + 1)}
+                disabled={users.length < 20}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50"
+              >
+                Next
+              </button>
             </div>
-          )}
+          </div>
         </div>
       )}
 
@@ -378,16 +367,11 @@ const UserManagement: React.FC = () => {
                       className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer"
                     >
                       <input
-                        type="checkbox"
-                        checked={selectedRoles.includes(role)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedRoles((prev) => [...prev, role]);
-                          } else {
-                            setSelectedRoles((prev) => prev.filter((r) => r !== role));
-                          }
-                        }}
-                        className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                        type="radio"
+                        name="user-role"
+                        checked={selectedRole === role}
+                        onChange={() => setSelectedRole(role)}
+                        className="h-4 w-4 border-gray-300 text-primary-600 focus:ring-primary-500"
                       />
                       <span className="text-sm text-gray-900 dark:text-white">{role}</span>
                     </label>
@@ -403,14 +387,14 @@ const UserManagement: React.FC = () => {
                   </button>
                   <button
                     onClick={() => {
-                      if (roleDialogUser) {
-                        updateRolesMutation.mutate({ userId: roleDialogUser.id, roles: selectedRoles });
+                      if (roleDialogUser && selectedRole) {
+                        updateRoleMutation.mutate({ userId: roleDialogUser.id, role: selectedRole });
                       }
                     }}
-                    disabled={updateRolesMutation.isPending}
+                    disabled={updateRoleMutation.isPending || !selectedRole}
                     className="px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700 disabled:opacity-50 transition-colors"
                   >
-                    {updateRolesMutation.isPending ? 'Saving...' : 'Save Roles'}
+                    {updateRoleMutation.isPending ? 'Saving...' : 'Save Role'}
                   </button>
                 </div>
               </Dialog.Panel>
@@ -839,18 +823,41 @@ const CacheManagementPanel: React.FC = () => {
 
 /**
  * AuditLogTable - 감사 로그 탭
+ *
+ * Backend: GET /api/v1/admin/audit-logs?page=0&size=50
+ * Returns: AuditLogResponse[] (plain array)
+ * Fields: id, userId, action, resourceType, resourceId, ipAddress,
+ *         requestPath, status, errorMessage, durationMs, createdAt
  */
 const AuditLogTable: React.FC = () => {
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(0);
   const [actionFilter, setActionFilter] = useState('');
+  const pageSize = 50;
 
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ['admin', 'audit-logs', { page, action: actionFilter }],
-    queryFn: () => adminService.getAuditLogs(page, 50, actionFilter ? { action: actionFilter } : undefined),
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ['admin', 'audit-logs', { page }],
+    queryFn: () => adminService.getAuditLogs(page, pageSize),
   });
 
-  const logs = data?.logs ?? [];
-  const totalPages = Math.ceil((data?.totalCount ?? 0) / 50);
+  // Backend returns plain array (Flux<AuditLogResponse>)
+  const logs = Array.isArray(data) ? data : [];
+
+  // Client-side action filter (backend has no action filter param)
+  const filteredLogs = actionFilter
+    ? logs.filter((log) => log.action === actionFilter)
+    : logs;
+
+  const statusBadge = (status: string) => {
+    const classes: Record<string, string> = {
+      success: 'bg-success-50 text-success-700 dark:bg-success-900/30 dark:text-success-400',
+      failure: 'bg-error-50 text-error-700 dark:bg-error-900/30 dark:text-error-400',
+    };
+    return (
+      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-medium ${classes[status] || 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'}`}>
+        {status}
+      </span>
+    );
+  };
 
   return (
     <div className="space-y-4" data-testid="audit-logs">
@@ -858,18 +865,26 @@ const AuditLogTable: React.FC = () => {
       <div className="flex gap-3">
         <select
           value={actionFilter}
-          onChange={(e) => { setActionFilter(e.target.value); setPage(1); }}
+          onChange={(e) => setActionFilter(e.target.value)}
           className="px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500"
           aria-label="Filter by action"
         >
           <option value="">All Actions</option>
-          <option value="LOGIN">Login</option>
-          <option value="LOGOUT">Logout</option>
-          <option value="UPLOAD">Upload</option>
+          <option value="CREATE">Create</option>
+          <option value="READ">Read</option>
+          <option value="UPDATE">Update</option>
           <option value="DELETE">Delete</option>
           <option value="SEARCH">Search</option>
-          <option value="SETTINGS_CHANGE">Settings Change</option>
+          <option value="LOGIN">Login</option>
+          <option value="LOGOUT">Logout</option>
         </select>
+        <button
+          onClick={() => refetch()}
+          className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+        >
+          <ArrowPathIcon className="h-4 w-4" />
+          Refresh
+        </button>
       </div>
 
       {/* Loading */}
@@ -883,7 +898,14 @@ const AuditLogTable: React.FC = () => {
       {isError && (
         <div className="text-center py-12">
           <ExclamationTriangleIcon className="h-8 w-8 text-error-500 mx-auto mb-2" />
-          <p className="text-sm text-gray-500">Failed to load audit logs.</p>
+          <p className="text-sm text-gray-500 mb-4">Failed to load audit logs.</p>
+          <button
+            onClick={() => refetch()}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary-600 rounded-lg hover:bg-primary-700"
+          >
+            <ArrowPathIcon className="h-4 w-4" />
+            Retry
+          </button>
         </div>
       )}
 
@@ -895,36 +917,48 @@ const AuditLogTable: React.FC = () => {
               <thead className="bg-gray-50 dark:bg-gray-900">
                 <tr>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Timestamp</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">User</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Action</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Resource</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">IP Address</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden md:table-cell">Request Path</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">IP Address</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider hidden lg:table-cell">Duration</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
-                {logs.map((log: AuditLog) => (
+                {filteredLogs.map((log: AuditLog) => (
                   <tr key={log.id} className="hover:bg-gray-50 dark:hover:bg-gray-750">
                     <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                      {new Date(log.timestamp).toLocaleString('ko-KR')}
+                      {new Date(log.createdAt).toLocaleString('ko-KR')}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-900 dark:text-white">{log.userName}</td>
                     <td className="px-4 py-3">
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200">
                         {log.action}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
-                      {log.resource}
-                      {log.details && (
-                        <span className="block text-xs text-gray-400 truncate max-w-xs">{log.details}</span>
+                      {log.resourceType}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 font-mono truncate max-w-xs hidden md:table-cell">
+                      {log.requestPath}
+                    </td>
+                    <td className="px-4 py-3">
+                      {statusBadge(log.status)}
+                      {log.errorMessage && (
+                        <span className="block text-2xs text-error-500 dark:text-error-400 mt-0.5 truncate max-w-[120px]" title={log.errorMessage}>
+                          {log.errorMessage}
+                        </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 font-mono">{log.ipAddress}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 font-mono hidden lg:table-cell">{log.ipAddress}</td>
+                    <td className="px-4 py-3 text-xs text-gray-500 dark:text-gray-400 hidden lg:table-cell">
+                      {log.durationMs != null ? `${log.durationMs}ms` : '-'}
+                    </td>
                   </tr>
                 ))}
-                {logs.length === 0 && (
+                {filteredLogs.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-12 text-center text-sm text-gray-500">
+                    <td colSpan={7} className="px-4 py-12 text-center text-sm text-gray-500">
                       No audit logs found.
                     </td>
                   </tr>
@@ -934,28 +968,28 @@ const AuditLogTable: React.FC = () => {
           </div>
 
           {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700">
-              <p className="text-xs text-gray-500">{data?.totalCount ?? 0} logs total</p>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page <= 1}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50"
-                >
-                  Previous
-                </button>
-                <span className="text-xs text-gray-500">Page {page} of {totalPages}</span>
-                <button
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page >= totalPages}
-                  className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50"
-                >
-                  Next
-                </button>
-              </div>
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-gray-700">
+            <p className="text-xs text-gray-500">
+              {filteredLogs.length} logs on this page
+            </p>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={page <= 0}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <span className="text-xs text-gray-500">Page {page + 1}</span>
+              <button
+                onClick={() => setPage((p) => p + 1)}
+                disabled={logs.length < pageSize}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 disabled:opacity-50"
+              >
+                Next
+              </button>
             </div>
-          )}
+          </div>
         </div>
       )}
     </div>

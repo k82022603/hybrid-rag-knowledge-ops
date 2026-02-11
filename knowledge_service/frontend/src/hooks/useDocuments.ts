@@ -1,16 +1,19 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   knowledgeService,
-  UploadDocumentRequest,
+  type DocumentStatus,
+  type DocumentFormat,
 } from '@/services/knowledgeService';
 
 /**
- * useDocuments - 문서 목록 조회 훅
+ * useDocuments - document list query hook
+ *
+ * Backend: GET /api/v1/documents?page=1&page_size=20&status=completed&format=pdf
  */
 export const useDocuments = (
   page = 1,
-  pageSize = 10,
-  filters?: { documentType?: string; projectName?: string }
+  pageSize = 20,
+  filters?: { status?: DocumentStatus; format?: DocumentFormat }
 ) => {
   return useQuery({
     queryKey: ['documents', page, pageSize, filters],
@@ -19,33 +22,27 @@ export const useDocuments = (
 };
 
 /**
- * useDocument - 문서 상세 조회 훅
+ * useDocumentStatus - document processing status query hook
+ *
+ * Backend: GET /api/v1/documents/{document_id}/status
  */
-export const useDocument = (id: string, enabled = true) => {
+export const useDocumentStatus = (documentId: string, enabled = true) => {
   return useQuery({
-    queryKey: ['document', id],
-    queryFn: () => knowledgeService.getDocument(id),
-    enabled: enabled && !!id,
-  });
-};
-
-/**
- * useUploadDocument - 문서 업로드 훅
- */
-export const useUploadDocument = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (data: UploadDocumentRequest) =>
-      knowledgeService.uploadDocument(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['documents'] });
+    queryKey: ['document-status', documentId],
+    queryFn: () => knowledgeService.getProcessingStatus(documentId),
+    enabled: enabled && !!documentId,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (status === 'completed' || status === 'failed') return false;
+      return 3000; // poll every 3s while processing
     },
   });
 };
 
 /**
- * useUploadFile - 파일 업로드 훅
+ * useUploadFile - file upload mutation hook
+ *
+ * Backend: POST /api/v1/documents/upload
  */
 export const useUploadFile = () => {
   const queryClient = useQueryClient();
@@ -56,7 +53,7 @@ export const useUploadFile = () => {
       metadata,
     }: {
       file: File;
-      metadata?: { projectName?: string; documentType?: string };
+      metadata?: { title?: string; project_name?: string; tags?: string[] };
     }) => knowledgeService.uploadFile(file, metadata),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['documents'] });
@@ -65,36 +62,18 @@ export const useUploadFile = () => {
 };
 
 /**
- * useUpdateDocument - 문서 수정 훅
+ * useRetryDocument - retry failed document mutation hook
+ *
+ * Backend: POST /api/v1/documents/{document_id}/retry
  */
-export const useUpdateDocument = () => {
+export const useRetryDocument = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({
-      id,
-      data,
-    }: {
-      id: string;
-      data: Partial<UploadDocumentRequest>;
-    }) => knowledgeService.updateDocument(id, data),
-    onSuccess: (_, variables) => {
+    mutationFn: (documentId: string) => knowledgeService.retryDocument(documentId),
+    onSuccess: (_, documentId) => {
       queryClient.invalidateQueries({ queryKey: ['documents'] });
-      queryClient.invalidateQueries({ queryKey: ['document', variables.id] });
-    },
-  });
-};
-
-/**
- * useDeleteDocument - 문서 삭제 훅
- */
-export const useDeleteDocument = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (id: string) => knowledgeService.deleteDocument(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['documents'] });
+      queryClient.invalidateQueries({ queryKey: ['document-status', documentId] });
     },
   });
 };

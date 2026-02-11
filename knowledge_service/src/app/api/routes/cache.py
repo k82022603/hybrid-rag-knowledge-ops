@@ -118,7 +118,7 @@ async def get_cache_stats(
         from app.services.cache_service import get_cache_service
 
         cache_service = get_cache_service()
-        stats = cache_service.get_stats()
+        stats = await cache_service.get_stats()
 
         return CacheStatsResponse(
             hits=stats.hits,
@@ -288,7 +288,7 @@ async def get_cache_status(
         from app.services.cache_service import get_cache_service
 
         cache_service = get_cache_service()
-        stats = cache_service.get_stats()
+        stats = await cache_service.get_stats()
 
         return CacheStatusResponse(
             enabled=True,

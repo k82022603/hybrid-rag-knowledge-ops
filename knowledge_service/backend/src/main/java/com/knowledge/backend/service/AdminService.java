@@ -45,18 +45,33 @@ public class AdminService {
     // ========================================================================
 
     /**
-     * Get paginated user list
+     * Get paginated user list with optional search and status filter
      *
-     * @param page page number (0-based)
-     * @param size page size
+     * @param page     page number (0-based)
+     * @param size     page size
+     * @param search   optional search keyword (username, email, displayName, department)
+     * @param isActive optional active status filter
      * @return Flux of UserProfileResponse
      */
-    public Flux<UserProfileResponse> getUsers(int page, int size) {
-        log.debug("Getting users - page: {}, size: {}", page, size);
+    public Flux<UserProfileResponse> getUsers(int page, int size, String search, Boolean isActive) {
+        log.debug("Getting users - page: {}, size: {}, search: {}, isActive: {}", page, size, search, isActive);
         long offset = (long) page * size;
 
-        return knowledgeUserRepository.findAllPaged(size, offset)
-                .map(UserProfileResponse::from);
+        boolean hasSearch = search != null && !search.isBlank();
+        boolean hasStatus = isActive != null;
+
+        Flux<com.knowledge.backend.domain.entity.KnowledgeUser> users;
+        if (hasSearch && hasStatus) {
+            users = knowledgeUserRepository.findBySearchAndIsActivePaged(search.trim(), isActive, size, offset);
+        } else if (hasSearch) {
+            users = knowledgeUserRepository.findBySearchPaged(search.trim(), size, offset);
+        } else if (hasStatus) {
+            users = knowledgeUserRepository.findByIsActivePaged(isActive, size, offset);
+        } else {
+            users = knowledgeUserRepository.findAllPaged(size, offset);
+        }
+
+        return users.map(UserProfileResponse::from);
     }
 
     /**

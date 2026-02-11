@@ -70,13 +70,13 @@ CREATE INDEX IF NOT EXISTS idx_users_is_active ON users(is_active);
 
 CREATE TABLE IF NOT EXISTS audit_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+    user_id UUID,  -- No FK: Keycloak sub UUID differs from users.id
     action VARCHAR(50) NOT NULL,  -- CREATE, READ, UPDATE, DELETE, SEARCH, LOGIN, LOGOUT
     resource_type VARCHAR(50) NOT NULL,  -- document, user, entity, search
     resource_id UUID,
     old_value JSONB,
     new_value JSONB,
-    ip_address INET,
+    ip_address VARCHAR(45),
     user_agent TEXT,
     request_path TEXT,
     status VARCHAR(20) DEFAULT 'success',  -- success, failure

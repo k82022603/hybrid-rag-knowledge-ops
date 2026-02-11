@@ -17,7 +17,7 @@ import {
   ExclamationTriangleIcon,
   DocumentArrowUpIcon,
 } from '@heroicons/react/24/outline';
-import { knowledgeService, type Document as KnowledgeDocument } from '@/services/knowledgeService';
+import { knowledgeService, type DocumentListItem } from '@/services/knowledgeService';
 
 /**
  * 지원 파일 형식
@@ -508,11 +508,11 @@ const UploadHistory: React.FC = () => {
     const classes: Record<string, string> = {
       completed: 'bg-success-50 text-success-700 dark:bg-success-900/30 dark:text-success-400',
       processing: 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-400',
-      pending: 'bg-warning-50 text-warning-700 dark:bg-warning-900/30 dark:text-warning-400',
+      queued: 'bg-warning-50 text-warning-700 dark:bg-warning-900/30 dark:text-warning-400',
       failed: 'bg-error-50 text-error-700 dark:bg-error-900/30 dark:text-error-400',
     };
     return (
-      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-medium ${classes[status] || classes.pending}`}>
+      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-medium ${classes[status] || classes.queued}`}>
         {status}
       </span>
     );
@@ -520,16 +520,16 @@ const UploadHistory: React.FC = () => {
 
   return (
     <div className="space-y-2">
-      {documents.map((doc: KnowledgeDocument) => (
+      {documents.map((doc: DocumentListItem) => (
         <div
-          key={doc.id}
+          key={doc.document_id}
           className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
         >
           <DocumentTextIcon className="h-5 w-5 text-gray-400 flex-shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{doc.title}</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{doc.filename}</p>
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              {doc.documentType} &middot; {new Date(doc.createdAt).toLocaleDateString('ko-KR')}
+              {doc.format.toUpperCase()} &middot; {new Date(doc.created_at).toLocaleDateString('ko-KR')}
             </p>
           </div>
           {statusBadge(doc.status)}
@@ -627,8 +627,9 @@ const DocumentUploadPage: React.FC = () => {
         }, 200);
 
         const uploadedDoc = await knowledgeService.uploadFile(uploadFile.file, {
-          projectName: uploadFile.title,
-          documentType: uploadFile.category,
+          title: uploadFile.title || undefined,
+          project_name: uploadFile.category || undefined,
+          tags: uploadFile.tags.length > 0 ? uploadFile.tags : undefined,
         });
 
         clearInterval(progressInterval);
@@ -642,7 +643,7 @@ const DocumentUploadPage: React.FC = () => {
                   ...f,
                   status: 'completed' as const,
                   progress: 50,
-                  documentId: uploadedDoc.id,
+                  documentId: uploadedDoc.document_id,
                   processingStatus: 'processing' as ProcessingStatus,
                 }
               : f
@@ -823,7 +824,7 @@ const DocumentUploadPage: React.FC = () => {
               if (f.id !== file.id) return f;
 
               const serverStatus = result.status as ProcessingStatus;
-              const processingProgress = 50 + Math.round((result.progress / 100) * 50);
+              const processingProgress = 50 + Math.round((result.progress_percent / 100) * 50);
 
               if (serverStatus === 'completed') {
                 delete pollCountRef.current[file.id];

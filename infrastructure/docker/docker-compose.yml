@@ -147,6 +147,7 @@ services:
     networks:
       - frontend
     environment:
+      - TZ=${TZ:-Asia/Seoul}
       - VITE_API_URL=${API_URL:-http://127.0.0.1:8080/api}
       - VITE_API_BASE_URL=${API_URL:-http://127.0.0.1:8080}
       - VITE_AUTH_URL=${AUTH_URL:-http://localhost:8180}
@@ -195,6 +196,7 @@ services:
       - backend
       - database  # Added for Redis access (Rate Limiter)
     environment:
+      - TZ=${TZ:-Asia/Seoul}
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILE:-docker}
       - SERVER_PORT=8080
       - BACKEND_URL=http://backend:8081
@@ -258,6 +260,7 @@ services:
       - backend
       - database
     environment:
+      - TZ=${TZ:-Asia/Seoul}
       - SPRING_PROFILES_ACTIVE=${SPRING_PROFILE:-docker}
       - SERVER_PORT=8081
       - DATABASE_URL=jdbc:postgresql://postgresql:5432/${DB_NAME:-knowledge}
@@ -321,6 +324,7 @@ services:
       - backend
       - database
     environment:
+      - TZ=${TZ:-Asia/Seoul}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
       - DEEPSEEK_BASE_URL=${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
       # JWT settings (REQUIRED for auth - must match backend JWT_SECRET)
@@ -413,6 +417,7 @@ services:
       - frontend
       - database
     environment:
+      - TZ=${TZ:-Asia/Seoul}
       - KC_DB=postgres
       - KC_DB_URL=jdbc:postgresql://keycloak-db:5432/keycloak
       - KC_DB_USERNAME=${KEYCLOAK_DB_USER:-keycloak}
