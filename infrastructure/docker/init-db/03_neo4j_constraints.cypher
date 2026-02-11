@@ -66,9 +66,10 @@ FOR (e:Entity) ON (e.name);
 CREATE INDEX entity_canonical_name_idx IF NOT EXISTS
 FOR (e:Entity) ON (e.canonical_name);
 
-// Full-text search index for entities
+// Full-text search index for entities (multi-label: save_entities uses typed labels)
+DROP INDEX entity_fulltext_idx IF EXISTS;
 CREATE FULLTEXT INDEX entity_fulltext_idx IF NOT EXISTS
-FOR (e:Entity) ON EACH [e.name, e.description];
+FOR (n:Person|Technology|Topic|Keyword|Entity) ON EACH [n.name, n.description];
 
 // ----- Document Indexes -----
 CREATE INDEX document_type_idx IF NOT EXISTS

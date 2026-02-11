@@ -54,22 +54,43 @@ const ChatSearch: React.FC = () => {
   const handleGraphSourceClick = useCallback((source: Source) => {
     if (source.sourceType !== 'graph') return;
     const entities: string[] = [];
+
+    // 1순위: graphContext의 relatedEntities (matched_entities 매핑, 가장 정확)
     if (source.graphContext?.relatedEntities?.length) {
       entities.push(...source.graphContext.relatedEntities);
     }
-    // ISSUE-011: title이 파일명인 경우 엔티티로 사용하지 않음
+
+    // 2순위: 마지막 사용자 질문 (Neo4j에서 관련 엔티티를 찾을 가능성이 title보다 높음)
+    if (entities.length === 0) {
+      const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user');
+      if (lastUserMsg?.content?.trim()) {
+        entities.push(lastUserMsg.content.trim());
+      }
+    }
+
+    // 3순위: title에서 의미 있는 키워드 추출 (최후 수단)
+    // ISSUE-011: title이 파일명이거나 괄호 포함 제목은 엔티티로 적합하지 않음
     if (entities.length === 0 && source.title) {
       const isFilename = /\.\w{2,5}$/.test(source.title) &&
         /\.(pdf|docx?|xlsx?|pptx?|txt|md|html?|csv|json|xml|hwp)$/i.test(source.title);
       if (!isFilename) {
-        entities.push(source.title);
+        const cleaned = source.title.replace(/\([^)]*\)/g, '').trim();
+        if (cleaned) {
+          entities.push(cleaned);
+        }
       }
     }
+
+    // 4순위: projectName from metadata
+    if (entities.length === 0 && source.metadata?.projectName) {
+      entities.push(source.metadata.projectName);
+    }
+
     if (entities.length > 0) {
       setSelectedGraphEntities(entities);
       setShowGraphPanel(true);
     }
-  }, []);
+  }, [messages]);
 
   const closeGraphPanel = useCallback(() => {
     setShowGraphPanel(false);

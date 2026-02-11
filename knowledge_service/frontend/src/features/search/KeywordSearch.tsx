@@ -62,26 +62,41 @@ const KeywordSearch: React.FC = () => {
   /** Handle graph source click - reused from ChatSearch pattern */
   const handleGraphSourceClick = useCallback((source: Source) => {
     const entities: string[] = [];
+
+    // 1순위: graphContext의 relatedEntities (가장 정확)
     if (source.graphContext?.relatedEntities?.length) {
       entities.push(...source.graphContext.relatedEntities);
     }
-    // ISSUE-011: title이 파일명인 경우 엔티티로 사용하지 않음
+
+    // 2순위: 검색 쿼리 키워드 (Neo4j에서 관련 엔티티를 찾을 가능성이 title보다 높음)
+    if (entities.length === 0 && submittedQuery?.trim()) {
+      entities.push(submittedQuery.trim());
+    }
+
+    // 3순위: title에서 의미 있는 키워드 추출 (최후 수단)
+    // ISSUE-011: title이 파일명이거나 괄호 포함 제목은 엔티티로 적합하지 않음
     if (entities.length === 0 && source.title) {
       const isFilename = /\.\w{2,5}$/.test(source.title) &&
         /\.(pdf|docx?|xlsx?|pptx?|txt|md|html?|csv|json|xml|hwp)$/i.test(source.title);
       if (!isFilename) {
-        entities.push(source.title);
+        // 괄호와 그 내용을 제거하고 핵심 키워드만 추출
+        const cleaned = source.title.replace(/\([^)]*\)/g, '').trim();
+        if (cleaned) {
+          entities.push(cleaned);
+        }
       }
     }
-    // Fallback: projectName from metadata
+
+    // 4순위: projectName from metadata
     if (entities.length === 0 && source.metadata?.projectName) {
       entities.push(source.metadata.projectName);
     }
+
     if (entities.length > 0) {
       setSelectedGraphEntities(entities);
       setShowGraphPanel(true);
     }
-  }, []);
+  }, [submittedQuery]);
 
   const closeGraphPanel = useCallback(() => {
     setShowGraphPanel(false);
@@ -273,10 +288,11 @@ const KeywordSearch: React.FC = () => {
                 {/* Result cards */}
                 <div className="space-y-3" role="list" aria-label="검색 결과">
                   {results.map((result, index) => {
-                    // Graph 버튼은 graphContext가 있거나 title이 파일명이 아닌 경우에만 표시
+                    // Graph 버튼: graphContext가 있거나, graph 소스이거나, 검색 쿼리가 있으면 표시
                     const hasGraphData = !!(
                       result.graphContext?.relatedEntities?.length ||
-                      (result.sourceType === 'graph')
+                      result.sourceType === 'graph' ||
+                      submittedQuery?.trim()
                     );
                     return (
                       <div key={result.chunkId || index} role="listitem">

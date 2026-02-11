@@ -790,8 +790,9 @@ class Neo4jStorageService:
                 # Fallback: 인덱스 미존재 시 CONTAINS로 대체
                 cypher = f"""
                 CALL db.index.fulltext.queryNodes("entity_fulltext_idx", $entity_name)
-                YIELD node AS center, score
-                WITH center
+                YIELD node AS candidate, score
+                WHERE EXISTS {{ MATCH (candidate)-[]-() }}
+                WITH candidate AS center
                 ORDER BY score DESC
                 LIMIT 1
                 CALL {{
@@ -869,18 +870,28 @@ class Neo4jStorageService:
                     )
                     records = [dict(r) async for r in fb_result]
 
-                # Fallback 2: Document 제목으로 연결된 엔티티 찾기
+                # Fallback 2: Knowledge/Document 제목으로 연결된 엔티티 찾기
+                # 실제 그래프 구조:
+                #   (Entity)-[:MENTIONED_IN]->(Knowledge)  -- 엔티티-지식 연결
+                #   (Chunk)-[:PART_OF]->(Document)         -- 청크-문서 연결
                 if not records:
                     logger.info(
-                        "Subgraph CONTAINS miss for '%s', trying Document title fallback",
+                        "Subgraph CONTAINS miss for '%s', trying Knowledge/Document title fallback",
                         entity_name,
                     )
                     doc_cypher = f"""
-                    MATCH (d:Document)
+                    OPTIONAL MATCH (k:Knowledge)
+                    WHERE k.title CONTAINS $entity_name
+                       OR $entity_name CONTAINS k.title
+                    WITH collect(k) AS knowledge_nodes
+                    OPTIONAL MATCH (d:Document)
                     WHERE d.title CONTAINS $entity_name
                        OR $entity_name CONTAINS d.title
-                    WITH d LIMIT 1
-                    MATCH (d)<-[:PART_OF]-(c:Chunk)<-[:MENTIONED_IN]-(center)
+                    WITH knowledge_nodes, collect(d) AS doc_nodes
+                    WITH knowledge_nodes + doc_nodes AS all_docs
+                    UNWIND all_docs AS doc
+                    WITH doc LIMIT 1
+                    MATCH (center)-[:MENTIONED_IN]->(doc)
                     WHERE (center:Technology OR center:Topic OR center:Person
                         OR center:Keyword OR center:Entity)
                     WITH center
