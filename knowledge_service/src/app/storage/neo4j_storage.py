@@ -768,6 +768,20 @@ class Neo4jStorageService:
 
         driver = self._ensure_driver()
 
+        # Lucene 특수문자 이스케이프 (fulltext 인덱스 쿼리용)
+        # + - && || ! ( ) { } [ ] ^ " ~ * ? : \ / 가 특수문자
+        def _escape_lucene(text: str) -> str:
+            special = r'+-&&||!(){}[]^"~*?:\/'
+            escaped = []
+            for ch in text:
+                if ch in special:
+                    escaped.append(f"\\{ch}")
+                else:
+                    escaped.append(ch)
+            return "".join(escaped)
+
+        escaped_entity_name = _escape_lucene(entity_name)
+
         try:
             async with driver.session(database=self._database) as session:
                 # 서브그래프 조회: 노드 + 관계를 별도로 수집
@@ -804,7 +818,7 @@ class Neo4jStorageService:
 
                 result = await session.run(
                     cypher,
-                    entity_name=entity_name,
+                    entity_name=escaped_entity_name,
                     limit=limit,
                 )
 
