@@ -3,9 +3,8 @@ package com.knowledge.gateway.route;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
@@ -32,8 +31,7 @@ public class FallbackController {
     /**
      * Fallback for Auth service
      */
-    @GetMapping("/auth")
-    @PostMapping("/auth")
+    @RequestMapping(value = "/auth", method = {RequestMethod.GET, RequestMethod.POST})
     public Mono<ResponseEntity<Map<String, Object>>> authFallback() {
         log.warn("Auth service fallback triggered - circuit breaker open");
         return Mono.just(createServiceUnavailableResponse(
@@ -46,8 +44,7 @@ public class FallbackController {
     /**
      * Fallback for Backend service
      */
-    @GetMapping("/backend")
-    @PostMapping("/backend")
+    @RequestMapping(value = "/backend", method = {RequestMethod.GET, RequestMethod.POST})
     public Mono<ResponseEntity<Map<String, Object>>> backendFallback() {
         log.warn("Backend service fallback triggered - circuit breaker open");
         return Mono.just(createServiceUnavailableResponse(
@@ -60,8 +57,7 @@ public class FallbackController {
     /**
      * Fallback for Knowledge Service
      */
-    @GetMapping("/knowledge")
-    @PostMapping("/knowledge")
+    @RequestMapping(value = "/knowledge", method = {RequestMethod.GET, RequestMethod.POST})
     public Mono<ResponseEntity<Map<String, Object>>> knowledgeFallback() {
         log.warn("Knowledge service fallback triggered - circuit breaker open");
         return Mono.just(createServiceUnavailableResponse(
@@ -74,8 +70,7 @@ public class FallbackController {
     /**
      * Fallback for User Service
      */
-    @GetMapping("/user")
-    @PostMapping("/user")
+    @RequestMapping(value = "/user", method = {RequestMethod.GET, RequestMethod.POST})
     public Mono<ResponseEntity<Map<String, Object>>> userFallback() {
         log.warn("User service fallback triggered - circuit breaker open");
         return Mono.just(createServiceUnavailableResponse(
@@ -88,8 +83,7 @@ public class FallbackController {
     /**
      * Fallback for AI Service (Search)
      */
-    @GetMapping("/ai-service")
-    @PostMapping("/ai-service")
+    @RequestMapping(value = "/ai-service", method = {RequestMethod.GET, RequestMethod.POST})
     public Mono<ResponseEntity<Map<String, Object>>> aiServiceFallback() {
         log.warn("AI service fallback triggered - circuit breaker open");
         return Mono.just(createServiceUnavailableResponse(
@@ -102,8 +96,7 @@ public class FallbackController {
     /**
      * Fallback for Search Service (alias for AI service search)
      */
-    @GetMapping("/search")
-    @PostMapping("/search")
+    @RequestMapping(value = "/search", method = {RequestMethod.GET, RequestMethod.POST})
     public Mono<ResponseEntity<Map<String, Object>>> searchFallback() {
         log.warn("Search service fallback triggered - circuit breaker open");
         return Mono.just(createServiceUnavailableResponse(
@@ -116,7 +109,7 @@ public class FallbackController {
     /**
      * Health check endpoint
      */
-    @GetMapping("/health")
+    @RequestMapping(value = "/health", method = RequestMethod.GET)
     public Mono<ResponseEntity<Map<String, Object>>> health() {
         return Mono.just(ResponseEntity.ok(Map.of(
             STATUS_KEY, "UP",
@@ -128,8 +121,7 @@ public class FallbackController {
     /**
      * Generic fallback for any undefined service
      */
-    @GetMapping("/**")
-    @PostMapping("/**")
+    @RequestMapping(value = "/**", method = {RequestMethod.GET, RequestMethod.POST})
     public Mono<ResponseEntity<Map<String, Object>>> genericFallback() {
         log.warn("Generic fallback triggered - unknown service or route");
         return Mono.just(createServiceUnavailableResponse(

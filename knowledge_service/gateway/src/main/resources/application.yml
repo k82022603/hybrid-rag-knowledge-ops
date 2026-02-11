@@ -387,12 +387,12 @@ resilience4j:
         slow-call-rate-threshold: 50
       ai-config:
         register-health-indicator: true
-        sliding-window-size: 5
-        permitted-number-of-calls-in-half-open-state: 2
+        sliding-window-size: 10
+        permitted-number-of-calls-in-half-open-state: 3
         wait-duration-in-open-state: 10s
         failure-rate-threshold: 50
-        slow-call-duration-threshold: 5s
-        slow-call-rate-threshold: 80
+        slow-call-duration-threshold: 30s
+        slow-call-rate-threshold: 90
     instances:
       auth-circuit-breaker:
         base-config: default

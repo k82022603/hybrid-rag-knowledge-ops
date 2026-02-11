@@ -268,13 +268,53 @@ def _extract_entities_from_title(title: str) -> List[str]:
         title: 문서 제목
 
     Returns:
-        추출된 키워드 목록
+        추출된 키워드 목록 (Neo4j 엔티티명으로 사용 가능한 것만)
     """
     if not title or _is_filename(title):
         return []
 
-    # 제목 자체가 유의미한 엔티티명일 수 있음
-    return [title]
+    entities: List[str] = []
+
+    # 밑줄/하이픈으로 구분된 제목에서 키워드 추출
+    # 예: "AI_Orchestration_Explained_The_What_Why__How_for_2024"
+    # → 영문 기술 키워드 추출 (대문자로 시작, 2글자 이상)
+    # 날짜, 불용어 제거
+    stop_words = {
+        "the", "a", "an", "and", "or", "for", "of", "in", "on", "to",
+        "with", "by", "from", "at", "is", "are", "was", "were", "be",
+        "how", "what", "why", "when", "where", "who", "which",
+        "explained", "introduction", "overview", "guide", "tutorial",
+    }
+
+    # 밑줄/하이픈/공백으로 분리
+    parts = re.split(r'[_\-\s]+', title)
+    tech_keywords = []
+    for part in parts:
+        cleaned = part.strip()
+        if not cleaned or len(cleaned) < 2:
+            continue
+        # 날짜 패턴 제거 (20250108, 2024 등)
+        if re.match(r'^\d{4,}$', cleaned):
+            continue
+        if cleaned.lower() in stop_words:
+            continue
+        tech_keywords.append(cleaned)
+
+    # 연속 대문자 키워드 조합 (예: "AI Orchestration", "Spring Cloud")
+    if tech_keywords:
+        # 개별 키워드 중 의미 있는 것
+        for kw in tech_keywords:
+            if len(kw) >= 2 and not kw.isdigit():
+                entities.append(kw)
+
+    # 한글 키워드 추출 (2글자 이상)
+    korean_parts = re.findall(r'[가-힣]{2,}', title)
+    for kp in korean_parts:
+        if kp not in entities:
+            entities.append(kp)
+
+    # 최대 5개까지만 반환
+    return entities[:5] if entities else []
 
 
 def build_sources_from_results(

@@ -851,6 +851,14 @@ class SearchService:
 
                 if chunk_id not in results_map:
                     results_map[chunk_id] = result
+                else:
+                    # ISSUE-011: 중복 chunk에서 graph 소스의 matched_entities 머지
+                    # vector 결과가 먼저 저장되면 graph의 matched_entities가 유실되므로
+                    # 나중에 등장하는 소스에 matched_entities가 있으면 기존 결과에 병합
+                    existing = results_map[chunk_id]
+                    new_entities = result.metadata.get("matched_entities", [])
+                    if new_entities and not existing.metadata.get("matched_entities"):
+                        existing.metadata["matched_entities"] = new_entities
 
                 # 소스별 순위 기록
                 if chunk_id not in source_ranks:

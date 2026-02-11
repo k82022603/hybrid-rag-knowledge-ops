@@ -810,6 +810,95 @@ class Neo4jStorageService:
 
                 records = [dict(record) async for record in result]
 
+                # Fallback: fulltext 인덱스에서 못 찾으면
+                # 1) CONTAINS 기반 엔티티 검색
+                # 2) Document 제목 매칭 → 연결된 엔티티로 subgraph 구성
+                if not records:
+                    logger.info(
+                        "Subgraph fulltext miss for '%s', trying CONTAINS fallback",
+                        entity_name,
+                    )
+                    fallback_cypher = f"""
+                    MATCH (center)
+                    WHERE (center:Technology OR center:Topic OR center:Person
+                        OR center:Keyword OR center:Entity)
+                    AND center.name IS NOT NULL
+                    AND (center.name CONTAINS $entity_name
+                         OR $entity_name CONTAINS center.name)
+                    WITH center
+                    ORDER BY size(center.name) DESC
+                    LIMIT 1
+                    CALL {{
+                        WITH center
+                        MATCH (center)-[r*1..{validated_depth}]-(related)
+                        WITH DISTINCT related
+                        RETURN related
+                        LIMIT $limit
+                    }}
+                    WITH center, collect(related) AS related_nodes
+                    WITH center, related_nodes,
+                         [center] + related_nodes AS all_nodes
+                    UNWIND all_nodes AS a
+                    UNWIND all_nodes AS b
+                    WITH center, all_nodes, a, b
+                    WHERE elementId(a) < elementId(b)
+                    OPTIONAL MATCH (a)-[r]-(b)
+                    WHERE r IS NOT NULL
+                    WITH center, all_nodes,
+                         collect(DISTINCT r) AS rels
+                    RETURN center, all_nodes, rels
+                    """
+                    fb_result = await session.run(
+                        fallback_cypher,
+                        entity_name=entity_name,
+                        limit=limit,
+                    )
+                    records = [dict(r) async for r in fb_result]
+
+                # Fallback 2: Document 제목으로 연결된 엔티티 찾기
+                if not records:
+                    logger.info(
+                        "Subgraph CONTAINS miss for '%s', trying Document title fallback",
+                        entity_name,
+                    )
+                    doc_cypher = f"""
+                    MATCH (d:Document)
+                    WHERE d.title CONTAINS $entity_name
+                       OR $entity_name CONTAINS d.title
+                    WITH d LIMIT 1
+                    MATCH (d)<-[:PART_OF]-(c:Chunk)<-[:MENTIONED_IN]-(center)
+                    WHERE (center:Technology OR center:Topic OR center:Person
+                        OR center:Keyword OR center:Entity)
+                    WITH center
+                    ORDER BY size(center.name) DESC
+                    LIMIT 1
+                    CALL {{
+                        WITH center
+                        MATCH (center)-[r*1..{validated_depth}]-(related)
+                        WITH DISTINCT related
+                        RETURN related
+                        LIMIT $limit
+                    }}
+                    WITH center, collect(related) AS related_nodes
+                    WITH center, related_nodes,
+                         [center] + related_nodes AS all_nodes
+                    UNWIND all_nodes AS a
+                    UNWIND all_nodes AS b
+                    WITH center, all_nodes, a, b
+                    WHERE elementId(a) < elementId(b)
+                    OPTIONAL MATCH (a)-[r]-(b)
+                    WHERE r IS NOT NULL
+                    WITH center, all_nodes,
+                         collect(DISTINCT r) AS rels
+                    RETURN center, all_nodes, rels
+                    """
+                    doc_result = await session.run(
+                        doc_cypher,
+                        entity_name=entity_name,
+                        limit=limit,
+                    )
+                    records = [dict(r) async for r in doc_result]
+
                 if not records:
                     return {"nodes": [], "edges": [], "center": entity_name}
 
