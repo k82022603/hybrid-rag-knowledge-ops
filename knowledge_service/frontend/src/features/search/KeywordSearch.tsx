@@ -288,9 +288,11 @@ const KeywordSearch: React.FC = () => {
                 {/* Result cards */}
                 <div className="space-y-3" role="list" aria-label="검색 결과">
                   {results.map((result, index) => {
-                    // Graph 버튼: 실제 relatedEntities가 존재할 때만 표시 (Bug #8 fix)
+                    // Graph 버튼: graphContext가 있거나, graph 소스이거나, 검색 쿼리가 있으면 표시
                     const hasGraphData = !!(
-                      result.graphContext?.relatedEntities?.length
+                      result.graphContext?.relatedEntities?.length ||
+                      result.sourceType === 'graph' ||
+                      submittedQuery?.trim()
                     );
                     return (
                       <div key={result.chunkId || index} role="listitem">

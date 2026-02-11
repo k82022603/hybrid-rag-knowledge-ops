@@ -111,7 +111,7 @@ describe('Sidebar', () => {
       renderSidebar();
 
       expect(screen.getByText('Knowledge Portal v0.1.0')).toBeInTheDocument();
-      expect(screen.getByText('Powered by Hybrid RAG')).toBeInTheDocument();
+      expect(screen.getByText('Powered by Graph RAG')).toBeInTheDocument();
     });
   });
 

@@ -117,7 +117,7 @@ const ChatInput: React.FC<ChatInputProps> = ({
         </button>
       </form>
       <p className="mt-2 text-2xs text-gray-400 dark:text-gray-500 text-center">
-        Hybrid RAG 기반 검색 - Enter로 전송, Shift+Enter로 줄바꿈
+        Knowledge Portal 검색 - Enter로 전송, Shift+Enter로 줄바꿈
       </p>
     </div>
   );

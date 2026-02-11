@@ -153,8 +153,8 @@ function SourceCard({
           >
             {source.hasEmbedding !== false ? 'AI 검색' : '키워드'}
           </span>
-          {/* Graph button - only when relatedEntities exist (Bug #8 fix) */}
-          {!!(source.graphContext?.relatedEntities?.length) && onGraphSourceClick && (
+          {/* Graph button */}
+          {source.sourceType === 'graph' && onGraphSourceClick && (
             <button
               type="button"
               onClick={() => onGraphSourceClick(source)}

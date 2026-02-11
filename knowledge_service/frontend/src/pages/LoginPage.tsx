@@ -119,7 +119,7 @@ const LoginPage: React.FC = () => {
             SSO: Keycloak | Direct Login: API Gateway
           </p>
           <p className="text-xs text-gray-400 dark:text-gray-500">
-            © 2026 Hybrid RAG Knowledge Operations
+            © 2026 Knowledge Portal
           </p>
         </div>
       </div>
