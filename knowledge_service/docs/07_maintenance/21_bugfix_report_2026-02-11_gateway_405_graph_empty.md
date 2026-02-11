@@ -1,4 +1,4 @@
-# Bug Fix Report: Gateway 405 오류 + 그래프 시각화 빈 결과
+# Bug Fix Report: Gateway 405 오류 + 그래프 시각화 빈 결과 + Lucene 특수문자
 
 ## 기본 정보
 
@@ -8,20 +8,21 @@
 | **수정자** | Claude (AI Assistant) |
 | **우선순위** | High |
 | **상태** | 수정 완료, 검증 완료 |
-| **커밋** | `eb40cda` |
-| **영향 범위** | Chat 검색 (405 → 200), 그래프 시각화 (빈 결과 → 정상) |
+| **커밋** | `eb40cda`, `b4278fa` |
+| **영향 범위** | Chat 검색 (405 → 200), 그래프 시각화 (빈 결과 → 정상), Subgraph API (500 → 200) |
 | **관련 이슈** | ISSUE-011 (그래프 패널 엔티티명), SCRUM-101 (graph 소스 태깅) |
 
 ---
 
 ## 버그 요약
 
-이 보고서는 동일 세션에서 발견/수정된 **연관된 2건의 버그**를 다룹니다.
+이 보고서는 동일 세션에서 발견/수정된 **연관된 3건의 버그**를 다룹니다.
 
 | # | 버그 | 증상 | 근본 원인 |
 |---|------|------|-----------|
 | 1 | Gateway 405 Method Not Allowed | POST `/api/v1/search/chat` → 405 | FallbackController 어노테이션 + Circuit Breaker 설정 |
 | 2 | 그래프 시각화 빈 결과 | 그래프 아이콘 클릭 → 빈 그래프 | RRF 융합에서 `matched_entities` 유실 |
+| 3 | Subgraph API Lucene 파싱 오류 | `CI/CD` → 500 Server Error | Neo4j Fulltext 쿼리에 Lucene 특수문자 미이스케이프 |
 
 ---
 
@@ -316,6 +317,110 @@ flowchart LR
 
 ---
 
+## Bug #3: Subgraph API Lucene 특수문자 파싱 오류
+
+### 증상
+
+Bug #2 수정 후, `CI/CD`와 같은 Lucene 특수문자가 포함된 엔티티명으로 subgraph 조회 시:
+
+```
+POST /api/v1/graph/subgraph
+{"entity_name": "CI/CD", "depth": 1, "limit": 15}
+
+→ 500 Internal Server Error
+{
+  "detail": "Knowledge Graph 조회 실패: 서브그래프 조회 실패:
+    {code: Neo.ClientError.Procedure.ProcedureCallFailed}
+    TokenMgrError: Lexical error at line 1, column 6.
+    Encountered: <EOF> after prefix \"/CD\" (in lexical state 2)"
+}
+```
+
+### 원인 분석
+
+```mermaid
+flowchart LR
+    INPUT["entity_name = 'CI/CD'"] --> FT["db.index.fulltext.queryNodes()"]
+    FT --> LUCENE["Lucene Query Parser"]
+    LUCENE -->|"'/' = 정규식 구분자"| PARSE["'/CD' → 정규식으로 해석 시도"]
+    PARSE -->|"EOF 도달"| ERROR["TokenMgrError:<br/>Lexical error"]
+
+    style ERROR fill:#f66,color:#fff
+```
+
+Neo4j의 `db.index.fulltext.queryNodes()`는 내부적으로 **Apache Lucene Query Parser**를 사용합니다.
+Lucene에서 `/`는 정규식 구분자로 해석되어, `CI/CD`가 `CI` + `/CD`(불완전 정규식)로 파싱됩니다.
+
+#### Lucene 특수문자 목록
+
+```
++ - && || ! ( ) { } [ ] ^ " ~ * ? : \ /
+```
+
+이 중 어느 것이라도 엔티티명에 포함되면 동일한 파싱 오류가 발생합니다.
+
+### 수정 내용
+
+`neo4j_storage.py`의 `query_subgraph()` 메서드에 **Lucene 이스케이프 함수** 추가:
+
+```python
+def _escape_lucene(text: str) -> str:
+    """Lucene 쿼리 특수문자를 이스케이프합니다."""
+    special = r'+-&&||!(){}[]^"~*?:\/'
+    escaped = []
+    for ch in text:
+        if ch in special:
+            escaped.append(f"\\{ch}")
+        else:
+            escaped.append(ch)
+    return "".join(escaped)
+
+# fulltext 쿼리 호출 전 이스케이프 적용
+escaped_entity_name = _escape_lucene(entity_name)
+# db.index.fulltext.queryNodes("entity_fulltext_idx", escaped_entity_name)
+```
+
+```mermaid
+flowchart LR
+    INPUT2["entity_name = 'CI/CD'"] --> ESC["_escape_lucene()"]
+    ESC -->|"'CI\\/CD'"| FT2["db.index.fulltext.queryNodes()"]
+    FT2 --> LUCENE2["Lucene Query Parser"]
+    LUCENE2 -->|"'\\/' = 리터럴 '/'"| OK["정상 검색 → 3 nodes, 3 edges"]
+
+    style ESC fill:#da5,color:#fff
+    style OK fill:#6c6,color:#fff
+```
+
+| 입력 | 이스케이프 전 | 이스케이프 후 | 결과 |
+|------|-------------|-------------|------|
+| `CI/CD` | `CI/CD` (정규식 오류) | `CI\/CD` | 3 nodes, 3 edges |
+| `C++` | `C++` (AND 연산자 오류) | `C\+\+` | 정상 검색 |
+| `"마이크로서비스"` | 구문 검색 오류 | `\"마이크로서비스\"` | 정상 검색 |
+
+### 검증
+
+```json
+// 수정 전
+POST /api/v1/graph/subgraph {"entity_name": "CI/CD"}
+→ 500 Internal Server Error (TokenMgrError)
+
+// 수정 후
+POST /api/v1/graph/subgraph {"entity_name": "CI/CD"}
+→ 200 OK
+{
+  "center": "CI/CD",
+  "nodes": [
+    {"name": "CI/CD", "type": "Topic"},
+    {"name": "test_doc_2.txt", "type": "Knowledge"},
+    {"name": "MSA 차세대 플랫폼 전환 프로젝트", "type": "Topic"}
+  ],
+  "edges": [...],
+  "node_count": 3
+}
+```
+
+---
+
 ## 수정 파일 목록
 
 | 파일 | 변경 | 버그 |
@@ -325,6 +430,7 @@ flowchart LR
 | `src/app/services/search.py` | RRF 융합 시 `matched_entities` 병합 | #2 |
 | `src/app/agents/rag_workflow.py` | `_extract_entities_from_title()` 키워드 분리 | #2 |
 | `src/app/storage/neo4j_storage.py` | `query_subgraph` 3단계 fallback 추가 | #2 |
+| `src/app/storage/neo4j_storage.py` | `_escape_lucene()` 함수 추가, fulltext 쿼리 이스케이프 | #3 |
 
 ---
 
@@ -336,6 +442,7 @@ flowchart LR
 |------|------|
 | **Circuit Breaker 모니터링** | Grafana 대시보드에 CB 상태 (OPEN/HALF_OPEN/CLOSED) 패널 추가 권장 |
 | **Redis 캐시 주의** | 코드 수정 후 `FLUSHDB`로 캐시 클리어 필요 (오래된 메타데이터 반환 방지) |
+| **Lucene 이스케이프** | Neo4j fulltext 쿼리 사용 시 반드시 `_escape_lucene()` 적용 (새 fulltext 쿼리 추가 시 체크) |
 
 ### 중기
 
@@ -344,6 +451,7 @@ flowchart LR
 | **E2E 테스트 추가** | Chat → Graph 클릭 → Subgraph 비어있지 않음 검증 |
 | **RRF 융합 단위 테스트** | Vector+Graph 중복 chunk의 `matched_entities` 보존 검증 |
 | **FallbackController 테스트** | POST 메서드 지원 여부 WebTestClient로 검증 |
+| **Lucene 특수문자 테스트** | `CI/CD`, `C++`, `"quoted"` 등 특수문자 포함 엔티티 subgraph 조회 검증 |
 
 ### 장기
 
