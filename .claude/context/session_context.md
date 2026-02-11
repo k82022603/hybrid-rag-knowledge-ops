@@ -1,20 +1,20 @@
-# Session Context - 2026-02-11 (Wednesday)
+# Session Context - 2026-02-12 (Thursday)
 
 ## Git Status
 **Branch**: main
 
 ### Recent Commits
 ```
-6914bad [FIX] Keycloak JWT → Backend 401 인증 수정
-f47ece2 [FIX] 503 Timeout 수정 + Admin 캐시 관리 + Stats 엔드포인트 구현
-88e7989 [DOCS] Bug Fix Report에 Bug #3 Lucene 특수문자 이스케이프 추가
-b4278fa [FIX] subgraph Lucene 특수문자 이스케이프 (CI/CD → 500 에러 수정)
-994e78b [DOCS] Bug Fix Report - Gateway 405 + 그래프 시각화 빈 결과 (2026-02-11)
+02240a2 [REFACTOR] 시스템명 Knowledge Portal 통일 + Bug #8 원복
+6984466 [DOCS] Bug Fix Report에 Bug #8 Graph 배지 UX 모순 추가 (Phase 3)
+7b9f326 [FIX] Bug #8 Graph 배지 UX 모순 - matched_entities 없을 때 source_type "graph" 미설정
+c097c74 [FIX] Graph 시각화 빈 결과 Phase 2 - Fulltext 인덱스 + fallback 패턴 수정
+f3f1abc [DOCS] Agent Teams 활용 가이드 v3.0 + CLAUDE.md 운영 원칙 추가
 ```
 
 ## Work Log Status
 - Today's log: exists
-- Path: work_logs/daily_logs/2026/02-February/2026-02-11.md
+- Path: work_logs/daily_logs/2026/02-February/2026-02-12.md
 
 ## Quick Commands
 - `/daily:standup` - 팀 스탠드업

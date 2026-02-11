@@ -32,46 +32,69 @@ interface MenuItem {
   dividerBefore?: boolean;
 }
 
-const menuItems: MenuItem[] = [
+interface MenuSection {
+  label: string;
+  items: MenuItem[];
+}
+
+const menuSections: MenuSection[] = [
   {
-    text: '대시보드',
-    icon: <HomeIcon className="h-5 w-5" />,
-    path: '/dashboard',
+    label: '메인',
+    items: [
+      {
+        text: '대시보드',
+        icon: <HomeIcon className="h-5 w-5" />,
+        path: '/dashboard',
+      },
+      {
+        text: '검색',
+        icon: <MagnifyingGlassIcon className="h-5 w-5" />,
+        path: '/search',
+      },
+    ],
   },
   {
-    text: '검색',
-    icon: <MagnifyingGlassIcon className="h-5 w-5" />,
-    path: '/search',
+    label: '지식 관리',
+    items: [
+      {
+        text: '지식 관리',
+        icon: <BookOpenIcon className="h-5 w-5" />,
+        path: '/knowledge',
+        roles: ['KNOWLEDGE_MANAGER', 'ADMIN'],
+      },
+      {
+        text: '문서 업로드',
+        icon: <ArrowUpTrayIcon className="h-5 w-5" />,
+        path: '/upload',
+        roles: ['KNOWLEDGE_MANAGER', 'ADMIN'],
+      },
+    ],
   },
   {
-    text: '지식 관리',
-    icon: <BookOpenIcon className="h-5 w-5" />,
-    path: '/knowledge',
-    roles: ['KNOWLEDGE_MANAGER', 'ADMIN'],
+    label: '개인',
+    items: [
+      {
+        text: '북마크',
+        icon: <BookmarkIcon className="h-5 w-5" />,
+        path: '/bookmarks',
+      },
+      {
+        text: '프로필',
+        icon: <UserIcon className="h-5 w-5" />,
+        path: '/profile',
+      },
+    ],
   },
   {
-    text: '문서 업로드',
-    icon: <ArrowUpTrayIcon className="h-5 w-5" />,
-    path: '/upload',
-    roles: ['KNOWLEDGE_MANAGER', 'ADMIN'],
-  },
-  {
-    text: '북마크',
-    icon: <BookmarkIcon className="h-5 w-5" />,
-    path: '/bookmarks',
-    dividerBefore: true,
-  },
-  {
-    text: '프로필',
-    icon: <UserIcon className="h-5 w-5" />,
-    path: '/profile',
-  },
-  {
-    text: '관리자',
-    icon: <Cog6ToothIcon className="h-5 w-5" />,
-    path: '/admin',
-    roles: ['ADMIN'],
-    dividerBefore: true,
+    label: '시스템',
+    items: [
+      {
+        text: '관리자',
+        icon: <Cog6ToothIcon className="h-5 w-5" />,
+        path: '/admin',
+        roles: ['ADMIN'],
+      },
+    ],
   },
 ];
 
@@ -88,11 +111,16 @@ const Sidebar: React.FC<SidebarProps> = ({ open, width, onClose }) => {
     }
   };
 
-  // 역할 기반 메뉴 필터링
-  const filteredMenuItems = menuItems.filter((item) => {
-    if (!item.roles) return true;
-    return item.roles.some((role) => hasRole(role));
-  });
+  // 역할 기반 섹션 필터링
+  const filteredSections = menuSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => {
+        if (!item.roles) return true;
+        return item.roles.some((role) => hasRole(role));
+      }),
+    }))
+    .filter((section) => section.items.length > 0);
 
   return (
     <>
@@ -110,7 +138,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, width, onClose }) => {
         id="sidebar-navigation"
         aria-label="Main navigation sidebar"
         aria-hidden={!open}
-        className={`fixed top-16 left-0 z-40 h-[calc(100vh-4rem)] bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-transform duration-300 ease-in-out ${
+        className={`fixed top-16 left-0 z-40 h-[calc(100vh-4rem)] bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-transform duration-300 ease-in-out flex flex-col ${
           open ? 'translate-x-0' : '-translate-x-full'
         }`}
         style={{ width: `${width}px` }}
@@ -119,7 +147,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, width, onClose }) => {
         {/* Mobile close button */}
         <div className="flex items-center justify-between p-4 md:hidden">
           <span className="text-lg font-semibold text-gray-900 dark:text-white" id="sidebar-title">
-            Menu
+            메뉴
           </span>
           <button
             onClick={onClose}
@@ -132,52 +160,69 @@ const Sidebar: React.FC<SidebarProps> = ({ open, width, onClose }) => {
         </div>
 
         {/* Navigation */}
-        <nav className="p-4 space-y-1" aria-label="Main menu">
-          {filteredMenuItems.map((item) => {
-            const isActive =
-              location.pathname === item.path ||
-              location.pathname.startsWith(item.path + '/');
-            return (
-              <React.Fragment key={item.path}>
-                {item.dividerBefore && (
-                  <div className="my-2 border-t border-gray-200 dark:border-gray-700" role="separator" aria-hidden="true" />
-                )}
-                <button
-                  onClick={() => handleNavigation(item.path)}
-                  aria-current={isActive ? 'page' : undefined}
-                  aria-label={isActive ? `${item.text} (current page)` : item.text}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
-                    isActive
-                      ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/50 dark:text-primary-300'
-                      : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
-                  }`}
-                  data-testid={`nav-${item.path.replace('/', '')}`}
-                >
-                  <span
-                    className={
-                      isActive
-                        ? 'text-primary-600 dark:text-primary-400'
-                        : 'text-gray-400 dark:text-gray-500'
-                    }
-                    aria-hidden="true"
-                  >
-                    {item.icon}
-                  </span>
-                  <span>{item.text}</span>
-                  {isActive && (
-                    <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-600 dark:bg-primary-400" aria-hidden="true" />
-                  )}
-                </button>
-              </React.Fragment>
-            );
-          })}
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-6" aria-label="Main menu">
+          {filteredSections.map((section, sectionIdx) => (
+            <div key={section.label}>
+              {/* Section header */}
+              {sectionIdx > 0 && (
+                <div className="mb-2 border-t border-gray-100 dark:border-gray-700/50" role="separator" aria-hidden="true" />
+              )}
+              <p className="px-3 mb-2 text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                {section.label}
+              </p>
+              <div className="space-y-0.5">
+                {section.items.map((item) => {
+                  const isActive =
+                    location.pathname === item.path ||
+                    location.pathname.startsWith(item.path + '/');
+                  return (
+                    <button
+                      key={item.path}
+                      onClick={() => handleNavigation(item.path)}
+                      aria-current={isActive ? 'page' : undefined}
+                      aria-label={isActive ? `${item.text} (current page)` : item.text}
+                      className={`relative w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
+                        isActive
+                          ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-700/50 dark:hover:text-white'
+                      }`}
+                      data-testid={`nav-${item.path.replace('/', '')}`}
+                    >
+                      {/* Active left indicator bar */}
+                      {isActive && (
+                        <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r-full bg-primary-600 dark:bg-primary-400" aria-hidden="true" />
+                      )}
+                      <span
+                        className={
+                          isActive
+                            ? 'text-primary-600 dark:text-primary-400'
+                            : 'text-gray-400 dark:text-gray-500'
+                        }
+                        aria-hidden="true"
+                      >
+                        {item.icon}
+                      </span>
+                      <span>{item.text}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </nav>
 
         {/* Bottom section - Version info */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 dark:border-gray-700">
-          <div className="text-xs text-gray-500 dark:text-gray-400">
-            <p>Knowledge Portal v0.1.0</p>
-            <p className="mt-1">Powered by Graph RAG</p>
+        <div className="flex-shrink-0 p-4 border-t border-gray-100 dark:border-gray-700/50">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-md bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center flex-shrink-0">
+              <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-gray-700 dark:text-gray-300">Knowledge Portal</p>
+              <p className="text-[10px] text-gray-400 dark:text-gray-500">v0.1.0 · Graph RAG</p>
+            </div>
           </div>
         </div>
       </aside>

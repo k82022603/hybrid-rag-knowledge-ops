@@ -103,10 +103,28 @@ const KeywordSearch: React.FC = () => {
     setSelectedGraphEntities([]);
   }, []);
 
-  /** Handle document download - open API URL directly for FileResponse/Redirect */
-  const handleDownloadClick = useCallback((documentId: string) => {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api/v1';
-    window.open(`${baseUrl}/documents/${documentId}/download`, '_blank');
+  /** Handle document download via fetch + blob (auth token included) */
+  const handleDownloadClick = useCallback(async (documentId: string) => {
+    try {
+      const { default: api } = await import('@/services/api');
+      const resp = await api.get(`/documents/${documentId}/download`, {
+        responseType: 'blob',
+      });
+      const disposition = resp.headers['content-disposition'] || '';
+      let filename = 'document';
+      const match = disposition.match(/filename\*?=(?:utf-8''|"?)([^;"]+)/i);
+      if (match) filename = decodeURIComponent(match[1].replace(/"/g, ''));
+      const url = window.URL.createObjectURL(resp.data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('[KeywordSearch] Download failed:', err);
+    }
   }, []);
 
   // Generate status message for screen readers

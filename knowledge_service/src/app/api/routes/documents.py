@@ -1043,16 +1043,56 @@ async def download_document(document_id: UUID):
     storage_path = doc_record.get("storage_path", "")
     filename = doc_record.get("filename", doc_record.get("original_filename", "document"))
 
-    # storage_path 파싱: "minio://bucket/object_name" 또는 로컬 경로
+    # Case 1: MinIO presigned URL (minio://bucket/object_name)
     if storage_path.startswith("minio://"):
-        # minio://documents/uuid/filename.pdf → bucket="documents", object_name="uuid/filename.pdf"
         parts = storage_path[len("minio://"):]
         bucket = parts.split("/", 1)[0]
         object_name = parts.split("/", 1)[1] if "/" in parts else ""
-    else:
-        # 로컬 저장소인 경우 document_id/filename으로 구성
-        bucket = DOCUMENTS_BUCKET
-        object_name = f"{document_id}/{filename}"
+
+        try:
+            download_url = await get_file_url(bucket=bucket, object_name=object_name)
+        except Exception as e:
+            logger.error("Failed to generate download URL for %s: %s", document_id, e)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="다운로드 URL 생성에 실패했습니다",
+            )
+
+        if download_url.startswith("http"):
+            return RedirectResponse(url=download_url, status_code=302)
+
+        # MinIO fallback to local
+        local_path = Path(download_url)
+        if local_path.exists() and local_path.is_file():
+            return FileResponse(
+                path=str(local_path),
+                filename=local_path.name,
+                media_type="application/octet-stream",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"파일이 서버에 존재하지 않습니다: {filename}",
+        )
+
+    # Case 2: Absolute local path (e.g. /app/knowledge_data/documents/...)
+    if storage_path.startswith("/"):
+        local_path = Path(storage_path)
+        if local_path.exists() and local_path.is_file():
+            download_name = local_path.name if "." in local_path.name else filename
+            return FileResponse(
+                path=str(local_path),
+                filename=download_name,
+                media_type="application/octet-stream",
+            )
+        logger.warning("File not found at storage_path: %s", storage_path)
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"파일이 서버에 존재하지 않습니다: {local_path.name}",
+        )
+
+    # Case 3: Relative path or empty - try MinIO/local fallback
+    bucket = DOCUMENTS_BUCKET
+    object_name = storage_path if storage_path else f"{document_id}/{filename}"
 
     try:
         download_url = await get_file_url(bucket=bucket, object_name=object_name)
@@ -1063,22 +1103,20 @@ async def download_document(document_id: UUID):
             detail="다운로드 URL 생성에 실패했습니다",
         )
 
-    # 로컬 파일 경로인 경우 직접 FileResponse로 반환
-    if not download_url.startswith("http"):
-        local_path = Path(download_url)
-        if local_path.exists() and local_path.is_file():
-            return FileResponse(
-                path=str(local_path),
-                filename=filename,
-                media_type="application/octet-stream",
-            )
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"파일이 서버에 존재하지 않습니다: {filename}",
-        )
+    if download_url.startswith("http"):
+        return RedirectResponse(url=download_url, status_code=302)
 
-    # MinIO presigned URL인 경우 브라우저 리다이렉트
-    return RedirectResponse(url=download_url, status_code=302)
+    local_path = Path(download_url)
+    if local_path.exists() and local_path.is_file():
+        return FileResponse(
+            path=str(local_path),
+            filename=local_path.name if "." in local_path.name else filename,
+            media_type="application/octet-stream",
+        )
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f"파일이 서버에 존재하지 않습니다: {filename}",
+    )
 
 
 # ============================================================================

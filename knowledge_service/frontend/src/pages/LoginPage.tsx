@@ -58,11 +58,17 @@ const LoginPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary-50 to-accent-50 dark:from-gray-900 dark:to-gray-800 px-4 py-12">
-      <div className="max-w-md w-full">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-primary-50/30 to-accent-50/20 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 px-4 py-12">
+      {/* Decorative background pattern */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+        <div className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-primary-100/40 dark:bg-primary-900/10 blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-accent-100/30 dark:bg-accent-900/10 blur-3xl" />
+      </div>
+
+      <div className="relative max-w-md w-full">
         {/* Logo and Title */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary-600 text-white mb-4 shadow-lg">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-700 text-white mb-5 shadow-lg shadow-primary-500/25">
             <svg
               className="w-8 h-8"
               fill="none"
@@ -78,16 +84,16 @@ const LoginPage: React.FC = () => {
               />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">
             Knowledge Portal
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">
-            지식 베이스에 로그인하세요
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+            Graph RAG 기반 지능형 지식 검색 시스템
           </p>
         </div>
 
         {/* Login Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-8">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl shadow-gray-200/50 dark:shadow-none dark:border dark:border-gray-700 p-8">
           <LoginForm
             onForgotPassword={handleForgotPassword}
             onSSOLogin={handleSSOLogin}
@@ -97,7 +103,7 @@ const LoginPage: React.FC = () => {
 
         {/* Development Info */}
         {import.meta.env.DEV && import.meta.env.VITE_DEV_TEST_ACCOUNTS && (
-          <div className="mt-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+          <div className="mt-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border border-yellow-200 dark:border-yellow-800">
             <h3 className="text-sm font-medium text-yellow-800 dark:text-yellow-200 mb-2">
               Development Mode - Test Accounts
             </h3>
@@ -114,11 +120,11 @@ const LoginPage: React.FC = () => {
         )}
 
         {/* Footer */}
-        <div className="text-center mt-8 space-y-2">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            SSO: Keycloak | Direct Login: API Gateway
-          </p>
+        <div className="text-center mt-8 space-y-1.5">
           <p className="text-xs text-gray-400 dark:text-gray-500">
+            SSO: Keycloak · Direct Login: API Gateway
+          </p>
+          <p className="text-[11px] text-gray-300 dark:text-gray-600">
             © 2026 Knowledge Portal
           </p>
         </div>

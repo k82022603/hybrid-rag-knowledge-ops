@@ -2,9 +2,9 @@
 
 > Claude Code 세션 간 컨텍스트 유지를 위한 계획 문서
 >
-> **Last Updated**: 2026-02-10 00:56 KST (Sprint 08 Day 3 마감)
-> **Current Phase**: Phase 5 배포 완료 ✅ → Sprint 08 RAG v3 개선 + RAGAS v5 평가 + 한글화
-> **Sprint 08**: RRF 버그 수정, RAG v3 파이프라인, 50쿼리 RAGAS 평가, Frontend 한글화
+> **Last Updated**: 2026-02-12 08:12 KST (Sprint 09 - 버그 수정 + ETL 3-Phase)
+> **Current Phase**: Phase 5 배포 완료 ✅ → Sprint 09 버그 수정 집중 + ETL 데이터 처리
+> **Sprint 09**: 버그 6건 수정, STORY-108 file_hash, ETL 3-Phase 파이프라인, 임베딩 배치
 > **Frontend 전략 변경**: Tailwind + Antigravity + Stitch MCP 도입 결정 (2026-01-25)
 > **소스코드 리뷰**: 72.5/100 B+ (Gateway 65, Backend 72, AI Service 78, Frontend 75)
 
@@ -940,6 +940,18 @@ CI/CD Pipeline (GitHub Actions)
 ---
 
 ## Session Notes
+
+### 2026-02-11 (Sprint 09 Day 1 - 버그 수정 집중 + ETL 준비)
+
+- **버그 6건 수정**: Gateway 405, Graph 시각화 빈 결과, Lucene 특수문자, JWT 401, 503 Timeout, Graph 배지 UX
+- **STORY-108 file_hash**: SHA-256 중복 방지 + 검색 응답 title/contributing_sources
+- **문서 정리**: planning 번호매기기, RAGAS results 번호매기기, Agent Teams v3.0
+- **ETL 3-Phase 전략 수립**: 텍스트(13min)→바이너리(진행중)→임베딩(BGE-M3 CPU)
+- **Phase 1 완료**: 739 텍스트 파일, 0 실패, 54.4 files/min
+- **Phase 2 진행중**: 650+/901 바이너리 파일 (Docling+RapidOCR)
+- **Phase 3 시작**: 101K chunks 임베딩 배치 (0.6~1.2 t/s)
+- **시스템명 통일**: Knowledge Portal (전체 코드베이스)
+- **커밋**: 19건
 
 ### 2026-02-10 (Sprint 08 Day 3 - RRF 버그 수정 + RAGAS v5 + 한글화)
 

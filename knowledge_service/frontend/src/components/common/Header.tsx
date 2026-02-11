@@ -64,13 +64,16 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isSidebarOpen = true }) =>
       role="banner"
       className="fixed top-0 left-0 right-0 z-50 h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm"
     >
+      {/* Primary accent line at top */}
+      <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary-500 via-primary-600 to-accent-500" aria-hidden="true" />
+
       <div className="h-full px-4 flex items-center justify-between">
         {/* Left section: Menu button and Logo */}
         <div className="flex items-center">
           <button
             type="button"
             onClick={onMenuClick}
-            className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+            className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition-colors"
             aria-label={isSidebarOpen ? 'Close sidebar navigation' : 'Open sidebar navigation'}
             aria-expanded={isSidebarOpen}
             data-testid="sidebar-toggle"
@@ -80,7 +83,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isSidebarOpen = true }) =>
 
           <div className="ml-4 flex items-center">
             <div
-              className="flex-shrink-0 w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center"
+              className="flex-shrink-0 w-9 h-9 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center shadow-sm"
               aria-hidden="true"
             >
               <svg
@@ -98,9 +101,14 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isSidebarOpen = true }) =>
                 />
               </svg>
             </div>
-            <h1 className="ml-3 text-xl font-semibold text-gray-900 dark:text-white hidden sm:block">
-              Knowledge Portal
-            </h1>
+            <div className="ml-3 hidden sm:block">
+              <h1 className="text-lg font-bold text-gray-900 dark:text-white leading-tight tracking-tight">
+                Knowledge Portal
+              </h1>
+              <p className="text-[10px] font-medium text-primary-500 dark:text-primary-400 tracking-wider uppercase">
+                Graph RAG Platform
+              </p>
+            </div>
             {/* Screen reader only - full app name */}
             <span className="sr-only">Knowledge Portal - Enterprise Knowledge Search System</span>
           </div>
@@ -117,7 +125,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isSidebarOpen = true }) =>
               >
                 {/* User Avatar */}
                 <div
-                  className="w-8 h-8 rounded-full bg-primary-600 flex items-center justify-center text-white text-sm font-medium"
+                  className="w-9 h-9 rounded-full bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white text-sm font-semibold shadow-sm ring-2 ring-white dark:ring-gray-700"
                   aria-hidden="true"
                 >
                   {getUserInitials()}
@@ -182,7 +190,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isSidebarOpen = true }) =>
                           } flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 focus:outline-none`}
                         >
                           <UserIcon className="mr-3 h-5 w-5 text-gray-400" aria-hidden="true" />
-                          <span>Profile</span>
+                          <span>프로필</span>
                         </button>
                       )}
                     </MenuItem>
@@ -195,24 +203,24 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isSidebarOpen = true }) =>
                           } flex items-center w-full px-4 py-2 text-sm text-gray-700 dark:text-gray-200 focus:outline-none`}
                         >
                           <Cog6ToothIcon className="mr-3 h-5 w-5 text-gray-400" aria-hidden="true" />
-                          <span>Settings</span>
+                          <span>설정</span>
                         </button>
                       )}
                     </MenuItem>
                   </div>
 
                   {/* Logout */}
-                  <div className="py-1" role="group" aria-label="Sign out">
+                  <div className="py-1" role="group" aria-label="로그아웃">
                     <MenuItem>
                       {({ focus }) => (
                         <button
                           onClick={handleLogout}
                           className={`${
-                            focus ? 'bg-gray-100 dark:bg-gray-700' : ''
-                          } flex items-center w-full px-4 py-2 text-sm text-error-600 dark:text-error-400 focus:outline-none`}
+                            focus ? 'bg-error-50 dark:bg-error-900/20' : ''
+                          } flex items-center w-full px-4 py-2 text-sm text-error-600 dark:text-error-400 focus:outline-none transition-colors`}
                         >
                           <ArrowRightStartOnRectangleIcon className="mr-3 h-5 w-5" aria-hidden="true" />
-                          <span>Sign out</span>
+                          <span>로그아웃</span>
                         </button>
                       )}
                     </MenuItem>
@@ -229,7 +237,7 @@ const Header: React.FC<HeaderProps> = ({ onMenuClick, isSidebarOpen = true }) =>
               className="btn-primary btn-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
               data-testid="sign-in-link"
             >
-              Sign in
+              로그인
             </a>
           )}
         </div>

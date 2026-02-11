@@ -1,4 +1,4 @@
-# Session Summary - 2026-02-11 08:14
+# Session Summary - 2026-02-12 01:18
 
 ## Commits This Session
 ```
@@ -9,14 +9,14 @@
 ```
 .claude/context/session_context.md
 .claude/context/session_summary.md
-PLAN.md
-README.md
-knowledge_service/docs/07_maintenance/rag_quality_improvement_manual.md
-"knowledge_service/docs/results/ragas/RAGAS_v5_50\354\277\274\353\246\254_\355\217\211\352\260\200\352\262\260\352\263\274.md"
-"knowledge_service/docs/results/ragas/RAGAS_\355\217\211\352\260\200_\354\264\235\355\217\211.md"
-knowledge_service/docs/results/ragas/hrkp_vs_rcsv_2026-02-10_v3.json
-knowledge_service/docs/results/ragas/hrkp_vs_rcsv_2026-02-10_v4.json
-knowledge_service/docs/results/ragas/hrkp_vs_rcsv_report_2026-02-10_v3.md
+CLAUDE.md
+"docs/12_Agent_Teams_\355\231\234\354\232\251_\352\260\200\354\235\264\353\223\234.md"
+infrastructure/docker/init-db/03_neo4j_constraints.cypher
+knowledge_service/docs/07_maintenance/21_bugfix_report_2026-02-11_gateway_405_graph_empty.md
+knowledge_service/frontend/index.html
+knowledge_service/frontend/src/components/common/Header.tsx
+knowledge_service/frontend/src/components/common/Sidebar.tsx
+knowledge_service/frontend/src/components/common/__tests__/Sidebar.test.tsx
 ```
 
 ---
