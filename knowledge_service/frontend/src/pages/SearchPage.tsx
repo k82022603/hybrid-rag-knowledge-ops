@@ -47,7 +47,7 @@ const SearchPage: React.FC = () => {
 
       {/* Tab Navigation */}
       <div className="border-b border-gray-200 dark:border-gray-700">
-        <nav className="flex gap-1" aria-label="Search tabs" role="tablist">
+        <nav className="flex gap-4" aria-label="Search tabs" role="tablist">
           {TABS.map((tab) => {
             const isActive = activeTab === tab.key;
             return (
@@ -57,26 +57,21 @@ const SearchPage: React.FC = () => {
                 role="tab"
                 aria-selected={isActive}
                 aria-controls={`tab-panel-${tab.key}`}
-                className={`group relative flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'text-primary-700 dark:text-primary-300'
-                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
-                }`}
+                className={`group relative flex items-center gap-2 px-1 py-4 text-sm font-medium transition-colors border-b-2 ${isActive
+                    ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-600'
+                  }`}
               >
                 <span
                   className={
                     isActive
-                      ? 'text-primary-600 dark:text-primary-400'
+                      ? 'text-primary-500 dark:text-primary-400'
                       : 'text-gray-400 group-hover:text-gray-500 dark:text-gray-500'
                   }
                 >
                   {tab.icon}
                 </span>
                 {tab.label}
-                {/* Active indicator */}
-                {isActive && (
-                  <span className="absolute inset-x-0 bottom-0 h-0.5 bg-primary-600 dark:bg-primary-400 rounded-t" />
-                )}
               </button>
             );
           })}

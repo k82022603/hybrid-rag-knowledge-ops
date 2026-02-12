@@ -5,11 +5,11 @@
 
 ### Recent Commits
 ```
+e63b636 [DOCS] 2026-02-11 마감 스탠드업 - "우리의 사용자" 주제 토론
+c5917f1 [DOCS] 2026-02-11 일일 마무리 + UI 개선 + ETL 스크립트 추가
 02240a2 [REFACTOR] 시스템명 Knowledge Portal 통일 + Bug #8 원복
 6984466 [DOCS] Bug Fix Report에 Bug #8 Graph 배지 UX 모순 추가 (Phase 3)
 7b9f326 [FIX] Bug #8 Graph 배지 UX 모순 - matched_entities 없을 때 source_type "graph" 미설정
-c097c74 [FIX] Graph 시각화 빈 결과 Phase 2 - Fulltext 인덱스 + fallback 패턴 수정
-f3f1abc [DOCS] Agent Teams 활용 가이드 v3.0 + CLAUDE.md 운영 원칙 추가
 ```
 
 ## Work Log Status
