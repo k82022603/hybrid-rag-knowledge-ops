@@ -21,6 +21,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import numpy as np
+
 from app.core.config import settings
 from app.core.exceptions import EmbeddingError, EmbeddingModelLoadError
 from app.core.logging import get_logger
@@ -445,7 +447,7 @@ class EmbeddingService:
 
     @staticmethod
     def _normalize_vector(vector: List[float]) -> List[float]:
-        """L2 정규화 (단위 벡터로 변환)
+        """L2 정규화 (단위 벡터로 변환) — numpy 가속
 
         Args:
             vector: 정규화할 벡터
@@ -453,14 +455,15 @@ class EmbeddingService:
         Returns:
             L2 정규화된 벡터. 영벡터인 경우 그대로 반환.
         """
-        norm = math.sqrt(sum(x * x for x in vector))
+        arr = np.array(vector, dtype=np.float32)
+        norm = np.linalg.norm(arr)
         if norm == 0.0:
             return vector
-        return [x / norm for x in vector]
+        return (arr / norm).tolist()
 
     @staticmethod
     def _normalize_vectors(vectors: List[List[float]]) -> List[List[float]]:
-        """벡터 리스트 L2 정규화
+        """벡터 리스트 L2 정규화 — numpy 배치 가속
 
         Args:
             vectors: 정규화할 벡터 리스트
@@ -468,7 +471,10 @@ class EmbeddingService:
         Returns:
             L2 정규화된 벡터 리스트
         """
-        return [EmbeddingService._normalize_vector(v) for v in vectors]
+        arr = np.array(vectors, dtype=np.float32)
+        norms = np.linalg.norm(arr, axis=1, keepdims=True)
+        norms = np.where(norms == 0.0, 1.0, norms)
+        return (arr / norms).tolist()
 
     def _validate_texts(self, texts: List[str]) -> List[str]:
         """입력 텍스트 전처리 및 검증
@@ -678,11 +684,13 @@ class EmbeddingService:
         Returns:
             (dense_vectors, sparse_vectors) 튜플
         """
+        # normalize_embeddings=False: embed_batch에서 numpy로 일괄 정규화하므로
+        # 여기서 중복 정규화하지 않음 (이중 정규화 방지)
         embeddings = self.model.encode(
             texts,
             batch_size=self.batch_size,
             show_progress_bar=False,
-            normalize_embeddings=self.normalize,
+            normalize_embeddings=False,
         )
         dense = embeddings.tolist()
         sparse = [{} for _ in texts] if return_sparse else []

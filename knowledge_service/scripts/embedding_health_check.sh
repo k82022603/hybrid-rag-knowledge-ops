@@ -26,11 +26,12 @@ EMBED_SCRIPT="/app/scripts/run_embedding_backfill_v2.py"
 INTERVAL=1800  # 30분
 PYTHON_CMD="python3"
 
-# 임계치 설정 (전문가 합의)
-SWAP_THRESHOLD_MB=2500    # 스왑 2.5GB 초과 시 캐시 클리어
+# 임계치 설정 (전문가 합의, 2026-02-12 v1.1 조정)
+SWAP_THRESHOLD_MB=1500    # 스왑 1.5GB 초과 시 캐시 클리어 (기존 2.5GB → 하향)
 MEM_AVAIL_MIN_MB=2000     # 가용 메모리 2GB 미만 시 경고
-SPEED_MIN=0.3             # 0.3 t/s 미만이면 속도 저하
-ES_INCREMENT_MIN=50       # 30분간 임베딩 증분 50건 미만이면 정체
+SPEED_MIN=0.8             # 0.8 t/s 미만이면 속도 저하 (기존 0.3 → 상향)
+SPEED_WARN=1.5            # 1.5 t/s 미만이면 경고 (피크 2.2 대비 감시)
+ES_INCREMENT_MIN=100      # 30분간 임베딩 증분 100건 미만이면 정체 (기존 50 → 상향)
 
 PREV_ES_EMBEDDED=0
 check_count=0
@@ -132,11 +133,16 @@ except:
 
     echo "[SPEED] ${P3_RATE} t/s | ${P3_EMBEDDED}/${P3_TOTAL} (${P3_PCT}%) | ETA: ${P3_ETA}min | err: ${P3_ERRORS}"
 
-    # 속도 저하 감지
-    SLOW=$($PYTHON_CMD -c "print('yes' if float('${P3_RATE}') < ${SPEED_MIN} and float('${P3_RATE}') > 0 else 'no')" 2>/dev/null || echo "no")
-    if [ "$SLOW" = "yes" ]; then
-        ALERTS="${ALERTS}\n:snail: 속도 저하: ${P3_RATE} t/s < ${SPEED_MIN} t/s"
-        echo "[ALERT] 속도 저하 감지: ${P3_RATE} t/s"
+    # 속도 저하 감지 (2단계: 경고 + 위험)
+    SLOW=$($PYTHON_CMD -c "print('critical' if 0 < float('${P3_RATE}') < ${SPEED_MIN} else ('warn' if 0 < float('${P3_RATE}') < ${SPEED_WARN} else 'ok'))" 2>/dev/null || echo "ok")
+    if [ "$SLOW" = "critical" ]; then
+        ALERTS="${ALERTS}\n:rotating_light: 속도 위험: ${P3_RATE} t/s < ${SPEED_MIN} t/s → 캐시 클리어 시도"
+        echo "[ALERT] 속도 위험 감지: ${P3_RATE} t/s → 캐시 클리어"
+        echo "claude" | sudo -S sh -c 'sync && echo 3 > /proc/sys/vm/drop_caches' 2>/dev/null
+        ACTIONS="${ACTIONS}\n:broom: 속도 위험 대응 → 캐시 클리어 실행"
+    elif [ "$SLOW" = "warn" ]; then
+        ALERTS="${ALERTS}\n:warning: 속도 경고: ${P3_RATE} t/s < ${SPEED_WARN} t/s (피크 2.2 대비 하락)"
+        echo "[WARN] 속도 경고: ${P3_RATE} t/s (피크 대비 하락)"
     fi
 
     # ============================================

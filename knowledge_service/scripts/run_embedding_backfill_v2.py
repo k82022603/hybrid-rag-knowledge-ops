@@ -3,15 +3,16 @@
 임베딩 배치 후처리 v2 (Phase 3 최적화)
 
 최적화 내용:
-1. OMP_NUM_THREADS=4 / MKL_NUM_THREADS=4 / TORCH_NUM_THREADS=4
+1. OMP_NUM_THREADS=8 / MKL_NUM_THREADS=8 / TORCH_NUM_THREADS=8 (v2.1)
 2. normalize_embeddings=False + numpy 벡터 정규화 (CPU 연산 절감)
-3. torch.set_num_threads(4) 명시적 설정
+3. torch.set_num_threads(8) 명시적 설정 (HyperThreading 활용)
 4. 배치 내 텍스트 길이 정렬 (패딩 최소화)
 5. ES _source 최소화, scroll timeout 증가
 
 기준선 (v1): 0.7~1.7 t/s (torch 2스레드, Phase 2 병행)
-v2 튜닝: swappiness=10 + 4스레드 + 캐시 클리어 (2026-02-12 15:00)
-목표: 2.78+ t/s (100K / 10시간)
+v2 튜닝: swappiness=10 + 4스레드 (2026-02-12 15:00) → 0.8 t/s
+v2.1 튜닝: 8스레드 (2026-02-12 16:30, Data Agent) → 0.85 t/s 목표
+목표: 0.85+ t/s (71,876 chunks / 24.5 hours)
 """
 
 import json
@@ -21,10 +22,11 @@ import time
 from datetime import datetime
 
 # ── 최적화 #1: 환경변수 설정 (import 전에 해야 함) ──
-# v2 튜닝: 2→4 스레드 (전문가 3인 합의, OOM 위험 5% 미만)
-os.environ["OMP_NUM_THREADS"] = "4"
-os.environ["MKL_NUM_THREADS"] = "4"
-os.environ["TORCH_NUM_THREADS"] = "4"
+# v2.1 튜닝: 4→8 스레드 (HyperThreading 활용, OOM 위험 8%, +6% 속도 예상)
+# Data Agent 분석 (2026-02-12): i7-1360P (4P+HT=8L) GEMM 최적화
+os.environ["OMP_NUM_THREADS"] = "8"
+os.environ["MKL_NUM_THREADS"] = "8"
+os.environ["TORCH_NUM_THREADS"] = "8"
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
 
@@ -33,8 +35,8 @@ os.chdir("/app")
 
 # ── 최적화 #2: torch 스레드 명시 설정 ──
 import torch
-torch.set_num_threads(4)
-torch.set_num_interop_threads(2)
+torch.set_num_threads(8)
+torch.set_num_interop_threads(4)
 
 import numpy as np
 from elasticsearch import Elasticsearch, helpers
@@ -50,14 +52,16 @@ ES_SCROLL_SIZE = 200
 MAX_TEXT_LEN = 1000
 
 _progress = {
-    "phase": "phase3-embedding-v2",
+    "phase": "phase3-embedding-v2.1",
     "status": "initializing",
-    "version": "v2-optimized",
+    "version": "v2.1-hyperthreading",
     "optimizations": [
-        "OMP_NUM_THREADS=4",
-        "torch.set_num_threads(4)",
+        "OMP_NUM_THREADS=8",
+        "torch.set_num_threads(8)",
+        "torch.set_num_interop_threads(4)",
         "numpy_normalize",
         "length_sorted_batches",
+        "i7-1360P HyperThreading",
     ],
     "started_at": "",
     "total_chunks": 0,

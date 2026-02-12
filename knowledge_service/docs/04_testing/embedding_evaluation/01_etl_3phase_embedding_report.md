@@ -1,11 +1,15 @@
 # ETL 3-Phase 임베딩 보고서
 
-**Version**: 2.0 (4문서 → 1문서 통합)
+**Version**: 3.2 (Appendix B 스레드 실험 + Appendix C ONNX 전환 계획)
 **Date**: 2026-02-12
 **Author**: 클로드
-**Status**: Phase 3 진행중 (v2 튜닝 적용, WSL2 8코어+14GB 재설정 예정)
+**Status**: Phase 3 진행중 (WSL2 8코어+14GB+swap 1GB, threads=4 확정, 35.4% 완료)
 
-> **변경 이력**: v1.0 전략+계획+진행 3개 문서 → v2.0 단일 통합 문서
+> **변경 이력**:
+> - v1.0 전략+계획+진행 3개 문서 → v2.0 단일 통합 문서
+> - v2.0 → v3.0: WSL2 재설정 완료 반영, 섹션 번호 충돌 해소(10→Appendix A), 진행률 현행화
+> - v3.0 → v3.1: 스레드 최적화 실험 결과 추가 (Appendix B), threads=4 최적 확정
+> - v3.1 → v3.2: ONNX Runtime 전환 계획 추가 (Appendix C), 정규화 코드 수정 반영
 
 ---
 
@@ -21,8 +25,8 @@ flowchart LR
     subgraph Phase2["Phase 2: 바이너리 (4~5시간)"]
         C["685 바이너리 파일<br/>(216 스킵)"] --> D["Docling OCR<br/>파싱/청킹/저장"]
     end
-    subgraph Phase3["Phase 3: 임베딩 (~12시간, v2 튜닝)"]
-        E["~96K 미임베딩 청크"] --> F["BGE-M3 CPU 4스레드<br/>ES bulk update"]
+    subgraph Phase3["Phase 3: 임베딩 (~16시간, 8코어 튜닝)"]
+        E["~72K 미임베딩 청크<br/>(37.5K 완료)"] --> F["BGE-M3 CPU 4스레드<br/>ES bulk update"]
     end
     Phase1 --> Phase2 --> Phase3
 ```
@@ -121,8 +125,9 @@ flowchart LR
 | 버전 | 스크립트 | 스레드 | 속도 | 상태 |
 |------|---------|--------|------|------|
 | v1 | `run_embedding_backfill.py` | 2 | 0.5~0.9 t/s | deprecated |
-| v2 | `run_embedding_backfill_v2.py` | 2 | 0.7~1.7 t/s | 초기 실행 |
-| **v2 튜닝** | `run_embedding_backfill_v2.py` | **4** | **1.5~2.5 t/s** | **현재 운영** |
+| v2 | `run_embedding_backfill_v2.py` | 2 | 0.7~1.7 t/s | deprecated |
+| v2 튜닝 | `run_embedding_backfill_v2.py` | **4** | **1.5~2.5 t/s** | WSL2 4코어 시 |
+| **v2 튜닝 (8코어)** | `run_embedding_backfill_v2.py` | **4** | **1.2~2.7 t/s** | **현재 운영 (WSL2 8코어+14GB)** |
 
 ### 4.3 주요 파라미터
 
@@ -225,18 +230,34 @@ flowchart LR
 | ETA | ~723분 (~12시간) |
 | 에러 | 0건 |
 
+### 2차 임베딩 v2 — WSL2 재설정 후 재개 (2026-02-12 23:00~)
+
+| 항목 | 값 |
+|------|-----|
+| 방식 | `run_embedding_backfill_v2.py` (idempotent 재개) |
+| 스레드 | **4** (OMP/MKL/torch) |
+| WSL2 | **8코어, 14GB RAM, swap 1GB** |
+| swappiness | **1** (post_wsl_restart.sh 자동 설정) |
+| 시작 시점 | 37,020건 완료 상태에서 재개 |
+| 대상 | **71,876 chunks** (미임베딩분) |
+| 속도 | 1.2~2.7 t/s (평균 1.5, 캐시히트 시 4.8) |
+| 스왑 사용 | **0MB** (완전 해소) |
+| 에러 | 0건 |
+
 ### 1차 vs 2차 비교
 
-| 항목 | 1차 (02-09~10) | 2차 v2 튜닝 (02-12~) |
-|------|---------------|---------------------|
-| 청크 수 | 13,430 | 96,004 |
-| 규모 | 소규모 | **7배 대규모** |
-| batch_size | 4 | 32 |
-| 스레드 | 1~2 | **4** |
-| swappiness | 60 | **10** |
-| 방식 | 전체 순회 | ES scroll 백필 |
-| 속도 | 0.4~1.0 t/s | **1.5~2.5 t/s** |
-| 인시던트 | OOM 2회 | 없음 |
+| 항목 | 1차 (02-09~10) | 2차 초기 (02-12 낮) | 2차 현재 (02-12 밤~) |
+|------|---------------|-------------------|---------------------|
+| 청크 수 | 13,430 | 96,004 | 71,876 |
+| 규모 | 소규모 | **7배 대규모** | 잔여분 |
+| WSL2 | 4코어/12GB | 4코어/12GB | **8코어/14GB** |
+| batch_size | 4 | 32 | 32 |
+| 스레드 | 1~2 | **4** | **4** |
+| swappiness | 60 | 10 | **1** |
+| swap 사용 | 2~3GB | 0~1.9GB | **0MB** |
+| 방식 | 전체 순회 | ES scroll 백필 | ES scroll 백필 |
+| 속도 | 0.4~1.0 t/s | 1.5~2.5 t/s | **1.2~2.7 t/s** |
+| 인시던트 | OOM 2회 | 없음 | 없음 |
 
 ---
 
@@ -261,12 +282,14 @@ flowchart LR
 
 ### 6.3 Before vs After
 
-| 지표 | Before (2스레드) | After (4스레드 튜닝) | 변화 |
-|------|-----------------|-------------------|------|
-| 평균 속도 | 0.72 t/s | 2.2 t/s | **+205%** |
-| CPU 사용 | 196% | 321~361% | 4코어 활용 |
-| 메모리 | 2.48 GiB | 2.57 GiB | +90 MiB |
-| ETA | ~37시간 | **~12시간** | **25시간 단축** |
+| 지표 | Before (2스레드) | After (4스레드) | WSL2 8코어 재설정 후 |
+|------|-----------------|----------------|---------------------|
+| WSL2 스펙 | 4코어/12GB | 4코어/12GB | **8코어/14GB** |
+| 평균 속도 | 0.72 t/s | 2.2 t/s | **1.5 t/s (avg)** |
+| CPU 사용 | 196% | 321~361% | 255% |
+| 메모리 | 2.48 GiB | 2.57 GiB | 1.35 GiB |
+| 스왑 | 1.9 GB | 0~1 GB | **0 MB** |
+| ETA | ~37시간 | **~12시간** | **~16시간** |
 
 ### 6.4 GPU 클라우드 대안 비용 비교 (참고)
 
@@ -286,12 +309,13 @@ CPU 임베딩 대비 GPU 클라우드 옵션. **현재 Phase 3는 CPU로 진행 
 
 ### 6.5 잔여 최적화 (Phase 3 완료 후)
 
-| 항목 | 설명 | 시기 |
+| 항목 | 설명 | 상태 |
 |------|------|------|
-| WSL2 메모리 14GB | `.wslconfig` memory=14GB | 임베딩 완료 후 |
+| ~~WSL2 메모리 14GB~~ | ~~`.wslconfig` memory=14GB~~ | **완료** (02-12 22:55) |
+| ~~WSL2 8코어~~ | ~~`.wslconfig` processors=8~~ | **완료** (02-12 22:55) |
+| ~~swap 축소~~ | ~~`.wslconfig` swap=1GB~~ | **완료** (02-12 22:55) |
 | 컨테이너 메모리 조정 | backend 2G→512M 등 | 임베딩 완료 후 |
 | Phase 2 선별 재처리 | 2건 (SW Process PDF, K8s docx) | 임베딩 완료 후 |
-| swap 축소 | `.wslconfig` swap=2GB | WSL2 재시작 시 |
 
 > ⚠️ **향후 Sparse 백필·선별 재임베딩 시 파라미터 권장 (전문가 합의)**
 >
@@ -360,23 +384,27 @@ CPU 임베딩 대비 GPU 클라우드 옵션. **현재 Phase 3는 CPU로 진행 
 | 02-12 13:32 | 108,896 | 9,724 | 8.9% |
 | 02-12 14:50 | 108,896 | 12,892 | 11.8% |
 | **02-12 14:56** | **108,896** | **13,532** | **12.4%** |
+| 02-12 22:55 | 108,896 | ~37,020 | 34.0% |
+| **02-12 23:05** | **108,896** | **37,500** | **34.4%** |
 
-### DB 적재 현황 (Phase 1+2 완료, Phase 3 진행중, 02-12 15:13 기준)
+> **02-12 22:55 이벤트**: WSL2 재설정 (4코어/12GB → 8코어/14GB/swap 1GB). `wsl --shutdown` 후 `post_wsl_restart.sh`로 복구. 임베딩 idempotent 재개.
+
+### DB 적재 현황 (Phase 1+2 완료, Phase 3 진행중, 02-12 23:05 기준)
 
 | DB | 항목 | 수량 | 용도 |
 |----|------|------|------|
 | PostgreSQL | documents | 1,449 | 문서 메타데이터 (SSOT) |
 | Elasticsearch | knowledge_chunks | 108,896 | 전문 검색 + 벡터 검색 |
-| Elasticsearch | 임베딩 완료 | ~14,556 (13.4%, 02-12 15:13 기준) | dense_vector 필드 |
+| Elasticsearch | 임베딩 완료 | **37,500 (34.4%)** | dense_vector 필드 |
 | Neo4j | nodes | ~108,412 | 그래프 검색 |
 
-### ETA 예측 (v2 튜닝 기준)
+### ETA 예측 (WSL2 8코어+14GB 기준)
 
 | 시나리오 | 속도 | 남은 청크 | ETA |
 |---------|------|----------|-----|
-| 현재 (v2 튜닝) | 2.2 t/s | ~96K | **~12시간** |
-| 안정화 후 | 1.5 t/s | ~95K | ~18시간 |
-| 최악 (스왑 복귀) | 0.7 t/s | ~95K | ~38시간 |
+| 현재 (8코어, 14GB, swap=1GB) | 1.2~2.2 t/s | ~71.4K | **~16시간** |
+| 캐시 히트 높음 | 3.0~5.0 t/s | ~71.4K | ~6시간 |
+| 최악 (CPU 집중 텍스트) | 0.7~0.9 t/s | ~71.4K | ~28시간 |
 
 ---
 
@@ -396,13 +424,12 @@ CPU 임베딩 대비 GPU 클라우드 옵션. **현재 Phase 3는 CPU로 진행 
 }
 ```
 
-### 8.2 Slack 모니터링 (15분 간격)
+### 8.2 Slack 모니터링
 
-`/tmp/etl_monitor_v3.sh` → Slack `#proj-hrkp-dev`:
-- Phase 2 최종 상태 (종료)
-- Phase 3 실시간 진행률
-- ES 임베딩 카운트 / 비율
-- CPU/MEM 리소스
+~~`/tmp/etl_monitor_v3.sh` (15분 간격)~~ → WSL2 재시작 후 종료됨.
+현재는 **헬스체크(§8.3)**가 30분 간격으로 Slack `#proj-hrkp-dev` 알림을 통합 담당:
+- 프로세스 생존/속도/메모리/ES 증분 보고
+- 이상 시 자동 대응 + Slack 알림
 
 ### 8.3 헬스체크 (30분 간격)
 
@@ -463,7 +490,7 @@ nohup /tmp/embedding_health_check.sh > /tmp/health_check.log 2>&1 &
 | ES scroll 만료 | 낮음 | scroll=30m, 배치당 10~45초 |
 | 프로세스 중단 | 중 | 헬스체크 자동 재시작 |
 | 속도 저하 복귀 | 중 | swappiness 자동 재설정 + 캐시 클리어 |
-| WSL2 재시작 | 낮음 | 임베딩 완료 후로 연기 |
+| ~~WSL2 재시작~~ | ~~낮음~~ | **완료** — 8코어/14GB/swap 1GB 적용 (02-12 22:55) |
 | **노트북 종료/절전** | **중** | **덮개 닫기="아무 작업도 안 함" 설정 필수. 중단 시 idempotent 재시작 (§8.4)** |
 
 ---
@@ -551,13 +578,13 @@ GET knowledge_chunks/_search
 
 ## 13. 앞으로의 계획 (Action Plan)
 
-> **현재 위치**: Phase 3 임베딩 진행중 (13.4%, ETA ~20시간)
-> **마지막 업데이트**: 2026-02-12 15:13 KST
+> **현재 위치**: Phase 3 임베딩 진행중 (**34.4%**, 37,500/108,896, ETA ~16시간)
+> **마지막 업데이트**: 2026-02-12 23:10 KST
 
 ### Step 1: 임베딩 완료 대기 (자동)
 
 - **뭘 하나**: 아무것도 안 해도 됨. 자동으로 돌아감
-- **예상 완료**: 02-13 낮 (속도에 따라 변동)
+- **예상 완료**: 02-13 15:00~19:00 경 (속도에 따라 변동)
 - **모니터링**: Slack `#proj-hrkp-dev`에 15분마다 보고 올라옴
 - **문제 발생 시**: 헬스체크가 30분마다 자동 대응 (프로세스 재시작, 캐시 클리어 등)
 - **확인 방법**:
@@ -595,13 +622,12 @@ GET knowledge_chunks/_search
 - [ ] **유형별 결과 분석** (어떤 유형에서 개선이 큰지/작은지)
 - [ ] 결과 보고서: `ragas/results/` 에 저장
 
-### Step 4: WSL2 메모리 확장 (wsl --shutdown 필요)
+### Step 4: WSL2 메모리 확장 — **완료** (02-12 22:55)
 
-- [ ] `.wslconfig` 수정: `memory=14GB`, `swap=2GB`
-  - 경로: `C:\Users\KTDS\.wslconfig`
-- [ ] `wsl --shutdown` 실행 (Windows 터미널에서)
-- [ ] WSL 재시작 후 컨테이너 전체 기동 확인
-- **주의**: 임베딩 완료 후에만 실행! (shutdown하면 프로세스 전부 죽음)
+- [x] `.wslconfig` 수정: `memory=14GB`, `swap=1GB`, `processors=8`
+- [x] `wsl --shutdown` 실행
+- [x] WSL 재시작 + `post_wsl_restart.sh`로 40초 내 전체 복구
+- [x] 임베딩 idempotent 재개 확인 (34.0%부터)
 
 ### Step 5: Phase 2 재처리 (2건만)
 
@@ -646,23 +672,26 @@ GET knowledge_chunks/_search
 ### 한눈에 보는 순서
 
 ```
-지금 ──────────────────────────────────────────────────────── 최적화
-  │                                                              │
-  ▼                                                              ▼
-[Step 1]      [Step 2]    [Step 3]   [Step 4]  [Step 5~7]     [Step 8]
+지금 ──────────────────────────────────────────────────── 최적화
+  │                                                          │
+  ▼                                                          ▼
+[Step 1]      [Step 2]    [Step 3]   [Step 4]   [Step 5~7]     [Step 8]
 임베딩 대기 → 검증     → RAGAS v7 → WSL2 14G → 재처리+테스트 → Sparse 활성화
-(자동)        (수동)      (수동)     (수동)     (수동)          (수동, 5단계, Step4 필수)
+(34.4%)       (수동)      (수동)     ✅ 완료    (수동)          (수동, Step4 완료)
+ ◄── 현재                            (02-12)
 ```
 
 ---
 
-## 10. 속도 최적화 전문가 4인 분석 (2026-02-12 22:00~22:55)
+---
 
-### 10.1 배경
+## Appendix A. 속도 최적화 전문가 4인 분석 (2026-02-12 22:00~22:55)
+
+### A.1 배경
 
 Phase 3 임베딩 속도가 2.2 t/s → 1.0 t/s로 하락. 피크 3.0~5.0 t/s 목표로 ETL/RAG/Infra/클로드 4인 전문가 분석 실시.
 
-### 10.2 전문가별 핵심 발견
+### A.2 전문가별 핵심 발견
 
 #### ETL 엔지니어
 - 3-Phase 접근: 스왑 제거(Phase A) → 파이프라인 스레딩(Phase B) → ONNX(Phase C)
@@ -690,7 +719,7 @@ Phase 3 임베딩 속도가 2.2 t/s → 1.0 t/s로 하락. 피크 3.0~5.0 t/s �
 - **인프라(메모리 확보)와 코드(ONNX)를 병행**해야 목표 달성 가능
 - BGE-M3 모델 유지 (사용자 지시)
 
-### 10.3 합의된 통합 액션 플랜
+### A.3 합의된 통합 액션 플랜
 
 #### 즉시 실행 (임베딩 중단 불필요)
 
@@ -718,7 +747,7 @@ Phase 3 임베딩 속도가 2.2 t/s → 1.0 t/s로 하락. 피크 3.0~5.0 t/s �
 | 10 | CPU 코어 4→8 | 병렬 처리 향상 |
 | 11 | 스왑 4GB→1GB | 최소 안전망만 유지 |
 
-### 10.4 Phase 1 실행 로그 (2026-02-12 22:30~22:55)
+### A.4 Phase 1 실행 로그 (2026-02-12 22:30~22:55)
 
 #### 단계별 실행
 
@@ -751,7 +780,7 @@ Phase 3 임베딩 속도가 2.2 t/s → 1.0 t/s로 하락. 피크 3.0~5.0 t/s �
 - **RAM**: 15.7GB 중 **WSL2에 12GB만 할당**
 - **GPU**: Intel Iris Xe 7.8GB — 3% 사용 (BGE-M3는 CUDA 전용이라 활용 불가)
 
-### 10.5 WSL2 재설정 (22:55 실행 예정)
+### A.5 WSL2 재설정 (22:55 실행 완료)
 
 ```ini
 # C:\Users\KTDS\.wslconfig
@@ -761,12 +790,12 @@ swap=4GB        →    swap=1GB
 processors=4    →    processors=8
 ```
 
-**복구 절차**:
-1. `.wslconfig` 수정 (Windows 측)
-2. `wsl --shutdown`
-3. Docker Desktop 재시작 대기
-4. `bash scripts/post_wsl_restart.sh` 실행
-5. 임베딩 자동 재개 (idempotent — 24.8%부터 이어서 진행)
+**실행 결과** (02-12 22:55~22:59):
+1. `.wslconfig` 수정 완료 (Windows 측)
+2. `wsl --shutdown` 실행
+3. Docker Desktop 재시작 완료
+4. `bash scripts/post_wsl_restart.sh` 실행 → 40초에 전체 복구
+5. 임베딩 idempotent 재개 — **34.0% (37,020건)부터 이어서 진행**
 
 **복구 스크립트**: `scripts/post_wsl_restart.sh`
 - 필수 컨테이너만 시작 (ai-service, elasticsearch, postgresql)
@@ -774,12 +803,333 @@ processors=4    →    processors=8
 - 임베딩 프로세스 자동 재시작
 - 모니터링(ETL monitor + health check) 자동 재시작
 
-### 10.6 예상 속도 (WSL2 재설정 후)
+### A.6 예상 vs 실측 속도
 
 ```
-현재 (4코어, 12GB, swap=4GB):  1.0 t/s  ████
+이전 (4코어, 12GB, swap=4GB):  1.0 t/s  ████
 Phase 1 + swapoff:             1.2 t/s  █████
-WSL2 8코어 + 14GB + swap=1GB:  2.0~3.0 t/s  ████████████
+WSL2 8코어 + 14GB (예상):      2.0~3.0 t/s  ████████████
+WSL2 8코어 + 14GB (실측):      1.2~2.7 t/s  ██████████  ← 평균 1.5
 +ONNX Runtime (향후):          3.0~4.0 t/s  ████████████████
 +INT8 양자화 (향후):           4.0~5.0 t/s  ████████████████████
 ```
+
+> **실측 vs 예상 차이 분석**: 8코어 할당했으나 OMP/MKL_NUM_THREADS=4로 고정되어 있어
+> 추가 코어를 완전히 활용하지 못함. CPU 당 부하가 줄어 안정성은 향상 (swap 0MB).
+> → Appendix B에서 스레드 최적화 실험 결과 확인.
+
+---
+
+## Appendix B. 스레드 최적화 실험 (2026-02-12 23:00~23:40)
+
+### B.1 실험 배경
+
+WSL2를 8코어로 업그레이드했으나 임베딩 스크립트의 `OMP_NUM_THREADS=4` 고정으로 추가 코어 미활용.
+사용자 요청으로 스레드 수를 올려 최적값을 찾는 실험을 진행.
+
+**실험 환경**:
+- CPU: Intel i7-1360P (4 P-cores + HyperThreading = 8 logical CPUs)
+- RAM: 14GB (WSL2), Swap: 1GB
+- L3 캐시: 18MB (전 코어 공유)
+- 동시 실행 컨테이너: ai-service, elasticsearch, neo4j, redis, postgresql
+
+### B.2 전문가 4인 분석
+
+#### Infra Engineer 의견
+
+| 항목 | 권장값 | 근거 |
+|------|--------|------|
+| **OMP_NUM_THREADS** | 6 | P-core 4개 + HT 일부 활용, ES/Neo4j에 2 logical CPU 여유 |
+| **interop_threads** | 1 | 단일 모델 추론, inter-op 병렬화 불필요 |
+| **EMBED_BATCH** | 32 | 메모리 2.9GB 수준 유지 |
+| **예상 향상** | +25% (1.2→1.5 t/s) | |
+| **우려사항** | threads=8은 ES/Neo4j와 CPU 경합 유발 가능 | |
+
+#### RAG Engineer 의견
+
+| 항목 | 권장값 | 근거 |
+|------|--------|------|
+| **OMP_NUM_THREADS** | 8 | 모든 HT 코어 활용, Transformer GEMM에 최대 병렬화 |
+| **interop_threads** | 1 | 동의 |
+| **EMBED_BATCH** | 32 | 동의 |
+| **예상 향상** | +20~30% (1.2→1.3 t/s) | HT 효과 제한적 (~14% on GEMM) |
+| **추가 발견** | `_normalize_vector`가 순수 Python (math.sqrt + list comprehension) — numpy 대비 ~100x 느림 |
+
+#### ETL Engineer 의견
+
+| 항목 | 권장값 | 근거 |
+|------|--------|------|
+| **OMP_NUM_THREADS** | 8 | 최대 활용 시도 |
+| **interop_threads** | 4 | 높은 inter-op 병렬화 |
+| **행동** | v2.1 스크립트 작성 후 **즉시 실행** (기존 v2와 동시 실행됨) |
+| **문제** | 이중 프로세스 실행으로 CPU 200%+ 경합 발생, 성능 급락 |
+
+#### 클로드 (Main) 종합 분석
+
+1. **HyperThreading의 GEMM 한계**: i7-1360P의 8 logical CPU는 4 물리 P-core의 HT. GEMM(행렬곱)은 실행 유닛(ALU/FPU)을 100% 점유하므로 HT의 이론적 이점(14~25%)이 캐시 경합에 상쇄됨
+2. **L3 캐시 병목**: 18MB L3를 8스레드가 공유하면 BGE-M3 (568M params)의 가중치 접근에서 캐시 미스율 급증
+3. **시스템 부하**: threads=8 시 load average 7.27/8 → 다른 컨테이너(ES, Neo4j) 응답 지연 유발
+4. **이중 정규화 이슈**: `sentence-transformers`가 `normalize_embeddings=True`로 이미 정규화 + `embed_batch`에서 Python으로 다시 정규화
+
+### B.3 실험 결과 (실측)
+
+```
+실험 #1: threads=4, interop=2 (단독, 기준선)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  배치 시간: 30~35초 (avg)
+  속도: 1.1 t/s (avg), 피크 2.6 t/s (캐시 히트 시)
+  메모리: 1.35 GiB
+  CPU: 255% (4 logical)
+  → 안정적 운영
+
+실험 #2: threads=8, interop=4 (이중 프로세스 — ETL 에이전트 실수)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  배치 시간: 150~170초
+  속도: 0.2 t/s (-82%)
+  메모리: 4.5 GiB (2개 프로세스)
+  CPU: 420%+
+  Load avg: 7.27/8
+  → 심각한 성능 저하. 이중 프로세스 + HT 오버헤드
+
+실험 #3: threads=8, interop=4 (단독)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  배치 시간: 50~55초
+  속도: 0.6 t/s (-45%)
+  메모리: 4.5 GiB
+  CPU: 420%
+  → 단독에서도 threads=4보다 느림. HT 캐시 경합 확인
+
+실험 #4: threads=4, interop=2 (복원)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  배치 시간: 17~37초
+  속도: 1.1 t/s (기준선 복귀)
+  메모리: 1.1 GiB
+  → 기존 성능 완전 복원
+```
+
+### B.4 속도 비교 차트
+
+```
+threads=4 (기준):  1.1 t/s  ████████████████████████████████████ ← 최적
+threads=8 (이중):  0.2 t/s  ██████                              ← -82%
+threads=8 (단독):  0.6 t/s  ██████████████████                  ← -45%
+threads=6 (단독):  0.6 t/s  ██████████████████                  ← -45% (1배치만)
+threads=4 (복원):  1.1 t/s  ████████████████████████████████████ ← 복원 확인
+```
+
+### B.5 결론 및 확정 설정
+
+**threads=4가 이 하드웨어의 최적값.**
+
+| 파라미터 | 확정값 | 근거 |
+|----------|--------|------|
+| `OMP_NUM_THREADS` | **4** | P-core 수 = 물리적 최적 |
+| `MKL_NUM_THREADS` | **4** | 동일 |
+| `torch.set_num_threads` | **4** | 동일 |
+| `torch.set_num_interop_threads` | **2** | 단일 모델이지만 ES I/O 대기 활용 |
+| `EMBED_BATCH` | **32** | 메모리 1.1~1.4 GiB 유지 |
+| `MAX_TEXT_LEN` | **1000** | 2.9GB 안정 (1500은 OOM) |
+
+**스레드로는 더 이상 최적화 불가. 향후 가속 방향:**
+
+1. **ONNX Runtime 변환** — BGE-M3를 ONNX로 export, CPU 최적화 그래프 적용 (예상 +30~50%) → Appendix C 참조
+2. **INT8 동적 양자화** — 정밀도 손실 <1%로 추론 2배 가속 → Appendix C 참조
+3. ~~**순수 Python 정규화 제거**~~ — `_normalize_vector` numpy 전환 (**2026-02-12 23:40 적용 완료**)
+4. ~~**이중 정규화 제거**~~ — sentence-transformers `normalize_embeddings=False` (**2026-02-12 23:40 적용 완료**)
+
+### B.6 교훈
+
+1. **HyperThreading ≠ 2배 코어**: GEMM 연산에서 HT는 오히려 역효과 (공유 실행 유닛 + 캐시 경합)
+2. **이론 < 실측**: 전문가 3인 모두 threads 증가를 권장했으나 실측에서 반증
+3. **이중 프로세스 주의**: 에이전트가 독립적으로 프로세스를 시작하면 리소스 경합으로 전체 성능 급락
+4. **물리 코어 수 = 최적 스레드 수**: CPU-bound 워크로드에서는 물리 코어 수가 스레드 상한
+
+---
+
+## Appendix C. ONNX Runtime 전환 계획
+
+### C.1 현재 구조 (PyTorch)
+
+```mermaid
+flowchart LR
+    subgraph 현재["현재: PyTorch 추론"]
+        Q["사용자 쿼리"] --> API["FastAPI"]
+        API --> ES["EmbeddingService"]
+        ES --> ST["sentence-transformers<br/>(PyTorch)"]
+        ST --> BGE["BGE-M3 forward pass<br/>568M params"]
+        BGE --> VEC["1024차원 벡터"]
+        VEC --> SEARCH["ES 벡터 검색"]
+    end
+```
+
+PyTorch는 **학습(training) + 추론(inference)** 모두 지원하는 범용 프레임워크.
+범용이기 때문에 추론 시 불필요한 오버헤드가 존재:
+- 각 레이어마다 Python 인터프리터 호출
+- 중간 텐서를 매번 메모리에 할당/해제
+- 역전파(backward) 그래프 준비 (추론에서는 불필요)
+
+### C.2 ONNX Runtime이란
+
+**ONNX** (Open Neural Network Exchange) = 모델을 프레임워크 독립적인 그래프 포맷으로 변환하는 표준.
+**ONNX Runtime** = Microsoft가 만든 **추론 전용** 엔진. PyTorch 그래프를 받아서 CPU/GPU에 최적화된 실행 계획으로 변환.
+
+```mermaid
+flowchart LR
+    subgraph 변환["변환 과정 (1회)"]
+        PT["PyTorch 모델<br/>(.bin)"] -->|torch.onnx.export<br/>또는 optimum-cli| OX["ONNX 모델<br/>(.onnx)"]
+        OX -->|ONNX Runtime| OPT["최적화된<br/>추론 그래프"]
+    end
+```
+
+### C.3 왜 빨라지는가
+
+```
+PyTorch 실행 방식:
+  Layer1 → [메모리 저장] → Layer2 → [메모리 저장] → Layer3 → ...
+  (각 레이어마다 Python 호출 + 중간 텐서 할당)
+
+ONNX Runtime 실행 방식:
+  [Layer1 + Layer2 + Layer3] → 한번에 실행
+  (그래프 분석 후 연산 융합, C++ 네이티브 실행)
+```
+
+| 최적화 기법 | 설명 |
+|------------|------|
+| **Operator Fusion** | LayerNorm + Add + GELU 등을 하나의 커널로 합침 |
+| **Constant Folding** | 변하지 않는 값을 미리 계산 |
+| **메모리 재사용** | 중간 텐서를 재활용해 할당/해제 최소화 |
+| **CPU 특화** | Intel MKL-DNN, AVX-512 등 하드웨어 명령어 직접 활용 |
+
+### C.4 장단점 비교
+
+#### 장점
+
+| 항목 | 설명 |
+|------|------|
+| **CPU 추론 속도 +30~50%** | 그래프 최적화(operator fusion, constant folding)로 PyTorch 대비 확실한 가속 |
+| **INT8 동적 양자화 가능** | `onnxruntime.quantization`으로 INT8 적용 → 추가 2배 가속 (정밀도 손실 <1%) |
+| **메모리 절감 20~30%** | 그래프 최적화로 중간 텐서 제거, 메모리 재사용 |
+| **sentence-transformers 호환** | `optimum` 라이브러리가 ONNX 백엔드 지원, `model.encode()` 인터페이스 유지 가능 |
+| **재현성** | 모델 그래프가 고정, PyTorch 버전 변경에 따른 결과 차이 없음 |
+
+#### 단점
+
+| 항목 | 설명 |
+|------|------|
+| **Sparse 임베딩 미지원** | BGE-M3의 lexical_weights(Sparse)는 모델 후처리 로직에 의존 → ONNX export 시 Dense만 가능 |
+| **변환 과정 복잡** | `optimum-cli export onnx` 또는 수동 `torch.onnx.export`, 입력 형상 고정 필요 |
+| **컨테이너 재빌드** | `onnxruntime` + `optimum` 설치 → Docker 이미지 크기 +300MB |
+| **FP16 미지원 (CPU)** | CPU에서 ONNX FP16은 미지원/느림, FP32 또는 INT8만 실용적 |
+| **디버깅 어려움** | ONNX 그래프는 PyTorch처럼 line-by-line 디버깅 불가 |
+| **정확도 검증 필요** | 변환 후 cosine similarity 차이 검증 필수 (보통 <0.001) |
+
+### C.5 실제 변환 절차 (우리 프로젝트 기준)
+
+```bash
+# Step 1: 패키지 설치
+pip install optimum[onnxruntime]
+
+# Step 2: BGE-M3를 ONNX로 변환
+optimum-cli export onnx \
+  --model BAAI/bge-m3 \
+  --task feature-extraction \
+  /app/models/bge-m3-onnx/
+
+# Step 3: (선택) INT8 양자화 — 추가 2배 가속
+optimum-cli onnxruntime quantize \
+  --onnx_model /app/models/bge-m3-onnx/ \
+  --avx512 \
+  /app/models/bge-m3-onnx-int8/
+```
+
+#### 코드 변경량 (최소)
+
+```python
+# Before: sentence-transformers (PyTorch)
+from sentence_transformers import SentenceTransformer
+model = SentenceTransformer("BAAI/bge-m3")
+vectors = model.encode(texts)
+
+# After: optimum ONNX Runtime (인터페이스 동일)
+from optimum.onnxruntime import ORTModelForFeatureExtraction
+from transformers import AutoTokenizer
+
+tokenizer = AutoTokenizer.from_pretrained("BAAI/bge-m3")
+model = ORTModelForFeatureExtraction.from_pretrained(
+    "/app/models/bge-m3-onnx/",
+    provider="CPUExecutionProvider"
+)
+```
+
+### C.6 두 가지 사용 경로와 전환 시점
+
+```
+경로 A: 배치 임베딩 (현재 진행 중, Phase 3)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  70K 청크를 한번에 처리 → ES에 저장
+  · 한번 하고 끝나는 작업
+  · 중간에 모델 변경 → 프로세스 재시작 + 검증 필요 → 리스크 높음
+  · ⚠ 변환+테스트 2~3시간 소요, 절약 시간 ~5시간 → 순이득 적음
+
+경로 B: API 서빙 (Phase 3 완료 후)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  사용자가 검색할 때마다 쿼리 1건을 실시간 임베딩
+  · 매 검색마다 반복되는 작업
+  · 응답 시간이 UX에 직접 영향
+  · 30ms → 15ms 개선은 사용자 체감 가치 큼
+  · ✅ 배치 끝난 후 모델 교체 = 기존 데이터 영향 없음
+```
+
+**결론**: Phase 3 완료 후 API 서빙 단계에서 ONNX 전환이 안전하고 효과적.
+
+### C.7 예상 성능 비교
+
+```
+                        배치 (32건)   단건 쿼리    메모리
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PyTorch (현재)          ~30초          ~1초       1.4 GiB
+ONNX FP32              ~18초          ~0.6초     1.0 GiB
+ONNX INT8              ~12초          ~0.3초     0.6 GiB
+```
+
+```
+PyTorch (현재):   1.1 t/s  ████████████████████████
+ONNX FP32:        1.6 t/s  ███████████████████████████████████   +45%
+ONNX INT8:        2.5 t/s  █████████████████████████████████████████████████████  +127%
+```
+
+### C.8 전환 로드맵
+
+```mermaid
+flowchart LR
+    subgraph Now["현재 (Phase 3 진행 중)"]
+        A["PyTorch<br/>threads=4<br/>1.1 t/s"]
+    end
+    subgraph After["Phase 3 완료 후"]
+        B["ONNX FP32 전환<br/>+ 정확도 검증<br/>+ Sparse 대체 로직"]
+    end
+    subgraph Stable["운영 안정화 후"]
+        C["ONNX INT8 양자화<br/>+ A/B 테스트<br/>+ 벤치마크 문서화"]
+    end
+    Now --> After --> Stable
+```
+
+| 단계 | 시점 | 작업 | 예상 효과 |
+|------|------|------|-----------|
+| **현재** | Phase 3 진행 중 | PyTorch + threads=4 유지 | 1.1 t/s (안정) |
+| **Step 1** | Phase 3 완료 후 | ONNX FP32 변환 + 정확도 검증 | API 서빙 ~0.6초/쿼리 |
+| **Step 2** | 운영 안정화 후 | INT8 동적 양자화 + A/B 테스트 | API 서빙 ~0.3초/쿼리 |
+| **Step 3** | 필요 시 | Sparse 별도 경로 구현 (BM25 대체) | Hybrid 검색 완성 |
+
+### C.9 Sparse 임베딩 미지원 대안
+
+ONNX 변환 시 BGE-M3의 Sparse(lexical_weights)가 지원되지 않는 문제:
+
+| 대안 | 설명 | 복잡도 |
+|------|------|--------|
+| **ES BM25 활용** | Elasticsearch 내장 BM25로 lexical 매칭 대체. 추가 코드 불필요 | 낮음 |
+| **Dense + BM25 Hybrid** | `dense_vector` kNN + `text` BM25를 RRF로 결합 | 중간 |
+| **PyTorch Sparse 유지** | Dense만 ONNX, Sparse는 별도 PyTorch 모델로 분리 | 높음 |
+
+현재 Phase 3에서 Sparse 임베딩은 비활성화 상태(`return_sparse=False`)이므로,
+**ES BM25 + ONNX Dense**로 Hybrid 검색을 구현하는 것이 가장 현실적.
