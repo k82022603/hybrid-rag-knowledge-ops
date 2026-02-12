@@ -2,9 +2,9 @@
 
 > Claude Code 세션 간 컨텍스트 유지를 위한 계획 문서
 >
-> **Last Updated**: 2026-02-12 08:12 KST (Sprint 09 - 버그 수정 + ETL 3-Phase)
-> **Current Phase**: Phase 5 배포 완료 ✅ → Sprint 09 버그 수정 집중 + ETL 데이터 처리
-> **Sprint 09**: 버그 6건 수정, STORY-108 file_hash, ETL 3-Phase 파이프라인, 임베딩 배치
+> **Last Updated**: 2026-02-12 18:23 KST (Sprint 09 - ETL Phase 3 임베딩 + 속도 튜닝)
+> **Current Phase**: Phase 5 배포 완료 ✅ → Sprint 09 ETL 임베딩 + 모니터링 자동화
+> **Sprint 09**: 버그 6건 수정, ETL 3-Phase, 임베딩 속도 튜닝 (+205%), 자동 헬스체크
 > **Frontend 전략 변경**: Tailwind + Antigravity + Stitch MCP 도입 결정 (2026-01-25)
 > **소스코드 리뷰**: 72.5/100 B+ (Gateway 65, Backend 72, AI Service 78, Frontend 75)
 
@@ -940,6 +940,17 @@ CI/CD Pipeline (GitHub Actions)
 ---
 
 ## Session Notes
+
+### 2026-02-12 (Sprint 09 Day 2 - 임베딩 속도 튜닝 + text_len 분석)
+
+- **임베딩 속도 튜닝**: 0.72→2.2 t/s (+205%), swappiness 60→10, 4스레드, ETA 37h→12h
+- **자동 모니터링**: Slack 모니터 v3 (15분) + 헬스체크 (30분, 자동 재시작/캐시 클리어)
+- **text_len 전문가 3인 토의**: RAG 실측 98% < 1000자, 재임베딩 불필요 합의
+- **향후 권장**: Sparse 백필 시 batch=8, text_len=2048 (~4.2G/10GB, OOM 매우 낮음)
+- **문서 통합**: 4개→2개 (ragas/embedding/ 삭제), 리뷰 8건 반영
+- **마감 스탠드업**: PM+ETL+RAG+Infra 4명, 주제 "text_len=2048 vs 1000"
+- **임베딩 진행**: ~14,556/108,896 (13.4%), 배경 프로세스 3개 독립 실행
+- **커밋**: 2건
 
 ### 2026-02-11 (Sprint 09 Day 1 - 버그 수정 집중 + ETL 준비)
 
