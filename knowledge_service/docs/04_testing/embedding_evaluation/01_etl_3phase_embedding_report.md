@@ -3,7 +3,7 @@
 **Version**: 2.0 (4문서 → 1문서 통합)
 **Date**: 2026-02-12
 **Author**: 클로드
-**Status**: Phase 3 진행중 (v2 튜닝 적용, ~2.2 t/s)
+**Status**: Phase 3 진행중 (v2 튜닝 적용, WSL2 8코어+14GB 재설정 예정)
 
 > **변경 이력**: v1.0 전략+계획+진행 3개 문서 → v2.0 단일 통합 문서
 
@@ -652,4 +652,134 @@ GET knowledge_chunks/_search
 [Step 1]      [Step 2]    [Step 3]   [Step 4]  [Step 5~7]     [Step 8]
 임베딩 대기 → 검증     → RAGAS v7 → WSL2 14G → 재처리+테스트 → Sparse 활성화
 (자동)        (수동)      (수동)     (수동)     (수동)          (수동, 5단계, Step4 필수)
+```
+
+---
+
+## 10. 속도 최적화 전문가 4인 분석 (2026-02-12 22:00~22:55)
+
+### 10.1 배경
+
+Phase 3 임베딩 속도가 2.2 t/s → 1.0 t/s로 하락. 피크 3.0~5.0 t/s 목표로 ETL/RAG/Infra/클로드 4인 전문가 분석 실시.
+
+### 10.2 전문가별 핵심 발견
+
+#### ETL 엔지니어
+- 3-Phase 접근: 스왑 제거(Phase A) → 파이프라인 스레딩(Phase B) → ONNX(Phase C)
+- Producer-Consumer 패턴으로 ES I/O와 임베딩 연산 오버랩 제안
+- Phase A(스왑 제거)만으로 2.0~2.5 t/s 예상
+
+#### RAG 엔지니어 (핵심 발견 다수)
+- **`_normalize_vector()`가 순수 Python** — 1024차원을 `math.sqrt + list comprehension` 처리. numpy 교체 시 100x 개선
+- **ONNX Runtime이 Reranker에만 적용** — `bge_reranker.py`에는 ONNX 패턴 있으나 Embedder(`embedding.py`)에는 미적용
+- **Dockerfile에 `onnxruntime` 이미 설치됨** (line 61) — 이미지 리빌드 불필요
+- **batch_size=32가 L3 캐시 초과** — CPU에서는 16이 최적점
+- **`use_fp16=True`는 CPU에서 무의미** — 이미 코드에서 CPU일 때 무시하도록 처리됨
+- ONNX Runtime(2~2.5x) + INT8 양자화(추가 1.3~1.5x)로 3.0~4.0 t/s 예상
+
+#### Infra 엔지니어
+- **CPU 포화**: load avg 4.38/4코어 (100% 포화) — 1차 병목
+- **스왑 오염**: 1,789MB 중 1,497MB가 컨테이너 (Neo4j 568MB 주범) — 2차 병목
+- **메모리 경합**: 7개 컨테이너 5.9GB RAM 점유 — 3차 병목
+- 컨테이너별 메모리+스왑 상세 분석 제공
+- 7개 방안 상세 분석 (위험도, 효과, 난이도 평가 포함)
+- WSL2 16GB + 6코어 동시 해소 필요
+
+#### 클로드 (메인)
+- 모든 전문가 분석 종합: 메모리 압박 + CPU 포화의 복합 작용
+- **인프라(메모리 확보)와 코드(ONNX)를 병행**해야 목표 달성 가능
+- BGE-M3 모델 유지 (사용자 지시)
+
+### 10.3 합의된 통합 액션 플랜
+
+#### 즉시 실행 (임베딩 중단 불필요)
+
+| # | 방안 | 효과 |
+|---|------|------|
+| 1 | `docker stop kp-backend kp-api-gateway` | RAM 426MB + Swap 310MB 회수 |
+| 2 | CPU 우선순위 ai-service 4096, 나머지 128 | 경합 감소 |
+| 3 | `docker stop kp-neo4j kp-redis` | RAM 1.2GB + Swap 676MB 회수 |
+| 4 | `swapoff -a` | 페이지 폴트 완전 제거 |
+
+#### 임베딩 재시작 시 (코드 변경)
+
+| # | 방안 | 효과 |
+|---|------|------|
+| 5 | `_normalize_vector` numpy 교체 | 정규화 100x 가속 |
+| 6 | batch_size 32→16 | L3 캐시 최적화 |
+| 7 | ONNX Runtime 전환 | 2~2.5x 속도 |
+| 8 | INT8 양자화 | 추가 1.3~1.5x |
+
+#### WSL2 재시작 필요
+
+| # | 방안 | 효과 |
+|---|------|------|
+| 9 | WSL2 메모리 12→14GB | 스왑 근본 해소 |
+| 10 | CPU 코어 4→8 | 병렬 처리 향상 |
+| 11 | 스왑 4GB→1GB | 최소 안전망만 유지 |
+
+### 10.4 Phase 1 실행 로그 (2026-02-12 22:30~22:55)
+
+#### 단계별 실행
+
+```
+22:30 docker stop kp-backend kp-api-gateway
+      → RAM: 가용 5718→6243MB (+525), Swap: 1789→1479MB (-310)
+      → 속도 변화 없음 (1.04 t/s)
+
+22:35 CPU 우선순위 조정 + swappiness 10→1 + 캐시 클리어
+      → 속도 변화 없음
+
+22:38 사용자: Windows Chrome(254MB)+Slack(263MB) 종료
+      → WSL2 측 변화 미미 (Windows→WSL2 반영 지연)
+
+22:40 docker stop kp-neo4j kp-redis
+      → Swap: 1479→795MB (-684), 가용 RAM: 6243→7496MB (+1253)
+      → 속도 여전히 ~1.0 t/s
+
+22:44 sudo swapoff -a
+      → Swap: 795→0MB (완전 제거), 가용 RAM: 7035MB
+      → 직후 배치: 2.8 t/s 피크 등장!
+      → 안정화 후: 0.8~1.9 t/s (평균 ~1.2 t/s)
+      → 속도 불안정 → CPU 4코어 포화가 남은 병목
+```
+
+#### 핵심 발견: 호스트 스펙 과소 활용
+
+사용자가 Windows 작업 관리자 스크린샷 제공:
+- **CPU**: i7-1360P — 12코어/16스레드 중 **WSL2에 4개만 할당**
+- **RAM**: 15.7GB 중 **WSL2에 12GB만 할당**
+- **GPU**: Intel Iris Xe 7.8GB — 3% 사용 (BGE-M3는 CUDA 전용이라 활용 불가)
+
+### 10.5 WSL2 재설정 (22:55 실행 예정)
+
+```ini
+# C:\Users\KTDS\.wslconfig
+# 변경 전              변경 후
+memory=12GB     →    memory=14GB
+swap=4GB        →    swap=1GB
+processors=4    →    processors=8
+```
+
+**복구 절차**:
+1. `.wslconfig` 수정 (Windows 측)
+2. `wsl --shutdown`
+3. Docker Desktop 재시작 대기
+4. `bash scripts/post_wsl_restart.sh` 실행
+5. 임베딩 자동 재개 (idempotent — 24.8%부터 이어서 진행)
+
+**복구 스크립트**: `scripts/post_wsl_restart.sh`
+- 필수 컨테이너만 시작 (ai-service, elasticsearch, postgresql)
+- swappiness=1 자동 설정
+- 임베딩 프로세스 자동 재시작
+- 모니터링(ETL monitor + health check) 자동 재시작
+
+### 10.6 예상 속도 (WSL2 재설정 후)
+
+```
+현재 (4코어, 12GB, swap=4GB):  1.0 t/s  ████
+Phase 1 + swapoff:             1.2 t/s  █████
+WSL2 8코어 + 14GB + swap=1GB:  2.0~3.0 t/s  ████████████
++ONNX Runtime (향후):          3.0~4.0 t/s  ████████████████
++INT8 양자화 (향후):           4.0~5.0 t/s  ████████████████████
 ```
