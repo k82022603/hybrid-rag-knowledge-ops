@@ -1,0 +1,655 @@
+# ETL 3-Phase 임베딩 보고서
+
+**Version**: 2.0 (4문서 → 1문서 통합)
+**Date**: 2026-02-12
+**Author**: 클로드
+**Status**: Phase 3 진행중 (v2 튜닝 적용, ~2.2 t/s)
+
+> **변경 이력**: v1.0 전략+계획+진행 3개 문서 → v2.0 단일 통합 문서
+
+---
+
+## 1. 전략 개요
+
+대규모 문서(901개 파일) 처리를 위해 ETL 파이프라인을 3단계로 분리.
+
+```mermaid
+flowchart LR
+    subgraph Phase1["Phase 1: 텍스트 (14분)"]
+        A["739 텍스트 파일"] --> B["파싱/청킹/저장"]
+    end
+    subgraph Phase2["Phase 2: 바이너리 (4~5시간)"]
+        C["685 바이너리 파일<br/>(216 스킵)"] --> D["Docling OCR<br/>파싱/청킹/저장"]
+    end
+    subgraph Phase3["Phase 3: 임베딩 (~12시간, v2 튜닝)"]
+        E["~96K 미임베딩 청크"] --> F["BGE-M3 CPU 4스레드<br/>ES bulk update"]
+    end
+    Phase1 --> Phase2 --> Phase3
+```
+
+### 분리 이유
+
+| 항목 | 통합 ETL (임베딩 ON) | 3-Phase 분리 |
+|------|---------------------|-------------|
+| ETA | ~66시간 | Phase 1: 14분 + Phase 2: 4~5시간 + Phase 3: ~12시간 |
+| 장점 | 1회 실행 | 파싱/저장 빠르게 완료, 검색 즉시 가능 (키워드) |
+| 단점 | CPU 병목으로 느림 | 의미 검색은 Phase 3 완료 후 |
+| 재시작 안전성 | file_hash dedup | file_hash + ES exists 쿼리 |
+
+---
+
+## 2. Phase 1: 텍스트 파일 ETL (완료)
+
+**스크립트**: `scripts/run_etl_noembedding.py`
+
+| 항목 | 값 |
+|------|-----|
+| 대상 | .md, .txt, .json, .py, .ipynb, .java, .go, .yaml, .html 등 |
+| 워커 | 4개 |
+| 성공 | 739건 |
+| 실패 | 0건 |
+| 소요시간 | 13.6분 (54.4 files/min) |
+| 청크 생성 | ~75,621개 |
+
+**설계 포인트**:
+- `enable_embeddings=False`: 파싱/청킹/저장만 수행
+- `enable_entity_extraction=False`: 엔티티 추출 OFF (속도 최적화)
+- `SLOW_EXTENSIONS` 스킵: PDF/PPTX/DOCX/XLSX → Phase 2로 이관
+
+---
+
+## 3. Phase 2: 바이너리 파일 ETL (완료)
+
+**스크립트**: `scripts/run_etl_phase2.py`
+
+### 설계
+
+| 항목 | 값 | 근거 |
+|------|-----|------|
+| 워커 | 2개 | Docling OCR CPU 집중 |
+| 정렬 | 파일 크기 오름차순 | 작은 파일 먼저 → 빠른 성공 축적 |
+| 임베딩 | OFF | Phase 3에서 처리 |
+| 대상 | .pdf, .pptx, .docx, .xlsx, .doc |
+
+### 크기 분포 (901개 바이너리 중)
+
+| 범위 | 파일 수 |
+|------|---------|
+| < 1MB | ~400 |
+| 1~5MB | ~300 |
+| 5~10MB | ~120 |
+| 10~60MB | ~80 |
+
+### 최종 결과 (02-12 완료)
+
+| 항목 | 값 |
+|------|-----|
+| 성공 | 685 |
+| 스킵 | 216 (file_hash dedup) |
+| 실패 | 11 (임시파일 6, 손상 3, 재처리 대상 2) |
+| 상태 | **완료** |
+| 병목 | 10~60MB PDF의 Docling+RapidOCR (파일당 5~30분) |
+
+### 실패 파일 처리 방침 (전문가 3인 합의)
+
+11건의 실패 파일을 분석한 결과:
+- **임시 파일 6건**: `~$` 접두사 파일 → 무시
+- **손상 파일 3건**: 파일 자체 문제 → 무시
+- **재처리 대상 2건**: Phase 3 완료 후 선별 재처리
+  - `Software-Processes-and-Software-Development-Process-Models.pdf`
+  - `파드의 컴퓨팅 리소스관리.docx`
+
+---
+
+## 4. Phase 3: 임베딩 백필 (진행중)
+
+### 4.1 임베딩 모델
+
+| 항목 | 값 |
+|------|-----|
+| 모델 | BAAI/bge-m3 |
+| 차원 | 1024 |
+| 프레임워크 | sentence-transformers |
+| 디바이스 | CPU (CUDA_VISIBLE_DEVICES="") |
+| 정규화 | numpy L2 Normalize (v2에서 변경, ⚠️ 아래 주의사항 참조) |
+| FP16 | True (CPU에서는 FP32로 fallback) |
+
+> **⚠️ v1/v2 정규화 차이 검증 필요**: v1(`run_embedding_backfill.py`)은 `sentence-transformers`의 내부 정규화를, v2(`run_embedding_backfill_v2.py`)는 numpy L2 정규화를 사용한다. 1차 임베딩(02-09~10, 13,430건)은 v1으로 생성되었고 2차는 v2로 생성 중이므로, **Step 2(검증) 단계에서 v1/v2 벡터의 코사인 유사도가 동등한지 반드시 확인**해야 한다. 차이가 있을 경우 1차분 재임베딩이 필요할 수 있다.
+
+### 4.2 스크립트 버전
+
+| 버전 | 스크립트 | 스레드 | 속도 | 상태 |
+|------|---------|--------|------|------|
+| v1 | `run_embedding_backfill.py` | 2 | 0.5~0.9 t/s | deprecated |
+| v2 | `run_embedding_backfill_v2.py` | 2 | 0.7~1.7 t/s | 초기 실행 |
+| **v2 튜닝** | `run_embedding_backfill_v2.py` | **4** | **1.5~2.5 t/s** | **현재 운영** |
+
+### 4.3 주요 파라미터
+
+| 파라미터 | v1 | v2 튜닝 (현재) | 근거 |
+|---------|-----|-------------|------|
+| `OMP_NUM_THREADS` | 2 | **4** | 전문가 합의, OOM 5% 미만 |
+| `MKL_NUM_THREADS` | 2 | **4** | torch 연산 병렬화 |
+| `torch.num_threads` | 2 | **4** | CPU 4코어 활용 |
+| `torch.interop_threads` | 1 | **2** | 연산 간 병렬화 |
+| `EMBED_BATCH` | 32 | 32 | EmbeddingService 기본값 |
+| `ES_SCROLL_SIZE` | 200 | 200 | ES scroll 한 번에 가져올 문서 수 |
+| `MAX_TEXT_LEN` | 1000 | 1000 | CPU OOM 방지 (⚠️ 아래 영향 분석 참조) |
+
+> **⚠️ max_text_length=1000 영향 분석 결과 (02-12 전문가 4인 합의)**:
+>
+> BGE-M3는 최대 8,192 토큰을 지원하지만, OOM 방지를 위해 1,000자로 절단 중.
+>
+> **실측 데이터** (ES 10K 샘플링, RAG Engineer):
+> - 전체 청크의 **98%가 1,000자 이하** → 절단 영향 극히 제한적
+> - P50=93자, P75=260자, P90=552자, P95=593자, P99=1,460자
+> - 원인: `SemanticChunker`가 chunk_size=600 기준으로 분할하므로 대부분 600자 이내
+> - 1,000자 초과 2%는 주로 코드/테이블 블록 (분할 없이 보존되는 특수 블록)
+>
+> **결론**: 재임베딩 불필요. 현행 유지 권장. 향후 Step 4(WSL2 14GB) 후 `batch=8, text_len=2048`로 상향 가능.
+>
+> **메모리 안전 확장 옵션** (Infra Engineer 분석):
+> | 환경 | batch | text_len | OOM 위험 |
+> |------|-------|----------|---------|
+> | 12GB (현재) | 8 | 2,000 | 매우 낮음 |
+> | 14GB (Step 4) | 4 | 4,000 | 낮음 |
+
+### 4.4 처리 흐름
+
+```mermaid
+flowchart LR
+    A["ES Scroll API<br/>(dense_vector 없는 청크)"] --> B["텍스트 절단<br/>(1000자)"]
+    B --> C["길이 정렬<br/>(패딩 최소화)"]
+    C --> D["BGE-M3 Encode<br/>(batch=32, 4스레드)"]
+    D --> E["numpy L2 정규화"]
+    E --> F["ES Bulk Update<br/>(dense_vector)"]
+    F --> G["Progress 저장<br/>(/tmp/etl_progress.json)"]
+```
+
+### 4.5 Redis 캐시
+
+| 항목 | 값 |
+|------|-----|
+| 키 | `embed:bge-m3:{text_hash}` |
+| TTL | 604,800초 (7일) |
+| 용도 | 동일 텍스트 재계산 방지 |
+
+---
+
+## 5. 실행 이력
+
+### 1차 임베딩 (2026-02-09 ~ 02-10)
+
+| 항목 | 값 |
+|------|-----|
+| 방식 | `embedding_full_cycle.py` (전체 순회) |
+| 대상 | 기존 문서 (~13,430 chunks) |
+| batch_size | 4 → 32 시행착오 |
+| max_text_length | 1500 → 1000 (OOM 방지) |
+| workers | 2 → 1 (CPU 경합 확인) |
+| 결과 | 13,430 chunks 임베딩 완료 |
+| 소요시간 | ~5시간 |
+| 인시던트 | OOM Kill 2회 (batch_size=8 + max_len=1500) |
+
+**최적값 확정 (02-10)**: batch_size=4, max_text_length=1000, workers=1
+
+### 2차 임베딩 v1 (2026-02-12 06:45~13:17)
+
+| 항목 | 값 |
+|------|-----|
+| 방식 | `run_embedding_backfill.py` (ES scroll 백필) |
+| 스레드 | 2 (OMP/MKL/torch) |
+| 대상 | ~101,046 chunks |
+| 속도 | 0.5~0.9 t/s (Phase 2 병행) |
+| 결과 | ~480건 처리 후 컨테이너 재시작으로 중단 |
+
+### 2차 임베딩 v2 (2026-02-12 13:32~14:50)
+
+| 항목 | 값 |
+|------|-----|
+| 방식 | `run_embedding_backfill_v2.py` (최적화 버전) |
+| 스레드 | 2 (환경변수 4로 문서화했으나 실제 2) |
+| 대상 | 99,172 chunks |
+| 속도 | **0.72 t/s** (스왑 1.9GB 사용 + 2스레드가 병목) |
+| 결과 | 3,040건 처리 후 튜닝을 위해 중지 |
+
+### 2차 임베딩 v2 튜닝 (2026-02-12 14:50~)
+
+| 항목 | 값 |
+|------|-----|
+| 방식 | `run_embedding_backfill_v2.py` (4스레드 튜닝) |
+| 스레드 | **4** (OMP/MKL/torch 모두 4) |
+| swappiness | **10** (60에서 변경) |
+| 대상 | **96,004 chunks** (미임베딩분) |
+| 속도 | **1.5~2.5 t/s** (3배 개선) |
+| ETA | ~723분 (~12시간) |
+| 에러 | 0건 |
+
+### 1차 vs 2차 비교
+
+| 항목 | 1차 (02-09~10) | 2차 v2 튜닝 (02-12~) |
+|------|---------------|---------------------|
+| 청크 수 | 13,430 | 96,004 |
+| 규모 | 소규모 | **7배 대규모** |
+| batch_size | 4 | 32 |
+| 스레드 | 1~2 | **4** |
+| swappiness | 60 | **10** |
+| 방식 | 전체 순회 | ES scroll 백필 |
+| 속도 | 0.4~1.0 t/s | **1.5~2.5 t/s** |
+| 인시던트 | OOM 2회 | 없음 |
+
+---
+
+## 6. 속도 튜닝 상세
+
+### 6.1 병목 원인 분석 (전문가 3인 합의, 02-12 14:40)
+
+| 전문가 | 핵심 발견 |
+|--------|----------|
+| Infra | swappiness=60이 불필요한 스왑 유발, 캐시 4.2GB 클리어 가능 |
+| ETL | 스왑 1.9GB가 BGE-M3 속도의 주요 원인 (90% 확신), 4스레드 OOM 위험 5% 미만 |
+| RAG | 재시작 안전 (idempotent), 12,508건 스킵 4~6분, 속도>안정성 |
+
+### 6.2 적용 내역
+
+| 순서 | 조치 | 시각 | 효과 |
+|------|------|------|------|
+| 1 | swappiness 60→10 | 14:42 | 스왑 압력 감소 |
+| 2 | 페이지 캐시 클리어 | 14:43 | free +2GB (2.5→4.5GB) |
+| 3 | 스크립트 4스레드 수정 | 14:45 | OMP/MKL/torch 모두 4 |
+| 4 | 프로세스 재시작 | 14:50 | 0.72→2.2 t/s (3배 개선) |
+
+### 6.3 Before vs After
+
+| 지표 | Before (2스레드) | After (4스레드 튜닝) | 변화 |
+|------|-----------------|-------------------|------|
+| 평균 속도 | 0.72 t/s | 2.2 t/s | **+205%** |
+| CPU 사용 | 196% | 321~361% | 4코어 활용 |
+| 메모리 | 2.48 GiB | 2.57 GiB | +90 MiB |
+| ETA | ~37시간 | **~12시간** | **25시간 단축** |
+
+### 6.4 GPU 클라우드 대안 비용 비교 (참고)
+
+CPU 임베딩 대비 GPU 클라우드 옵션. **현재 Phase 3는 CPU로 진행 중이며, 향후 재임베딩/Sparse 백필 시 참고용.**
+
+| 방법 | 인스턴스 | 예상 속도 | 109K 소요 | 비용 | 데이터 주권 |
+|------|---------|----------|----------|------|-----------|
+| Google Cloud T4 | `n1-standard-4` + T4 | ~100 t/s | ~18분 | $0.50~1 | 클라우드 |
+| Google Cloud A100 | `a2-highgpu-1g` | ~500 t/s | ~4분 | $1~2 | 클라우드 |
+| AWS g5.xlarge | A10G GPU | ~200 t/s | ~9분 | $1~2 | 클라우드 |
+| Google Colab (무료) | T4 GPU | ~100 t/s | ~18분 | $0 | ⚠️ Google 정책 |
+| **현재 (CPU)** | WSL2 12GB | 1.5~2.5 t/s | ~12시간 | **$0** | **✅ 완전 로컬** |
+
+> **비용 관점 메모**: CPU 임베딩 자체는 $0이지만, 임베딩 관련 분석/튜닝/모니터링에 소요되는 **Claude Code API 비용이 GPU 클라우드 비용보다 훨씬 크다**. 임베딩을 빨리 끝내야 하는 진짜 이유는 하드웨어 비용이 아니라 엔지니어링 시간(=API 비용)이다. 향후 Sparse 백필(Step 8)이나 재임베딩 시에는 GPU 클라우드를 적극 고려할 것.
+
+> **실용적 절충안**: 텍스트를 외부로 보내지 않고 벡터만 관리하는 방법도 있다. ES에서 청크 텍스트 export → GPU에서 BGE-M3 벡터 생성 → 벡터(숫자 배열)만 ES에 import. 벡터 자체는 민감 정보가 아니므로 주권 문제가 완화된다. 단, 텍스트는 GPU 서버에 일시적으로 존재하게 되므로 완전한 해결은 아님.
+
+### 6.5 잔여 최적화 (Phase 3 완료 후)
+
+| 항목 | 설명 | 시기 |
+|------|------|------|
+| WSL2 메모리 14GB | `.wslconfig` memory=14GB | 임베딩 완료 후 |
+| 컨테이너 메모리 조정 | backend 2G→512M 등 | 임베딩 완료 후 |
+| Phase 2 선별 재처리 | 2건 (SW Process PDF, K8s docx) | 임베딩 완료 후 |
+| swap 축소 | `.wslconfig` swap=2GB | WSL2 재시작 시 |
+
+> ⚠️ **향후 Sparse 백필·선별 재임베딩 시 파라미터 권장 (전문가 합의)**
+>
+> 현재 Phase 3는 `batch=32, max_text_length=1000`으로 실행 중이나, **향후 Sparse 백필(Step 8)이나 선별 재임베딩 시에는 아래 파라미터를 적용**할 것.
+>
+> | 파라미터 | 현재 (Phase 3) | **권장 (향후)** | 근거 |
+> |---------|---------------|----------------|------|
+> | `EMBED_BATCH` | 32 | **8** | 메모리 안전 마진 확보 |
+> | `MAX_TEXT_LEN` | 1000 | **2048** | SemanticChunker max_chunk_size=2048에 맞춤, 절단 제거 |
+>
+> **메모리 영향 분석** (Infra Engineer 실측, 2026-02-12):
+> - ai-service 컨테이너: **실제 limit=10GB** (4GB는 reservation, limit과 다름)
+> - 현재 사용량: 2.708 GiB (27%)
+> - 메모리 공식: `memory = fixed(모델 ~2.7G) + variable(batch × seq_len²)`
+>
+> | batch | text_len | 예상 메모리 | OOM 위험 (10GB limit) |
+> |-------|----------|-----------|---------------------|
+> | 32 | 1000 | ~3.5G | 낮음 (현재) |
+> | **8** | **2048** | **~4.2G** | **매우 낮음 ✅** |
+> | 8 | 4000 | ~5.8G | 낮음 |
+> | 4 | 4000 | ~4.2G | 매우 낮음 |
+>
+> **결론**: `batch=8, text_len=2048`은 10GB 한도 내에서 OOM 위험이 매우 낮으며, 청크 절단 없이 전체 텍스트를 임베딩할 수 있다.
+
+### 6.6 문제 파일 마킹/Skip 전략 (향후 구현)
+
+현재 `run_embedding_backfill_v2.py`는 에러 카운트만 관리하며, 문제 청크/파일을 마킹하거나 skip하는 메커니즘이 없다. 향후 Sparse 백필이나 선별 재임베딩 시 아래 전략을 구현할 것.
+
+**현재 상태:**
+- PostgreSQL `documents.processing_status`: 문서 레벨 `completed`/`failed` 마킹 가능 (ETL 파이프라인에서 사용 중)
+- ES `knowledge_chunks`: 청크 레벨 마킹 필드 없음 (임베딩 실패 시 카운터만 증가)
+
+**구현 방안 (3단계):**
+
+| 단계 | 방법 | 설명 | 난이도 |
+|------|------|------|--------|
+| 1단계 | ES 청크 마킹 | `embedding_status` 필드 추가 (`success`/`failed`/`skipped`/`truncated`) | 낮음 |
+| 2단계 | PG 문서 연동 | 청크 에러율 > 임계치인 문서를 `processing_status='embedding_partial'`로 업데이트 | 중간 |
+| 3단계 | 자동 skip/재시도 | skip 목록 관리 + 재시도 큐 + Slack 알림 | 높음 |
+
+**1단계 구현 시 스크립트 수정 포인트:**
+- `run_embedding_backfill_v2.py` line 179-184: 빈 텍스트/절단 시 `embedding_status` 필드와 함께 ES 업데이트
+- ES 매핑에 `embedding_status` (keyword 타입) 필드 추가
+- 절단된 청크: `{"embedding_status": "truncated", "original_text_len": N}`
+
+### 6.7 성능 측정 기준
+
+| 시나리오 | 실측 속도 | 비고 |
+|---------|----------|------|
+| v2 튜닝 (현재) | 1.5~2.5 t/s | 4스레드, swappiness=10 |
+| 캐시 히트 높음 | 3.0~5.2 t/s | Redis 히트 시 |
+| 캐시 미스 + 긴 텍스트 | 0.5~0.7 t/s | 최악 케이스 |
+
+---
+
+## 7. 누적 진행 현황
+
+### DB 카운트 변화
+
+| 시각 | ES 전체 | ES 임베딩 | 임베딩 비율 |
+|------|---------|----------|------------|
+| 02-09 | ~13,430 | 0 | 0% |
+| 02-10 | ~13,430 | 13,430 | 100% (1차) |
+| 02-12 06:45 | 103,442 | 13,430 | 13.0% |
+| 02-12 08:12 | 106,641 | 5,724 | 5.4% (리인덱싱) |
+| 02-12 13:32 | 108,896 | 9,724 | 8.9% |
+| 02-12 14:50 | 108,896 | 12,892 | 11.8% |
+| **02-12 14:56** | **108,896** | **13,532** | **12.4%** |
+
+### DB 적재 현황 (Phase 1+2 완료, Phase 3 진행중, 02-12 15:13 기준)
+
+| DB | 항목 | 수량 | 용도 |
+|----|------|------|------|
+| PostgreSQL | documents | 1,449 | 문서 메타데이터 (SSOT) |
+| Elasticsearch | knowledge_chunks | 108,896 | 전문 검색 + 벡터 검색 |
+| Elasticsearch | 임베딩 완료 | ~14,556 (13.4%, 02-12 15:13 기준) | dense_vector 필드 |
+| Neo4j | nodes | ~108,412 | 그래프 검색 |
+
+### ETA 예측 (v2 튜닝 기준)
+
+| 시나리오 | 속도 | 남은 청크 | ETA |
+|---------|------|----------|-----|
+| 현재 (v2 튜닝) | 2.2 t/s | ~96K | **~12시간** |
+| 안정화 후 | 1.5 t/s | ~95K | ~18시간 |
+| 최악 (스왑 복귀) | 0.7 t/s | ~95K | ~38시간 |
+
+---
+
+## 8. 모니터링 및 자동 운영
+
+### 8.1 진행률 파일
+
+`/tmp/etl_progress.json`:
+```json
+{
+  "phase": "phase3-embedding-v2",
+  "status": "running",
+  "total_chunks": 96004,
+  "embedded": 640,
+  "rate_texts_per_sec": 2.2,
+  "eta_minutes": 723
+}
+```
+
+### 8.2 Slack 모니터링 (15분 간격)
+
+`/tmp/etl_monitor_v3.sh` → Slack `#proj-hrkp-dev`:
+- Phase 2 최종 상태 (종료)
+- Phase 3 실시간 진행률
+- ES 임베딩 카운트 / 비율
+- CPU/MEM 리소스
+
+### 8.3 헬스체크 (30분 간격)
+
+`scripts/embedding_health_check.sh` → 자동 진단 + 대응:
+- 프로세스 생존 → 죽었으면 자동 재시작
+- 스왑 과다 → 캐시 클리어
+- 속도 저하 / 정체 → Slack 알림
+- swappiness 리셋 → 자동 재설정
+
+### 8.4 세션 독립 실행 및 복원
+
+3개 배경 프로세스는 Claude Code 세션/터미널 종료와 무관하게 독립 실행된다.
+
+| 프로세스 | 실행 위치 | 세션 종료 시 | 비고 |
+|---------|----------|------------|------|
+| `run_embedding_backfill_v2.py` | kp-ai-service Docker 컨테이너 | **계속 실행** | Docker 컨테이너는 독립 프로세스 |
+| `etl_monitor_v3.sh` | 호스트 `/tmp/` | **계속 실행** | `nohup`으로 실행 |
+| `embedding_health_check.sh` | 호스트 `/tmp/` | **계속 실행** | `nohup`으로 실행 |
+
+> ⚠️ **노트북 종료/절전 시 주의**: WSL2는 Windows 위에서 구동되므로 **노트북 종료·절전 시 WSL2도 함께 내려가고 3개 프로세스 전부 중단**된다.
+>
+> **대응 방안:**
+> - Windows 설정 → 전원 및 절전 → 덮개를 닫을 때 → **"아무 작업도 안 함"** 으로 설정하여 절전 방지
+> - 임베딩 스크립트는 **idempotent** — 이미 `dense_vector`가 있는 청크는 건너뛰므로, WSL2 재시작 후 스크립트를 다시 실행하면 중단된 지점부터 이어서 진행
+> - 헬스체크를 수동으로 한번 재실행하면 모니터링 체계 복구 완료
+
+**복원 순서 (WSL2 재시작 후):**
+```bash
+# 1. 임베딩 프로세스 생존 확인
+docker exec kp-ai-service bash -c 'for p in /proc/[0-9]*/cmdline; do cat "$p" 2>/dev/null | tr "\0" " "; echo; done' | grep embedding
+
+# 2. 죽었으면 재시작
+docker exec -d kp-ai-service python3 /app/scripts/run_embedding_backfill_v2.py > /tmp/embedding_backfill_v2.log 2>&1
+
+# 3. 모니터/헬스체크 재시작
+nohup /tmp/etl_monitor_v3.sh > /tmp/etl_monitor_v3.log 2>&1 &
+nohup /tmp/embedding_health_check.sh > /tmp/health_check.log 2>&1 &
+```
+
+### 8.5 로그 파일
+
+| 로그 | 위치 |
+|------|------|
+| Phase 2 ETL (1차) | `/tmp/etl_output.log` |
+| Phase 2 ETL (2차) | `/tmp/etl_phase2.log` |
+| Phase 3 임베딩 | `/tmp/embedding_backfill_v2.log` |
+| 진행률 JSON | `/tmp/etl_progress.json` |
+| 모니터 v3 | `/tmp/etl_monitor_v3.log` |
+| 헬스체크 | `/tmp/health_check.log` |
+
+---
+
+## 9. 리스크 및 대응
+
+| 리스크 | 확률 | 대응 |
+|--------|------|------|
+| OOM Kill | 낮음 | max_text_len=1000, 4스레드 OOM 5% 미만 |
+| ES scroll 만료 | 낮음 | scroll=30m, 배치당 10~45초 |
+| 프로세스 중단 | 중 | 헬스체크 자동 재시작 |
+| 속도 저하 복귀 | 중 | swappiness 자동 재설정 + 캐시 클리어 |
+| WSL2 재시작 | 낮음 | 임베딩 완료 후로 연기 |
+| **노트북 종료/절전** | **중** | **덮개 닫기="아무 작업도 안 함" 설정 필수. 중단 시 idempotent 재시작 (§8.4)** |
+
+---
+
+## 10. 완료 후 검증 계획
+
+### 10.1 임베딩 커버리지 확인
+
+```bash
+# 전체 청크 수
+curl -s "http://localhost:9200/knowledge_chunks/_count"
+
+# 임베딩 있는 청크 수 (dense_vector 필드)
+curl -s "http://localhost:9200/knowledge_chunks/_count" \
+  -H 'Content-Type: application/json' \
+  -d '{"query":{"exists":{"field":"dense_vector"}}}'
+
+# 임베딩 없는 청크 수 (0이어야 함)
+curl -s "http://localhost:9200/knowledge_chunks/_count" \
+  -H 'Content-Type: application/json' \
+  -d '{"query":{"bool":{"must_not":[{"exists":{"field":"dense_vector"}}]}}}'
+```
+
+### 10.2 벡터 품질 스팟 체크
+
+```python
+# 유사도 검색 테스트
+GET knowledge_chunks/_search
+{
+  "knn": {
+    "field": "dense_vector",
+    "query_vector": [...],
+    "k": 5,
+    "num_candidates": 50
+  }
+}
+```
+
+### 10.3 RAGAS 재평가
+
+임베딩 완료 후 RAGAS v7 평가 실행:
+- 기존 v6 대비 context_precision, context_recall 비교
+- 108K+ 청크 의미 검색의 효과 측정
+
+---
+
+## 11. 스크립트 목록
+
+| 스크립트 | Phase | 용도 | 상태 |
+|---------|-------|------|------|
+| `run_etl_noembedding.py` | 1 | 텍스트 파일 (임베딩 OFF) | 완료 |
+| `run_etl_phase2.py` | 2 | 바이너리 파일 (크기순, 임베딩 OFF) | 완료 |
+| `run_embedding_backfill.py` | 3 | ES scroll → BGE-M3 → bulk update (v1) | deprecated |
+| `run_embedding_backfill_v2.py` | 3 | v2 최적화: numpy 정규화, 길이 정렬, 4스레드 | **현재 운영** |
+| `run_etl_workers.py` | - | 2워커 통합 ETL | deprecated |
+| `etl_monitor_v3.sh` | 모니터 | Phase 2+3 분리 보고 (15분 간격) | 운영중 |
+| `embedding_health_check.sh` | 모니터 | 자동 진단/대응 (30분 간격) | 운영중 |
+
+---
+
+## 12. 교훈 및 인사이트
+
+### 12.1 파싱과 임베딩 분리의 효과
+- 파싱/저장: **14분 + 4~5시간** (키워드 검색 즉시 가능)
+- 임베딩: **~12시간** (의미 검색은 나중에)
+- 사용자는 임베딩 완료 전에도 키워드/그래프 검색 사용 가능
+
+### 12.2 CPU BGE-M3 성능과 튜닝
+
+초기 예상(0.5~1.2 t/s, 30~48시간)에서 시스템 튜닝으로 대폭 개선:
+
+| 시점 | 속도 | ETA | 병목 원인 |
+|------|------|-----|----------|
+| 초기 (2스레드, swappiness=60) | 0.72 t/s | ~37시간 | 스왑 paging + 저활용 |
+| 튜닝 후 (4스레드, swappiness=10) | 2.2 t/s | ~12시간 | CPU 4코어 완전 활용 |
+
+**핵심 교훈**: GPU 없이도 시스템 레벨 튜닝(swappiness, 스레드, 캐시)으로 3배 성능 개선 가능
+
+### 12.3 idempotent 설계의 가치
+- file_hash dedup: 동일 파일 재처리 방지
+- ES exists 쿼리: 임베딩 이미 있는 청크 스킵
+- 중단 후 재시작이 안전 → 운영 안정성 확보
+
+---
+
+## 13. 앞으로의 계획 (Action Plan)
+
+> **현재 위치**: Phase 3 임베딩 진행중 (13.4%, ETA ~20시간)
+> **마지막 업데이트**: 2026-02-12 15:13 KST
+
+### Step 1: 임베딩 완료 대기 (자동)
+
+- **뭘 하나**: 아무것도 안 해도 됨. 자동으로 돌아감
+- **예상 완료**: 02-13 낮 (속도에 따라 변동)
+- **모니터링**: Slack `#proj-hrkp-dev`에 15분마다 보고 올라옴
+- **문제 발생 시**: 헬스체크가 30분마다 자동 대응 (프로세스 재시작, 캐시 클리어 등)
+- **확인 방법**:
+  ```bash
+  docker exec kp-ai-service python3 -c "import json; d=json.load(open('/tmp/etl_progress.json')); print(f'{d[\"embedded\"]}/{d[\"total_chunks\"]} ({d[\"embedded\"]*100//d[\"total_chunks\"]}%)')"
+  ```
+
+### Step 2: 임베딩 완료 직후 — 검증
+
+- [ ] ES 임베딩 커버리지 100% 확인
+  ```bash
+  # 임베딩 없는 청크 수 → 0이어야 함
+  curl -s "http://localhost:9200/knowledge_chunks/_count" \
+    -H 'Content-Type: application/json' \
+    -d '{"query":{"bool":{"must_not":[{"exists":{"field":"dense_vector"}}]}}}'
+  ```
+- [ ] 벡터 검색 스팟 체크 (kNN 쿼리 10개 돌려보기)
+- [ ] **v1/v2 정규화 일관성 검증** (1차 13,430건 vs 2차 벡터 코사인 유사도 비교)
+- [ ] **max_text_length=1000 영향 확인** (1,000자 초과 청크 비율 및 검색 품질)
+- [ ] Slack 완료 알림 확인
+
+### Step 3: RAGAS v7 평가 실행
+
+- [ ] **100개 쿼리**로 RAGAS 평가 (유형별 분류)
+  - 기술 쿼리 30개 (API, 아키텍처, 코드)
+  - 정책/규정 쿼리 25개 (보안, 인사, 규정)
+  - 크로스 도메인 쿼리 20개 (여러 도메인 교차)
+  - 한영 혼합 쿼리 15개 (한국어 쿼리 → 영어 문서 등)
+  - 엣지 케이스 10개 (매우 짧은/긴 쿼리, 오타 포함)
+- [ ] v6 대비 비교 분석:
+  - context_precision (더 정확한 문서를 상위에?)
+  - context_recall (관련 문서를 더 많이 찾나?)
+  - faithfulness (환각 감소?)
+  - NONE 비율 (26% → 10% 이하 목표)
+- [ ] **유형별 결과 분석** (어떤 유형에서 개선이 큰지/작은지)
+- [ ] 결과 보고서: `ragas/results/` 에 저장
+
+### Step 4: WSL2 메모리 확장 (wsl --shutdown 필요)
+
+- [ ] `.wslconfig` 수정: `memory=14GB`, `swap=2GB`
+  - 경로: `C:\Users\KTDS\.wslconfig`
+- [ ] `wsl --shutdown` 실행 (Windows 터미널에서)
+- [ ] WSL 재시작 후 컨테이너 전체 기동 확인
+- **주의**: 임베딩 완료 후에만 실행! (shutdown하면 프로세스 전부 죽음)
+
+### Step 5: Phase 2 재처리 (2건만)
+
+- [ ] `Software-Processes-and-Software-Development-Process-Models.pdf`
+- [ ] `파드의 컴퓨팅 리소스관리.docx`
+- 방법: `run_etl_phase2.py`에 해당 파일만 지정하여 재실행
+
+### Step 6: 컨테이너 메모리 최적화
+
+- [ ] `docker-compose.yml`에서 불필요한 메모리 할당 줄이기
+  - kp-backend: 2G → 512M
+  - 기타 컨테이너 검토
+- [ ] 확보한 메모리로 ai-service 여유 확대
+
+### Step 7: Hybrid Search 3채널 통합 테스트
+
+- [ ] Keyword(BM25) + Vector(BGE-M3) + Graph(Neo4j) 동시 검색
+- [ ] RRF Fusion 랭킹 정상 동작 확인
+  - **현재 RRF 파라미터**: `k=60` (기본값), 채널 가중치 BM25=1.0, Dense=1.0, Graph=0.6
+  - Step 3 RAGAS 결과에 따라 가중치 조정 검토
+- [ ] **Reranker 도입 검토**: RRF 결과에 대한 Cross-Encoder Reranker 적용 여부 판단
+  - 후보: `BAAI/bge-reranker-v2-m3` (BGE-M3와 같은 BAAI 시리즈, 다국어 지원)
+  - 판단 기준: RRF만으로 충분한 정밀도가 나오면 불필요
+- [ ] 크로스 도메인 검색 시연 (한 질문에 여러 도메인 결과)
+
+---
+
+### Step 8: BGE-M3 Sparse 벡터 활성화 (Step 7 이후, **Step 4 완료 필수**)
+
+> **의존성**: Step 4(WSL2 14GB 확장)가 완료되어야 실행 가능. Sparse 추가 시 메모리 사용량이 증가(+300~500MB 예상)하므로 12GB 환경에서는 OOM 위험이 있다.
+
+> ⚠️ **Sparse 백필 파라미터**: `run_embedding_backfill_v2.py`의 `EMBED_BATCH=8`, `MAX_TEXT_LEN=2048`로 조정 후 실행할 것. 상세 근거 및 메모리 분석은 §6.5 참조.
+
+- [ ] Phase A: FlagEmbedding 라이브러리 설치 + Dense 결과 일치 검증 + 메모리 측정
+- [ ] Phase B: ES 매핑에 sparse_vector 필드 추가 + 검색 쿼리 작성
+- [ ] Phase C: Sparse 백필 스크립트 작성 + 109K 전체 실행 (**batch=8, text_len=2048**)
+- [ ] Phase D: HybridSearchService 4채널 RRF 통합
+- [ ] Phase E: RAGAS v8 평가 (v7 대비) + BM25 vs Sparse 비교 + 가중치 튜닝
+- **상세 계획**: `02_bge_m3_and_107k_embeddings.md` → "Sparse 벡터 활성화 계획" 섹션
+- **Go/No-Go 판단**: Phase A 후 (라이브러리 안전성), Phase E 후 (실제 효과)
+
+### 한눈에 보는 순서
+
+```
+지금 ──────────────────────────────────────────────────────── 최적화
+  │                                                              │
+  ▼                                                              ▼
+[Step 1]      [Step 2]    [Step 3]   [Step 4]  [Step 5~7]     [Step 8]
+임베딩 대기 → 검증     → RAGAS v7 → WSL2 14G → 재처리+테스트 → Sparse 활성화
+(자동)        (수동)      (수동)     (수동)     (수동)          (수동, 5단계, Step4 필수)
+```

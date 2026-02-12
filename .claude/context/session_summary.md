@@ -1,4 +1,4 @@
-# Session Summary - 2026-02-12 10:44
+# Session Summary - 2026-02-12 18:14
 
 ## Commits This Session
 ```
@@ -11,12 +11,12 @@
 .claude/context/session_summary.md
 PLAN.md
 knowledge_service/docs/07_maintenance/21_bugfix_report_2026-02-11_gateway_405_graph_empty.md
+knowledge_service/docs/images/Hybrid-RAG-512.png
 knowledge_service/frontend/index.html
 knowledge_service/frontend/src/components/common/Header.tsx
 knowledge_service/frontend/src/components/common/Sidebar.tsx
 knowledge_service/frontend/src/components/common/__tests__/Sidebar.test.tsx
-knowledge_service/frontend/src/features/search/ChatSearch.tsx
-knowledge_service/frontend/src/features/search/KeywordSearch.tsx
+knowledge_service/frontend/src/features/dashboard/Dashboard.tsx
 ```
 
 ---
