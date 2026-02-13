@@ -84,7 +84,7 @@ class Settings(BaseSettings):
     # Embedding 설정 (BGE-M3)
     embedding_model: str = Field(default="BAAI/bge-m3", description="임베딩 모델명")
     embedding_dimension: int = Field(default=1024, description="임베딩 차원")
-    embedding_batch_size: int = Field(default=32, description="임베딩 배치 크기")
+    embedding_batch_size: int = Field(default=4, description="임베딩 배치 크기 (CPU 최적: 4)")
     embedding_max_length: int = Field(default=8192, description="임베딩 최대 토큰 길이")
     embedding_use_fp16: bool = Field(default=True, description="FP16 사용 여부")
     embedding_device: Optional[str] = Field(default=None, description="임베딩 디바이스 (auto)")
@@ -127,7 +127,7 @@ class Settings(BaseSettings):
         default=None, description="Elasticsearch 비밀번호"
     )
     elasticsearch_index: str = Field(
-        default="knowledge_chunks", description="Elasticsearch 인덱스명"
+        default="knowledge_chunks", description="Elasticsearch 인덱스명 (Nori 한국어 분석기 적용)"
     )
 
     @property

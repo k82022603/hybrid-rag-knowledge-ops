@@ -131,14 +131,14 @@ class TestChunkEmbedding:
 
     def test_sparse_vector_set(self):
         """sparse_vector 설정 테스트"""
-        sparse = {0: 0.5, 10: 0.3, 100: 0.8}
+        sparse = {"0": 0.5, "10": 0.3, "100": 0.8}
         emb = ChunkEmbedding(
             chunk_id="c1",
             dense_vector=[0.1],
             sparse_vector=sparse,
         )
         assert emb.sparse_vector == sparse
-        assert emb.sparse_vector[100] == 0.8
+        assert emb.sparse_vector["100"] == 0.8
 
     def test_custom_model_name(self):
         """커스텀 모델명 테스트"""
@@ -748,7 +748,7 @@ class TestEmbedBatchWithMockModel:
         mock_model = MagicMock()
         mock_model.encode.return_value = {
             "dense_vecs": _make_mock_array([[0.1, 0.2]]),
-            "lexical_weights": [{0: 0.5, 10: 0.3}],
+            "lexical_weights": [{"0": 0.5, "10": 0.3}],
         }
 
         svc = _make_service(
@@ -761,7 +761,7 @@ class TestEmbedBatchWithMockModel:
         dense, sparse = svc.embed_batch(["test"], return_sparse=True)
         assert len(dense) == 1
         assert len(sparse) == 1
-        assert sparse[0][0] == 0.5
+        assert sparse[0]["0"] == 0.5
 
     def test_embed_batch_flag_embedding_without_lexical_weights(self, mock_settings):
         """FlagEmbedding sparse 요청 시 lexical_weights 없는 경우"""
@@ -861,7 +861,7 @@ class TestEmbedChunks:
         mock_model = MagicMock()
         mock_model.encode.return_value = {
             "dense_vecs": _make_mock_array([[0.1, 0.2]]),
-            "lexical_weights": [{5: 0.9}],
+            "lexical_weights": [{"5": 0.9}],
         }
 
         svc = _make_service(
@@ -873,7 +873,7 @@ class TestEmbedChunks:
 
         chunks = svc.embed_chunks(["c1"], ["text1"], return_sparse=True)
         assert len(chunks) == 1
-        assert chunks[0].sparse_vector == {5: 0.9}
+        assert chunks[0].sparse_vector == {"5": 0.9}
 
     def test_embed_chunks_length_mismatch(self, mock_settings):
         """길이 불일치 시 ValueError"""
@@ -970,7 +970,7 @@ class TestEmbeddingServiceWithCache:
         mock_model = MagicMock()
         mock_model.encode.return_value = {
             "dense_vecs": _make_mock_array([[0.1, 0.2]]),
-            "lexical_weights": [{0: 0.5}],
+            "lexical_weights": [{"0": 0.5}],
         }
 
         svc = _make_service(
@@ -1173,7 +1173,7 @@ class TestEncodeTexts:
         mock_model = MagicMock()
         mock_model.encode.return_value = {
             "dense_vecs": _make_mock_array([[0.1, 0.2]]),
-            "lexical_weights": [{1: 0.5}],
+            "lexical_weights": [{"1": 0.5}],
         }
 
         svc = _make_service(
@@ -1429,7 +1429,7 @@ class TestAsyncMethods:
         mock_model = MagicMock()
         mock_model.encode.return_value = {
             "dense_vecs": _make_mock_array([[0.1, 0.2]]),
-            "lexical_weights": [{0: 0.5}],
+            "lexical_weights": [{"0": 0.5}],
         }
 
         svc = _make_service(
@@ -1469,7 +1469,7 @@ class TestAsyncMethods:
         mock_model = MagicMock()
         mock_model.encode.return_value = {
             "dense_vecs": _make_mock_array([[0.1, 0.2]]),
-            "lexical_weights": [{5: 0.9}],
+            "lexical_weights": [{"5": 0.9}],
         }
 
         svc = _make_service(
@@ -1481,4 +1481,4 @@ class TestAsyncMethods:
 
         chunks = await svc.aembed_chunks(["c1"], ["text"], return_sparse=True)
         assert len(chunks) == 1
-        assert chunks[0].sparse_vector == {5: 0.9}
+        assert chunks[0].sparse_vector == {"5": 0.9}

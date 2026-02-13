@@ -1240,6 +1240,8 @@ class InitialDataLoader:
             )
 
             # 벌크 인덱싱 문서 준비
+            # ES date 매핑 호환: yyyy-MM-dd'T'HH:mm:ss.SSSZ (밀리초 3자리 + Z)
+            now_iso = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.000Z")
             bulk_docs = []
             for i, chunk in enumerate(chunks):
                 doc = {
@@ -1250,7 +1252,13 @@ class InitialDataLoader:
                     "heading": chunk.heading,
                     "token_count": chunk.token_count,
                     "metadata": metadata,
-                    "created_at": datetime.utcnow().isoformat(),
+                    "created_at": now_iso,
+                    # v2 추적 필드
+                    "embedding_status": "success" if embeddings else "pending",
+                    "chunker_version": "v2",
+                    "original_text_length": len(chunk.content),
+                    "embedded_at": now_iso if embeddings else None,
+                    "embedding_model": "bge-m3" if embeddings else None,
                 }
 
                 # 임베딩 벡터 추가
@@ -1274,10 +1282,22 @@ class InitialDataLoader:
                         actions.append(doc)
 
                     if actions:
-                        await es.bulk(operations=actions, refresh="wait_for")
-                        logger.info(
-                            "Elasticsearch bulk indexed: %d documents", len(bulk_docs)
-                        )
+                        bulk_resp = await es.bulk(operations=actions, refresh="wait_for")
+                        if bulk_resp.get("errors"):
+                            failed_items = [
+                                item for item in bulk_resp["items"]
+                                if "error" in item.get("index", {})
+                            ]
+                            logger.error(
+                                "Elasticsearch bulk errors: %d/%d failed. First error: %s",
+                                len(failed_items),
+                                len(bulk_docs),
+                                failed_items[0]["index"]["error"] if failed_items else "unknown",
+                            )
+                        else:
+                            logger.info(
+                                "Elasticsearch bulk indexed: %d documents (verified)", len(bulk_docs)
+                            )
                 finally:
                     await es.close()
 

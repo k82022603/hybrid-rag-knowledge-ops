@@ -109,6 +109,14 @@ DEFAULT_INDEX_SETTINGS: Dict[str, Any] = {
             },
             "neo4j_entity_ids": {"type": "keyword"},
             "total_chunks": {"type": "integer"},
+            "embedding_status": {"type": "keyword"},
+            "chunker_version": {"type": "keyword"},
+            "original_text_length": {"type": "integer"},
+            "embedded_at": {
+                "type": "date",
+                "format": "yyyy-MM-dd'T'HH:mm:ss.SSSZ||yyyy-MM-dd'T'HH:mm:ssZ||epoch_millis",
+            },
+            "embedding_model": {"type": "keyword"},
             "created_at": {
                 "type": "date",
                 "format": "yyyy-MM-dd'T'HH:mm:ss.SSSZ||yyyy-MM-dd'T'HH:mm:ssZ||epoch_millis",
@@ -402,6 +410,15 @@ class ElasticsearchStorageService:
                 total_chunks = chunk.get("total_chunks")
                 if total_chunks is not None:
                     doc["total_chunks"] = total_chunks
+
+                # [v2] 임베딩/청킹 추적 필드
+                for field in (
+                    "embedding_status", "chunker_version",
+                    "original_text_length", "embedded_at", "embedding_model",
+                ):
+                    val = chunk.get(field)
+                    if val is not None:
+                        doc[field] = val
 
                 actions.append({
                     "_index": idx,

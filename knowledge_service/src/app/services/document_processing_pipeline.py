@@ -28,6 +28,7 @@ from app.core.config import settings
 from app.core.logging import get_logger
 from app.etl.chunker import SemanticChunker
 from app.etl.parser import DocumentParser
+from app.services.chunk_quality_filter import ChunkQualityGate
 from app.models.chunk import ChunkResult
 from app.services.embedding import EmbeddingService, get_embedding_service
 from app.services.entity_extraction import (
@@ -513,6 +514,7 @@ class DocumentProcessingPipeline:
             chunk_size=settings.chunk_size,
             chunk_overlap=settings.chunk_overlap,
         )
+        self.quality_gate = ChunkQualityGate()
         self.embedding_service: Optional[EmbeddingService] = None
         self.es_storage: Optional[ElasticsearchStorageService] = None
         self.neo4j_storage: Optional[Neo4jStorageService] = None
@@ -640,18 +642,29 @@ class DocumentProcessingPipeline:
                 )
 
                 chunk_result = self.chunker.chunk_document(parsed_doc)
-                chunks = chunk_result.chunks
+                raw_chunks = chunk_result.chunks
 
-                if not chunks:
+                if not raw_chunks:
                     return await self._handle_failure(
                         document_id=document_id,
                         error_message="청크를 생성할 수 없습니다",
                         start_time=start_time,
                     )
 
+                # [v2] ChunkQualityGate: 의미 없는 청크 필터링
+                chunks, rejected = self.quality_gate.filter(raw_chunks)
+
+                if not chunks:
+                    return await self._handle_failure(
+                        document_id=document_id,
+                        error_message="품질 기준을 통과한 청크가 없습니다",
+                        start_time=start_time,
+                    )
+
                 logger.info(
                     f"Document chunked: {document_id}, "
-                    f"chunks={len(chunks)}, "
+                    f"raw={len(raw_chunks)}, passed={len(chunks)}, "
+                    f"rejected={len(rejected)}, "
                     f"avg_tokens={chunk_result.avg_token_count:.1f}"
                 )
 
@@ -665,10 +678,12 @@ class DocumentProcessingPipeline:
                 chunk_texts = [c.content for c in chunks]
                 chunk_ids = [c.id for c in chunks]
 
-                embeddings = await self.embedding_service.aembed_batch(chunk_texts)
+                dense_vectors, sparse_vectors = await self.embedding_service.aembed_batch(
+                    chunk_texts, return_sparse=True
+                )
 
                 logger.info(
-                    f"Embeddings generated: {document_id}, count={len(embeddings)}"
+                    f"Embeddings generated: {document_id}, count={len(dense_vectors)}, sparse={len(sparse_vectors)}"
                 )
 
                 # 5. Elasticsearch 저장
@@ -689,18 +704,28 @@ class DocumentProcessingPipeline:
 
                 # 청크 데이터 준비
                 es_chunks = []
+                now_embed = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
                 for i, chunk in enumerate(chunks):
                     es_chunk = {
                         "chunk_id": chunk.id,
                         "document_id": doc_id_str,
                         "content": chunk.content,
-                        "dense_vector": embeddings[i],
+                        "dense_vector": dense_vectors[i],
                         "chunk_index": chunk.chunk_index,
                         "token_count": chunk.token_count,
                         "heading": chunk.heading or "",
                         "metadata": doc_metadata,
                         "total_chunks": len(chunks),
+                        # [v2] 임베딩/청킹 추적 필드
+                        "embedding_status": "success",
+                        "chunker_version": "v2",
+                        "original_text_length": len(chunk.content),
+                        "embedded_at": now_embed,
+                        "embedding_model": "bge-m3",
                     }
+                    # Sparse 벡터 추가 (BGE-M3 lexical weights)
+                    if sparse_vectors and i < len(sparse_vectors) and sparse_vectors[i]:
+                        es_chunk["sparse_vector"] = sparse_vectors[i]
                     es_chunks.append(es_chunk)
 
                 es_result = await self.es_storage.index_chunks(es_chunks)

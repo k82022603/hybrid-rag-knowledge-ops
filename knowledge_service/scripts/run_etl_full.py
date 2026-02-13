@@ -176,13 +176,13 @@ async def main():
     # 초기화
     loader = InitialDataLoader(
         project_root="/app",
-        chunk_size=600,
-        chunk_overlap=100,
+        chunk_size=1000,       # v2: 600→1000 (설계문서 §14.5 권장, BM25 TF 개선)
+        chunk_overlap=200,     # v2: 100→200 (RAGChatbotServer 검증 수치)
         batch_size=4,       # CPU 최적값 (2026-02-10 확정)
         max_retries=2,
         continue_on_error=True,
         enable_embeddings=True,
-        enable_entity_extraction=False,  # 엔티티 추출은 별도 단계
+        enable_entity_extraction=True,   # Phase 2 통합: LLM 엔티티/관계 추출 (DeepSeek)
     )
 
     # 모든 디렉토리를 데이터소스로 등록

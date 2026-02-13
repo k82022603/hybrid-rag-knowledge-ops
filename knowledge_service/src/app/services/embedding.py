@@ -44,7 +44,7 @@ class ChunkEmbedding:
 
     chunk_id: str
     dense_vector: List[float]
-    sparse_vector: Optional[Dict[int, float]] = None
+    sparse_vector: Optional[Dict[str, float]] = None
     model_name: str = "BAAI/bge-m3"
     created_at: datetime = field(default_factory=datetime.utcnow)
 
@@ -530,7 +530,7 @@ class EmbeddingService:
         self,
         texts: List[str],
         return_sparse: bool = False,
-    ) -> Union[List[List[float]], Tuple[List[List[float]], List[Dict[int, float]]]]:
+    ) -> Union[List[List[float]], Tuple[List[List[float]], List[Dict[str, float]]]]:
         """배치 텍스트 임베딩 생성
 
         대량 텍스트를 효율적으로 임베딩합니다. Redis 캐시를 활용하여
@@ -619,7 +619,7 @@ class EmbeddingService:
         self,
         texts: List[str],
         return_sparse: bool = False,
-    ) -> Tuple[List[List[float]], List[Dict[int, float]]]:
+    ) -> Tuple[List[List[float]], List[Dict[str, float]]]:
         """실제 모델 호출로 텍스트 인코딩
 
         내부적으로 batch_size 단위로 분할하여 처리합니다.
@@ -646,7 +646,7 @@ class EmbeddingService:
         self,
         texts: List[str],
         return_sparse: bool = False,
-    ) -> Tuple[List[List[float]], List[Dict[int, float]]]:
+    ) -> Tuple[List[List[float]], List[Dict[str, float]]]:
         """FlagEmbedding 기반 인코딩
 
         Args:
@@ -674,7 +674,7 @@ class EmbeddingService:
         self,
         texts: List[str],
         return_sparse: bool = False,
-    ) -> Tuple[List[List[float]], List[Dict[int, float]]]:
+    ) -> Tuple[List[List[float]], List[Dict[str, float]]]:
         """sentence-transformers 기반 인코딩 (폴백)
 
         Args:
@@ -755,7 +755,7 @@ class EmbeddingService:
         self,
         texts: List[str],
         return_sparse: bool = False,
-    ) -> Union[List[List[float]], Tuple[List[List[float]], List[Dict[int, float]]]]:
+    ) -> Union[List[List[float]], Tuple[List[List[float]], List[Dict[str, float]]]]:
         """배치 텍스트 비동기 임베딩 생성
 
         Args:

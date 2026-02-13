@@ -46,94 +46,105 @@ def init_elasticsearch():
         "Elasticsearch"
     )
 
-    # Load mappings from file
-    mappings_file = '/app/es-mappings.json'
-    if os.path.exists(mappings_file):
-        with open(mappings_file, 'r') as f:
-            mappings = json.load(f)
-    else:
-        # Default mappings for knowledge chunks
-        mappings = {
-            "settings": {
-                "number_of_shards": 1,
-                "number_of_replicas": 0,
-                "analysis": {
-                    "analyzer": {
-                        "korean_analyzer": {
-                            "type": "custom",
-                            "tokenizer": "nori_tokenizer",
-                            "filter": ["lowercase", "nori_readingform"]
-                        }
+    # -----------------------------------------------------------------------
+    # knowledge_chunks (Nori 한국어 분석기 적용)
+    # -----------------------------------------------------------------------
+    index_name = "knowledge_chunks"
+    if not es.indices.exists(index=index_name):
+        nori_settings = {
+            "number_of_shards": 1,
+            "number_of_replicas": 0,
+            "analysis": {
+                "analyzer": {
+                    "korean": {
+                        "type": "custom",
+                        "tokenizer": "nori_mixed",
+                        "filter": ["nori_pos_filter", "nori_readingform", "lowercase"]
+                    },
+                    "korean_search": {
+                        "type": "custom",
+                        "tokenizer": "nori_discard",
+                        "filter": ["nori_pos_filter", "nori_readingform", "lowercase"]
                     }
-                }
-            },
-            "mappings": {
-                "properties": {
-                    "document_id": {"type": "keyword"},
-                    "chunk_index": {"type": "integer"},
-                    "text": {
-                        "type": "text",
-                        "analyzer": "korean_analyzer",
-                        "fields": {
-                            "keyword": {"type": "keyword", "ignore_above": 256}
-                        }
+                },
+                "tokenizer": {
+                    "nori_mixed": {
+                        "type": "nori_tokenizer",
+                        "decompound_mode": "mixed",
+                        "user_dictionary_rules": [
+                            "검색엔진", "벡터검색", "하이브리드검색",
+                            "머신러닝", "딥러닝", "임베딩",
+                            "쿠버네티스", "도커", "마이크로서비스",
+                            "엘라스틱서치", "네오포제이", "포스트그레스",
+                            "지식그래프", "청킹", "리랭킹",
+                            "파이프라인", "프레임워크"
+                        ]
                     },
-                    "dense_vector": {
-                        "type": "dense_vector",
-                        "dims": 1024,
-                        "index": True,
-                        "similarity": "cosine"
-                    },
-                    "sparse_vector": {
-                        "type": "sparse_vector"
-                    },
-                    "metadata": {
-                        "type": "object",
-                        "properties": {
-                            "document_type": {"type": "keyword"},
-                            "project_name": {"type": "keyword"},
-                            "created_at": {"type": "date"},
-                            "author": {"type": "keyword"},
-                            "tags": {"type": "keyword"}
-                        }
-                    },
-                    "created_at": {"type": "date"},
-                    "updated_at": {"type": "date"}
+                    "nori_discard": {
+                        "type": "nori_tokenizer",
+                        "decompound_mode": "discard",
+                        "user_dictionary_rules": [
+                            "검색엔진", "벡터검색", "하이브리드검색",
+                            "머신러닝", "딥러닝", "임베딩",
+                            "쿠버네티스", "도커", "마이크로서비스",
+                            "엘라스틱서치", "네오포제이", "포스트그레스",
+                            "지식그래프", "청킹", "리랭킹",
+                            "파이프라인", "프레임워크"
+                        ]
+                    }
+                },
+                "filter": {
+                    "nori_pos_filter": {
+                        "type": "nori_part_of_speech",
+                        "stoptags": [
+                            "E", "IC", "J", "MAG", "MAJ", "MM",
+                            "SP", "SSC", "SSO", "SC", "SE",
+                            "XPN", "XSA", "XSN", "XSV",
+                            "UNA", "NA", "VCN"
+                        ]
+                    }
                 }
             }
         }
-
-    # Create index template
-    template_name = "knowledge-chunks-template"
-    index_pattern = "knowledge-chunks-*"
-
-    try:
-        es.indices.put_index_template(
-            name=template_name,
-            index_patterns=[index_pattern],
-            template={
-                "settings": mappings.get("settings", {}),
-                "mappings": mappings.get("mappings", {})
-            },
-            priority=100
-        )
-        logger.info(f"Created Elasticsearch index template: {template_name}")
-    except Exception as e:
-        logger.warning(f"Index template may already exist: {e}")
-
-    # Create initial index
-    index_name = "knowledge-chunks-v1"
-    if not es.indices.exists(index=index_name):
-        es.indices.create(
-            index=index_name,
-            settings=mappings.get("settings", {}),
-            mappings=mappings.get("mappings", {})
-        )
-        logger.info(f"Created Elasticsearch index: {index_name}")
-
-        # Create alias
-        es.indices.put_alias(index=index_name, name="knowledge-chunks")
-        logger.info("Created alias: knowledge-chunks -> knowledge-chunks-v1")
+        nori_mappings = {
+            "properties": {
+                "chunk_id": {"type": "keyword"},
+                "chunk_index": {"type": "integer"},
+                "created_at": {"type": "date", "format": "strict_date_optional_time||epoch_millis"},
+                "dense_vector": {
+                    "type": "dense_vector",
+                    "dims": 1024,
+                    "index": True,
+                    "similarity": "cosine"
+                },
+                "sparse_vector": {"type": "sparse_vector"},
+                "document_id": {"type": "keyword"},
+                "heading": {
+                    "type": "text",
+                    "analyzer": "korean",
+                    "search_analyzer": "korean_search",
+                    "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}
+                },
+                "text": {
+                    "type": "text",
+                    "analyzer": "korean",
+                    "search_analyzer": "korean_search",
+                    "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}
+                },
+                "metadata": {
+                    "type": "object",
+                    "enabled": True
+                },
+                "token_count": {"type": "integer"},
+                "embedding_status": {"type": "keyword"},
+                "chunker_version": {"type": "keyword"},
+                "original_text_length": {"type": "integer"},
+                "embedded_at": {"type": "date", "format": "strict_date_optional_time||epoch_millis"},
+                "embedding_model": {"type": "keyword"}
+            }
+        }
+        es.indices.create(index=index_name, settings=nori_settings, mappings=nori_mappings)
+        logger.info(f"Created Elasticsearch index: {index_name} (Nori analyzer)")
     else:
         logger.info(f"Elasticsearch index {index_name} already exists")
 

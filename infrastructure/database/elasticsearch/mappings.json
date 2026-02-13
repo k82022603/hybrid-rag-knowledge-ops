@@ -22,6 +22,18 @@
         }
       },
       "tokenizer": {
+        "nori_tokenizer": {
+          "type": "nori_tokenizer",
+          "decompound_mode": "mixed",
+          "user_dictionary_rules": [
+            "검색엔진", "벡터검색", "하이브리드검색",
+            "머신러닝", "딥러닝", "임베딩",
+            "쿠버네티스", "도커", "마이크로서비스",
+            "엘라스틱서치", "네오포제이", "포스트그레스",
+            "지식그래프", "청킹", "리랭킹",
+            "파이프라인", "프레임워크"
+          ]
+        },
         "ngram_tokenizer": {
           "type": "ngram",
           "min_gram": 2,

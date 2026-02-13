@@ -1,9 +1,9 @@
 # ETL 배치 파이프라인 상세 설계서
 
-**Version**: 1.0
-**작성일**: 2026-02-13
+**Version**: 1.1
+**작성일**: 2026-02-13 (v1.1: 2026-02-14 Sparse 벡터 + 엔티티 추출 활성화)
 **작성자**: Claude Code (Opus 4.6)
-**상태**: 설계 완료 / 구현 대기
+**상태**: 구현 진행 중
 
 ---
 
@@ -46,6 +46,7 @@
 - `original_text_length`: 원본 텍스트 길이
 - `embedded_at`: 임베딩 생성 시점
 - `embedding_model`: 사용된 임베딩 모델명
+- `sparse_vector`: **BGE-M3 Sparse 벡터** (v1.1 추가)
 
 ---
 
@@ -84,19 +85,22 @@ POST /api/v1/graph/subgraph
 
 ### 2.3 배치 파이프라인 단절
 
-현재 3개 배치 경로가 존재하지만, **엔티티 추출이 모든 경로에서 누락**:
+현재 3개 배치 경로 상태 **(v1.1 업데이트)**:
 
 ```
-경로 A: run_etl_full.py
-  ✅ 파싱 → ✅ 청킹 → ✅ 임베딩 → ✅ ES 저장 → ✅ Neo4j(Doc/Chunk)
-  ❌ 엔티티 추출 (enable_entity_extraction=False 명시)
+경로 A: run_etl_full.py (via InitialDataLoader)
+  ✅ 파싱 → ✅ 청킹 → ✅ Dense+Sparse 임베딩 → ✅ ES 저장 → ✅ Neo4j(Doc/Chunk)
+  ✅ 엔티티 추출 (enable_entity_extraction=True, v1.1 변경)
+  ✅ Sparse 벡터 (return_sparse=True, 기존 완비)
 
 경로 B: DocumentProcessingPipeline (BackgroundWorker)
-  ✅ 설정은 True이나 실제 호출 기록 0건
-  ⚠️ 초기 1,460개 문서는 이 경로를 타지 않음
+  ✅ Dense+Sparse 임베딩 (v1.1 활성화)
+  ✅ 엔티티 추출 설정 True
+  ⚠️ 초기 1,460개 문서는 이 경로를 타지 않음 (신규 업로드 시 사용)
 
 경로 C: add_embeddings_batch.py / embedding_full_cycle.py
-  ✅ 임베딩만 수행
+  ✅ Dense 임베딩만 수행
+  ❌ Sparse 벡터 미생성 (return_sparse=False)
   ❌ 엔티티 추출/관계 추출 없음
 ```
 
@@ -178,6 +182,7 @@ docker exec -d kp-ai-service nohup python scripts/run_etl_full.py > /tmp/etl.log
 | max_text_length | **1000자** | 메모리 안정성 (2.9GB, OOM 방지) |
 | workers | **1** | CPU 경합 방지 (2워커 무의미) |
 | 모델 | BGE-M3 | 1024차원, 다국어 |
+| **Sparse 벡터** | **활성화 (v1.1)** | Dense + Sparse 동시 생성, ES sparse_vector 필드 |
 | QualityGate | 활성화 | v2 노이즈 필터 적용 |
 
 #### Phase 1 소요시간 추정
@@ -501,36 +506,64 @@ done
 
 ## 6. 기존 파이프라인 개선 사항
 
-### 6.1 run_etl_full.py 변경
+### 6.1 run_etl_full.py 변경 (v1.1 적용 완료)
 
-**현재**:
+**변경 전**:
 ```python
 enable_entity_extraction=False,  # 엔티티 추출은 별도 단계
 ```
 
-**권장 (차수 데이터부터)**:
+**변경 후 (2026-02-14 적용)**:
 ```python
-enable_entity_extraction=True,   # Phase 2 통합 실행
+enable_entity_extraction=True,   # Phase 2 통합: LLM 엔티티/관계 추출 (DeepSeek)
 ```
 
-또는 분리 전략 유지 (Phase 1 속도 우선):
+> `initial_data_loader.py`는 이미 `return_sparse=True` 사용 (line 1045) + ES 저장 시 sparse_vector 포함 (line 1259-1260).
+> 차수 데이터부터 Phase 1 + Phase 2가 통합 실행됩니다.
+
+분리 전략도 병행 가능 (Phase 1 속도 우선 시):
 ```python
 # run_etl_full.py   → Phase 1만 (빠름, CPU only)
 # run_entity_extraction_batch.py → Phase 2 (LLM 호출, 별도 실행)
 ```
 
-### 6.2 BackgroundWorker (업로드 후 자동 처리)
+### 6.2 BackgroundWorker Sparse 벡터 활성화 (v1.1 적용 완료)
 
-**현재 상태**: `enable_entity_extraction=True` 설정이지만, 초기 대량 적재에는 미사용
+**변경 내용** (`document_processing_pipeline.py`):
+```python
+# 변경 전
+embeddings = await self.embedding_service.aembed_batch(chunk_texts)
+es_chunk["dense_vector"] = embeddings[i]
 
-**동작 확인 필요**: UI에서 신규 문서 업로드 시 BackgroundWorker가 자동으로 엔티티 추출까지 수행하는지 검증
+# 변경 후 (2026-02-14)
+dense_vectors, sparse_vectors = await self.embedding_service.aembed_batch(
+    chunk_texts, return_sparse=True
+)
+es_chunk["dense_vector"] = dense_vectors[i]
+if sparse_vectors and i < len(sparse_vectors) and sparse_vectors[i]:
+    es_chunk["sparse_vector"] = sparse_vectors[i]
+```
+
+**동작 확인 필요**: UI에서 신규 문서 업로드 시 BackgroundWorker가 Dense + Sparse + 엔티티 추출까지 수행하는지 검증
 
 ```bash
 # 검증 방법: 문서 1건 업로드 후 로그 확인
-docker logs -f kp-ai-service 2>&1 | grep -E "Entities extracted|Entity extraction"
+docker logs -f kp-ai-service 2>&1 | grep -E "Entities extracted|Entity extraction|sparse"
 ```
 
-### 6.3 graph_context.related_entities 품질 개선
+### 6.3 init-db.py Sparse 필드 추가 (v1.1 적용 완료)
+
+**변경 내용**: `knowledge_chunks` 인덱스 생성 매핑에 `sparse_vector` 필드 추가
+
+```python
+# 추가된 매핑 (dense_vector 바로 아래)
+"sparse_vector": {"type": "sparse_vector"},
+```
+
+> `es_storage.py`의 `DEFAULT_INDEX_SETTINGS`에는 이미 존재 (line 84).
+> `init-db.py`만 누락되어 있었음.
+
+### 6.4 graph_context.related_entities 품질 개선
 
 **현재 문제**: Neo4j 엔티티 매칭 실패 시 정규식 키워드로 fallback → 무의미한 값
 
@@ -602,8 +635,10 @@ POST /knowledge_chunks/_update_by_query
 
 | 순서 | 작업 | 소요시간 | 비용 |
 |------|------|---------|------|
-| 9 | v2 청커로 Re-Chunking (alias 전략) | ~40시간 | - |
+| 9 | v2 청커로 Re-Chunking + Dense+Sparse 동시 생성 (alias 전략) | ~40시간 | - |
 | 10 | Re-Chunking 후 Phase 2 재실행 | ~2.5시간 | ~$2.7 |
+
+> 기존 96K 청크의 Sparse 백필은 별도로 하지 않음. Re-Chunking 시 Dense+Sparse를 한 번에 생성.
 
 ---
 
@@ -619,11 +654,94 @@ POST /knowledge_chunks/_update_by_query
 
 ---
 
-## 10. 부록: 현재 배치 스크립트 목록 및 용도
+## 10. Sparse 벡터 활성화 (v1.1)
+
+### 10.1 BGE-M3 Sparse 벡터 개요
+
+BGE-M3는 Dense (1024차원) + Sparse (Learned Lexical Weights) + ColBERT를 동시 생성할 수 있는 멀티모달 임베딩 모델입니다.
+
+| 벡터 유형 | 설명 | 검색 방식 |
+|-----------|------|----------|
+| **Dense** | 의미적 유사도 (1024차원) | kNN (cosine) |
+| **Sparse** | 학습된 토큰 중요도 가중치 | Inverted Index (sparse_vector) |
+| ColBERT | 토큰 수준 상호작용 | 미사용 (비용 대비 효과 낮음) |
+
+Sparse 벡터는 BM25의 통계적 키워드 매칭 대비 **학습된** 키워드 중요도를 제공하여, Dense 의미 검색과 상호 보완합니다.
+
+### 10.2 활성화 범위 (v1.1 수정 사항)
+
+| 경로 | 파일 | 수정 내용 | 상태 |
+|------|------|----------|------|
+| **경로 A** (run_etl_full.py) | `initial_data_loader.py` | `return_sparse=True` (line 1045) | 기존 완비 |
+| **경로 A** (ES 저장) | `initial_data_loader.py` | `sparse_vector` 필드 저장 (line 1259-1260) | 기존 완비 |
+| **경로 B** (BackgroundWorker) | `document_processing_pipeline.py` | `aembed_batch(return_sparse=True)` + ES 저장 | **v1.1 수정** |
+| **ES 매핑** (앱 코드) | `es_storage.py` | `sparse_vector: sparse_vector` (line 84) | 기존 완비 |
+| **ES 매핑** (초기화) | `init-db.py` | `sparse_vector: sparse_vector` 추가 | **v1.1 수정** |
+
+### 10.3 Sparse 벡터 구조
+
+```json
+{
+  "sparse_vector": {
+    "29871": 0.2856,
+    "8225": 0.1923,
+    "15482": 0.1547
+  }
+}
+```
+
+- 키: BGE-M3 토크나이저 토큰 ID (문자열)
+- 값: 해당 토큰의 학습된 중요도 가중치 (float)
+- 희소 표현: 대부분 토큰 가중치 = 0, 의미 있는 토큰만 포함
+
+### 10.4 성능 영향
+
+| 항목 | Dense Only | Dense + Sparse |
+|------|-----------|---------------|
+| 임베딩 생성 시간 | 기준 | +10~20% |
+| ES 인덱스 크기 | 기준 | +5~10% |
+| 검색 품질 (RRF) | 기준 | **+5~15% nDCG** |
+| 메모리 사용 | 기준 | +최소 (sparse는 경량) |
+
+### 10.5 기존 96K 청크 Sparse 전략
+
+기존 96,258개 청크에는 `sparse_vector` 필드가 없습니다.
+
+**별도 Sparse 백필은 하지 않습니다.** 이유:
+- forward pass 재실행 필요 → ~38시간 소요 (dense 임베딩과 동일)
+- Re-Chunking(v2 청커 적용) 시 Dense + Sparse를 **한 번에** 생성하는 것이 효율적
+- 기존 데이터는 Dense + BM25 2-Channel로 충분히 검색 가능
+
+| 구분 | Sparse 적용 | 시점 |
+|------|------------|------|
+| 기존 96K 청크 | Re-Chunking 시 자동 적용 | 장기 (v2 청커 전환 시) |
+| 차수 데이터 (신규) | 자동 적용 (이미 활성화) | 즉시 |
+| 업로드 문서 | 자동 적용 (BackgroundWorker) | 즉시 |
+
+### 10.6 향후 Sparse 검색 활용 (RRF 4-Channel)
+
+```mermaid
+flowchart LR
+    Q["쿼리"] --> D["Dense kNN"]
+    Q --> S["Sparse Vector"]
+    Q --> B["BM25 Keyword"]
+    Q --> G["Graph Context"]
+    D --> RRF["RRF Fusion<br/>가중 합산"]
+    S --> RRF
+    B --> RRF
+    G --> RRF
+    RRF --> R["최종 순위"]
+```
+
+Sparse 검색 활성화는 별도 작업으로, `rag_workflow.py`에서 ES 쿼리에 Sparse 매칭을 추가하면 됩니다.
+
+---
+
+## 11. 부록: 현재 배치 스크립트 목록 및 용도
 
 | 스크립트 | Phase | 용도 |
 |---------|-------|------|
-| `run_etl_full.py` | 1 | 전체 ETL (청킹+임베딩, 엔티티 OFF) |
+| `run_etl_full.py` | 1+2 | 전체 ETL (청킹+Sparse임베딩+엔티티 ON, v1.1) |
 | `run_etl_phase2.py` | 1 | 바이너리 파일 처리 (PDF/PPTX 등) |
 | `run_etl_noembedding.py` | 1 | 임베딩 없이 청킹만 |
 | `add_embeddings_batch.py` | 1 | 임베딩 백필 (벡터 없는 청크) |
@@ -638,4 +756,4 @@ POST /knowledge_chunks/_update_by_query
 
 ---
 
-*작성: Claude Code (Opus 4.6) | 2026-02-13*
+*작성: Claude Code (Opus 4.6) | 2026-02-13 (v1.1: 2026-02-14)*

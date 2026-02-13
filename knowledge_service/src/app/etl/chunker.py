@@ -17,6 +17,7 @@ import logging
 import re
 import time
 from typing import Dict, List, Optional, Tuple
+from uuid import uuid4
 
 from app.models.chunk import Chunk, ChunkResult
 from app.models.parsed_document import ParsedDocument
@@ -68,6 +69,16 @@ class SemanticChunker:
         r"|(?<=[.!?])\n"
         r"|(?<=\n)\n"  # 빈 줄 (단락 경계)
     )
+
+    # [v2] 섹션 전처리용 노이즈 패턴
+    SECTION_NOISE_PATTERNS = [
+        re.compile(r'^-{3,}$'),              # --- (수평선)
+        re.compile(r'^={3,}$'),              # === (수평선 변형)
+        re.compile(r'^```\w*$'),             # ```yaml, ```dockerfile (미닫힘 코드블록)
+        re.compile(r'^\*{3,}$'),             # *** (수평선)
+        re.compile(r'^_{3,}$'),              # ___ (수평선)
+        re.compile(r'^\s*<!--.*?-->\s*$'),  # HTML 주석 (단일 라인만)
+    ]
 
     def __init__(
         self,
@@ -206,13 +217,17 @@ class SemanticChunker:
         chunks = []
         current_heading = None
 
-        for idx, (content, start_char, end_char) in enumerate(raw_chunks):
+        for idx, (content, start_char, end_char, block_type) in enumerate(raw_chunks):
             # 헤딩 추적
             heading = self._extract_heading(text[:start_char])
             if heading:
                 current_heading = heading
 
             token_count = self._estimate_token_count(content)
+
+            metadata = {}
+            if block_type in ("code", "table"):
+                metadata["block_type"] = block_type
 
             chunk = Chunk(
                 content=content,
@@ -222,6 +237,7 @@ class SemanticChunker:
                 end_char=end_char,
                 token_count=token_count,
                 heading=current_heading,
+                metadata=metadata,
             )
             chunks.append(chunk)
 
@@ -256,6 +272,10 @@ class SemanticChunker:
                 global_offset=global_offset,
             )
 
+            # [v2] ADR-002: Post-Section 병합은 섹션 내에서만 수행
+            # 섹션 간 overlap 불일치 및 의미적 경계 파괴 방지
+            section_chunks = self._merge_small_adjacent_chunks(section_chunks)
+
             for chunk in section_chunks:
                 chunk.chunk_index = global_index
                 global_index += 1
@@ -264,6 +284,10 @@ class SemanticChunker:
             # 섹션 내용 길이만큼 오프셋 이동
             if section.content:
                 global_offset += len(section.content)
+
+        # chunk_index 재정렬
+        for idx, chunk in enumerate(all_chunks):
+            chunk.chunk_index = idx
 
         return all_chunks
 
@@ -291,10 +315,11 @@ class SemanticChunker:
         chunks: List[Chunk] = []
         heading = section.title or parent_heading
 
-        # 섹션 본문 청킹
-        if section.content and section.content.strip():
+        # [v2] 섹션 본문 전처리 후 청킹
+        cleaned = self._preprocess_section_content(section.content)
+        if cleaned and len(cleaned) >= self.min_chunk_size:
             text_chunks = self.chunk_text(
-                text=section.content,
+                text=cleaned,
                 document_id=document_id,
             )
             for chunk in text_chunks:
@@ -417,7 +442,7 @@ class SemanticChunker:
 
     def _assemble_chunks(
         self, segments: List[Tuple[str, int, int, str]]
-    ) -> List[Tuple[str, int, int]]:
+    ) -> List[Tuple[str, int, int, str]]:
         """
         세그먼트를 청크로 조합
 
@@ -428,21 +453,23 @@ class SemanticChunker:
             segments: 세그먼트 목록
 
         Returns:
-            List[Tuple[str, int, int]]: (내용, 시작위치, 끝위치) 목록
+            List[Tuple[str, int, int, str]]: (내용, 시작위치, 끝위치, 블록타입) 목록
         """
-        raw_chunks: List[Tuple[str, int, int]] = []
+        raw_chunks: List[Tuple[str, int, int, str]] = []
 
         for content, seg_start, seg_end, seg_type in segments:
             if seg_type in ("code", "table"):
                 # 특수 블록: 그대로 하나의 청크로
                 # max_chunk_size 초과해도 분할하지 않음
-                raw_chunks.append((content.strip(), seg_start, seg_end))
+                raw_chunks.append((content.strip(), seg_start, seg_end, seg_type))
             else:
                 # 일반 텍스트: 문장 경계 기반 분할
                 text_chunks = self._split_text_by_sentences(
                     content, seg_start
                 )
-                raw_chunks.extend(text_chunks)
+                raw_chunks.extend(
+                    (c, s, e, "text") for c, s, e in text_chunks
+                )
 
         return raw_chunks
 
@@ -538,9 +565,18 @@ class SemanticChunker:
                         offset + chunk_end_in_text,
                     ))
 
-        # 텍스트가 너무 짧아서 청크가 안 만들어진 경우
+        # [v2] 텍스트가 너무 짧아서 청크가 안 만들어진 경우 (품질 기준 적용)
         if not chunks and text.strip():
-            chunks.append((text.strip(), offset, offset + len(text)))
+            stripped = text.strip()
+            token_count = self._estimate_token_count(stripped)
+            if token_count >= 10 and len(stripped) >= 30:
+                chunks.append((stripped, offset, offset + len(stripped)))
+            else:
+                logger.info(
+                    "Chunk dropped (below threshold): "
+                    "%d chars, %d tokens, content='%s'",
+                    len(stripped), token_count, stripped[:50],
+                )
 
         return chunks
 
@@ -626,6 +662,95 @@ class SemanticChunker:
                 return [], 0
 
         return overlap_sentences, overlap_length
+
+    def _preprocess_section_content(self, content: str) -> str:
+        """
+        [v2] 섹션 콘텐츠에서 노이즈 패턴 제거
+
+        순수 노이즈(수평선, 미닫힘 코드블록, HTML 주석 등)로만
+        구성된 섹션을 사전에 걸러낸다.
+
+        Args:
+            content: 섹션 텍스트
+
+        Returns:
+            전처리된 텍스트 (노이즈면 빈 문자열)
+        """
+        if not content:
+            return ""
+        text = content.strip()
+        if not text:
+            return ""
+        for pattern in self.SECTION_NOISE_PATTERNS:
+            if pattern.match(text):
+                logger.debug(
+                    "Section noise filtered: '%s'", text[:50],
+                )
+                return ""
+        return text
+
+    def _merge_small_adjacent_chunks(self, chunks: List[Chunk]) -> List[Chunk]:
+        """
+        [v2] 인접한 작은 청크를 병합하여 품질 향상
+
+        규칙:
+        1. token_count < 20인 청크는 인접 청크와 병합 시도
+        2. 병합 결과가 max_chunk_size 이하일 때만 수행
+        3. 이전 청크에 먼저 병합 시도, 불가하면 다음 청크에 시도
+
+        Args:
+            chunks: 원본 청크 목록
+
+        Returns:
+            List[Chunk]: 병합된 청크 목록
+        """
+        if len(chunks) <= 1:
+            return chunks
+
+        merged: List[Chunk] = []
+        i = 0
+        while i < len(chunks):
+            current = chunks[i]
+
+            # 현재 청크가 충분히 크면 그대로 유지
+            if current.token_count >= 20:
+                merged.append(current)
+                i += 1
+                continue
+
+            # 작은 청크: 이전 청크에 병합 시도
+            if merged:
+                prev = merged[-1]
+                combined_len = len(prev.content) + len(current.content) + 1
+                if combined_len <= self.max_chunk_size:
+                    prev.content = prev.content + "\n" + current.content
+                    prev.end_char = current.end_char
+                    prev.token_count = self._estimate_token_count(prev.content)
+                    # ADR-003: 내용 변경 시 새 ID 생성 (임베딩 캐시 키 충돌 방지)
+                    prev.id = str(uuid4())
+                    i += 1
+                    continue
+
+            # 이전이 없거나 병합 불가 -> 다음 청크에 병합 시도
+            if i + 1 < len(chunks):
+                next_chunk = chunks[i + 1]
+                combined_len = len(current.content) + len(next_chunk.content) + 1
+                if combined_len <= self.max_chunk_size:
+                    next_chunk.content = current.content + "\n" + next_chunk.content
+                    next_chunk.start_char = current.start_char
+                    next_chunk.token_count = self._estimate_token_count(
+                        next_chunk.content
+                    )
+                    # ADR-003: 내용 변경 시 새 ID 생성
+                    next_chunk.id = str(uuid4())
+                    i += 1  # skip current, next will be processed normally
+                    continue
+
+            # 병합 불가: 그대로 유지
+            merged.append(current)
+            i += 1
+
+        return merged
 
     def _extract_heading(self, text_before: str) -> Optional[str]:
         """

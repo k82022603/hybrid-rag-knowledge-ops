@@ -39,6 +39,7 @@ requests = "^2.31.0"         # HTTP requests for DeepSeek
 transformers = "^4.35.0"
 torch = "^2.1.0"
 sentence-transformers = "^2.2.0"
+FlagEmbedding = "^1.2.0"     # BGE-M3 Dense+Sparse 동시 생성 (§14.5 Sparse Vector 필수)
 onnxruntime = "^1.17.0"  # SCRUM-102: Reranker ONNX 최적화 (CPU 2-5x 속도 향상)
 
 # Vector/Math
