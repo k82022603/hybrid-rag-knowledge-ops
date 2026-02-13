@@ -27,7 +27,7 @@ INTERVAL=1800  # 30분
 PYTHON_CMD="python3"
 
 # 임계치 설정 (전문가 합의, 2026-02-12 v1.1 조정)
-SWAP_THRESHOLD_MB=1500    # 스왑 1.5GB 초과 시 캐시 클리어 (기존 2.5GB → 하향)
+SWAP_THRESHOLD_MB=500     # 스왑 500MB 초과 시 swapoff/swapon 플러시 (기존 1.5GB → 하향)
 MEM_AVAIL_MIN_MB=2000     # 가용 메모리 2GB 미만 시 경고
 SPEED_MIN=0.8             # 0.8 t/s 미만이면 속도 저하 (기존 0.3 → 상향)
 SPEED_WARN=1.5            # 1.5 t/s 미만이면 경고 (피크 2.2 대비 감시)
@@ -84,11 +84,17 @@ while true; do
 
     echo "[MEM] 가용: ${MEM_AVAIL}MB, 스왑 사용: ${SWAP_USED}MB"
 
-    # 스왑 과다 사용 → 캐시 클리어
+    # 스왑 과다 사용 → swapoff/swapon으로 강제 플러시 (가용 메모리 충분 시)
     if [ "$SWAP_USED" -gt "$SWAP_THRESHOLD_MB" ] 2>/dev/null; then
-        echo "[ACTION] 스왑 ${SWAP_USED}MB > ${SWAP_THRESHOLD_MB}MB → 캐시 클리어"
-        echo "claude" | sudo -S sh -c 'sync && echo 3 > /proc/sys/vm/drop_caches' 2>/dev/null
-        ACTIONS="${ACTIONS}\n:broom: 스왑 ${SWAP_USED}MB 초과 → 캐시 클리어 실행"
+        if [ "$MEM_AVAIL" -gt 4000 ] 2>/dev/null; then
+            echo "[ACTION] 스왑 ${SWAP_USED}MB > ${SWAP_THRESHOLD_MB}MB + 가용 ${MEM_AVAIL}MB 충분 → swapoff/swapon"
+            echo "claude" | sudo -S bash -c 'swapoff -a && swapon -a' 2>/dev/null
+            ACTIONS="${ACTIONS}\n:broom: 스왑 ${SWAP_USED}MB → swapoff/swapon 플러시 실행"
+        else
+            echo "[ACTION] 스왑 ${SWAP_USED}MB > ${SWAP_THRESHOLD_MB}MB, 가용 부족 → 캐시 클리어만"
+            echo "claude" | sudo -S sh -c 'sync && echo 3 > /proc/sys/vm/drop_caches' 2>/dev/null
+            ACTIONS="${ACTIONS}\n:broom: 스왑 ${SWAP_USED}MB 초과 → 캐시 클리어 실행 (가용 부족으로 swapoff 불가)"
+        fi
     fi
 
     # 가용 메모리 부족 경고
@@ -179,18 +185,12 @@ except:
     fi
 
     # ============================================
-    # 7. Slack 보고 (이슈 있을 때만)
+    # 7. 로컬 로그만 기록 (Slack 알림 OFF - 상태 리포트 스크립트가 담당)
     # ============================================
-    ES_PCT=$($PYTHON_CMD -c "print(round(int('${ES_EMBEDDED}') * 100 / int('${ES_TOTAL}'), 1)) if int('${ES_TOTAL}') > 0 else print(0)" 2>/dev/null || echo "0")
-
     if [ -n "$ALERTS" ] || [ -n "$ACTIONS" ]; then
-        SLACK_MSG="*[클로드]* :stethoscope: 헬스체크 #${check_count} — 이슈 감지\n\n*상태*: ${P3_RATE} t/s | ${P3_PCT}% | ES ${ES_EMBEDDED}/${ES_TOTAL} (${ES_PCT}%)\n*리소스*: ${CPU_MEM} | 스왑: ${SWAP_USED}MB | 가용: ${MEM_AVAIL}MB"
-        [ -n "$ALERTS" ] && SLACK_MSG="${SLACK_MSG}\n\n*알림*:${ALERTS}"
-        [ -n "$ACTIONS" ] && SLACK_MSG="${SLACK_MSG}\n\n*자동 대응*:${ACTIONS}"
-        bash "$SEND_SLACK" dev "클로드" "$SLACK_MSG" 2>/dev/null
-        echo "  Slack alert sent"
+        echo "  [자동 대응 완료] 이슈 감지 → 자체 처리됨 (Slack 미전송)"
     else
-        echo "[OK] 이상 없음 - Slack 보고 생략"
+        echo "[OK] 이상 없음"
     fi
 
     sleep $INTERVAL
