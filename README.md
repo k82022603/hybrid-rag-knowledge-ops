@@ -2,9 +2,9 @@
 
 🧠 Graph RAG 기반 지능형 지식 검색 시스템 + Antigravity 협업 공간
 
-**프로젝트 버전**: 4.9
+**프로젝트 버전**: 5.0
 **마지막 업데이트**: 2026-02-13
-**프로젝트 상태**: ✅ Phase 5 배포 완료 → Sprint 08 RAG v3 + RAGAS v5 평가 + 한글화 (RRF 버그 수정, 50쿼리 평가)
+**프로젝트 상태**: ✅ Phase 5 배포 완료 → Sprint 09 임베딩 100% + Chunker v2 + 엔티티 추출 준비
 **테스트 커버리지**: 5개 핵심 모듈 평균 97% (Docker 모드)
 **CI/CD**: ✅ GitHub Actions 8개 워크플로우 정상 운영
 **AI 모델**: Claude Opus 4.6 + Agent Teams 활성화 (13개 에이전트)

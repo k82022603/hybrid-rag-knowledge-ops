@@ -2,7 +2,7 @@
 
 🤖 Hybrid RAG Knowledge Operations 프로젝트 개발 규칙
 
-**Version**: 2.26 | **Updated**: 2026-02-09
+**Version**: 2.27 | **Updated**: 2026-02-13
 
 ---
 
@@ -15,6 +15,36 @@
 | **기술스택** | Python 3.11+, SpringBoot 3.x, React 18, LangGraph |
 | **데이터베이스** | PostgreSQL (SSOT), Neo4j (Graph), Elasticsearch (Vector) |
 | **런타임 LLM** | DeepSeek V3.2 (95% 비용 절감) |
+| **ES 인덱스** | `knowledge_chunks` (Nori 한국어 분석기 적용) |
+| **ES 이미지** | Custom build — `analysis-nori` 플러그인 포함 |
+
+---
+
+## 🚨 인프라 설정 검증 원칙 (CRITICAL)
+
+> **2026-02-13 Nori 미적용 사고에서 도출된 원칙**
+> 상세: [04_ragas_v7_comprehensive_evaluation.md §11](./knowledge_service/docs/04_testing/embedding_evaluation/04_ragas_v7_comprehensive_evaluation.md)
+
+### 교훈
+
+```
+"설계서에 적혀 있다고 구현된 것이 아니다."
+"코드 리뷰 시 반드시 실제 동작을 검증해야 한다."
+```
+
+### 코드 리뷰 시 필수 체크
+
+1. **플러그인/의존성 검증**: 설정 파일이 참조하는 플러그인이 Docker 이미지에 설치되어 있는가?
+2. **E2E 동작 확인**: `_analyze` API, 실제 검색 결과로 설정이 적용되었는지 확인
+3. **Dockerfile 존재 여부**: 커스텀 설정이 필요한 서비스는 반드시 Dockerfile이 있어야 함
+
+### 사고 요약
+
+- **기간**: 2026-01-12 ~ 02-13 (32일간)
+- **원인**: ES Nori 플러그인 미설치 (Dockerfile 누락)
+- **영향**: BM25 키워드 검색이 standard analyzer(공백 분리)로만 동작
+- **3건의 코드리뷰에서 미발견**: 코드/설계서만 보고 "OK" 판정, 실동작 미검증
+- **책임**: 클로드 (설계-구현-검증 전 단계에서 누락)
 
 ---
 
@@ -570,3 +600,4 @@ PM 승인: [PM Agent]
 - [테스트 계획서](./knowledge_service/docs/04_testing/test_plans/00_unit_integration_test_plan.md) - TDD/Test-Along 기준
 - [백로그 관리 가이드](./backlog/README.md) - Jira-free 백로그 관리
 - [ALM 완전가이드](./docs/technical_assessment/claude_code_virtual_team_alm_guide/) - 가상팀 협업 가이드 (4개 문서)
+- [ETL 배치 파이프라인 설계서](./knowledge_service/docs/03_implementation/etl_batch_pipeline_design.md) - 3-Phase 분리 전략, 엔티티 추출 배치 ⭐

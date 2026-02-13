@@ -2,9 +2,9 @@
 
 > Claude Code 세션 간 컨텍스트 유지를 위한 계획 문서
 >
-> **Last Updated**: 2026-02-12 18:23 KST (Sprint 09 - ETL Phase 3 임베딩 + 속도 튜닝)
-> **Current Phase**: Phase 5 배포 완료 ✅ → Sprint 09 ETL 임베딩 + 모니터링 자동화
-> **Sprint 09**: 버그 6건 수정, ETL 3-Phase, 임베딩 속도 튜닝 (+205%), 자동 헬스체크
+> **Last Updated**: 2026-02-13 23:36 KST (Sprint 09 - 임베딩 100% + Chunker v2 + 그래프 분석)
+> **Current Phase**: Phase 5 배포 완료 ✅ → Sprint 09 ETL 임베딩 완료 + Chunker v2 + 엔티티 추출 준비
+> **Sprint 09**: 버그 6건, ETL 3-Phase, 임베딩 100%완료, Chunker v2, 그래프 원인분석
 > **Frontend 전략 변경**: Tailwind + Antigravity + Stitch MCP 도입 결정 (2026-01-25)
 > **소스코드 리뷰**: 72.5/100 B+ (Gateway 65, Backend 72, AI Service 78, Frontend 75)
 
@@ -940,6 +940,19 @@ CI/CD Pipeline (GitHub Actions)
 ---
 
 ## Session Notes
+
+### 2026-02-13 (Sprint 09 Day 3 - 임베딩 100% + Chunker v2 + 그래프 분석)
+
+- **임베딩 100% 완료**: 96,258/96,258 청크 전체 dense_vector 존재, 에러 0건
+- **SemanticChunker v2 구현**: 4개 개선 (노이즈 필터, Fallback 임계, 병합, QualityGate)
+  - TL APPROVED + Architect APPROVED (ADR 5건 반영)
+  - 테스트 51개 전체 pass (신규 26 + 회귀 25)
+- **ES v2 필드 5개 추가**: embedding_status, chunker_version, original_text_length, embedded_at, embedding_model
+- **그래프 시각화 원인 분석**: Neo4j Entity 0개 확인 → 엔티티 추출 미실행이 원인
+  - `run_etl_full.py`의 `enable_entity_extraction=False` 확인
+  - `related_entities`는 정규식 추출 키워드(실제 엔티티 아님) 확인
+- **ETL 배치 파이프라인 설계서 작성**: 3-Phase 분리, Phase 2 비용 ~$2.7/2.5h
+- **커밋**: 2건
 
 ### 2026-02-12 (Sprint 09 Day 2 - 임베딩 속도 튜닝 + text_len 분석)
 

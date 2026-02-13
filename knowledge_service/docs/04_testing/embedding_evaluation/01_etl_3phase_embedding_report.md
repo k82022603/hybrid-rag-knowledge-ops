@@ -497,45 +497,145 @@ nohup /tmp/embedding_health_check.sh > /tmp/health_check.log 2>&1 &
 
 ---
 
-## 10. 완료 후 검증 계획
+## 10. 완료 후 검증 — 실행 절차 및 결과 (2026-02-13 19:20~19:35 KST)
 
-### 10.1 임베딩 커버리지 확인
+### 10.1 검증 절차 개요
+
+임베딩 완료 후 4단계 검증을 순서대로 실행했다:
+
+```
+Step 1: 임베딩 커버리지 확인 (ES count 쿼리)
+  └→ 전체 청크에 dense_vector 필드가 존재하는지 확인
+Step 2: 벡터 품질 스팟 체크 (KNN 유사도 검색)
+  └→ 5개 한글 쿼리로 실제 검색하여 관련 문서 반환 확인
+Step 3: Phase 2 재처리 대상 확인 (PostgreSQL 조회)
+  └→ 실패 문서 0건 확인
+Step 4: RAGAS v7 Live 평가 (실제 RAG 파이프라인)
+  └→ pyarrow 호환성 수정 후 Live 모드로 재평가
+```
+
+### 10.2 Step 1: 임베딩 커버리지 확인
 
 ```bash
+# 실행 명령 (ES 컨테이너 내부에서)
 # 전체 청크 수
-curl -s "http://localhost:9200/knowledge_chunks/_count"
+curl -s "localhost:9200/knowledge_chunks/_count"
 
 # 임베딩 있는 청크 수 (dense_vector 필드)
-curl -s "http://localhost:9200/knowledge_chunks/_count" \
+curl -s "localhost:9200/knowledge_chunks/_count" \
   -H 'Content-Type: application/json' \
   -d '{"query":{"exists":{"field":"dense_vector"}}}'
 
 # 임베딩 없는 청크 수 (0이어야 함)
-curl -s "http://localhost:9200/knowledge_chunks/_count" \
+curl -s "localhost:9200/knowledge_chunks/_count" \
   -H 'Content-Type: application/json' \
   -d '{"query":{"bool":{"must_not":[{"exists":{"field":"dense_vector"}}]}}}'
 ```
 
-### 10.2 벡터 품질 스팟 체크
+**결과**: 108,896 / 108,896 (**100.00%**), 미임베딩 **0건** → **PASS**
+
+### 10.3 Step 2: 벡터 품질 스팟 체크
+
+5개 한글 쿼리로 ES kNN 검색을 실행하여 검색 품질을 확인했다.
 
 ```python
-# 유사도 검색 테스트
+# 쿼리 임베딩 생성
+model = SentenceTransformer('BAAI/bge-m3')
+query_vec = model.encode([query], normalize_embeddings=True)[0].tolist()
+
+# ES kNN 검색
 GET knowledge_chunks/_search
 {
   "knn": {
     "field": "dense_vector",
-    "query_vector": [...],
+    "query_vector": query_vec,
     "k": 5,
     "num_candidates": 50
   }
 }
 ```
 
-### 10.3 RAGAS 재평가
+| 쿼리 | Top-1 Score | 관련성 |
+|------|-------------|--------|
+| 쿠버네티스 파드 리소스 관리 | 0.8407 | 파드 QoS 문서 정확 매칭 |
+| 소프트웨어 개발 프로세스 모델 | 0.8249 | 데브옵스/방법론 문서 매칭 |
+| API Gateway 인증 처리 | 0.8613 | API 인증 검증 문서 매칭 |
+| Elasticsearch 벡터 검색 설정 | 0.9016 | ES 설정 문서 최고 점수 |
+| 프로젝트 일정 관리 방법론 | 0.8150 | 프로젝트 관리 체계 매칭 |
 
-임베딩 완료 후 RAGAS v7 평가 실행:
-- 기존 v6 대비 context_precision, context_recall 비교
-- 108K+ 청크 의미 검색의 효과 측정
+**결과**: 5개 쿼리 모두 관련 문서 정확 매칭 (score 0.79~0.90) → **PASS**
+
+### 10.4 Step 3: Phase 2 재처리 대상 확인
+
+```sql
+SELECT processing_status, count(*)
+FROM documents
+GROUP BY processing_status;
+-- 결과: completed: 1449건 (실패 0건)
+```
+
+**결과**: 전체 1,449개 문서 `completed`, 재처리 대상 **0건** → **PASS**
+
+### 10.5 Step 4: RAGAS v7 Live 평가
+
+#### 호환성 수정
+
+| 패키지 | 변경 전 | 변경 후 | 이유 |
+|--------|---------|---------|------|
+| pyarrow | 23.0.0 | 17.0.0 | `PyExtensionType` 에러 해소 |
+| ragas | 0.1.19 | 0.2.15 | `langchain_core.pydantic_v1` 제거됨 |
+| datasets | 2.2.1 | 3.6.0 | pyarrow 17 호환 |
+
+#### 평가 파이프라인
+
+```
+질문 10개 → BGE-M3 쿼리 임베딩 → ES kNN top-5 검색
+  → 컨텍스트 + 질문 → DeepSeek V3 답변 생성
+  → RAGAS 0.2.15 평가 (4개 메트릭)
+```
+
+#### 결과 요약
+
+| 메트릭 | 점수 | 이전(정적) | 변화 |
+|--------|------|-----------|------|
+| Faithfulness | **0.884** | 0.403 | +119% |
+| Answer Relevancy | **0.874** | 0.189 | +362% |
+| Context Precision | **0.645** | 0.278 | +132% |
+| Context Recall | **0.717** | N/A | 신규 |
+
+**상세 결과**: `docs/04_testing/embedding_evaluation/03_ragas_v7_live_evaluation.md` 참조
+
+### 10.6 Step 5: RAGAS v7 종합 평가 (51쿼리, 7도메인)
+
+v7 Live 10쿼리 평가 후, 이전 v5/v6 수준의 종합 평가를 실행했다.
+
+| 항목 | 값 |
+|------|-----|
+| 질문 수 | 51개 |
+| 도메인 | 7개 (entity_relation, multi_hop, keyword, semantic, graph_entity, legal, factual) |
+| 소요 시간 | 9.5분 |
+
+#### 결과 요약
+
+| 메트릭 | v7 Live (10쿼리) | v7 종합 (51쿼리) | 달성 |
+|--------|:----------------:|:----------------:|:----:|
+| Faithfulness | 0.884 | **0.885** | PASS |
+| Answer Relevancy | 0.874 | **0.721** | PASS |
+| Context Precision | 0.645 | 0.455 | FAIL |
+| Context Recall | 0.717 | 0.464 | FAIL |
+
+#### Quality Gate
+
+| Grade | 건수 | 비율 |
+|:-----:|:----:|:----:|
+| HIGH (avg ≥ 0.70) | 23 | 45.1% |
+| PARTIAL (0.40-0.69) | 19 | 37.3% |
+| NONE (< 0.40) | 9 | 17.6% |
+
+> 51쿼리 확대 시 난이도 높은 도메인(legal, graph_entity)이 포함되어 Precision/Recall 하락.
+> Faithfulness는 0.885로 일관 유지 — LLM이 컨텍스트에 충실하게 답변하는 것은 확인됨.
+
+**상세 결과**: `docs/04_testing/embedding_evaluation/04_ragas_v7_comprehensive_evaluation.md` 참조
 
 ---
 
