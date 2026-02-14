@@ -1157,6 +1157,10 @@ class InitialDataLoader:
             metadata=metadata,
         )
 
+        # PG entity_count 업데이트 (엔티티 추출 완료 후)
+        if entities and pg_doc_id:
+            await self._update_pg_entity_count(pg_doc_id, len(entities))
+
         return effective_doc_id
 
     async def _store_to_postgresql(
@@ -1198,6 +1202,7 @@ class InitialDataLoader:
                 "metadata": metadata,
                 "created_at": file_info.modified_at or datetime.utcnow(),
                 "file_hash": file_hash,
+                "chunk_count": len(chunks),
             }
 
             await repo.save(doc_record)
@@ -1220,6 +1225,20 @@ class InitialDataLoader:
                 "PostgreSQL storage failed (non-critical): %s", e
             )
             return None
+
+    async def _update_pg_entity_count(self, document_id: str, entity_count: int) -> None:
+        """PG documents 테이블의 entity_count 업데이트"""
+        try:
+            from app.services.document_repository import get_document_repository
+            repo = await get_document_repository()
+            if repo._pool:
+                async with repo._pool.acquire() as conn:
+                    await conn.execute(
+                        "UPDATE documents SET entity_count = $1 WHERE id = $2::uuid",
+                        entity_count, document_id,
+                    )
+        except Exception as e:
+            logger.warning("PG entity_count update failed: %s", e)
 
     async def _store_to_elasticsearch(
         self,
@@ -1394,17 +1413,34 @@ class InitialDataLoader:
                                 doc_id=document_id,
                             )
 
-                        # Entity 노드 및 MENTIONED_IN 관계 생성
+                        # Entity 노드 + HAS_ENTITY 관계 생성
                         for entity in entities:
                             await session.run(
                                 """
                                 MERGE (e:Entity {name: $name})
                                 SET e.type = $type,
                                     e.description = $description
+                                WITH e
+                                MATCH (d:Document {id: $doc_id})
+                                MERGE (d)-[:HAS_ENTITY]->(e)
                                 """,
                                 name=entity.name,
                                 type=entity.type,
                                 description=getattr(entity, "description", None),
+                                doc_id=document_id,
+                            )
+
+                        # Entity 간 RELATED_TO 관계 생성 (동일 문서 내 엔티티)
+                        if len(entities) > 1:
+                            entity_names = [e.name for e in entities]
+                            await session.run(
+                                """
+                                MATCH (d:Document {id: $doc_id})-[:HAS_ENTITY]->(e1:Entity)
+                                MATCH (d)-[:HAS_ENTITY]->(e2:Entity)
+                                WHERE e1.name < e2.name
+                                MERGE (e1)-[:RELATED_TO {source_doc: $doc_id}]->(e2)
+                                """,
+                                doc_id=document_id,
                             )
 
                         logger.info(

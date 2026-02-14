@@ -128,12 +128,13 @@ class DocumentRepository:
                 INSERT INTO documents (
                     id, title, document_type, file_path, file_name,
                     file_size, file_type, file_hash, processing_status,
-                    raw_metadata, created_at, updated_at
+                    chunk_count, raw_metadata, created_at, updated_at
                 )
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, $11, $12)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::jsonb, $12, $13)
                 ON CONFLICT (id) DO UPDATE SET
                     processing_status = EXCLUDED.processing_status,
                     file_hash = EXCLUDED.file_hash,
+                    chunk_count = EXCLUDED.chunk_count,
                     raw_metadata = EXCLUDED.raw_metadata,
                     updated_at = EXCLUDED.updated_at
                 """,
@@ -146,6 +147,7 @@ class DocumentRepository:
                 format_val,
                 doc_record.get("file_hash"),
                 status_val,
+                doc_record.get("chunk_count", 0),
                 metadata_json or "{}",
                 _strip_tz(doc_record.get("created_at")) or _naive_utcnow(),
                 _strip_tz(doc_record.get("updated_at")) or _naive_utcnow(),
