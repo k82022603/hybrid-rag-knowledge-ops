@@ -711,17 +711,24 @@ class SemanticChunker:
                 return ""
         return text
 
-    def _merge_small_adjacent_chunks(self, chunks: List[Chunk]) -> List[Chunk]:
+    def _merge_small_adjacent_chunks(
+        self, chunks: List[Chunk], min_token_threshold: int = 100
+    ) -> List[Chunk]:
         """
-        [v2] 인접한 작은 청크를 병합하여 품질 향상
+        [v2→v3] 인접한 작은 청크를 병합하여 품질 향상
 
         규칙:
-        1. token_count < 20인 청크는 인접 청크와 병합 시도
+        1. token_count < min_token_threshold인 청크는 인접 청크와 병합 시도
         2. 병합 결과가 max_chunk_size 이하일 때만 수행
         3. 이전 청크에 먼저 병합 시도, 불가하면 다음 청크에 시도
 
+        v3 변경 (2026-02-15):
+        - 임계값 20 → 100으로 상향 (기본값)
+        - .md 파일 74.1%가 100 tokens 미만 → 병합으로 품질 개선
+
         Args:
             chunks: 원본 청크 목록
+            min_token_threshold: 병합 대상 최소 토큰 수 (기본 100)
 
         Returns:
             List[Chunk]: 병합된 청크 목록
@@ -735,7 +742,7 @@ class SemanticChunker:
             current = chunks[i]
 
             # 현재 청크가 충분히 크면 그대로 유지
-            if current.token_count >= 20:
+            if current.token_count >= min_token_threshold:
                 merged.append(current)
                 i += 1
                 continue
