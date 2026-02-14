@@ -3,8 +3,8 @@
 🧠 Graph RAG 기반 지능형 지식 검색 시스템 + Antigravity 협업 공간
 
 **프로젝트 버전**: 5.0
-**마지막 업데이트**: 2026-02-13
-**프로젝트 상태**: ✅ Phase 5 배포 완료 → Sprint 09 임베딩 100% + Chunker v2 + 엔티티 추출 준비
+**마지막 업데이트**: 2026-02-14
+**프로젝트 상태**: ✅ Phase 5 배포 완료 → Sprint 10 ETL Phase 1 v4 OCR ON 실행중 + Sparse 검색 통합 설계
 **테스트 커버리지**: 5개 핵심 모듈 평균 97% (Docker 모드)
 **CI/CD**: ✅ GitHub Actions 8개 워크플로우 정상 운영
 **AI 모델**: Claude Opus 4.6 + Agent Teams 활성화 (13개 에이전트)
@@ -131,21 +131,30 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 ## 📅 Next Steps (다음 작업)
 
-### 🟡 P0 - 임베딩 배치 완료
+### 🟡 P0 - ETL Phase 1 완료 + Phase 2 임베딩
 
 | # | 작업 | 설명 | 상태 |
 |:-:|------|------|:----:|
-| 1 | **임베딩 배치 완료** | 잔여 ~6,700 청크 벡터 생성 (ba5fe80 진행 중) | 🔄 ~50% |
-| 2 | **ai-service 배포** | API content 빈 문자열 버그 수정 반영 | ⏳ |
+| 1 | **ETL Phase 1 v4 완료** | OCR ON + TableFormerMode.FAST, 1,786 파일 (338 진행) | 🔄 18.9% |
+| 2 | **Phase 2: Colab GPU 임베딩** | Dense + Sparse 벡터 생성 | ⏳ |
 | 3 | **E2E 테스트** | 검색 API + 벡터 검색 품질 검증 | ⏳ |
 
-### 🟡 P1 - 운영 안정화
+### 🟡 P1 - 검색 품질 강화
 
 | # | 작업 | 설명 | 상태 |
 |:-:|------|------|:----:|
-| 1 | **RAGAS 실제 LLM 평가** | DeepSeek API 연동 평가 | ⏳ |
-| 2 | **성능 최적화** | 캐싱 및 Circuit Breaker 프로덕션 검증 | ⏳ |
-| 3 | **Agent Teams 실전 적용** | 13개 에이전트 멀티-에이전트 협업 워크플로우 검증 | ⏳ |
+| 1 | **Phase 4: Sparse 검색 통합** | 4-way RRF (Dense+Sparse+BM25+Graph) | ⏳ |
+| 2 | **Reranker 모델 통일** | bge-reranker-base → bge-reranker-v2-m3 | ⏳ |
+| 3 | **RAGAS 실제 LLM 평가** | DeepSeek API 연동 평가 | ⏳ |
+
+### ✅ 완료된 작업 (2026-02-14 ETL OOM 대응 + OCR 복원)
+
+| # | 문서/작업 | 설명 |
+|:-:|------|------|
+| ✅ | **ETL Phase 1 OOM Kill 해결** | 근본 원인 6개 식별, P0/P1 코드 수정 4건 |
+| ✅ | **5인 전문가 속도 분석** | PDF 58x 개선 (16분→16.6초), OCR OFF 품질 문제 발견 |
+| ✅ | **OCR ON 복원** | 58.2% 저품질 청크 → QG 거부율 4.4%로 개선 |
+| ✅ | **Sparse 벡터 GAP 발견** | Phase 4 설계서 + ES Basic 호환 대안 확정 |
 
 ### ✅ 완료된 작업 (2026-02-09 임베딩 배치 + Scroll 최적화)
 
@@ -368,6 +377,7 @@ AI 에이전트가 사용할 수 있는 도구 가이드:
 
 **Made with Claude Code (Opus 4.6) & DeepSeek-V3.2**
 
+*Sprint 10 ETL Phase 1 v4 OCR ON 실행중, Sparse 벡터 검색 통합 설계: 2026-02-14*
 *Phase 5 배포 완료, Sprint 07 TechLead 승인: 2026-02-05*
 *Opus 4.6 전환, Agent Teams 활성화, 12개 에이전트 통일: 2026-02-06*
 *테스트 커버리지 97% 달성 (5개 핵심 모듈 Docker 모드): 2026-02-05*

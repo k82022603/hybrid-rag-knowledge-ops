@@ -2,9 +2,9 @@
 
 > Claude Code 세션 간 컨텍스트 유지를 위한 계획 문서
 >
-> **Last Updated**: 2026-02-13 23:36 KST (Sprint 09 - 임베딩 100% + Chunker v2 + 그래프 분석)
-> **Current Phase**: Phase 5 배포 완료 ✅ → Sprint 09 ETL 임베딩 완료 + Chunker v2 + 엔티티 추출 준비
-> **Sprint 09**: 버그 6건, ETL 3-Phase, 임베딩 100%완료, Chunker v2, 그래프 원인분석
+> **Last Updated**: 2026-02-15 00:28 KST (Sprint 10 - ETL Phase 1 OOM→속도최적화→OCR복원→v4 안정)
+> **Current Phase**: Phase 5 배포 완료 ✅ → Sprint 10 ETL Phase 1 v4 OCR ON 실행중 + Sparse 벡터 GAP 발견
+> **Sprint 10**: ETL OOM Kill 대응, 5인 속도 분석, OCR OFF→ON 롤백, Sparse 검색 통합 설계
 > **Frontend 전략 변경**: Tailwind + Antigravity + Stitch MCP 도입 결정 (2026-01-25)
 > **소스코드 리뷰**: 72.5/100 B+ (Gateway 65, Backend 72, AI Service 78, Frontend 75)
 
@@ -940,6 +940,23 @@ CI/CD Pipeline (GitHub Actions)
 ---
 
 ## Session Notes
+
+### 2026-02-14 (Sprint 10 Day 1 - ETL Phase 1 OOM→속도최적화→OCR복원)
+
+- **ETL Phase 1 OOM Kill 장애 대응**: 근본 원인 6개 식별, P0/P1 코드 수정 4건
+  - P0-1: ChunkQualityGate 파이프라인 통합, P0-2: Dedup 전상태 체크
+  - P1-1: 특수 블록 크기 제한, P1-2: QualityGate bypass 제거
+  - 반성문 7개 작성 (클로드, TL, Infra, ETL, RAG, Arch, PM)
+- **5인 전문가 속도 분석팀**: PDF 16분→16.6초 (58x), 그러나 OCR OFF 품질 저하 발견
+  - 58.2% 청크가 100 tokens 미만, QG 거부율 29.5%
+- **사용자 결정: 전면 OCR ON 복원**: 2-Pass 대신 단순 OCR ON + TableFormerMode.FAST
+  - v4 QG 거부율 4.4% (v3 대비 6.7x 개선), PDF 평균 11.7초
+- **Sparse 벡터 미활용 GAP 발견**: BGE-M3 Sparse 생성/저장 완료 but 검색 미구현
+  - Phase 4: 4-way RRF (Dense+Sparse+BM25+Graph) 설계서 작성
+  - ES Basic 제약: bool>should>term+boost 대안 확정
+- **ETL v4 실행중**: 338/1786 (18.9%), 244 성공, 0 실패
+- **문서**: 설계서 2건, 장애보고서 1건, 반성문 7건, 이슈 보고서 1건, 액션플랜 1건
+- **커밋**: 1건 (191a737)
 
 ### 2026-02-13 (Sprint 09 Day 3 - 임베딩 100% + Chunker v2 + 그래프 분석)
 
