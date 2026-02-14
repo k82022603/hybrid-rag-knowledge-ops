@@ -1,4 +1,4 @@
-# Session Summary - 2026-02-12 18:14
+# Session Summary - 2026-02-14 01:49
 
 ## Commits This Session
 ```
@@ -8,15 +8,15 @@
 ## Files Modified
 ```
 .claude/context/session_context.md
-.claude/context/session_summary.md
+CLAUDE.md
 PLAN.md
-knowledge_service/docs/07_maintenance/21_bugfix_report_2026-02-11_gateway_405_graph_empty.md
-knowledge_service/docs/images/Hybrid-RAG-512.png
-knowledge_service/frontend/index.html
-knowledge_service/frontend/src/components/common/Header.tsx
-knowledge_service/frontend/src/components/common/Sidebar.tsx
-knowledge_service/frontend/src/components/common/__tests__/Sidebar.test.tsx
-knowledge_service/frontend/src/features/dashboard/Dashboard.tsx
+README.md
+design_concepts/dark_theme.html
+design_concepts/light_theme.html
+design_concepts/style_guide_dark.md
+design_concepts/style_guide_light.md
+extract_color.py
+infrastructure/database/elasticsearch/mappings.json
 ```
 
 ---

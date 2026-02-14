@@ -1,20 +1,20 @@
-# Session Context - 2026-02-13 (Friday)
+# Session Context - 2026-02-14 (Saturday)
 
 ## Git Status
 **Branch**: main
 
 ### Recent Commits
 ```
+e7708cb [FIX] Neo4j HAS_ENTITY 관계 + PG chunk_count 버그 수정 + Phase 1 스크립트
+38460f1 [FEAT] Colab GPU 임베딩 파이프라인 + Sparse 100% 복구 + Frontend UI 개선
+f44ad17 [FEAT] ETL v2 Full Re-Processing - Sparse Vector + chunk_size 1000 + Entity Extraction
+9372e62 [DOCS] 2026-02-13 2nd 마감 - Chunker v2 + 그래프 분석 + ETL 배치 설계서
 ae5d175 [DOCS] 2026-02-13 일일 마무리 - 임베딩 91% + 모니터링 자동화 + Appendix E
-bf3196b [DOCS] 2026-02-12 2nd 마감 - 스레드 최적화 실험 + ONNX 계획 + 정규화 수정
-bc6a67c [DOCS] 전문가 4인 속도 최적화 분석 + WSL2 재설정 준비
-c4bc91d [DOCS] 2026-02-12 일일 마무리 - 임베딩 튜닝 + text_len 분석
-e06e754 [DOCS] 임베딩 평가 문서 통합 + 속도 튜닝 + 마감 스탠드업
 ```
 
 ## Work Log Status
 - Today's log: exists
-- Path: work_logs/daily_logs/2026/02-February/2026-02-13.md
+- Path: work_logs/daily_logs/2026/02-February/2026-02-14.md
 
 ## Quick Commands
 - `/daily:standup` - 팀 스탠드업

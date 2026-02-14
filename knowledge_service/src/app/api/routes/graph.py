@@ -143,7 +143,7 @@ async def search_experts(
 
             // 2. 관련 Person 노드 찾기 (여러 관계 유형)
             MATCH (person:Person)-[r]-(topic)
-            WHERE type(r) IN ['MENTIONED_IN', 'USES', 'PARTICIPATED', 'RELATED_TO', 'CREATED', 'MANAGES']
+            WHERE type(r) IN ['MENTIONED_IN', 'HAS_ENTITY', 'USES', 'PARTICIPATED', 'RELATED_TO', 'CREATED', 'MANAGES']
 
             // 3. Person별 통계 집계
             WITH person,
