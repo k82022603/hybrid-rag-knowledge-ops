@@ -601,7 +601,10 @@ services:
   # 10. Elasticsearch - Vector Search & Text Search
   # ---------------------------------------------------------------------------
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    build:
+      context: ../database/elasticsearch
+      dockerfile: Dockerfile
+    image: kp-elasticsearch:8.11.0-nori
     container_name: kp-elasticsearch
     restart: unless-stopped
     # Security settings (ES needs write access, no read_only)

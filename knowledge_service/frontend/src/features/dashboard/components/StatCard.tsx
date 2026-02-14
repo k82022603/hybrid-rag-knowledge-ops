@@ -67,37 +67,36 @@ const StatCard: React.FC<StatCardProps> = ({
   trend,
 }) => (
   <div
-    className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 hover:shadow-lg transition-shadow"
+    className="glass-panel p-5 hover:bg-white/5 transition-colors group"
     data-testid="stat-card"
     role="region"
     aria-label={`${title}: ${value}`}
   >
     <div className="flex items-center gap-3 mb-3">
-      <div className={`p-2.5 rounded-lg ${iconBg}`} aria-hidden="true">
+      <div className={`p-2.5 rounded-lg ${iconBg} backdrop-blur-md`} aria-hidden="true">
         {icon}
       </div>
-      <span className="text-sm font-medium text-gray-500 dark:text-gray-400">
+      <span className="text-sm font-medium text-gray-400 group-hover:text-gray-300 transition-colors">
         {title}
       </span>
     </div>
     <div className="flex items-end justify-between">
       <div>
-        <p className="text-2xl font-bold text-gray-900 dark:text-white">
+        <p className="text-2xl font-bold text-white tracking-tight text-glow">
           {value}
         </p>
         {subtitle && (
-          <p className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
+          <p className="mt-0.5 text-xs text-gray-500">
             {subtitle}
           </p>
         )}
       </div>
       {trend && (
         <span
-          className={`inline-flex items-center text-xs font-medium ${
-            trend.isPositive
-              ? 'text-success-600 dark:text-success-400'
-              : 'text-error-600 dark:text-error-400'
-          }`}
+          className={`inline-flex items-center text-xs font-medium ${trend.isPositive
+              ? 'text-neon-cyan'
+              : 'text-neon-pink'
+            }`}
           aria-label={`Trend: ${trend.isPositive ? 'up' : 'down'} ${Math.abs(trend.value)}%`}
         >
           {trend.isPositive ? '+' : ''}

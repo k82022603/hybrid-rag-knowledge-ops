@@ -767,30 +767,39 @@ class InitialDataLoader:
                 # Step 3: 메타데이터 추출
                 metadata = self._extract_metadata(file_info, parsed_doc)
 
-                # Step 4: 임베딩 생성 (선택적)
+                # Step 4+5: 임베딩 + 엔티티 병렬 실행 (v2.1 최적화)
+                # CPU-bound(임베딩) + IO-bound(엔티티 API) → asyncio.gather로 동시 실행
                 embeddings = None
-                if self.enable_embeddings:
-                    try:
-                        embeddings = await self._generate_embeddings(chunks)
-                    except Exception as e:
-                        logger.warning(
-                            "Embedding generation failed for %s: %s (continuing without embeddings)",
-                            file_info.file_name,
-                            e,
-                        )
-
-                # Step 5: 엔티티 추출 (선택적)
                 entities = []
-                if self.enable_entity_extraction:
-                    try:
-                        entities = await self._extract_entities(parsed_doc)
-                        result.entity_count = len(entities)
-                    except Exception as e:
-                        logger.warning(
-                            "Entity extraction failed for %s: %s (continuing without entities)",
-                            file_info.file_name,
-                            e,
-                        )
+
+                async def _safe_embed():
+                    if self.enable_embeddings:
+                        try:
+                            return await self._generate_embeddings(chunks)
+                        except Exception as e:
+                            logger.warning(
+                                "Embedding generation failed for %s: %s (continuing without embeddings)",
+                                file_info.file_name,
+                                e,
+                            )
+                    return None
+
+                async def _safe_entity():
+                    if self.enable_entity_extraction:
+                        try:
+                            return await self._extract_entities(parsed_doc)
+                        except Exception as e:
+                            logger.warning(
+                                "Entity extraction failed for %s: %s (continuing without entities)",
+                                file_info.file_name,
+                                e,
+                            )
+                    return []
+
+                embeddings, entities = await asyncio.gather(
+                    _safe_embed(), _safe_entity()
+                )
+                result.entity_count = len(entities) if entities else 0
 
                 # Step 6: 저장 (PostgreSQL → Elasticsearch → Neo4j)
                 document_id = str(uuid4())

@@ -69,8 +69,15 @@ RUN pip install --no-index --find-links=/build/wheels \
     pip install --no-index --find-links=/build/wheels \
     email-validator python-multipart onnxruntime onnxscript
 
+# Fix FlagEmbedding compatibility: datasets 2.x uses deprecated pyarrow API
+# pyarrow 23.0 removed PyExtensionType, datasets >=3.0 is required
+RUN pip install --upgrade "datasets>=4.0" peft
+
 # Verify Docling installation
 RUN pip show docling && python -c "import docling; print('Docling imported successfully')"
+
+# Verify FlagEmbedding (sparse vector 지원 필수)
+RUN python -c "from FlagEmbedding import BGEM3FlagModel; print('FlagEmbedding verified')"
 
 # Pre-download RapidOCR models to avoid runtime downloads
 # These models are required for PDF OCR processing
@@ -106,6 +113,7 @@ WORKDIR /app
 
 # Copy application source code (this layer changes most often)
 COPY src/ /app/src/
+COPY scripts/ /app/scripts/
 COPY pyproject.toml /app/
 
 # Create necessary directories + fix runtime-writable model dirs

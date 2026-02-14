@@ -30,6 +30,15 @@ os.chdir("/app")
 # Disable GPU
 os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
 
+# v2.1 CPU 스레드 최적화 (8코어 중 6코어 활용, 2코어는 OS/DB 예약)
+os.environ.setdefault("OMP_NUM_THREADS", "6")
+os.environ.setdefault("MKL_NUM_THREADS", "6")
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "true")
+
+# PyTorch CPU+only 빌드: OMP_NUM_THREADS가 자동 반영되지 않으므로 명시적 설정
+import torch
+torch.set_num_threads(6)
+
 from app.core.logging import get_logger
 from app.services.initial_data_loader import (
     InitialDataLoader,

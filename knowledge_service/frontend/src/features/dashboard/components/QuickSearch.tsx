@@ -75,10 +75,10 @@ const QuickSearch: React.FC<QuickSearchProps> = ({
       aria-label="Quick search"
       data-testid="quick-search"
     >
-      <div className="relative">
+      <div className="relative group">
         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
           <MagnifyingGlassIcon
-            className="h-5 w-5 text-gray-400 dark:text-gray-500"
+            className="h-5 w-5 text-gray-500 group-focus-within:text-neon-cyan transition-colors"
             aria-hidden="true"
           />
         </div>
@@ -89,12 +89,12 @@ const QuickSearch: React.FC<QuickSearchProps> = ({
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
-          className="w-full rounded-xl border border-gray-300 bg-white py-3 pl-11 pr-20 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-primary-400"
+          className="w-full rounded-xl border border-white/10 bg-black/20 py-4 pl-11 pr-20 text-sm text-white placeholder:text-gray-600 focus:border-neon-cyan focus:outline-none focus:ring-1 focus:ring-neon-cyan transition-all hover:bg-black/30"
           aria-label="Search query"
           data-testid="quick-search-input"
         />
         <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-          <kbd className="hidden sm:inline-flex items-center gap-1 rounded border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs text-gray-400 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-500">
+          <kbd className="hidden sm:inline-flex items-center gap-1 rounded border border-white/10 bg-white/5 px-2 py-1 text-xs text-gray-400">
             <span className="text-2xs">Ctrl</span>
             <span>K</span>
           </kbd>
