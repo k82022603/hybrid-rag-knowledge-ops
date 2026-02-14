@@ -459,9 +459,31 @@ class SemanticChunker:
 
         for content, seg_start, seg_end, seg_type in segments:
             if seg_type in ("code", "table"):
-                # 특수 블록: 그대로 하나의 청크로
-                # max_chunk_size 초과해도 분할하지 않음
-                raw_chunks.append((content.strip(), seg_start, seg_end, seg_type))
+                # 특수 블록: max_chunk_size 초과 시 분할 (P1-1 수정: 2026-02-14)
+                stripped = content.strip()
+                if len(stripped) <= self.max_chunk_size:
+                    raw_chunks.append((stripped, seg_start, seg_end, seg_type))
+                else:
+                    # 코드: 빈 줄 기준 분할, 테이블: 행 기준 분할
+                    if seg_type == "code":
+                        parts = stripped.split("\n\n")
+                    else:
+                        parts = stripped.split("\n")
+
+                    current_part = []
+                    current_len = 0
+                    for part in parts:
+                        if current_len + len(part) > self.max_chunk_size and current_part:
+                            chunk_text = ("\n\n" if seg_type == "code" else "\n").join(current_part)
+                            raw_chunks.append((chunk_text, seg_start, seg_end, seg_type))
+                            current_part = [part]
+                            current_len = len(part)
+                        else:
+                            current_part.append(part)
+                            current_len += len(part)
+                    if current_part:
+                        chunk_text = ("\n\n" if seg_type == "code" else "\n").join(current_part)
+                        raw_chunks.append((chunk_text, seg_start, seg_end, seg_type))
             else:
                 # 일반 텍스트: 문장 경계 기반 분할
                 text_chunks = self._split_text_by_sentences(

@@ -87,15 +87,23 @@ class DoclingAdapter:
         try:
             from docling.datamodel.base_models import InputFormat
             from docling.document_converter import DocumentConverter, PdfFormatOption
-            from docling.datamodel.pipeline_options import PdfPipelineOptions
+            from docling.datamodel.pipeline_options import (
+                PdfPipelineOptions,
+                TableFormerMode,
+                TableStructureOptions,
+            )
 
-            # PDF 파이프라인 옵션 설정
+            # OCR ON + TableFormerMode.FAST (2026-02-14):
+            #   - do_ocr=True: 스캔 PDF 포함 모든 PDF에 OCR 적용 (품질 우선)
+            #   - TableFormerMode.FAST: 테이블 인식 속도 최적화 (50-70% 가속)
             pipeline_options = PdfPipelineOptions(
                 do_ocr=self.ocr_enabled,
                 do_table_structure=self.table_structure_enabled,
+                table_structure_options=TableStructureOptions(
+                    mode=TableFormerMode.FAST,
+                ),
             )
 
-            # DocumentConverter 생성
             converter = DocumentConverter(
                 allowed_formats=[
                     InputFormat.PDF,
@@ -109,7 +117,7 @@ class DoclingAdapter:
                 },
             )
 
-            logger.info(f"Docling converter initialized (version: {self.version})")
+            logger.info(f"Docling converter initialized (OCR={self.ocr_enabled}, version: {self.version})")
             return converter
 
         except ImportError as e:
@@ -169,7 +177,7 @@ class DoclingAdapter:
             )
 
         try:
-            # Docling으로 파싱
+            # Docling으로 파싱 (OCR ON)
             result = self.converter.convert(str(path))
 
             # 결과 변환

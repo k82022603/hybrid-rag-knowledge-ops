@@ -671,7 +671,6 @@ class InitialDataLoader:
                     SELECT id, file_path, processing_status
                     FROM documents
                     WHERE file_hash = $1
-                      AND processing_status = 'completed'
                     LIMIT 1
                     """,
                     file_hash,
@@ -756,12 +755,34 @@ class InitialDataLoader:
 
                 # Step 2: 청킹
                 chunks = self._chunk_document(parsed_doc)
-                result.chunk_count = len(chunks)
 
                 if not chunks:
                     result.status = LoadStatus.SKIPPED
                     result.error_message = "No chunks generated"
                     logger.warning("Skipping file (no chunks): %s", file_info.file_name)
+                    break
+
+                # Step 2.5: 청크 품질 게이트 (P0 수정: 2026-02-14)
+                from app.services.chunk_quality_filter import ChunkQualityGate
+                quality_gate = ChunkQualityGate()
+                chunks, rejected_chunks = quality_gate.filter(chunks)
+
+                if rejected_chunks:
+                    logger.info(
+                        "Quality gate for %s: %d passed, %d rejected",
+                        file_info.file_name,
+                        len(chunks),
+                        len(rejected_chunks),
+                    )
+
+                result.chunk_count = len(chunks)
+
+                if not chunks:
+                    result.status = LoadStatus.SKIPPED
+                    result.error_message = "All chunks rejected by quality gate"
+                    logger.warning(
+                        "Skipping file (all chunks rejected): %s", file_info.file_name
+                    )
                     break
 
                 # Step 3: 메타데이터 추출

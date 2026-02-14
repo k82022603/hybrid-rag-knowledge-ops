@@ -67,12 +67,16 @@ class ChunkQualityGate:
 
     def _is_quality(self, chunk: Chunk) -> bool:
         """단일 청크 품질 평가"""
-        # 코드/테이블 블록은 QualityGate bypass (TL 피드백: 구조적 의미 보존)
+        text = chunk.content.strip()
+
+        # 빈 텍스트 즉시 기각
+        if not text:
+            return False
+
+        # 코드/테이블 블록: 최소 기준만 완화 적용 (P1-2 수정: 2026-02-14)
         block_type = chunk.metadata.get("block_type")
         if block_type in ("code", "table"):
-            return True
-
-        text = chunk.content.strip()
+            return chunk.token_count >= 3 and len(text) >= 10
 
         # 1. 최소 길이 기준
         if chunk.token_count < self.MIN_TOKEN_COUNT:

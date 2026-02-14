@@ -116,6 +116,24 @@ def get_all_data_sources(base_dir: str) -> list:
 _original_load_source = InitialDataLoader._load_source
 
 
+# 파일 크기 분류 기준 (P1-4 수정: 2026-02-14)
+MAX_FILE_SIZE_MB = 30   # 대형: 스킵
+MED_FILE_SIZE_MB = 5    # 중형: OCR OFF로 처리
+# 소형 (<5MB): 전체 기능 (OCR + 테이블)
+
+
+# 파일 유형별 처리 우선순위 (낮을수록 먼저 처리)
+# MD/TXT -> HTML -> DOCX -> PPTX -> PDF 순서 (경량 파일 우선)
+_EXT_PRIORITY = {
+    ".md": 0, ".markdown": 0, ".txt": 0, ".log": 0,
+    ".html": 1, ".htm": 1, ".svg": 1,
+    ".ipynb": 2,
+    ".docx": 3,
+    ".pptx": 4,
+    ".pdf": 5,
+}
+
+
 async def _patched_load_source(self, source: DataSource) -> List[LoadResult]:
     logger.info("Processing data source: name=%s, path=%s", source.name, source.path)
 
@@ -124,7 +142,13 @@ async def _patched_load_source(self, source: DataSource) -> List[LoadResult]:
         logger.warning("No files found in data source: %s", source.name)
         return []
 
-    logger.info("Found %d files in data source '%s'", len(files), source.name)
+    # 파일 유형별 정렬: 경량(MD/TXT) -> 중량(PDF) 순서 + 크기 오름차순
+    files.sort(key=lambda f: (_EXT_PRIORITY.get(f.extension, 9), f.file_size))
+    logger.info(
+        "Found %d files in data source '%s' (sorted: fast-first)",
+        len(files), source.name,
+    )
+
     _progress["current_source"] = source.name
 
     results: List[LoadResult] = []
@@ -136,6 +160,19 @@ async def _patched_load_source(self, source: DataSource) -> List[LoadResult]:
             f"{source.name}/{file_info.file_name}",
             flush=True,
         )
+
+        # 대용량 파일 스킵 (OOM 방지)
+        file_path = Path(file_info.file_path) if hasattr(file_info, 'file_path') else None
+        if file_path and file_path.exists():
+            file_size_mb = file_path.stat().st_size / (1024 * 1024)
+            if file_size_mb > MAX_FILE_SIZE_MB:
+                logger.warning(
+                    "Skipping oversized file: %s (%.1f MB > %d MB limit)",
+                    file_info.file_name, file_size_mb, MAX_FILE_SIZE_MB,
+                )
+                _progress["skipped"] += 1
+                save_progress()
+                continue
 
         result = await self._process_file(file_info)
         results.append(result)
