@@ -292,6 +292,7 @@ class InitialDataLoader:
         self._chunker = None
         self._embedding_service = None
         self._entity_extractor = None
+        self._es_client = None  # ES 클라이언트 싱글톤 (P0 수정: 매번 재생성 방지)
 
         logger.info(
             "InitialDataLoader initialized: project_root=%s, chunk_size=%d, "
@@ -475,6 +476,14 @@ class InitialDataLoader:
             summary.total_time_ms,
             summary.success_rate * 100,
         )
+
+        # ES 클라이언트 정리
+        if self._es_client is not None:
+            try:
+                await self._es_client.close()
+            except Exception:
+                pass
+            self._es_client = None
 
         return summary
 
@@ -1322,33 +1331,34 @@ class InitialDataLoader:
             try:
                 from elasticsearch import AsyncElasticsearch
 
-                es = AsyncElasticsearch(es_url)
-                try:
-                    # 벌크 인덱싱
-                    actions = []
-                    for doc in bulk_docs:
-                        actions.append({"index": {"_index": index_name, "_id": doc["chunk_id"]}})
-                        actions.append(doc)
+                # ES 클라이언트 싱글톤 재사용 (P0 수정: 매 호출마다 new 방지)
+                if self._es_client is None:
+                    self._es_client = AsyncElasticsearch(es_url)
+                es = self._es_client
 
-                    if actions:
-                        bulk_resp = await es.bulk(operations=actions, refresh="wait_for")
-                        if bulk_resp.get("errors"):
-                            failed_items = [
-                                item for item in bulk_resp["items"]
-                                if "error" in item.get("index", {})
-                            ]
-                            logger.error(
-                                "Elasticsearch bulk errors: %d/%d failed. First error: %s",
-                                len(failed_items),
-                                len(bulk_docs),
-                                failed_items[0]["index"]["error"] if failed_items else "unknown",
-                            )
-                        else:
-                            logger.info(
-                                "Elasticsearch bulk indexed: %d documents (verified)", len(bulk_docs)
-                            )
-                finally:
-                    await es.close()
+                # 벌크 인덱싱
+                actions = []
+                for doc in bulk_docs:
+                    actions.append({"index": {"_index": index_name, "_id": doc["chunk_id"]}})
+                    actions.append(doc)
+
+                if actions:
+                    bulk_resp = await es.bulk(operations=actions, refresh="wait_for")
+                    if bulk_resp.get("errors"):
+                        failed_items = [
+                            item for item in bulk_resp["items"]
+                            if "error" in item.get("index", {})
+                        ]
+                        logger.error(
+                            "Elasticsearch bulk errors: %d/%d failed. First error: %s",
+                            len(failed_items),
+                            len(bulk_docs),
+                            failed_items[0]["index"]["error"] if failed_items else "unknown",
+                        )
+                    else:
+                        logger.info(
+                            "Elasticsearch bulk indexed: %d documents (verified)", len(bulk_docs)
+                        )
 
             except ImportError:
                 logger.warning(

@@ -577,7 +577,7 @@ class SearchService:
                     "multi_match": {
                         "query": query,
                         "fields": [
-                            "content^3",
+                            "text^3",
                             "heading^2",
                             "metadata.title^2",
                         ],
@@ -598,7 +598,7 @@ class SearchService:
                     "size": top_k,
                     "highlight": {
                         "fields": {
-                            "content": {
+                            "text": {
                                 "fragment_size": 200,
                                 "number_of_fragments": 3,
                             }
