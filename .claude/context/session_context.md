@@ -5,11 +5,11 @@
 
 ### Recent Commits
 ```
+c01d334 [FIX] Chunker v3 병합 임계값 20→100 tokens + 장애보고서 #27
+c72a3b3 [DOCS] 2026-02-14 일일 마무리 - ETL OOM 대응 + OCR 복원 + 문서 현행화
 191a737 [FIX] ETL Phase 1 품질 복원 - OCR ON + P0/P1 수정 4건 + 속도 최적화
 2fbca95 [FIX] graph.py HAS_ENTITY 추가 + ETL 3-Phase 운영 가이드 + 스탠드업 기록
 e7708cb [FIX] Neo4j HAS_ENTITY 관계 + PG chunk_count 버그 수정 + Phase 1 스크립트
-38460f1 [FEAT] Colab GPU 임베딩 파이프라인 + Sparse 100% 복구 + Frontend UI 개선
-f44ad17 [FEAT] ETL v2 Full Re-Processing - Sparse Vector + chunk_size 1000 + Entity Extraction
 ```
 
 ## Work Log Status
