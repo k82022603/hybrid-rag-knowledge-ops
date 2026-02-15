@@ -1,0 +1,653 @@
+{
+  "timestamp": "2026-02-15T23:50:31.465639",
+  "top_k": 5,
+  "question_count": 12,
+  "eval_graph_on": {
+    "method": "llm_judge_deepseek",
+    "scores": {
+      "faithfulness": 0.6667,
+      "answer_relevancy": 0.5833,
+      "context_precision": 0.6333,
+      "context_recall": 0.1667
+    }
+  },
+  "eval_graph_off": {
+    "method": "llm_judge_deepseek",
+    "scores": {
+      "faithfulness": 0.625,
+      "answer_relevancy": 0.5667,
+      "context_precision": 0.6083,
+      "context_recall": 0.1667
+    }
+  },
+  "graph_on_results": [
+    {
+      "question": "Neo4j와 Elasticsearch의 역할 차이점은?",
+      "type": "entity_relation",
+      "contexts": [
+        "**HRKP-FULL** [grade=PARTIAL, 45550.6ms, 2 sources]:\n> ## Neo4j와 Elasticsearch의 역할 차이점\n\n검색된 컨텍스트에는 Elasticsearch에 대한 정보는 있지만, Neo4j에 대한 직접적인 비교 내용은 포함되어 있지 않습니다. 컨텍스트에서 확인할 수 있는 Elasticsearch의 특징을 먼저 설명하고, 일반 지식으로 두 기술의 핵심적인 역할 차이를 보충하겠습니다.",
+        "**HRKP-FULL** [grade=PARTIAL, 51795.8ms, 2 sources]:\n> 검색된 컨텍스트에는 Neo4j와 Elasticsearch의 직접적인 비교는 없지만, Elasticsearch의 특징과 RAG(Retrieval-Augmented Generation) 시스템에서의 역할은 설명되어 있습니다. 이를 바탕으로 두 기술의 일반적인 역할 차이점을 안내드리겠습니다.",
+        "| 항목 | Graph ON | Graph OFF |\n|------|----------|-----------|\n| Top-1 소스 | graph (score: 0.1530) | vector (score: 0.0164) |\n| 결과 수 | 10 | 10 |\n| Graph 고유 | 1건 | - |\n| 레이턴시 | 7.0ms | 3.9ms |\n| 답변 길이 | 174 chars | 160 chars |\n**Graph ON 답변** (발췌): 컨텍스트에 따르면, Neo4j는 그래프 데이터베이스(Graph DB)로, 주로 데이터 간의 관계와 연결성을 저장 및 분석하는 데 사용됩니다. 반면, Elasticsearch는 정형 데이터 검색, 전문 검색, 벡터 검색을 모두 제공하는 하이브리드 검색 엔진으로, 복합적인 검색 및 RAG 시스템 구현에 적합합니다....\n\n**Graph OFF 답변** (발췌): 컨텍스트에는 Neo4j에 대한 정보가 포함되어 있지 않으므로, Neo4j와 Elasticsearch의 역할 차이점에 대해 답변할 수 없습니다. 제공된 컨텍스트는 Elasticsearch의 기능과 하이브리드 RAG 시스템 구현, 그리고 pgvector와의 비교에만 초점을 맞추고 있습니다....",
+        "**HRKP** (123c, 147.5ms): 컨텍스트에는 Neo4j와 Elasticsearch의 직접적인 역할 비교 정보가 포함되어 있지 않습니다. 제공된 내용은 Elasticsearch의 하이브리드 검색 기능과 pgvector와의 비교에만 초점을 맞추고 있습니다....\n\n**RCSV** (315c, 1067.4ms): Neo4j는 그래프 데이터베이스로, 데이터 간의 관계를 모델링하고 탐색하는 데 최적화되어 있습니다. 주로 복잡한 관계형 데이터를 처리하고, 노드와 엣지를 통해 데이터 간의 연결성을 강조합니다.\n\n반면, Elasticsearch는 분산 검색 엔진으로, 정형 데이터 검색, 전문 검색, 벡터 검색 기능을 제공합니다. 대규모 데이터에 대한 빠른 검색과 실시간 분석...",
+        "컨텍스트에 따르면 Elasticsearch는 주로 **대규모 데이터의 검색 및 분석 엔진**으로 사용됩니다 [출처1].  \n- **아키텍처**: 분산 시스템 기반으로 클러스터 구...\n\n**RCSV** [45.4ms, 10 results]:\n> 컨텍스트에 따르면, **Elasticsearch**는 하이브리드 RAG 시스템에서 정형 데이터 검색, 전문(Full-text) 검색, 벡터 검색을 모두 제공하는 검색 엔진의 역할을 합니다. **Neo4j**에 대한 정보는 컨텍스트에 없으므로 역할 차이를 설명할 수 없습니다...."
+      ],
+      "sources": [
+        "graph",
+        "graph",
+        "graph",
+        "vector",
+        "keyword"
+      ],
+      "latency_ms": 4.7,
+      "result_count": 5,
+      "graph_unique_count": 0,
+      "top1_source": "graph",
+      "top1_score": 0.056196,
+      "answer": "컨텍스트에 따르면, **Elasticsearch**는 하이브리드 검색 엔진으로, 정형 데이터 검색, 전문 검색, 벡터 검색을 모두 제공하며 대규모 데이터의 빠른 검색과 분석에 특화되어 있습니다. **Neo4j**는 컨텍스트에 직접적인 정보가 없으나, 일반적으로 그래프 데이터베이스로 데이터 간의 관계와 연결성을 저장 및 분석하는 데 사용됩니다. 따라서 핵심 차이는 Elasticsearch가 텍스트 및 벡터 기반의 검색에 강점을 보이는 반면, Neo4j는 관계형 데이터 모델링과 탐색에 최적화되어 있다는 점입니다."
+    },
+    {
+      "question": "LangGraph와 LangChain 중 어떤 것을 사용해야 하나요?",
+      "type": "entity_relation",
+      "contexts": [
+        "**HRKP-FULL** [grade=HIGH, 27340.6ms, 5 sources]:\n> LangGraph와 LangChain 중 선택은 프로젝트의 **복잡성**과 **필요한 기능**에 따라 달라집니다. 검색된 컨텍스트를 바탕으로 핵심 기준을 안내드립니다.",
+        "**HRKP** (240c, 5.6ms): LangGraph와 LangChain 중 선택은 프로젝트의 복잡성과 필요에 따라 다릅니다.\n\n*   **LangChain**은 선형 워크플로우나 단순한 에이전트 패턴에 적합하며, 학습 곡선이 더 낮고 구현이 쉽습니다.\n*   **LangGraph**는 비선형 오케스트레이션이나 복잡한 태스크 흐름, 세밀한 제어가 필요한 유연한 워크플로우에 적합합니다.\n*  ...\n\n**RCSV** (261c, 481.9ms): LangGraph는 그래프에서 단계를 모델링하여 LLM을 사용하는 멀티액터 애플리케이션을 구축하는 데 적합하며, 상태 유지가 필요한 경우 유용합니다. 반면, LangChain은 대규모 언어 모델을 활용한 애플리케이션 개발을 위한 프레임워크로, 다양한 챗 모델과 컴포넌트를 통합하여 쉽게 애플리케이션을 구축할 수 있습니다. 따라서, 멀티액터 시스템이 필요하면 ...",
+        "| 항목 | Graph ON | Graph OFF |\n|------|----------|-----------|\n| Top-1 소스 | graph (score: 0.2856) | vector (score: 0.0164) |\n| 결과 수 | 10 | 10 |\n| Graph 고유 | 1건 | - |\n| 레이턴시 | 2.0ms | 1.7ms |\n| 답변 길이 | 263 chars | 298 chars |\n**Graph ON 답변** (발췌): LangGraph와 LangChain 중 선택은 프로젝트의 복잡성과 필요에 따라 다릅니다.\n\n*   **LangChain**은 선형적인 워크플로우나 간단한 에이전트 패턴에 적합하며, 학습 곡선이 더 낮고 구현이 더 쉽습니다.\n*   **LangGraph**는 비선형 오케스트레이션이 필요한 복잡한 작업 흐름을 세밀하게 제어하고 설계해야 할 때 적합합니다. 더...\n\n**Graph OFF 답변** (발췌): LangGraph와 LangChain 중 선택은 프로젝트의 구체적인 필요에 따라 달라집니다.\n\n*   **LangChain**은 선형 워크플로우나 단순한 에이전트 패턴에 적합하며, 학습 곡선이 더 낮고 구현이 더 쉽습니다.\n*   **LangGraph**는 비선형 오케스트레이션을 통해 더 유연하고 세분화된 프로세스 기반 워크플로우(에이전트, 도구 호출, 절...",
+        "**HRKP-FULL** [grade=HIGH, 30657.0ms, 5 sources]:\n> LangGraph와 LangChain 중 선택은 **프로젝트의 복잡성과 필요한 워크플로우 유형**에 따라 달라집니다. 컨텍스트에 제시된 핵심 기준을 바탕으로 선택을 도와드리겠습니다.",
+        "LangChain과 LangGraph는 서로 보완적인 관계입니다. LangChain 에이전트는 LangGraph 위에 구축되어 있어, 개발자는 LangChain의 고수준 API로 시작하여 빠르게 에이전트를 구축하고, 더 많은 제어가 필요할 때 LangGraph로 원활하게 전환할 수 있습니다."
+      ],
+      "sources": [
+        "graph",
+        "graph",
+        "graph",
+        "graph",
+        "graph"
+      ],
+      "latency_ms": 3.2,
+      "result_count": 5,
+      "graph_unique_count": 1,
+      "top1_source": "graph",
+      "top1_score": 0.054101,
+      "answer": "LangGraph와 LangChain 중 선택은 프로젝트의 복잡성과 필요한 워크플로우 유형에 따라 다릅니다.\n\n*   **LangChain**은 선형 워크플로우나 단순한 에이전트 패턴에 적합하며, 학습 곡선이 낮고 구현이 쉽습니다.\n*   **LangGraph**는 비선형 오케스트레이션이나 복잡한 작업 흐름, 세밀한 제어가 필요한 유연한 워크플로우에 적합합니다.\n\n두 도구는 보완적 관계로, LangChain으로 빠르게 시작하여 필요 시 LangGraph로 전환할 수 있습니다."
+    },
+    {
+      "question": "FastAPI와 PostgreSQL을 연동하여 RAGAS 평가를 수행하려면?",
+      "type": "entity_relation",
+      "contexts": [
+        "- **FastAPI 애플리케이션 설정**: PostgreSQL 연결을 위한 비동기 라이브러리(예: `asyncpg` 또는 `SQLAlchemy` with `async`)를 사용합니다.\n- **PostgreSQL 데이터베이스 구성*...\n\n**RCSV** [195.5ms, 10 results]:\n> FastAPI와 PostgreSQL을 연동하여 RAGAS 평가를 수행하려면 다음 단계를 따르면 됩니다:\n\n1. **FastAPI 설치**: FastAPI와 필요한 라이브러리(예: `uvicorn`, `sqlalchemy`, `asyncpg`)를 설치합니다.\n```bash\n   pip install fastapi uvicorn sqlalchemy asyncpg\n   ```\n2. **PostgreSQL 설정**: PostgreSQL 데이터베이스를 설정하고, 필요한 테이블을 생성합니다. RAGAS 평가에 필요한 데이터 구조...",
+        "**HRKP** (121c, 302.0ms): 컨텍스트에 FastAPI, PostgreSQL, RAGAS 평가의 구체적인 연동 방법은 명시되어 있지 않습니다. 제공된 정보는 RAG 구현 단계, 프레임워크 비교, 벡터 데이터베이스 비교 등에 초점을 맞추고 있습니다....\n\n**RCSV** (728c, 415.4ms): FastAPI와 PostgreSQL을 연동하여 RAGAS 평가를 수행하려면 다음 단계를 따르면 됩니다:\n\n1. **FastAPI 설치**: FastAPI를 설치합니다. `pip install fastapi uvicorn` 명령어를 사용합니다.\n  \n2. **PostgreSQL 설치 및 설정**: PostgreSQL 데이터베이스를 설치하고, 필요한 데이터베이...",
+        "**HRKP-FULL** [grade=NONE, 35955.0ms, 0 sources]:\n> 검색된 문서에서 직접적인 정보를 찾지 못했습니다.  \n참고로 컨텍스트 외 일반 정보를 기반으로 답변드립니다.\n\nFastAPI와 PostgreSQL을 연동하여 RAGAS(RAG Assessment) 평가를 수행하려면, 일반적으로 다음과 같은 단계를 고려할 수 있습니다:",
+        "**HRKP** (278c, 5.6ms): 컨텍스트에 FastAPI, PostgreSQL, RAGAS 평가에 대한 구체적인 연동 방법은 명시되어 있지 않습니다. 제공된 내용은 주로 도구 사용 에이전트, ReAct, Dynamic Planning + Execution, 그리고 LangChain, AutoGen, LangGraph와 같은 AI 에이전트 구현 프레임워크의 비교에 초점을 맞추고 있습니다.\n...\n\n**RCSV** (1219c, 408.2ms): FastAPI와 PostgreSQL을 연동하여 RAGAS 평가를 수행하려면 다음 단계를 따르면 됩니다:\n\n1. **FastAPI 설치**: FastAPI와 필요한 라이브러리(예: `uvicorn`, `sqlalchemy`, `asyncpg`)를 설치합니다.\n   \n   ```bash\n   pip install fastapi uvicorn sqlalchemy...",
+        "**HRKP-FULL** [grade=PARTIAL, 68195.5ms, 5 sources]:\n> FastAPI와 PostgreSQL을 연동하여 RAGAS(RAG Assessment) 평가를 수행하려면, **RAG 시스템의 구성 요소를 통합하고 평가 메트릭을 측정할 수 있는 파이프라인을 구축**해야 합니다. 검색된 컨텍스트에는 RAG 시스템의 일반적인 아키텍처와 구성 요소가 설명되어 있지만, RAGAS 평가를 위한 구체적인 FastAPI-PostgreSQL 연동 단계는 직접적으로 다루지 않습니다. 아래에서는 컨텍스트 정보를 기반으로 핵심 원리를 설명하고, 일반 지식으로 보충하여 실무 가이드를 제시합니다."
+      ],
+      "sources": [
+        "graph",
+        "graph",
+        "graph",
+        "graph",
+        "graph"
+      ],
+      "latency_ms": 2.7,
+      "result_count": 5,
+      "graph_unique_count": 0,
+      "top1_source": "graph",
+      "top1_score": 0.056381,
+      "answer": "컨텍스트에 FastAPI, PostgreSQL, RAGAS 평가의 구체적인 연동 방법은 명시되어 있지 않습니다. 제공된 정보는 RAG 시스템의 일반적인 아키텍처와 AI 에이전트 구현 프레임워크 비교에 초점을 맞추고 있습니다."
+    },
+    {
+      "question": "RAG Pipeline에서 BGE-M3 임베딩 모델의 역할은?",
+      "type": "multi_hop",
+      "contexts": [
+        "**HRKP** (90c, 1022.9ms): 컨텍스트에 BGE-M3 임베딩 모델에 대한 언급이 없습니다. 제공된 자료에서는 RAG 파이프라인에서 E5 임베딩을 사용한 예시(RAG-E5)만 설명하고 있습니다....\n\n**RCSV** (116c, 303.9ms): RAG Pipeline에서 BGE-M3 임베딩 모델의 역할은 사용자가 입력한 쿼리를 벡터 표현으로 변환하여, 관련 데이터 검색 단계에서 벡터 데이터베이스에서 유사한 데이터 조각을 효과적으로 검색하는 것입니다....",
+        "**HRKP** (65c, 5.5ms): 컨텍스트에 BGE-M3 임베딩 모델에 대한 언급이 없습니다. 따라서 제공된 정보로는 해당 질문에 답변할 수 없습니다....\n\n**RCSV** (116c, 349.3ms): RAG Pipeline에서 BGE-M3 임베딩 모델의 역할은 사용자가 입력한 쿼리를 벡터 표현으로 변환하여, 관련 데이터 검색 단계에서 벡터 데이터베이스에서 유사한 데이터 조각을 효과적으로 검색하는 것입니다....",
+        "**HRKP-FULL** [grade=PARTIAL, 28697.5ms, 1 sources]:\n> 검색된 컨텍스트에서는 BGE-M3 임베딩 모델에 대한 직접적인 설명이 포함되어 있지 않습니다 [출처1]. 따라서 컨텍스트 정보만으로는 질문에 답변할 수 없습니다.\n\n참고로 컨텍스트 외 일반 정보입니다:\n**BGE-M3**는 RAG(Retrieval-Augmented Generation) 파이프라인에서 **임베딩(Embedding)** 단계의 핵심 구성 요소 역할을 합니다. 구체적인 역할은 다음과 같습니다.\n\n1.  **다양한 정보의 수치화 표현 생성**: 텍스트, 이미지 등 다양한 형식의 질문과 문서 조각(Chunk)을 고정된 길이...\n\n**RCSV** [9.5ms, 10 results]:\n> 컨텍스트에 BGE-M3 임베딩 모델에 대한 구체적인 언급이 없습니다. 제공된 정보에서는 RAG 시스템에서 임베딩 모델의 일반적인 역할(예: Advanced 방식의 '검색 중 임베딩 모델 최적화', 로컬 RAG의 '로컬 임베딩 모델 사용')만 설명하고 있습니다....",
+        "**HRKP-FULL** [grade=NONE, 24382.9ms, 0 sources]:\n> 검색된 문서에서 직접적인 정보를 찾지 못했습니다.\n\n참고로 컨텍스트 외 일반 정보입니다. RAG(Retrieval-Augmented Generation) 파이프라인에서 BGE-M3 임베딩 모델의 주요 역할은 **고품질의 검색(Retrieval)을 위해 텍스트를 의미적으로 풍부하고 정밀한 벡터 표현(임베딩)으로 변환하는 것**입니다. 구체적인 역할은 다음과 같습니다.\n\n1. **텍스트의 벡터 표현 생성**: 질문(쿼리)과 문서(지식 소스)를 고차원의 숫자 벡터로 변환하여, 의미적 유사도를 계산할 수 있게 합니다.\n2. **효율적인 유...\n\n**RCSV** [162.1ms, 10 results]:\n> RAG Pipeline에서 BGE-M3 임베딩 모델의 역할은 사용자가 입력한 쿼리를 벡터 표현으로 변환하여, 관련 데이터 검색 단계에서 벡터 데이터베이스에서 유사한 데이터 조각을 효과적으로 검색하는 것입니다....",
+        "| 항목 | Graph ON | Graph OFF |\n|------|----------|-----------|\n| Top-1 소스 | graph (score: 0.2856) | vector (score: 0.0164) |\n| 결과 수 | 10 | 10 |\n| Graph 고유 | 1건 | - |\n| 레이턴시 | 1.6ms | 1.5ms |\n| 답변 길이 | 56 chars | 147 chars |\n**Graph ON 답변** (발췌): 컨텍스트에 BGE-M3 임베딩 모델에 대한 언급이 없습니다. 따라서 해당 질문에 답변할 수 없습니다....\n\n**Graph OFF 답변** (발췌): 컨텍스트에 BGE-M3 임베딩 모델에 대한 언급이 없습니다. 따라서 해당 모델의 역할에 대해 답변할 수 없습니다.\n\n제공된 컨텍스트에서는 RAG 파이프라인에서 임베딩 모델의 역할 예시로 **E5 임베딩**을 사용한 **RAG-E5**에 대해서만 설명하고 있습니다...."
+      ],
+      "sources": [
+        "graph",
+        "graph",
+        "graph",
+        "graph",
+        "graph"
+      ],
+      "latency_ms": 2.7,
+      "result_count": 5,
+      "graph_unique_count": 0,
+      "top1_source": "graph",
+      "top1_score": 0.056575,
+      "answer": "제공된 컨텍스트에는 BGE-M3 임베딩 모델에 대한 언급이 없습니다. 따라서 컨텍스트 정보만으로는 해당 질문에 답변할 수 없습니다."
+    },
+    {
+      "question": "Kubernetes에서 Spring Boot 마이크로서비스를 배포하는 방법은?",
+      "type": "multi_hop",
+      "contexts": [
+        "**HRKP** (134c, 5.3ms): 컨텍스트에 Spring Boot 마이크로서비스 배포 방법에 대한 구체적인 내용이 없습니다. 제공된 컨텍스트는 Kubernetes가 마이크로서비스와 분산 애플리케이션 관리에 유용한 오케스트레이션 플랫폼이라는 일반적인 설명만 포함하고 있습니다....\n\n**RCSV** (656c, 409.0ms): Kubernetes에서 Spring Boot 마이크로서비스를 배포하는 방법은 다음과 같습니다:\n\n1. **Docker 이미지 생성**: Spring Boot 애플리케이션을 Docker 이미지로 패키징합니다. `Dockerfile`을 작성하고 `docker build` 명령어로 이미지를 생성합니다.\n\n2. **Kubernetes 클러스터 설정**: Kuber...",
+        "**HRKP** (144c, 239.9ms): 컨텍스트에는 Kubernetes에서 Spring Boot 마이크로서비스를 배포하는 구체적인 방법에 대한 정보가 포함되어 있지 않습니다. 제공된 컨텍스트는 Kubernetes가 마이크로서비스 관리에 유용한 기반을 제공한다는 일반적인 설명만을 포함하고 있습니다....\n\n**RCSV** (640c, 329.4ms): Kubernetes에서 Spring Boot 마이크로서비스를 배포하는 방법은 다음과 같습니다:\n\n1. **Docker 이미지 생성**: Spring Boot 애플리케이션을 Docker 이미지로 패키징합니다. `Dockerfile`을 작성하고 `docker build` 명령어로 이미지를 생성합니다.\n\n2. **Kubernetes 클러스터 설정**: Kuber...",
+        "*   **Dockerfile 작성:** Spring Boot 애플리케이션 JAR 파일을 실행하는 Docker 이미지를 생성하기 위한 Dockerfile을 작성합니다.\n*   **이미지 빌드 및 레지스트리 푸시:** Docker 이미지를 빌드하고, Docker Hub나 사설 레지스...\n\n**RCSV** [205.1ms, 10 results]:\n> Kubernetes에서 Spring Boot 마이크로서비스를 배포하는 방법은 다음과 같습니다:\n\n1. **Docker 이미지 생성**: Spring Boot 애플리케이션을 Docker 이미지로 패키징합니다. `Dockerfile`을 작성하고 `docker build` 명령어로 이미지를 생성합니다.\n\n2. **Kubernetes 클러스터 설정**: Kubernetes 클러스터를 설정합니다. 로컬 환경에서는 Minikube를 사용할 수 있고, 클라우드에서는 GKE, EKS, AKS 등을 사용할 수 있습니다.\n\n3. **Kubernete...",
+        "**HRKP-FULL** [grade=NONE, 51646.1ms, 0 sources]:\n> 검색된 문서에서 직접적인 정보를 찾지 못했습니다.\n\n참고로 컨텍스트 외 일반 정보로, Kubernetes에 Spring Boot 마이크로서비스를 배포하는 일반적인 방법은 다음과 같은 단계로 진행됩니다.",
+        "**HRKP-FULL** [grade=NONE, 33186.3ms, 0 sources]:\n> 검색된 문서에서 직접적인 정보를 찾지 못했습니다.\n\n참고로 컨텍스트 외 일반 정보로, Kubernetes에 Spring Boot 마이크로서비스를 배포하는 일반적인 방법은 다음과 같은 단계로 진행됩니다."
+      ],
+      "sources": [
+        "graph",
+        "graph",
+        "graph",
+        "graph",
+        "graph"
+      ],
+      "latency_ms": 2.0,
+      "result_count": 5,
+      "graph_unique_count": 0,
+      "top1_source": "graph",
+      "top1_score": 0.056901,
+      "answer": "Kubernetes에서 Spring Boot 마이크로서비스를 배포하는 방법은 다음과 같습니다:\n\n1. **Docker 이미지 생성**: Spring Boot 애플리케이션을 Docker 이미지로 패키징합니다. `Dockerfile`을 작성하고 `docker build` 명령어로 이미지를 생성합니다.\n2. **Kubernetes 클러스터 설정**: Kubernetes 클러스터를 설정합니다. 로컬 환경에서는 Minikube를, 클라우드에서는 GKE, EKS, AKS 등을 사용할 수 있습니다.\n3. **Kubernetes 매니페스트 파일 작성**: 애플리케이션을 배포하기 위한 Deployment, Service 등의 YAML 설정 파일을 작성합니다.\n4. **이미지 빌드 및 레지스트리 푸시**: Docker 이미지를 빌드하고 Docker Hub나 사설 레지스트리에 푸시합니다.\n5. **배포**: `kubectl apply` 명령어를 사용하여 Kubernetes에 애플리케이션을 배포합니다."
+    },
+    {
+      "question": "Agentic AI 에이전트 워크플로우 설계 패턴은 무엇인가요?",
+      "type": "multi_hop",
+      "contexts": [
+        "**HRKP** (448c, 4.9ms): 컨텍스트에 따르면, Agentic AI 에이전트 워크플로우 설계 패턴은 다음과 같습니다:\n\n1. **파이프라인 패턴**: 작업이 순차적인 단계별 흐름을 따라 각 에이전트가 단계를 처리합니다.\n2. **ReAct 패턴**: 추론(Reasoning)과 행동(Action)을 번갈아 수행하여 복잡한 문제를 단계적으로 해결합니다.\n3. **Supervisor-Wor...\n\n**RCSV** (442c, 440.5ms): Agentic AI 에이전트 워크플로우 설계 패턴은 다음과 같습니다:\n\n1. **결정론적 구조**: 예측 가능한 실행 경로를 제공하여 작업을 명확하게 정의된 하위 작업으로 분해합니다.\n2. **에이전트와 워크플로우의 상호보완성**: 에이전트는 워크플로우 내에서 자율적으로 특정 과업을 수행하며, 워크플로우는 전체 프로세스를 조율합니다.\n3. **데이터 흐름 ...",
+        "**HRKP** (528c, 2463.6ms): 컨텍스트에 언급된 Agentic AI 에이전트 워크플로우 설계 패턴은 다음과 같습니다.\n\n1. **파이프라인 패턴** : 작업이 순차적으로 진행되는 단계별 흐름입니다.\n2. **ReAct(Reason-then-Act) 패턴** : 추론과 행동을 번갈아 수행하여 복잡한 문제를 단계적으로 해결합니다.\n3. **Plan-then-Act(플래닝) 패턴** : 실행...\n\n**RCSV** (462c, 392.3ms): Agentic AI 에이전트 워크플로우 설계 패턴은 다음과 같습니다:\n\n1. **결정론적 구조**: 예측 가능한 실행 경로를 제공하여 작업을 명확하게 정의된 하위 작업으로 분해합니다.\n2. **에이전트와 워크플로우의 상호보완성**: 에이전트는 워크플로우 내에서 자율적으로 특정 과업을 수행하며, 워크플로우는 전체 프로세스를 조율합니다.\n3. **데이터 흐름 ...",
+        "1. **Pipeline (파이프라인) 패턴**\n   - 작업이 순차적인 단계 흐름을 따라가며, 각 단계를 에이전트가 차례로 처리합니다. 조립 라인과 유사하게 각 에이전트는 명확한 역할을 가집니다 [출처1].\n\n2. **Reason-then-Act (ReAct) 패턴**\n ...\n\n**RCSV** [169.3ms, 10 results]:\n> Agentic AI 에이전트 워크플로우 설계 패턴은 다음과 같습니다:\n\n1. **결정론적 구조**: 예측 가능한 실행 경로를 제공하여 작업을 명확하게 정의된 하위 작업으로 분해합니다.\n2. **에이전트와 워크플로우의 상호보완성**: 에이전트는 워크플로우 내에서 자율적으로 작업을 수행하며, 워크플로우는 전체 프로세스를 조율합니다.\n3. **데이터 흐름 제어**: 조건에 따라 분기 및 루프를 처리하여 최적화된 데이터 처리를 위한 로직을 형성합니다.\n4. **에이전트 구성**: 대리 에이전트와 여러 작업 에이전트로 구성되어, 대리 에이전...",
+        "| 항목 | Graph ON | Graph OFF |\n|------|----------|-----------|\n| Top-1 소스 | graph (score: 0.2856) | keyword (score: 0.0289) |\n| 결과 수 | 10 | 10 |\n| Graph 고유 | 1건 | - |\n| 레이턴시 | 1.6ms | 1.6ms |\n| 답변 길이 | 356 chars | 512 chars |\n**Graph ON 답변** (발췌): 컨텍스트에 언급된 Agentic AI 워크플로우 설계 패턴은 다음과 같습니다.\n\n1. **파이프라인 패턴**: 작업이 순차적으로 진행되며, 각 단계를 에이전트가 처리합니다.\n2. **ReAct 패턴**: 추론(Reasoning)과 행동(Action)을 반복하여 복잡한 문제를 해결합니다.\n3. **Supervisor-Worker 구조**: 감독자가 작업을 계...\n\n**Graph OFF 답변** (발췌): Agentic AI 에이전트 워크플로우 설계 패턴은 다음과 같습니다.\n\n1. **Pipeline 패턴**: 작업이 순차적인 단계별 흐름을 따라가며, 각 단계를 에이전트가 처리합니다. 조립 라인과 유사한 구조입니다.\n2. **ReAct(Reason-then-Act) 패턴**: 추론(Reasoning)과 행동(Action)을 번갈아 수행하여 복잡한 문제를 단계...",
+        "1. **파이프라인 (Pipeline) 패턴**\n   - 작업이 단계별 흐름을 따라 순차적으로 처리되는 방식입니다. 각 단계는 특정 에이전트가 담당하며, 조립 라인처럼 구성됩니다 [출처1].\n\n2. **Reason-then-Act (ReAct) 패턴**\n   - 추론(Reasoning)과 행동(Ac...\n\n**RCSV** [10.1ms, 10 results]:\n> 컨텍스트에 따르면, Agentic AI 에이전트 워크플로우 설계 패턴은 **에이전트와 구조화된 워크플로우가 상호보완적으로 결합된 '에이전틱 시스템'**입니다.\n\n주요 설계 패턴은 다음과 같습니다.\n\n1.  **계층적 에이전트 구성**: 대리 에이전트(Supervisor)가 사용자 요청을 받아 여러 작업 에이전트(Worker)에게 명령을 전달하고 조율합니다.\n2.  **결정론적 워크플로우**: 작업을 명확하고 고정된 하위 작업으로 분해하여, 비교적 선형적이고 예측 가능한 경로(예: 생성 후 번역)로 자동화 프로세스를 제공합니다.\n3...."
+      ],
+      "sources": [
+        "graph",
+        "graph",
+        "graph",
+        "graph",
+        "graph"
+      ],
+      "latency_ms": 1.8,
+      "result_count": 5,
+      "graph_unique_count": 0,
+      "top1_source": "graph",
+      "top1_score": 0.057192,
+      "answer": "컨텍스트에 언급된 Agentic AI 에이전트 워크플로우 설계 패턴은 다음과 같습니다.\n\n1.  **파이프라인 패턴**: 작업이 순차적인 단계별 흐름을 따라 각 에이전트가 단계를 처리합니다.\n2.  **ReAct(Reason-then-Act) 패턴**: 추론(Reasoning)과 행동(Action)을 번갈아 수행하여 복잡한 문제를 단계적으로 해결합니다.\n3.  **Supervisor-Worker(또는 계층적 에이전트) 패턴**: 감독자(Supervisor) 에이전트가 작업을 계획하고 조율하며, 작업자(Worker) 에이전트가 특정 과업을 수행합니다.\n4.  **Plan-then-Act(플래닝) 패턴**: 실행 전에 전체 계획을 수립한 후 행동에 들어가는 방식입니다."
+    },
+    {
+      "question": "Docker Compose 설정 방법은?",
+      "type": "keyword",
+      "contexts": [
+        "**HRKP** (144c, 132.6ms): 컨텍스트에 Docker Compose 설정 방법은 명시되어 있지 않습니다. 제공된 내용에서는 Docker Desktop 환경에서 PostgreSQL 컨테이너와 MCP 서버를 설정하는 방법으로 **Docker 방식**과 **NPX 방식**만 언급되어 있습니다....\n\n**RCSV** (78c, 416.0ms): 컨텍스트에 Docker Compose 설정 방법에 대한 정보가 포함되어 있지 않습니다. 따라서 해당 질문에 대한 답변을 제공할 수 없습니다....",
+        "**HRKP** (191c, 5.6ms): 컨텍스트에는 Docker Compose 설정 방법에 대한 정보가 포함되어 있지 않습니다. 제공된 내용은 Docker Desktop 환경에서 PostgreSQL 컨테이너와 MCP 서버를 설정하는 개요와 두 가지 방식(Docker 방식과 NPX 방식)을 언급하고 있지만, 구체적인 Docker Compose 설정 절차나 예시는 설명하지 않습니다....\n\n**RCSV** (78c, 366.5ms): 컨텍스트에 Docker Compose 설정 방법에 대한 정보는 포함되어 있지 않습니다. 따라서 해당 질문에 대한 답변을 제공할 수 없습니다....",
+        "```yaml\nversion: '3....\n\n**RCSV** [6.9ms, 10 results]:\n> 컨텍스트에 Docker Compose 설정 방법은 명시되어 있지 않습니다. 컨텍스트에서는 Docker Desktop 환경에서 PostgreSQL과 MCP 서버를 설정하는 두 가지 방식으로 **Docker 방식**(이미지 실행 또는 직접 빌드)과 **NPX 방식**만 언급하고 있습니다....",
+        "**HRKP-FULL** [grade=NONE, 29066.5ms, 0 sources]:\n> 검색된 문서에서 직접적인 정보를 찾지 못했습니다.\n\n참고로 컨텍스트 외 일반 정보입니다. Docker Compose는 여러 컨테이너로 구성된 애플리케이션을 정의하고 실행하기 위한 도구로, `docker-compose.yml` 파일을 사용하여 설정합니다. 기본적인 설정 방법은 다음과 같습니다.",
+        "**HRKP-FULL** [grade=NONE, 33810.5ms, 0 sources]:\n> 검색된 문서에서 직접적인 정보를 찾지 못했습니다.\n\n참고로 컨텍스트 외 일반 정보입니다. Docker Compose는 여러 컨테이너로 구성된 애플리케이션을 정의하고 실행하기 위한 도구입니다. 기본적인 설정 방법은 다음과 같습니다."
+      ],
+      "sources": [
+        "graph",
+        "graph",
+        "graph",
+        "vector",
+        "vector"
+      ],
+      "latency_ms": 1.7,
+      "result_count": 5,
+      "graph_unique_count": 0,
+      "top1_source": "graph",
+      "top1_score": 0.055902,
+      "answer": "컨텍스트에는 Docker Compose 설정 방법에 대한 정보가 포함되어 있지 않습니다. 제공된 내용에서는 Docker Desktop 환경에서 PostgreSQL과 MCP 서버를 설정할 때 **Docker 방식**과 **NPX 방식**만 언급하고 있습니다."
+    },
+    {
+      "question": "RRF 알고리즘이 Hybrid 검색에서 하는 역할은?",
+      "type": "keyword",
+      "contexts": [
+        "**HRKP-FULL** [grade=PARTIAL, 22382.3ms, 1 sources]:\n> 검색된 컨텍스트에는 RRF(Reciprocal Rank Fusion) 알고리즘에 대한 직접적인 설명이 포함되어 있지 않습니다 [출처1]. 따라서 컨텍스트 외 일반 지식을 바탕으로 답변드립니다.\n\n**RRF(Reciprocal Rank Fusion) 알고리즘의 역할**\nRRF는 **하이브리드 검색(Hybrid Search)** 에서 서로 다른 검색 방식(예: 키워드 기반 검색과 벡터 유사도 검색)의 결과를 효과적으로 **결합(Reranking)** 하여 최종 순위를 매기는 데 사용되는 알고리즘입니다.\n\n주요 역할은 다음과 같습니다.\n...\n\n**RCSV** [142.1ms, 10 results]:\n> RRF 알고리즘은 Hybrid 검색에서 검색 결과의 순위를 조정하는 역할을 합니다. 이를 통해 키워드 기반 검색, 의미 기반 검색, 벡터 검색의 결과를 통합하여 최종적으로 더 정확하고 관련성 높은 응답을 생성하는 데 기여합니다....",
+        "**HRKP** (153c, 622.6ms): RRF(Reciprocal Rank Fusion) 알고리즘은 하이브리드 검색에서 키워드 기반 검색(예: BM25)과 벡터 검색의 결과를 통합하고 순위를 재조정하는 역할을 합니다. 이를 통해 서로 다른 검색 방법의 장점을 결합하여 최종 검색 결과의 정확성과 관련성을 높입니다....\n\n**RCSV** (128c, 368.3ms): RRF 알고리즘은 Hybrid 검색에서 검색 결과의 순위를 재조정하는 역할을 합니다. 이를 통해 키워드 기반 검색, 의미 기반 검색, 벡터 검색의 결과를 통합하여 최종적으로 더 정확하고 관련성 높은 응답을 생성하는 데 기여합니다....",
+        "**HRKP-FULL** [grade=PARTIAL, 35569.8ms, 3 sources]:\n> 검색된 컨텍스트에는 RRF(Reciprocal Rank Fusion) 알고리즘에 대한 직접적인 설명은 포함되어 있지 않습니다. 그러나 컨텍스트에서 **하이브리드 검색(Hybrid Search)** 은 발전된 RAG의 핵심 특징 중 하나로 언급되어 있으며[출처1], 이는 일반적으로 서로 다른 검색 방법(예: 키워드 기반 검색과 벡터 유사도 검색)의 결과를 결합하는 기법입니다.\n\n**일반 지식으로 보충한 답변은 다음과 같습니다.**\nRRF(Reciprocal Rank Fusion)는 하이브리드 검색에서 **여러 검색 방법(예: 키워드 ...\n\n**RCSV** [6.4ms, 10 results]:\n> 컨텍스트에 따르면, RAG 파이프라인 최적화에서 Hybrid 검색은 키워드 기반 검색과 의미 기반 벡터 검색 같은 기법을 지능적으로 결합하여 성능 균형을 최적화합니다....",
+        "**HRKP** (165c, 6.3ms): RRF(Reciprocal Rank Fusion) 알고리즘은 하이브리드 검색에서 키워드 기반 검색(BM25)과 벡터 검색(KNN)과 같은 서로 다른 검색 기법의 결과를 통합하고 재순위화하는 역할을 합니다. 이를 통해 단일 검색 방식의 한계를 보완하고 최종 검색 결과의 정확성과 관련성을 높입니다....\n\n**RCSV** (127c, 324.7ms): RRF 알고리즘은 Hybrid 검색에서 검색 결과의 순위를 조정하는 역할을 합니다. 이를 통해 키워드 기반 검색, 의미 기반 검색, 벡터 검색의 결과를 통합하여 최종적으로 더 정확하고 관련성 높은 응답을 생성하는 데 기여합니다....",
+        "Reciprocal Rank Fusion (RRF) 알고리즘의 정확성, 안정성, 엣지 케이스 대응을 검증하기 위한 테스트 계획입니다. RRF는 Elasticsearch(Vector)와 Neo4j(Graph) 등 다중 검색 소스의 결과를 융합하여 통합 순위를 생성하는 핵심 알고리즘으로, Hybrid RAG 파이프라인의 품질에 직접적인 영향을 미칩니다."
+      ],
+      "sources": [
+        "graph",
+        "graph",
+        "graph",
+        "vector",
+        "vector"
+      ],
+      "latency_ms": 1.8,
+      "result_count": 5,
+      "graph_unique_count": 0,
+      "top1_source": "graph",
+      "top1_score": 0.057377,
+      "answer": "RRF 알고리즘은 Hybrid 검색에서 키워드 기반 검색과 벡터 검색과 같은 서로 다른 검색 방법의 결과를 통합하고 순위를 재조정하는 역할을 합니다. 이를 통해 최종 검색 결과의 정확성과 관련성을 높입니다."
+    },
+    {
+      "question": "RAGAS 평가 메트릭의 종류와 의미는?",
+      "type": "keyword",
+      "contexts": [
+        "**HRKP-FULL** [grade=NONE, 36166.9ms, 0 sources]:\n> 검색된 문서에서 직접적인 정보를 찾지 못했습니다.\n\n참고로 컨텍스트 외 일반 정보입니다. RAGAS(RAG Assessment)는 Retrieval-Augmented Generation(RAG) 시스템의 성능을 평가하기 위한 오픈소스 프레임워크로, 여러 메트릭을 제공합니다. 주요 평가 메트릭의 종류와 의미는 다음과 같습니다.",
+        "**HRKP-FULL** [grade=NONE, 29268.2ms, 0 sources]:\n> 검색된 문서에서 직접적인 정보를 찾지 못했습니다.\n\n참고로 컨텍스트 외 일반 정보입니다. RAGAS(RAG Assessment)는 Retrieval-Augmented Generation(RAG) 시스템의 성능을 평가하기 위한 오픈소스 프레임워크로, 여러 메트릭을 통해 시스템의 품질을 종합적으로 측정합니다. 주요 평가 메트릭의 종류와 의미는 다음과 같습니다.",
+        "- **의미**: 생성된 답변이 정답(ground truth)과 얼마나 일치하는지 평가합니다. 사실적 정확성과 의미적 유사성을 종합적으로 측정합니...\n\n**RCSV** [8.7ms, 10 results]:\n> 컨텍스트에 RAGAS 평가 메트릭에 대한 정보가 없습니다. 제공된 컨텍스트는 주식 발행, 회사 합병, 점검능력 평가 수수료, 딥러닝 모델 평가 일반론 및 모델 개발 프로세스에 관한 내용이며, RAGAS라는 특정 평가 프레임워크의 메트릭 종류와 의미는 포함되어 있지 않습니다....",
+        "**HRKP** (185c, 5.6ms): 컨텍스트에 제공된 정보에는 RAGAS 평가 메트릭의 구체적인 종류와 의미에 대한 설명이 없습니다. 컨텍스트는 RAG 시스템의 한계, 에이전트 기반 RAG의 구조, 그리고 성능 평가 시 'Generation Accuracy'를 사용하는 한 가지 예시만 언급하고 있습니다.\n\n따라서, 주어진 컨텍스트만으로는 질문에 답변할 수 없습니다....\n\n**RCSV** (736c, 353.3ms): RAGAS 평가 메트릭의 종류와 의미는 다음과 같습니다:\n\n1. **테스트 정확도 (Accuracy)**: 전체 예측 중 맞춘 비율을 계산하며, 간단하고 직관적입니다. 그러나 불균형 데이터에서는 신뢰할 수 없습니다.\n\n2. **혼동 행렬 (Confusion Matrix)**: 실제 클래스와 예측 클래스를 교차 표로 표현하여 TP, FP, FN, TN의 개수...",
+        "**HRKP** (142c, 128.1ms): 컨텍스트에 RAGAS 평가 메트릭의 구체적인 종류와 의미에 대한 정보가 명시적으로 포함되어 있지 않습니다. 제공된 내용은 RAG 시스템의 일반적인 개선 방법, 에이전트 기반 RAG의 아키텍처, 그리고 비교 분석 시 RAG의 한계에 초점을 맞추고 있습니다....\n\n**RCSV** (734c, 355.5ms): RAGAS 평가 메트릭의 종류와 의미는 다음과 같습니다:\n\n1. **테스트 정확도 (Accuracy)**: 전체 예측 중 맞춘 비율을 계산하며, 간단하고 직관적입니다. 그러나 불균형 데이터에서는 신뢰할 수 없습니다.\n\n2. **혼동 행렬 (Confusion Matrix)**: 실제 클래스와 예측 클래스를 교차 표로 표현하여 TP, FP, FN, TN의 개수..."
+      ],
+      "sources": [
+        "graph",
+        "graph",
+        "graph",
+        "graph",
+        "graph"
+      ],
+      "latency_ms": 2.0,
+      "result_count": 5,
+      "graph_unique_count": 0,
+      "top1_source": "graph",
+      "top1_score": 0.055564,
+      "answer": "제공된 컨텍스트에는 RAGAS 평가 메트릭의 구체적인 종류와 의미에 대한 정보가 포함되어 있지 않습니다."
+    },
+    {
+      "question": "대규모 문서를 효율적으로 처리하는 방법은?",
+      "type": "semantic",
+      "contexts": [
+        "**HRKP-FULL** [grade=HIGH, 25886.7ms, 2 sources]:\n> 대규모 문서를 효율적으로 처리하는 방법은 **재순위화(Reranking)** 를 통해 가장 관련성 높은 문서를 우선적으로 선별하고, 불필요한 정보를 걸러내는 것입니다.\n\n[출처2]에 따르면, 재순위화 시스템은 관련성 점수를 기준으로 문서를 우선순위화하여 정밀도(상위 결과의 높은 관련성 보장)를 향상시킵니다. 이 과정에서 관련성 낮은 문서는 필터링되며, 방대한 데이터셋을 고도로 정제된 문서 목록으로 변환합니다. 즉, 대규모 문서 처리의 핵심은 **효율적인 필터링과 우선순위 지정**을 통해 핵심 정보에 집중하는 것입니다.\n\n참고로 컨텍...\n\n**RCSV** [12.4ms, 10 results]:\n> 컨텍스트에 따르면, 대규모 문서를 효율적으로 처리하는 방법은 **RAG(Retrieval-Augmented Generation)** 접근법입니다. 이 방법은 문서를 작은 텍스트 청크로 분할하고, 이를 임베딩으로 변환하여 벡터 저장소에 저장한 후, 사용자 질문과 의미적으로 유사한 문서를 검색하여 LLM의 응답을 강화합니다....",
+        "**HRKP** (417c, 56.1ms): 대규모 문서를 효율적으로 처리하는 방법은 **청킹(Chunking)** 작업을 통해 문서를 작은 단위로 나누는 것입니다. 이는 다음과 같은 이유로 필요합니다:\n\n1. **효율적인 검색**: 작은 청크로 나누면 각 청크를 독립적으로 검색하여 질문과 관련된 문서를 빠르고 정확하게 찾을 수 있습니다.\n2. **문맥 유지**: LLM의 입력 길이 제한을 고려하여 ...\n\n**RCSV** (358c, 591.3ms): 대규모 문서를 효율적으로 처리하는 방법은 다음과 같습니다:\n\n1. **청킹(Chunking)**: 긴 문서를 작은 청크로 나누어 각 청크를 독립적으로 검색할 수 있도록 합니다. 이를 통해 질문과 관련된 문서를 더 빠르고 정확하게 찾을 수 있습니다.\n\n2. **문맥 유지**: LLM의 입력 길이에 제한이 있으므로, 청크 단위로 나누어 각 청크가 문맥을 유지하...",
+        "**HRKP** (327c, 6.8ms): 컨텍스트에 따르면, 대규모 문서를 효율적으로 처리하는 방법은 **청킹(Chunking)** 작업을 통해 문서를 작은 단위로 나누는 것입니다. 이는 다음과 같은 이유로 효율성을 높입니다:\n\n1. **효율적인 검색**: 각 청크를 독립적으로 검색하여 관련 문서를 빠르고 정확하게 찾습니다.\n2. **문맥 유지**: LLM의 입력 길이 제한 내에서 각 청크가 문맥...\n\n**RCSV** (358c, 318.5ms): 대규모 문서를 효율적으로 처리하는 방법은 다음과 같습니다:\n\n1. **청킹(Chunking)**: 긴 문서를 작은 청크로 나누어 각 청크를 독립적으로 검색할 수 있도록 합니다. 이를 통해 질문과 관련된 문서를 더 빠르고 정확하게 찾을 수 있습니다.\n\n2. **문맥 유지**: LLM의 입력 길이에 제한이 있으므로, 청크 단위로 나누어 각 청크가 문맥을 유지하...",
+        "**HRKP-FULL** [grade=HIGH, 17832.2ms, 2 sources]:\n> 대규모 문서를 효율적으로 처리하는 방법은 **재순위화(Reranking)** 를 통해 가장 관련성 높은 문서를 우선적으로 선별하고, 불필요한 컨텍스트를 제거하는 것입니다.  \n\n검색된 컨텍스트에 따르면, 재순위화는 시스템이 가장 관련성 높은 문서를 우선시하여 정밀도(Precision)를 높이고, 관련성 낮은 문서는 걸러내도록 합니다. 이렇게 두 단계(필터링 및 우선순위화)를 거쳐 방대한 데이터셋을 고도로 관련성 있는 문서 목록으로 정제할 수 있습니다[출처2].  \n\n또한, 재순위화를 수행하면 관련 없는 컨텍스트를 제거(prune)하...\n\n**RCSV** [174.3ms, 10 results]:\n> 대규모 문서를 효율적으로 처리하는 방법은 다음과 같습니다:\n\n1. **청킹(Chunking)**: 긴 문서를 작은 청크로 나누어 각 청크를 독립적으로 검색할 수 있도록 합니다. 이를 통해 질문과 관련된 문서를 더 빠르고 정확하게 찾을 수 있습니다.\n\n2. **문맥 유지**: LLM의 입력 길이에 제한이 있으므로, 청크 단위로 나누어 각 청크가 문맥을 유지하면서 처리될 수 있도록 합니다.\n\n3. **정확도 향상**: 작은 청크 단위로 검색하면 관련성이 높은 문서를 더 정확하게 찾을 수 있어 최종 응답의 품질이 향상됩니다.\n\n4. **...",
+        "| 항목 | Graph ON | Graph OFF |\n|------|----------|-----------|\n| Top-1 소스 | graph (score: 0.2856) | vector (score: 0.0164) |\n| 결과 수 | 10 | 10 |\n| Graph 고유 | 1건 | - |\n| 레이턴시 | 2.3ms | 3.0ms |\n| 답변 길이 | 390 chars | 443 chars |\n**Graph ON 답변** (발췌): 대규모 문서를 효율적으로 처리하기 위해서는 **청킹(Chunking)** 작업이 필요합니다. 컨텍스트에 따르면, 청킹은 다음과 같은 이유로 효율성을 높입니다:\n\n1. **효율적인 검색**: 작은 청크로 나누어 각각 독립적으로 검색하면 관련 문서를 빠르고 정확하게 찾을 수 있습니다.\n2. **문맥 유지**: LLM의 입력 길이 제한을 고려하여, 청크 단위로 ...\n\n**Graph OFF 답변** (발췌): 대규모 문서를 효율적으로 처리하는 방법은 **청킹(Chunking)** 작업을 통해 문서를 작은 단위로 나누는 것입니다. 이 방법은 RAG(검색 증강 생성) 구현에서 다음과 같은 이유로 필요합니다:\n\n1. **효율적인 검색**: 긴 문서를 작은 청크로 나누면 각 청크를 독립적으로 검색할 수 있어, 질문과 관련된 문서를 더 빠르고 정확하게 찾을 수 있습니다...."
+      ],
+      "sources": [
+        "graph",
+        "graph",
+        "graph",
+        "graph",
+        "graph"
+      ],
+      "latency_ms": 2.0,
+      "result_count": 5,
+      "graph_unique_count": 0,
+      "top1_source": "graph",
+      "top1_score": 0.057192,
+      "answer": "대규모 문서를 효율적으로 처리하는 핵심 방법은 **재순위화(Reranking)** 를 통해 가장 관련성 높은 문서를 우선적으로 선별하고 불필요한 정보를 걸러내는 것입니다. 이는 관련성 점수를 기준으로 문서를 우선순위화하여 정밀도를 높이고, 방대한 데이터셋을 고도로 정제된 문서 목록으로 변환합니다."
+    },
+    {
+      "question": "검색 성능을 최적화하려면 어떻게 해야 하나요?",
+      "type": "semantic",
+      "contexts": [
+        "**HRKP** (228c, 134.3ms): 컨텍스트에 따르면 검색 성능 최적화를 위해서는 **하이브리드 검색(키워드 기반, 의미적, 벡터 검색의 지능적 활용)**을 적용하고, **재귀 검색(작은 덩어리에서 큰 덩어리로 점진적 검색)** 및 **하위 쿼리(트리/벡터/순차 쿼리)**와 같은 검색 전략을 사용해야 합니다. 또한, **근사 최근접 이웃(ANN) 알고리즘(예: HNSW, FAISS)**을 통...\n\n**RCSV** (430c, 430.7ms): 검색 성능을 최적화하려면 다음과 같은 전략을 활용해야 합니다:\n\n1. **하이브리드 검색 탐색**: 키워드 기반 검색, 의미적 검색, 벡터 검색을 지능적으로 결합하여 성능을 향상시킵니다.\n2. **재귀 검색 및 쿼리 엔진**: 작은 덩어리로 검색을 시작하고, 더 큰 맥락적 정보를 확보하여 효율성과 응답의 맥락적 풍부함을 균형 있게 맞춥니다.\n3. **Ste...",
+        "echo \"=== Test 3: 한국어 자연어 질문 - 검색 최적화 방법은? ===\"\ncurl -s -X POST http://localhost:8000/api/v1/search/hybrid \\\n  -H \"Authorization: Bearer $AI_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"query\":\"Elasticsearch 검색 성능을 최적화하려면 어떻게 해야 하나요?\",\"top_k\":5}' \\\n  | python3 -c \"\nimport sys, json\ndata = json.load(sys.stdin)\nresults = data.get('results', [])\nprint(f'검색 결과: {len(results)}건')\nfor i, r in enumerate(results, 1):\n    content = r.get('content', '')[:120]\n    score = r.get('score', 0)\n    print(f'  [{i}] (score={score:.4f}) {content}...')\n\"\n\necho \"\"",
+        "| 항목 | Graph ON | Graph OFF |\n|------|----------|-----------|\n| Top-1 소스 | graph (score: 0.1387) | vector (score: 0.0164) |\n| 결과 수 | 10 | 10 |\n| Graph 고유 | 1건 | - |\n| 레이턴시 | 2.0ms | 1.8ms |\n| 답변 길이 | 346 chars | 132 chars |\n**Graph ON 답변** (발췌): 컨텍스트에 따르면 검색 성능 최적화를 위해 다음과 같은 전략을 사용할 수 있습니다.\n\n1. **하이브리드 검색 탐색**: 키워드 기반 검색, 의미적 검색, 벡터 검색을 지능적으로 결합합니다.\n2. **재귀 검색 및 쿼리 엔진**: 작은 덩어리로 시작해 점차 크고 맥락이 풍부한 정보를 검색하여 효율성과 응답 품질의 균형을 맞춥니다.\n3. **하위 쿼리**: ...\n\n**Graph OFF 답변** (발췌): 검색 성능 최적화를 위해서는 하이브리드 검색(키워드, 의미, 벡터 검색 통합), 재귀 검색(작은 덩어리에서 큰 덩어리로 점진적 검색), ANN 알고리즘(예: HNSW, FAISS)을 활용한 고속 근사 최근접 이웃 검색을 적용해야 합니다....",
+        "**HRKP** (486c, 5.6ms): 컨텍스트에 따르면 검색 성능 최적화를 위해 다음과 같은 전략을 사용할 수 있습니다:\n\n1. **하이브리드 검색 탐색**: 키워드 기반 검색, 의미적 검색, 벡터 검색을 지능적으로 결합합니다.\n2. **재귀 검색 및 쿼리 엔진**: 작은 덩어리로 검색을 시작한 후, 점차 더 크고 맥락이 풍부한 정보를 확보하여 효율성과 응답 품질의 균형을 맞춥니다.\n3. **...\n\n**RCSV** (438c, 330.6ms): 검색 성능을 최적화하려면 다음과 같은 전략을 활용해야 합니다:\n\n1. **하이브리드 검색 탐색**: 키워드 기반 검색, 의미적 검색, 벡터 검색을 지능적으로 결합하여 성능을 향상시킵니다.\n2. **재귀 검색 및 쿼리 엔진**: 작은 덩어리로 검색을 시작하고, 더 큰 맥락 정보를 확보하여 효율성과 응답의 맥락적 풍부함을 균형 있게 맞춥니다.\n3. **Step...",
+        "- 검색(retrieval)과 생성(generation)을 명확히 분리하고, 검색 품질에 집중해 최적화하는 모듈식 프레임워크가 제안됩니다[출처1].\n- **Gain Beyond RAG(GBR)**라는 새로운 보상 신호를 사용해 검색 전용 에이전트를 훈련시킵니다. GBR은 단순한 상위 k개 검색보다 ...\n\n**RCSV** [146.7ms, 10 results]:\n> 검색 성능을 최적화하려면 다음과 같은 전략을 활용해야 합니다:\n\n1. **하이브리드 검색 탐색**: 키워드 기반 검색, 의미적 검색, 벡터 검색을 조합하여 성능을 향상시킵니다.\n2. **재귀 검색 및 쿼리 엔진**: 작은 덩어리로 검색을 시작하고, 더 큰 맥락 정보를 확보하여 효율성과 응답의 맥락적 풍부함을 균형 있게 맞춥니다.\n3. **StepBack 프롬프트**: 구체적인 사례에서 벗어나 넓은 개념과 원칙을 기반으로 추론을 촉진합니다.\n4. **하위 쿼리**: 시나리오에 따라 트리 쿼리, 벡터 쿼리 또는 순차적 쿼리 방식을 사용..."
+      ],
+      "sources": [
+        "graph",
+        "graph",
+        "graph",
+        "graph",
+        "graph"
+      ],
+      "latency_ms": 1.9,
+      "result_count": 5,
+      "graph_unique_count": 2,
+      "top1_source": "graph",
+      "top1_score": 0.055979,
+      "answer": "컨텍스트에 따르면 검색 성능 최적화를 위해 다음과 같은 전략을 사용해야 합니다.\n\n1. **하이브리드 검색 탐색**: 키워드 기반 검색, 의미적 검색, 벡터 검색을 지능적으로 결합합니다.\n2. **재귀 검색 및 쿼리 엔진**: 작은 덩어리로 검색을 시작한 후 점차 더 크고 맥락이 풍부한 정보를 확보하여 효율성과 응답 품질의 균형을 맞춥니다.\n3. **하위 쿼리**: 트리 쿼리, 벡터 쿼리, 순차적 쿼리 등 시나리오에 맞는 방식을 적용합니다.\n4. **근사 최근접 이웃(ANN) 알고리즘**: HNSW, FAISS와 같은 알고리즘을 활용한 고속 검색을 적용합니다."
+    },
+    {
+      "question": "환경변수를 안전하게 관리하는 방법은?",
+      "type": "semantic",
+      "contexts": [
+        "**HRKP** (105c, 53.6ms): 컨텍스트에 환경변수를 안전하게 관리하는 구체적인 방법은 명시되어 있지 않습니다. 제공된 컨텍스트는 주로 자연환경 보전, 환경오염, 그리고 AI/ML 학습 작업 환경 정의에 관한 내용입니다....\n\n**RCSV** (410c, 411.3ms): 환경변수를 안전하게 관리하는 방법은 다음과 같습니다:\n\n1. **정기적인 점검**: 환경 관련 시설 및 장비의 정기적인 점검을 통해 이상 유무를 확인합니다.\n2. **환경영향평가**: 새로운 프로젝트나 시설 설치 시 환경영향평가를 실시하여 잠재적인 환경 영향을 사전에 파악합니다.\n3. **환경기준 준수**: 관련 법규 및 환경기준을 준수하여 오염물질 배출을...",
+        "**HRKP** (124c, 4.7ms): 컨텍스트에 제시된 환경변수 관리 방법은 없습니다. 컨텍스트는 AI 오케스트레이션의 보안 조치로 '데이터 암호화, 보안 API, 정기적인 보안 감사'를 언급하고 있으나, 이는 특정 '환경변수' 관리 방법을 지칭하지 않습니다....\n\n**RCSV** (323c, 356.4ms): 환경변수를 안전하게 관리하는 방법은 다음과 같습니다:\n\n1. **정기적인 모니터링**: 환경변수를 지속적으로 감시하여 이상 징후를 조기에 발견합니다.\n2. **환경기준 준수**: 관련 법규 및 환경기준을 준수하여 오염을 예방합니다.\n3. **위험 평가**: 환경영향평가를 실시하여 잠재적인 위험 요소를 사전에 파악합니다.\n4. **오염 방지 대책**: 환경오...",
+        "**HRKP-FULL** [grade=PARTIAL, 35541.5ms, 1 sources]:\n> 검색된 컨텍스트에는 '환경변수'의 안전한 관리 방법에 대한 직접적인 설명은 없습니다. 다만, [출처1]에서 **환경(environment)** 을 \"국민이 건강하고 쾌적하게 생활할 수 있도록 관리하고 보전하는 대상\"으로 정의하며, 이를 위해 법적·제도적 관리의 중요성을 언급하고 있습니다[출처1].\n\n이 맥락을 바탕으로, **일반적인 소프트웨어 개발에서 환경변수(environment variables)를 안전하게 관리하는 방법**을 보충 설명드리겠습니다. 이는 컨텍스트 외 일반 지식입니다.",
+        "- `.env` 파일에 환경변수를 저장하되, **반드시 `.gitignore`에 추가**하여 버전 관리 시스템에 실수로 커밋되지 않도록 합니다.\n   - `....\n\n**RCSV** [169.8ms, 10 results]:\n> 환경변수를 안전하게 관리하는 방법은 다음과 같습니다:\n\n1. **정기적인 모니터링**: 환경오염원 및 환경영향을 지속적으로 감시하여 문제를 조기에 발견합니다.\n2. **환경기준 준수**: 관련 법규 및 환경기준을 준수하여 환경오염을 예방합니다.\n3. **환경영향평가 실시**: 새로운 프로젝트나 활동에 대해 환경영향평가(EIA)를 실시하여 잠재적 영향을 분석합니다.\n4. **오염물질 관리**: 환경오염물질의 발생을 최소화하고, 발생 시 적절한 처리 및 제거 방법을 적용합니다.\n5. **교육 및 훈련**: 관련 직원에게 환경관리 및 안...",
+        "**HRKP-FULL** [grade=NONE, 24854.9ms, 0 sources]:\n> 검색된 문서에서 직접적인 정보를 찾지 못했습니다.  \n참고로 컨텍스트 외 일반 정보입니다.\n\n환경변수를 안전하게 관리하는 방법은 다음과 같습니다:"
+      ],
+      "sources": [
+        "graph",
+        "graph",
+        "graph",
+        "graph",
+        "graph"
+      ],
+      "latency_ms": 1.9,
+      "result_count": 5,
+      "graph_unique_count": 0,
+      "top1_source": "graph",
+      "top1_score": 0.056247,
+      "answer": "컨텍스트에 따르면, 환경변수를 안전하게 관리하는 방법은 다음과 같습니다.\n\n1. **정기적인 모니터링**: 환경변수를 지속적으로 감시하여 이상 징후를 조기에 발견합니다.\n2. **환경기준 준수**: 관련 법규 및 환경기준을 준수하여 오염을 예방합니다.\n3. **환경영향평가 실시**: 새로운 프로젝트나 활동에 대해 잠재적 영향을 사전에 분석합니다.\n4. **오염물질 관리**: 오염물질의 발생을 최소화하고 적절히 처리합니다.\n5. **교육 및 훈련**: 관련 직원에게 환경관리 및 안전 절차를 교육합니다."
+    }
+  ],
+  "graph_off_results": [
+    {
+      "question": "Neo4j와 Elasticsearch의 역할 차이점은?",
+      "type": "entity_relation",
+      "contexts": [
+        "**HRKP-FULL** [grade=PARTIAL, 45550.6ms, 2 sources]:\n> ## Neo4j와 Elasticsearch의 역할 차이점\n\n검색된 컨텍스트에는 Elasticsearch에 대한 정보는 있지만, Neo4j에 대한 직접적인 비교 내용은 포함되어 있지 않습니다. 컨텍스트에서 확인할 수 있는 Elasticsearch의 특징을 먼저 설명하고, 일반 지식으로 두 기술의 핵심적인 역할 차이를 보충하겠습니다.",
+        "| 항목 | Graph ON | Graph OFF |\n|------|----------|-----------|\n| Top-1 소스 | graph (score: 0.1530) | vector (score: 0.0164) |\n| 결과 수 | 10 | 10 |\n| Graph 고유 | 1건 | - |\n| 레이턴시 | 7.0ms | 3.9ms |\n| 답변 길이 | 174 chars | 160 chars |\n**Graph ON 답변** (발췌): 컨텍스트에 따르면, Neo4j는 그래프 데이터베이스(Graph DB)로, 주로 데이터 간의 관계와 연결성을 저장 및 분석하는 데 사용됩니다. 반면, Elasticsearch는 정형 데이터 검색, 전문 검색, 벡터 검색을 모두 제공하는 하이브리드 검색 엔진으로, 복합적인 검색 및 RAG 시스템 구현에 적합합니다....\n\n**Graph OFF 답변** (발췌): 컨텍스트에는 Neo4j에 대한 정보가 포함되어 있지 않으므로, Neo4j와 Elasticsearch의 역할 차이점에 대해 답변할 수 없습니다. 제공된 컨텍스트는 Elasticsearch의 기능과 하이브리드 RAG 시스템 구현, 그리고 pgvector와의 비교에만 초점을 맞추고 있습니다....",
+        "**HRKP-FULL** [grade=PARTIAL, 51795.8ms, 2 sources]:\n> 검색된 컨텍스트에는 Neo4j와 Elasticsearch의 직접적인 비교는 없지만, Elasticsearch의 특징과 RAG(Retrieval-Augmented Generation) 시스템에서의 역할은 설명되어 있습니다. 이를 바탕으로 두 기술의 일반적인 역할 차이점을 안내드리겠습니다.",
+        "**HRKP** (123c, 147.5ms): 컨텍스트에는 Neo4j와 Elasticsearch의 직접적인 역할 비교 정보가 포함되어 있지 않습니다. 제공된 내용은 Elasticsearch의 하이브리드 검색 기능과 pgvector와의 비교에만 초점을 맞추고 있습니다....\n\n**RCSV** (315c, 1067.4ms): Neo4j는 그래프 데이터베이스로, 데이터 간의 관계를 모델링하고 탐색하는 데 최적화되어 있습니다. 주로 복잡한 관계형 데이터를 처리하고, 노드와 엣지를 통해 데이터 간의 연결성을 강조합니다.\n\n반면, Elasticsearch는 분산 검색 엔진으로, 정형 데이터 검색, 전문 검색, 벡터 검색 기능을 제공합니다. 대규모 데이터에 대한 빠른 검색과 실시간 분석...",
+        "컨텍스트에 따르면 Elasticsearch는 주로 **대규모 데이터의 검색 및 분석 엔진**으로 사용됩니다 [출처1].  \n- **아키텍처**: 분산 시스템 기반으로 클러스터 구...\n\n**RCSV** [45.4ms, 10 results]:\n> 컨텍스트에 따르면, **Elasticsearch**는 하이브리드 RAG 시스템에서 정형 데이터 검색, 전문(Full-text) 검색, 벡터 검색을 모두 제공하는 검색 엔진의 역할을 합니다. **Neo4j**에 대한 정보는 컨텍스트에 없으므로 역할 차이를 설명할 수 없습니다...."
+      ],
+      "sources": [
+        "vector",
+        "keyword",
+        "vector",
+        "vector",
+        "keyword"
+      ],
+      "latency_ms": 2.9,
+      "result_count": 5,
+      "top1_source": "vector",
+      "top1_score": 0.043081,
+      "answer": "컨텍스트에 따르면, **Elasticsearch**는 정형 데이터 검색, 전문 검색, 벡터 검색을 모두 지원하는 하이브리드 검색 엔진으로, 대규모 데이터의 빠른 검색과 RAG 시스템 구현에 적합합니다. **Neo4j**는 컨텍스트에 직접적인 정보가 없으나, 일반적으로 그래프 데이터베이스로 데이터 간의 관계와 연결성을 저장 및 분석하는 데 특화되어 있습니다."
+    },
+    {
+      "question": "LangGraph와 LangChain 중 어떤 것을 사용해야 하나요?",
+      "type": "entity_relation",
+      "contexts": [
+        "**HRKP** (240c, 5.6ms): LangGraph와 LangChain 중 선택은 프로젝트의 복잡성과 필요에 따라 다릅니다.\n\n*   **LangChain**은 선형 워크플로우나 단순한 에이전트 패턴에 적합하며, 학습 곡선이 더 낮고 구현이 쉽습니다.\n*   **LangGraph**는 비선형 오케스트레이션이나 복잡한 태스크 흐름, 세밀한 제어가 필요한 유연한 워크플로우에 적합합니다.\n*  ...\n\n**RCSV** (261c, 481.9ms): LangGraph는 그래프에서 단계를 모델링하여 LLM을 사용하는 멀티액터 애플리케이션을 구축하는 데 적합하며, 상태 유지가 필요한 경우 유용합니다. 반면, LangChain은 대규모 언어 모델을 활용한 애플리케이션 개발을 위한 프레임워크로, 다양한 챗 모델과 컴포넌트를 통합하여 쉽게 애플리케이션을 구축할 수 있습니다. 따라서, 멀티액터 시스템이 필요하면 ...",
+        "**HRKP-FULL** [grade=HIGH, 27340.6ms, 5 sources]:\n> LangGraph와 LangChain 중 선택은 프로젝트의 **복잡성**과 **필요한 기능**에 따라 달라집니다. 검색된 컨텍스트를 바탕으로 핵심 기준을 안내드립니다.",
+        "**HRKP-FULL** [grade=HIGH, 30657.0ms, 5 sources]:\n> LangGraph와 LangChain 중 선택은 **프로젝트의 복잡성과 필요한 워크플로우 유형**에 따라 달라집니다. 컨텍스트에 제시된 핵심 기준을 바탕으로 선택을 도와드리겠습니다.",
+        "| 항목 | Graph ON | Graph OFF |\n|------|----------|-----------|\n| Top-1 소스 | graph (score: 0.2856) | vector (score: 0.0164) |\n| 결과 수 | 10 | 10 |\n| Graph 고유 | 1건 | - |\n| 레이턴시 | 2.0ms | 1.7ms |\n| 답변 길이 | 263 chars | 298 chars |\n**Graph ON 답변** (발췌): LangGraph와 LangChain 중 선택은 프로젝트의 복잡성과 필요에 따라 다릅니다.\n\n*   **LangChain**은 선형적인 워크플로우나 간단한 에이전트 패턴에 적합하며, 학습 곡선이 더 낮고 구현이 더 쉽습니다.\n*   **LangGraph**는 비선형 오케스트레이션이 필요한 복잡한 작업 흐름을 세밀하게 제어하고 설계해야 할 때 적합합니다. 더...\n\n**Graph OFF 답변** (발췌): LangGraph와 LangChain 중 선택은 프로젝트의 구체적인 필요에 따라 달라집니다.\n\n*   **LangChain**은 선형 워크플로우나 단순한 에이전트 패턴에 적합하며, 학습 곡선이 더 낮고 구현이 더 쉽습니다.\n*   **LangGraph**는 비선형 오케스트레이션을 통해 더 유연하고 세분화된 프로세스 기반 워크플로우(에이전트, 도구 호출, 절...",
+        "Ultimately, whether you choose LangChain, LangGraph, or a combination of both depends on the specific needs of your project.\n\nNote: The opinions expressed both in this article and paper are solely those of the authors and do not necessarily reflect the views or policies of their respective employers.\n\nStill have questions or think that something needs to be further clarified? Drop me a DM on LinkedIn! I'm always eager to engage in food for thought and iterate on my work.\n\n## References :\n\nNavigating the New Types of LLM Agents and ArchitecturesThe failure of ReAct agents gives way to a new generation of agents - and possibilities towardsdatascience.com\n\nHomeBuild language agents as graphs langchain-ai.github.io\n\nLangGraph and Research Agents | PineconeLangGraph is a graph-based agentic framework that allows us to build more flexible and controllable AI agents. Here…\n\nwww.pinecone.io"
+      ],
+      "sources": [
+        "vector",
+        "keyword",
+        "vector",
+        "keyword",
+        "vector"
+      ],
+      "latency_ms": 2.9,
+      "result_count": 5,
+      "top1_source": "vector",
+      "top1_score": 0.041888,
+      "answer": "LangGraph와 LangChain 중 선택은 프로젝트의 복잡성과 필요한 워크플로우 유형에 따라 다릅니다.\n\n*   **LangChain**은 선형적인 워크플로우나 간단한 에이전트 패턴에 적합하며, 학습 곡선이 낮고 구현이 쉽습니다.\n*   **LangGraph**는 비선형 오케스트레이션이나 복잡한 작업 흐름, 세밀한 제어가 필요한 유연한 워크플로우에 적합합니다.\n\n따라서, 간단한 애플리케이션에는 LangChain을, 복잡한 멀티액터 시스템이나 상태 유지가 필요한 고급 워크플로우에는 LangGraph를 고려하세요."
+    },
+    {
+      "question": "FastAPI와 PostgreSQL을 연동하여 RAGAS 평가를 수행하려면?",
+      "type": "entity_relation",
+      "contexts": [
+        "- **FastAPI 애플리케이션 설정**: PostgreSQL 연결을 위한 비동기 라이브러리(예: `asyncpg` 또는 `SQLAlchemy` with `async`)를 사용합니다.\n- **PostgreSQL 데이터베이스 구성*...\n\n**RCSV** [195.5ms, 10 results]:\n> FastAPI와 PostgreSQL을 연동하여 RAGAS 평가를 수행하려면 다음 단계를 따르면 됩니다:\n\n1. **FastAPI 설치**: FastAPI와 필요한 라이브러리(예: `uvicorn`, `sqlalchemy`, `asyncpg`)를 설치합니다.\n```bash\n   pip install fastapi uvicorn sqlalchemy asyncpg\n   ```\n2. **PostgreSQL 설정**: PostgreSQL 데이터베이스를 설정하고, 필요한 테이블을 생성합니다. RAGAS 평가에 필요한 데이터 구조...",
+        "**HRKP-FULL** [grade=NONE, 35955.0ms, 0 sources]:\n> 검색된 문서에서 직접적인 정보를 찾지 못했습니다.  \n참고로 컨텍스트 외 일반 정보를 기반으로 답변드립니다.\n\nFastAPI와 PostgreSQL을 연동하여 RAGAS(RAG Assessment) 평가를 수행하려면, 일반적으로 다음과 같은 단계를 고려할 수 있습니다:",
+        "**HRKP** (121c, 302.0ms): 컨텍스트에 FastAPI, PostgreSQL, RAGAS 평가의 구체적인 연동 방법은 명시되어 있지 않습니다. 제공된 정보는 RAG 구현 단계, 프레임워크 비교, 벡터 데이터베이스 비교 등에 초점을 맞추고 있습니다....\n\n**RCSV** (728c, 415.4ms): FastAPI와 PostgreSQL을 연동하여 RAGAS 평가를 수행하려면 다음 단계를 따르면 됩니다:\n\n1. **FastAPI 설치**: FastAPI를 설치합니다. `pip install fastapi uvicorn` 명령어를 사용합니다.\n  \n2. **PostgreSQL 설치 및 설정**: PostgreSQL 데이터베이스를 설치하고, 필요한 데이터베이...",
+        "**HRKP** (278c, 5.6ms): 컨텍스트에 FastAPI, PostgreSQL, RAGAS 평가에 대한 구체적인 연동 방법은 명시되어 있지 않습니다. 제공된 내용은 주로 도구 사용 에이전트, ReAct, Dynamic Planning + Execution, 그리고 LangChain, AutoGen, LangGraph와 같은 AI 에이전트 구현 프레임워크의 비교에 초점을 맞추고 있습니다.\n...\n\n**RCSV** (1219c, 408.2ms): FastAPI와 PostgreSQL을 연동하여 RAGAS 평가를 수행하려면 다음 단계를 따르면 됩니다:\n\n1. **FastAPI 설치**: FastAPI와 필요한 라이브러리(예: `uvicorn`, `sqlalchemy`, `asyncpg`)를 설치합니다.\n   \n   ```bash\n   pip install fastapi uvicorn sqlalchemy...",
+        "**HRKP-FULL** [grade=PARTIAL, 68195.5ms, 5 sources]:\n> FastAPI와 PostgreSQL을 연동하여 RAGAS(RAG Assessment) 평가를 수행하려면, **RAG 시스템의 구성 요소를 통합하고 평가 메트릭을 측정할 수 있는 파이프라인을 구축**해야 합니다. 검색된 컨텍스트에는 RAG 시스템의 일반적인 아키텍처와 구성 요소가 설명되어 있지만, RAGAS 평가를 위한 구체적인 FastAPI-PostgreSQL 연동 단계는 직접적으로 다루지 않습니다. 아래에서는 컨텍스트 정보를 기반으로 핵심 원리를 설명하고, 일반 지식으로 보충하여 실무 가이드를 제시합니다."
+      ],
+      "sources": [
+        "keyword",
+        "vector",
+        "keyword",
+        "keyword",
+        "vector"
+      ],
+      "latency_ms": 2.8,
+      "result_count": 5,
+      "top1_source": "keyword",
+      "top1_score": 0.043477,
+      "answer": "컨텍스트에 FastAPI와 PostgreSQL을 연동하여 RAGAS 평가를 수행하는 구체적인 단계는 명시되어 있지 않습니다. 제공된 정보는 주로 RAG 시스템의 일반 아키텍처, 프레임워크 비교, 도구 사용 에이전트 등에 초점을 맞추고 있습니다."
+    },
+    {
+      "question": "RAG Pipeline에서 BGE-M3 임베딩 모델의 역할은?",
+      "type": "multi_hop",
+      "contexts": [
+        "**HRKP** (65c, 5.5ms): 컨텍스트에 BGE-M3 임베딩 모델에 대한 언급이 없습니다. 따라서 제공된 정보로는 해당 질문에 답변할 수 없습니다....\n\n**RCSV** (116c, 349.3ms): RAG Pipeline에서 BGE-M3 임베딩 모델의 역할은 사용자가 입력한 쿼리를 벡터 표현으로 변환하여, 관련 데이터 검색 단계에서 벡터 데이터베이스에서 유사한 데이터 조각을 효과적으로 검색하는 것입니다....",
+        "**HRKP** (90c, 1022.9ms): 컨텍스트에 BGE-M3 임베딩 모델에 대한 언급이 없습니다. 제공된 자료에서는 RAG 파이프라인에서 E5 임베딩을 사용한 예시(RAG-E5)만 설명하고 있습니다....\n\n**RCSV** (116c, 303.9ms): RAG Pipeline에서 BGE-M3 임베딩 모델의 역할은 사용자가 입력한 쿼리를 벡터 표현으로 변환하여, 관련 데이터 검색 단계에서 벡터 데이터베이스에서 유사한 데이터 조각을 효과적으로 검색하는 것입니다....",
+        "**HRKP-FULL** [grade=NONE, 24382.9ms, 0 sources]:\n> 검색된 문서에서 직접적인 정보를 찾지 못했습니다.\n\n참고로 컨텍스트 외 일반 정보입니다. RAG(Retrieval-Augmented Generation) 파이프라인에서 BGE-M3 임베딩 모델의 주요 역할은 **고품질의 검색(Retrieval)을 위해 텍스트를 의미적으로 풍부하고 정밀한 벡터 표현(임베딩)으로 변환하는 것**입니다. 구체적인 역할은 다음과 같습니다.\n\n1. **텍스트의 벡터 표현 생성**: 질문(쿼리)과 문서(지식 소스)를 고차원의 숫자 벡터로 변환하여, 의미적 유사도를 계산할 수 있게 합니다.\n2. **효율적인 유...\n\n**RCSV** [162.1ms, 10 results]:\n> RAG Pipeline에서 BGE-M3 임베딩 모델의 역할은 사용자가 입력한 쿼리를 벡터 표현으로 변환하여, 관련 데이터 검색 단계에서 벡터 데이터베이스에서 유사한 데이터 조각을 효과적으로 검색하는 것입니다....",
+        "**HRKP-FULL** [grade=PARTIAL, 28697.5ms, 1 sources]:\n> 검색된 컨텍스트에서는 BGE-M3 임베딩 모델에 대한 직접적인 설명이 포함되어 있지 않습니다 [출처1]. 따라서 컨텍스트 정보만으로는 질문에 답변할 수 없습니다.\n\n참고로 컨텍스트 외 일반 정보입니다:\n**BGE-M3**는 RAG(Retrieval-Augmented Generation) 파이프라인에서 **임베딩(Embedding)** 단계의 핵심 구성 요소 역할을 합니다. 구체적인 역할은 다음과 같습니다.\n\n1.  **다양한 정보의 수치화 표현 생성**: 텍스트, 이미지 등 다양한 형식의 질문과 문서 조각(Chunk)을 고정된 길이...\n\n**RCSV** [9.5ms, 10 results]:\n> 컨텍스트에 BGE-M3 임베딩 모델에 대한 구체적인 언급이 없습니다. 제공된 정보에서는 RAG 시스템에서 임베딩 모델의 일반적인 역할(예: Advanced 방식의 '검색 중 임베딩 모델 최적화', 로컬 RAG의 '로컬 임베딩 모델 사용')만 설명하고 있습니다....",
+        "| 항목 | Graph ON | Graph OFF |\n|------|----------|-----------|\n| Top-1 소스 | graph (score: 0.2856) | vector (score: 0.0164) |\n| 결과 수 | 10 | 10 |\n| Graph 고유 | 1건 | - |\n| 레이턴시 | 1.6ms | 1.5ms |\n| 답변 길이 | 56 chars | 147 chars |\n**Graph ON 답변** (발췌): 컨텍스트에 BGE-M3 임베딩 모델에 대한 언급이 없습니다. 따라서 해당 질문에 답변할 수 없습니다....\n\n**Graph OFF 답변** (발췌): 컨텍스트에 BGE-M3 임베딩 모델에 대한 언급이 없습니다. 따라서 해당 모델의 역할에 대해 답변할 수 없습니다.\n\n제공된 컨텍스트에서는 RAG 파이프라인에서 임베딩 모델의 역할 예시로 **E5 임베딩**을 사용한 **RAG-E5**에 대해서만 설명하고 있습니다...."
+      ],
+      "sources": [
+        "vector",
+        "keyword",
+        "vector",
+        "keyword",
+        "vector"
+      ],
+      "latency_ms": 2.2,
+      "result_count": 5,
+      "top1_source": "vector",
+      "top1_score": 0.043557,
+      "answer": "제공된 컨텍스트에는 BGE-M3 임베딩 모델에 대한 구체적인 언급이 없습니다. 컨텍스트에서는 RAG 파이프라인에서 E5 임베딩 모델을 사용한 예시만 설명하고 있으므로, BGE-M3 모델의 역할에 대해 답변할 수 없습니다."
+    },
+    {
+      "question": "Kubernetes에서 Spring Boot 마이크로서비스를 배포하는 방법은?",
+      "type": "multi_hop",
+      "contexts": [
+        "**HRKP** (134c, 5.3ms): 컨텍스트에 Spring Boot 마이크로서비스 배포 방법에 대한 구체적인 내용이 없습니다. 제공된 컨텍스트는 Kubernetes가 마이크로서비스와 분산 애플리케이션 관리에 유용한 오케스트레이션 플랫폼이라는 일반적인 설명만 포함하고 있습니다....\n\n**RCSV** (656c, 409.0ms): Kubernetes에서 Spring Boot 마이크로서비스를 배포하는 방법은 다음과 같습니다:\n\n1. **Docker 이미지 생성**: Spring Boot 애플리케이션을 Docker 이미지로 패키징합니다. `Dockerfile`을 작성하고 `docker build` 명령어로 이미지를 생성합니다.\n\n2. **Kubernetes 클러스터 설정**: Kuber...",
+        "**HRKP** (144c, 239.9ms): 컨텍스트에는 Kubernetes에서 Spring Boot 마이크로서비스를 배포하는 구체적인 방법에 대한 정보가 포함되어 있지 않습니다. 제공된 컨텍스트는 Kubernetes가 마이크로서비스 관리에 유용한 기반을 제공한다는 일반적인 설명만을 포함하고 있습니다....\n\n**RCSV** (640c, 329.4ms): Kubernetes에서 Spring Boot 마이크로서비스를 배포하는 방법은 다음과 같습니다:\n\n1. **Docker 이미지 생성**: Spring Boot 애플리케이션을 Docker 이미지로 패키징합니다. `Dockerfile`을 작성하고 `docker build` 명령어로 이미지를 생성합니다.\n\n2. **Kubernetes 클러스터 설정**: Kuber...",
+        "**HRKP-FULL** [grade=NONE, 51646.1ms, 0 sources]:\n> 검색된 문서에서 직접적인 정보를 찾지 못했습니다.\n\n참고로 컨텍스트 외 일반 정보로, Kubernetes에 Spring Boot 마이크로서비스를 배포하는 일반적인 방법은 다음과 같은 단계로 진행됩니다.",
+        "*   **Dockerfile 작성:** Spring Boot 애플리케이션 JAR 파일을 실행하는 Docker 이미지를 생성하기 위한 Dockerfile을 작성합니다.\n*   **이미지 빌드 및 레지스트리 푸시:** Docker 이미지를 빌드하고, Docker Hub나 사설 레지스...\n\n**RCSV** [205.1ms, 10 results]:\n> Kubernetes에서 Spring Boot 마이크로서비스를 배포하는 방법은 다음과 같습니다:\n\n1. **Docker 이미지 생성**: Spring Boot 애플리케이션을 Docker 이미지로 패키징합니다. `Dockerfile`을 작성하고 `docker build` 명령어로 이미지를 생성합니다.\n\n2. **Kubernetes 클러스터 설정**: Kubernetes 클러스터를 설정합니다. 로컬 환경에서는 Minikube를 사용할 수 있고, 클라우드에서는 GKE, EKS, AKS 등을 사용할 수 있습니다.\n\n3. **Kubernete...",
+        "**HRKP-FULL** [grade=NONE, 33186.3ms, 0 sources]:\n> 검색된 문서에서 직접적인 정보를 찾지 못했습니다.\n\n참고로 컨텍스트 외 일반 정보로, Kubernetes에 Spring Boot 마이크로서비스를 배포하는 일반적인 방법은 다음과 같은 단계로 진행됩니다."
+      ],
+      "sources": [
+        "vector",
+        "keyword",
+        "vector",
+        "keyword",
+        "vector"
+      ],
+      "latency_ms": 1.8,
+      "result_count": 5,
+      "top1_source": "vector",
+      "top1_score": 0.043998,
+      "answer": "Kubernetes에서 Spring Boot 마이크로서비스를 배포하는 방법은 다음과 같습니다.\n\n1. **Docker 이미지 생성**: Spring Boot 애플리케이션을 Docker 이미지로 패키징합니다. `Dockerfile`을 작성하고 `docker build` 명령어로 이미지를 생성합니다.\n2. **Kubernetes 클러스터 설정**: Kubernetes 클러스터를 설정합니다. 로컬 환경에서는 Minikube를 사용할 수 있고, 클라우드에서는 GKE, EKS, AKS 등을 사용할 수 있습니다.\n3. **Kubernetes 배포 파일 작성**: 애플리케이션을 배포하기 위한 Kubernetes 매니페스트 파일(예: Deployment, Service)을 작성합니다.\n4. **배포 및 관리**: `kubectl apply` 명령어로 애플리케이션을 배포하고, Kubernetes를 통해 서비스를 관리 및 확장합니다."
+    },
+    {
+      "question": "Agentic AI 에이전트 워크플로우 설계 패턴은 무엇인가요?",
+      "type": "multi_hop",
+      "contexts": [
+        "**HRKP** (448c, 4.9ms): 컨텍스트에 따르면, Agentic AI 에이전트 워크플로우 설계 패턴은 다음과 같습니다:\n\n1. **파이프라인 패턴**: 작업이 순차적인 단계별 흐름을 따라 각 에이전트가 단계를 처리합니다.\n2. **ReAct 패턴**: 추론(Reasoning)과 행동(Action)을 번갈아 수행하여 복잡한 문제를 단계적으로 해결합니다.\n3. **Supervisor-Wor...\n\n**RCSV** (442c, 440.5ms): Agentic AI 에이전트 워크플로우 설계 패턴은 다음과 같습니다:\n\n1. **결정론적 구조**: 예측 가능한 실행 경로를 제공하여 작업을 명확하게 정의된 하위 작업으로 분해합니다.\n2. **에이전트와 워크플로우의 상호보완성**: 에이전트는 워크플로우 내에서 자율적으로 특정 과업을 수행하며, 워크플로우는 전체 프로세스를 조율합니다.\n3. **데이터 흐름 ...",
+        "**HRKP** (528c, 2463.6ms): 컨텍스트에 언급된 Agentic AI 에이전트 워크플로우 설계 패턴은 다음과 같습니다.\n\n1. **파이프라인 패턴** : 작업이 순차적으로 진행되는 단계별 흐름입니다.\n2. **ReAct(Reason-then-Act) 패턴** : 추론과 행동을 번갈아 수행하여 복잡한 문제를 단계적으로 해결합니다.\n3. **Plan-then-Act(플래닝) 패턴** : 실행...\n\n**RCSV** (462c, 392.3ms): Agentic AI 에이전트 워크플로우 설계 패턴은 다음과 같습니다:\n\n1. **결정론적 구조**: 예측 가능한 실행 경로를 제공하여 작업을 명확하게 정의된 하위 작업으로 분해합니다.\n2. **에이전트와 워크플로우의 상호보완성**: 에이전트는 워크플로우 내에서 자율적으로 특정 과업을 수행하며, 워크플로우는 전체 프로세스를 조율합니다.\n3. **데이터 흐름 ...",
+        "| 항목 | Graph ON | Graph OFF |\n|------|----------|-----------|\n| Top-1 소스 | graph (score: 0.2856) | keyword (score: 0.0289) |\n| 결과 수 | 10 | 10 |\n| Graph 고유 | 1건 | - |\n| 레이턴시 | 1.6ms | 1.6ms |\n| 답변 길이 | 356 chars | 512 chars |\n**Graph ON 답변** (발췌): 컨텍스트에 언급된 Agentic AI 워크플로우 설계 패턴은 다음과 같습니다.\n\n1. **파이프라인 패턴**: 작업이 순차적으로 진행되며, 각 단계를 에이전트가 처리합니다.\n2. **ReAct 패턴**: 추론(Reasoning)과 행동(Action)을 반복하여 복잡한 문제를 해결합니다.\n3. **Supervisor-Worker 구조**: 감독자가 작업을 계...\n\n**Graph OFF 답변** (발췌): Agentic AI 에이전트 워크플로우 설계 패턴은 다음과 같습니다.\n\n1. **Pipeline 패턴**: 작업이 순차적인 단계별 흐름을 따라가며, 각 단계를 에이전트가 처리합니다. 조립 라인과 유사한 구조입니다.\n2. **ReAct(Reason-then-Act) 패턴**: 추론(Reasoning)과 행동(Action)을 번갈아 수행하여 복잡한 문제를 단계...",
+        "1. **Pipeline (파이프라인) 패턴**\n   - 작업이 순차적인 단계 흐름을 따라가며, 각 단계를 에이전트가 차례로 처리합니다. 조립 라인과 유사하게 각 에이전트는 명확한 역할을 가집니다 [출처1].\n\n2. **Reason-then-Act (ReAct) 패턴**\n ...\n\n**RCSV** [169.3ms, 10 results]:\n> Agentic AI 에이전트 워크플로우 설계 패턴은 다음과 같습니다:\n\n1. **결정론적 구조**: 예측 가능한 실행 경로를 제공하여 작업을 명확하게 정의된 하위 작업으로 분해합니다.\n2. **에이전트와 워크플로우의 상호보완성**: 에이전트는 워크플로우 내에서 자율적으로 작업을 수행하며, 워크플로우는 전체 프로세스를 조율합니다.\n3. **데이터 흐름 제어**: 조건에 따라 분기 및 루프를 처리하여 최적화된 데이터 처리를 위한 로직을 형성합니다.\n4. **에이전트 구성**: 대리 에이전트와 여러 작업 에이전트로 구성되어, 대리 에이전...",
+        "1. **파이프라인 (Pipeline) 패턴**\n   - 작업이 단계별 흐름을 따라 순차적으로 처리되는 방식입니다. 각 단계는 특정 에이전트가 담당하며, 조립 라인처럼 구성됩니다 [출처1].\n\n2. **Reason-then-Act (ReAct) 패턴**\n   - 추론(Reasoning)과 행동(Ac...\n\n**RCSV** [10.1ms, 10 results]:\n> 컨텍스트에 따르면, Agentic AI 에이전트 워크플로우 설계 패턴은 **에이전트와 구조화된 워크플로우가 상호보완적으로 결합된 '에이전틱 시스템'**입니다.\n\n주요 설계 패턴은 다음과 같습니다.\n\n1.  **계층적 에이전트 구성**: 대리 에이전트(Supervisor)가 사용자 요청을 받아 여러 작업 에이전트(Worker)에게 명령을 전달하고 조율합니다.\n2.  **결정론적 워크플로우**: 작업을 명확하고 고정된 하위 작업으로 분해하여, 비교적 선형적이고 예측 가능한 경로(예: 생성 후 번역)로 자동화 프로세스를 제공합니다.\n3...."
+      ],
+      "sources": [
+        "vector",
+        "vector",
+        "vector",
+        "keyword",
+        "keyword"
+      ],
+      "latency_ms": 1.7,
+      "result_count": 5,
+      "top1_source": "vector",
+      "top1_score": 0.044077,
+      "answer": "컨텍스트에 언급된 Agentic AI 에이전트 워크플로우 설계 패턴은 다음과 같습니다.\n\n1. **파이프라인 패턴**: 작업이 순차적인 단계별 흐름을 따라 각 에이전트가 단계를 처리합니다.\n2. **ReAct(Reason-then-Act) 패턴**: 추론과 행동을 번갈아 수행하여 복잡한 문제를 단계적으로 해결합니다.\n3. **Supervisor-Worker 구조**: 감독자(Supervisor)가 작업을 계획하고 여러 작업자(Worker) 에이전트에게 할당하여 조율합니다.\n4. **결정론적 구조**: 작업을 예측 가능한 실행 경로로 분해합니다.\n5. **에이전트와 워크플로우의 상호보완성**: 에이전트는 자율적으로 과업을 수행하고, 워크플로우는 전체 프로세스를 조율합니다."
+    },
+    {
+      "question": "Docker Compose 설정 방법은?",
+      "type": "keyword",
+      "contexts": [
+        "**HRKP-FULL** [grade=NONE, 29066.5ms, 0 sources]:\n> 검색된 문서에서 직접적인 정보를 찾지 못했습니다.\n\n참고로 컨텍스트 외 일반 정보입니다. Docker Compose는 여러 컨테이너로 구성된 애플리케이션을 정의하고 실행하기 위한 도구로, `docker-compose.yml` 파일을 사용하여 설정합니다. 기본적인 설정 방법은 다음과 같습니다.",
+        "**HRKP** (144c, 132.6ms): 컨텍스트에 Docker Compose 설정 방법은 명시되어 있지 않습니다. 제공된 내용에서는 Docker Desktop 환경에서 PostgreSQL 컨테이너와 MCP 서버를 설정하는 방법으로 **Docker 방식**과 **NPX 방식**만 언급되어 있습니다....\n\n**RCSV** (78c, 416.0ms): 컨텍스트에 Docker Compose 설정 방법에 대한 정보가 포함되어 있지 않습니다. 따라서 해당 질문에 대한 답변을 제공할 수 없습니다....",
+        "**HRKP** (191c, 5.6ms): 컨텍스트에는 Docker Compose 설정 방법에 대한 정보가 포함되어 있지 않습니다. 제공된 내용은 Docker Desktop 환경에서 PostgreSQL 컨테이너와 MCP 서버를 설정하는 개요와 두 가지 방식(Docker 방식과 NPX 방식)을 언급하고 있지만, 구체적인 Docker Compose 설정 절차나 예시는 설명하지 않습니다....\n\n**RCSV** (78c, 366.5ms): 컨텍스트에 Docker Compose 설정 방법에 대한 정보는 포함되어 있지 않습니다. 따라서 해당 질문에 대한 답변을 제공할 수 없습니다....",
+        "**HRKP-FULL** [grade=NONE, 33810.5ms, 0 sources]:\n> 검색된 문서에서 직접적인 정보를 찾지 못했습니다.\n\n참고로 컨텍스트 외 일반 정보입니다. Docker Compose는 여러 컨테이너로 구성된 애플리케이션을 정의하고 실행하기 위한 도구입니다. 기본적인 설정 방법은 다음과 같습니다.",
+        "```yaml\nversion: '3....\n\n**RCSV** [6.9ms, 10 results]:\n> 컨텍스트에 Docker Compose 설정 방법은 명시되어 있지 않습니다. 컨텍스트에서는 Docker Desktop 환경에서 PostgreSQL과 MCP 서버를 설정하는 두 가지 방식으로 **Docker 방식**(이미지 실행 또는 직접 빌드)과 **NPX 방식**만 언급하고 있습니다...."
+      ],
+      "sources": [
+        "vector",
+        "keyword",
+        "keyword",
+        "vector",
+        "vector"
+      ],
+      "latency_ms": 1.6,
+      "result_count": 5,
+      "top1_source": "vector",
+      "top1_score": 0.042835,
+      "answer": "컨텍스트에는 Docker Compose 설정 방법에 대한 정보가 포함되어 있지 않습니다. 제공된 내용에서는 Docker Desktop 환경에서 PostgreSQL과 MCP 서버를 설정할 때 **Docker 방식**과 **NPX 방식**만 언급하고 있습니다."
+    },
+    {
+      "question": "RRF 알고리즘이 Hybrid 검색에서 하는 역할은?",
+      "type": "keyword",
+      "contexts": [
+        "**HRKP-FULL** [grade=PARTIAL, 22382.3ms, 1 sources]:\n> 검색된 컨텍스트에는 RRF(Reciprocal Rank Fusion) 알고리즘에 대한 직접적인 설명이 포함되어 있지 않습니다 [출처1]. 따라서 컨텍스트 외 일반 지식을 바탕으로 답변드립니다.\n\n**RRF(Reciprocal Rank Fusion) 알고리즘의 역할**\nRRF는 **하이브리드 검색(Hybrid Search)** 에서 서로 다른 검색 방식(예: 키워드 기반 검색과 벡터 유사도 검색)의 결과를 효과적으로 **결합(Reranking)** 하여 최종 순위를 매기는 데 사용되는 알고리즘입니다.\n\n주요 역할은 다음과 같습니다.\n...\n\n**RCSV** [142.1ms, 10 results]:\n> RRF 알고리즘은 Hybrid 검색에서 검색 결과의 순위를 조정하는 역할을 합니다. 이를 통해 키워드 기반 검색, 의미 기반 검색, 벡터 검색의 결과를 통합하여 최종적으로 더 정확하고 관련성 높은 응답을 생성하는 데 기여합니다....",
+        "**HRKP** (165c, 6.3ms): RRF(Reciprocal Rank Fusion) 알고리즘은 하이브리드 검색에서 키워드 기반 검색(BM25)과 벡터 검색(KNN)과 같은 서로 다른 검색 기법의 결과를 통합하고 재순위화하는 역할을 합니다. 이를 통해 단일 검색 방식의 한계를 보완하고 최종 검색 결과의 정확성과 관련성을 높입니다....\n\n**RCSV** (127c, 324.7ms): RRF 알고리즘은 Hybrid 검색에서 검색 결과의 순위를 조정하는 역할을 합니다. 이를 통해 키워드 기반 검색, 의미 기반 검색, 벡터 검색의 결과를 통합하여 최종적으로 더 정확하고 관련성 높은 응답을 생성하는 데 기여합니다....",
+        "**HRKP** (153c, 622.6ms): RRF(Reciprocal Rank Fusion) 알고리즘은 하이브리드 검색에서 키워드 기반 검색(예: BM25)과 벡터 검색의 결과를 통합하고 순위를 재조정하는 역할을 합니다. 이를 통해 서로 다른 검색 방법의 장점을 결합하여 최종 검색 결과의 정확성과 관련성을 높입니다....\n\n**RCSV** (128c, 368.3ms): RRF 알고리즘은 Hybrid 검색에서 검색 결과의 순위를 재조정하는 역할을 합니다. 이를 통해 키워드 기반 검색, 의미 기반 검색, 벡터 검색의 결과를 통합하여 최종적으로 더 정확하고 관련성 높은 응답을 생성하는 데 기여합니다....",
+        "**HRKP-FULL** [grade=PARTIAL, 35569.8ms, 3 sources]:\n> 검색된 컨텍스트에는 RRF(Reciprocal Rank Fusion) 알고리즘에 대한 직접적인 설명은 포함되어 있지 않습니다. 그러나 컨텍스트에서 **하이브리드 검색(Hybrid Search)** 은 발전된 RAG의 핵심 특징 중 하나로 언급되어 있으며[출처1], 이는 일반적으로 서로 다른 검색 방법(예: 키워드 기반 검색과 벡터 유사도 검색)의 결과를 결합하는 기법입니다.\n\n**일반 지식으로 보충한 답변은 다음과 같습니다.**\nRRF(Reciprocal Rank Fusion)는 하이브리드 검색에서 **여러 검색 방법(예: 키워드 ...\n\n**RCSV** [6.4ms, 10 results]:\n> 컨텍스트에 따르면, RAG 파이프라인 최적화에서 Hybrid 검색은 키워드 기반 검색과 의미 기반 벡터 검색 같은 기법을 지능적으로 결합하여 성능 균형을 최적화합니다....",
+        "Reciprocal Rank Fusion (RRF) 알고리즘의 정확성, 안정성, 엣지 케이스 대응을 검증하기 위한 테스트 계획입니다. RRF는 Elasticsearch(Vector)와 Neo4j(Graph) 등 다중 검색 소스의 결과를 융합하여 통합 순위를 생성하는 핵심 알고리즘으로, Hybrid RAG 파이프라인의 품질에 직접적인 영향을 미칩니다."
+      ],
+      "sources": [
+        "vector",
+        "vector",
+        "keyword",
+        "vector",
+        "vector"
+      ],
+      "latency_ms": 1.6,
+      "result_count": 5,
+      "top1_source": "vector",
+      "top1_score": 0.044262,
+      "answer": "RRF 알고리즘은 Hybrid 검색에서 키워드 기반 검색과 벡터 검색과 같은 서로 다른 검색 기법의 결과를 통합하고 재순위화하는 역할을 합니다. 이를 통해 최종 검색 결과의 정확성과 관련성을 높입니다."
+    },
+    {
+      "question": "RAGAS 평가 메트릭의 종류와 의미는?",
+      "type": "keyword",
+      "contexts": [
+        "**HRKP-FULL** [grade=NONE, 29268.2ms, 0 sources]:\n> 검색된 문서에서 직접적인 정보를 찾지 못했습니다.\n\n참고로 컨텍스트 외 일반 정보입니다. RAGAS(RAG Assessment)는 Retrieval-Augmented Generation(RAG) 시스템의 성능을 평가하기 위한 오픈소스 프레임워크로, 여러 메트릭을 통해 시스템의 품질을 종합적으로 측정합니다. 주요 평가 메트릭의 종류와 의미는 다음과 같습니다.",
+        "**HRKP-FULL** [grade=NONE, 36166.9ms, 0 sources]:\n> 검색된 문서에서 직접적인 정보를 찾지 못했습니다.\n\n참고로 컨텍스트 외 일반 정보입니다. RAGAS(RAG Assessment)는 Retrieval-Augmented Generation(RAG) 시스템의 성능을 평가하기 위한 오픈소스 프레임워크로, 여러 메트릭을 제공합니다. 주요 평가 메트릭의 종류와 의미는 다음과 같습니다.",
+        "**HRKP** (142c, 128.1ms): 컨텍스트에 RAGAS 평가 메트릭의 구체적인 종류와 의미에 대한 정보가 명시적으로 포함되어 있지 않습니다. 제공된 내용은 RAG 시스템의 일반적인 개선 방법, 에이전트 기반 RAG의 아키텍처, 그리고 비교 분석 시 RAG의 한계에 초점을 맞추고 있습니다....\n\n**RCSV** (734c, 355.5ms): RAGAS 평가 메트릭의 종류와 의미는 다음과 같습니다:\n\n1. **테스트 정확도 (Accuracy)**: 전체 예측 중 맞춘 비율을 계산하며, 간단하고 직관적입니다. 그러나 불균형 데이터에서는 신뢰할 수 없습니다.\n\n2. **혼동 행렬 (Confusion Matrix)**: 실제 클래스와 예측 클래스를 교차 표로 표현하여 TP, FP, FN, TN의 개수...",
+        "**HRKP** (185c, 5.6ms): 컨텍스트에 제공된 정보에는 RAGAS 평가 메트릭의 구체적인 종류와 의미에 대한 설명이 없습니다. 컨텍스트는 RAG 시스템의 한계, 에이전트 기반 RAG의 구조, 그리고 성능 평가 시 'Generation Accuracy'를 사용하는 한 가지 예시만 언급하고 있습니다.\n\n따라서, 주어진 컨텍스트만으로는 질문에 답변할 수 없습니다....\n\n**RCSV** (736c, 353.3ms): RAGAS 평가 메트릭의 종류와 의미는 다음과 같습니다:\n\n1. **테스트 정확도 (Accuracy)**: 전체 예측 중 맞춘 비율을 계산하며, 간단하고 직관적입니다. 그러나 불균형 데이터에서는 신뢰할 수 없습니다.\n\n2. **혼동 행렬 (Confusion Matrix)**: 실제 클래스와 예측 클래스를 교차 표로 표현하여 TP, FP, FN, TN의 개수...",
+        "- **의미**: 생성된 답변이 정답(ground truth)과 얼마나 일치하는지 평가합니다. 사실적 정확성과 의미적 유사성을 종합적으로 측정합니...\n\n**RCSV** [8.7ms, 10 results]:\n> 컨텍스트에 RAGAS 평가 메트릭에 대한 정보가 없습니다. 제공된 컨텍스트는 주식 발행, 회사 합병, 점검능력 평가 수수료, 딥러닝 모델 평가 일반론 및 모델 개발 프로세스에 관한 내용이며, RAGAS라는 특정 평가 프레임워크의 메트릭 종류와 의미는 포함되어 있지 않습니다...."
+      ],
+      "sources": [
+        "vector",
+        "vector",
+        "keyword",
+        "keyword",
+        "keyword"
+      ],
+      "latency_ms": 2.0,
+      "result_count": 5,
+      "top1_source": "vector",
+      "top1_score": 0.043068,
+      "answer": "제공된 컨텍스트에는 RAGAS 평가 메트릭의 구체적인 종류와 의미에 대한 정보가 명시적으로 포함되어 있지 않습니다. 컨텍스트는 이 주제에 대해 직접적인 답변을 제공할 수 없음을 반복적으로 언급하고 있습니다."
+    },
+    {
+      "question": "대규모 문서를 효율적으로 처리하는 방법은?",
+      "type": "semantic",
+      "contexts": [
+        "**HRKP-FULL** [grade=HIGH, 25886.7ms, 2 sources]:\n> 대규모 문서를 효율적으로 처리하는 방법은 **재순위화(Reranking)** 를 통해 가장 관련성 높은 문서를 우선적으로 선별하고, 불필요한 정보를 걸러내는 것입니다.\n\n[출처2]에 따르면, 재순위화 시스템은 관련성 점수를 기준으로 문서를 우선순위화하여 정밀도(상위 결과의 높은 관련성 보장)를 향상시킵니다. 이 과정에서 관련성 낮은 문서는 필터링되며, 방대한 데이터셋을 고도로 정제된 문서 목록으로 변환합니다. 즉, 대규모 문서 처리의 핵심은 **효율적인 필터링과 우선순위 지정**을 통해 핵심 정보에 집중하는 것입니다.\n\n참고로 컨텍...\n\n**RCSV** [12.4ms, 10 results]:\n> 컨텍스트에 따르면, 대규모 문서를 효율적으로 처리하는 방법은 **RAG(Retrieval-Augmented Generation)** 접근법입니다. 이 방법은 문서를 작은 텍스트 청크로 분할하고, 이를 임베딩으로 변환하여 벡터 저장소에 저장한 후, 사용자 질문과 의미적으로 유사한 문서를 검색하여 LLM의 응답을 강화합니다....",
+        "**HRKP-FULL** [grade=HIGH, 17832.2ms, 2 sources]:\n> 대규모 문서를 효율적으로 처리하는 방법은 **재순위화(Reranking)** 를 통해 가장 관련성 높은 문서를 우선적으로 선별하고, 불필요한 컨텍스트를 제거하는 것입니다.  \n\n검색된 컨텍스트에 따르면, 재순위화는 시스템이 가장 관련성 높은 문서를 우선시하여 정밀도(Precision)를 높이고, 관련성 낮은 문서는 걸러내도록 합니다. 이렇게 두 단계(필터링 및 우선순위화)를 거쳐 방대한 데이터셋을 고도로 관련성 있는 문서 목록으로 정제할 수 있습니다[출처2].  \n\n또한, 재순위화를 수행하면 관련 없는 컨텍스트를 제거(prune)하...\n\n**RCSV** [174.3ms, 10 results]:\n> 대규모 문서를 효율적으로 처리하는 방법은 다음과 같습니다:\n\n1. **청킹(Chunking)**: 긴 문서를 작은 청크로 나누어 각 청크를 독립적으로 검색할 수 있도록 합니다. 이를 통해 질문과 관련된 문서를 더 빠르고 정확하게 찾을 수 있습니다.\n\n2. **문맥 유지**: LLM의 입력 길이에 제한이 있으므로, 청크 단위로 나누어 각 청크가 문맥을 유지하면서 처리될 수 있도록 합니다.\n\n3. **정확도 향상**: 작은 청크 단위로 검색하면 관련성이 높은 문서를 더 정확하게 찾을 수 있어 최종 응답의 품질이 향상됩니다.\n\n4. **...",
+        "**HRKP** (327c, 6.8ms): 컨텍스트에 따르면, 대규모 문서를 효율적으로 처리하는 방법은 **청킹(Chunking)** 작업을 통해 문서를 작은 단위로 나누는 것입니다. 이는 다음과 같은 이유로 효율성을 높입니다:\n\n1. **효율적인 검색**: 각 청크를 독립적으로 검색하여 관련 문서를 빠르고 정확하게 찾습니다.\n2. **문맥 유지**: LLM의 입력 길이 제한 내에서 각 청크가 문맥...\n\n**RCSV** (358c, 318.5ms): 대규모 문서를 효율적으로 처리하는 방법은 다음과 같습니다:\n\n1. **청킹(Chunking)**: 긴 문서를 작은 청크로 나누어 각 청크를 독립적으로 검색할 수 있도록 합니다. 이를 통해 질문과 관련된 문서를 더 빠르고 정확하게 찾을 수 있습니다.\n\n2. **문맥 유지**: LLM의 입력 길이에 제한이 있으므로, 청크 단위로 나누어 각 청크가 문맥을 유지하...",
+        "**HRKP** (417c, 56.1ms): 대규모 문서를 효율적으로 처리하는 방법은 **청킹(Chunking)** 작업을 통해 문서를 작은 단위로 나누는 것입니다. 이는 다음과 같은 이유로 필요합니다:\n\n1. **효율적인 검색**: 작은 청크로 나누면 각 청크를 독립적으로 검색하여 질문과 관련된 문서를 빠르고 정확하게 찾을 수 있습니다.\n2. **문맥 유지**: LLM의 입력 길이 제한을 고려하여 ...\n\n**RCSV** (358c, 591.3ms): 대규모 문서를 효율적으로 처리하는 방법은 다음과 같습니다:\n\n1. **청킹(Chunking)**: 긴 문서를 작은 청크로 나누어 각 청크를 독립적으로 검색할 수 있도록 합니다. 이를 통해 질문과 관련된 문서를 더 빠르고 정확하게 찾을 수 있습니다.\n\n2. **문맥 유지**: LLM의 입력 길이에 제한이 있으므로, 청크 단위로 나누어 각 청크가 문맥을 유지하...",
+        "| 항목 | Graph ON | Graph OFF |\n|------|----------|-----------|\n| Top-1 소스 | graph (score: 0.2856) | vector (score: 0.0164) |\n| 결과 수 | 10 | 10 |\n| Graph 고유 | 1건 | - |\n| 레이턴시 | 2.3ms | 3.0ms |\n| 답변 길이 | 390 chars | 443 chars |\n**Graph ON 답변** (발췌): 대규모 문서를 효율적으로 처리하기 위해서는 **청킹(Chunking)** 작업이 필요합니다. 컨텍스트에 따르면, 청킹은 다음과 같은 이유로 효율성을 높입니다:\n\n1. **효율적인 검색**: 작은 청크로 나누어 각각 독립적으로 검색하면 관련 문서를 빠르고 정확하게 찾을 수 있습니다.\n2. **문맥 유지**: LLM의 입력 길이 제한을 고려하여, 청크 단위로 ...\n\n**Graph OFF 답변** (발췌): 대규모 문서를 효율적으로 처리하는 방법은 **청킹(Chunking)** 작업을 통해 문서를 작은 단위로 나누는 것입니다. 이 방법은 RAG(검색 증강 생성) 구현에서 다음과 같은 이유로 필요합니다:\n\n1. **효율적인 검색**: 긴 문서를 작은 청크로 나누면 각 청크를 독립적으로 검색할 수 있어, 질문과 관련된 문서를 더 빠르고 정확하게 찾을 수 있습니다...."
+      ],
+      "sources": [
+        "vector",
+        "vector",
+        "vector",
+        "keyword",
+        "vector"
+      ],
+      "latency_ms": 1.8,
+      "result_count": 5,
+      "top1_source": "vector",
+      "top1_score": 0.044077,
+      "answer": "대규모 문서를 효율적으로 처리하는 핵심 방법은 **재순위화(Reranking)**와 **청킹(Chunking)**입니다.\n\n1. **재순위화**: 관련성 점수를 기준으로 문서를 우선순위화하고, 관련성 낮은 문서를 필터링하여 정밀도를 높입니다.\n2. **청킹**: 문서를 작은 단위로 나누어 효율적인 검색을 가능하게 하고, LLM의 입력 길이 제한 내에서 문맥을 유지합니다."
+    },
+    {
+      "question": "검색 성능을 최적화하려면 어떻게 해야 하나요?",
+      "type": "semantic",
+      "contexts": [
+        "**HRKP-FULL** [grade=PARTIAL, 48090.7ms, 5 sources]:\n> 검색 성능 최적화는 검색 정확도와 효율성을 높여 최종 작업(예: 답변 생성)의 품질을 개선하는 것을 목표로 합니다. 제공된 컨텍스트를 바탕으로 주요 전략을 설명드리겠습니다.",
+        "**HRKP** (228c, 134.3ms): 컨텍스트에 따르면 검색 성능 최적화를 위해서는 **하이브리드 검색(키워드 기반, 의미적, 벡터 검색의 지능적 활용)**을 적용하고, **재귀 검색(작은 덩어리에서 큰 덩어리로 점진적 검색)** 및 **하위 쿼리(트리/벡터/순차 쿼리)**와 같은 검색 전략을 사용해야 합니다. 또한, **근사 최근접 이웃(ANN) 알고리즘(예: HNSW, FAISS)**을 통...\n\n**RCSV** (430c, 430.7ms): 검색 성능을 최적화하려면 다음과 같은 전략을 활용해야 합니다:\n\n1. **하이브리드 검색 탐색**: 키워드 기반 검색, 의미적 검색, 벡터 검색을 지능적으로 결합하여 성능을 향상시킵니다.\n2. **재귀 검색 및 쿼리 엔진**: 작은 덩어리로 검색을 시작하고, 더 큰 맥락적 정보를 확보하여 효율성과 응답의 맥락적 풍부함을 균형 있게 맞춥니다.\n3. **Ste...",
+        "echo \"=== Test 3: 한국어 자연어 질문 - 검색 최적화 방법은? ===\"\ncurl -s -X POST http://localhost:8000/api/v1/search/hybrid \\\n  -H \"Authorization: Bearer $AI_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"query\":\"Elasticsearch 검색 성능을 최적화하려면 어떻게 해야 하나요?\",\"top_k\":5}' \\\n  | python3 -c \"\nimport sys, json\ndata = json.load(sys.stdin)\nresults = data.get('results', [])\nprint(f'검색 결과: {len(results)}건')\nfor i, r in enumerate(results, 1):\n    content = r.get('content', '')[:120]\n    score = r.get('score', 0)\n    print(f'  [{i}] (score={score:.4f}) {content}...')\n\"\n\necho \"\"",
+        "**HRKP-FULL** [grade=PARTIAL, 48443.5ms, 5 sources]:\n> 검색 성능 최적화는 검색 정확도와 효율성을 높이는 다양한 전략을 포함합니다. 제공된 컨텍스트와 일반 지식을 바탕으로 설명드리겠습니다.",
+        "| 항목 | Graph ON | Graph OFF |\n|------|----------|-----------|\n| Top-1 소스 | graph (score: 0.1387) | vector (score: 0.0164) |\n| 결과 수 | 10 | 10 |\n| Graph 고유 | 1건 | - |\n| 레이턴시 | 2.0ms | 1.8ms |\n| 답변 길이 | 346 chars | 132 chars |\n**Graph ON 답변** (발췌): 컨텍스트에 따르면 검색 성능 최적화를 위해 다음과 같은 전략을 사용할 수 있습니다.\n\n1. **하이브리드 검색 탐색**: 키워드 기반 검색, 의미적 검색, 벡터 검색을 지능적으로 결합합니다.\n2. **재귀 검색 및 쿼리 엔진**: 작은 덩어리로 시작해 점차 크고 맥락이 풍부한 정보를 검색하여 효율성과 응답 품질의 균형을 맞춥니다.\n3. **하위 쿼리**: ...\n\n**Graph OFF 답변** (발췌): 검색 성능 최적화를 위해서는 하이브리드 검색(키워드, 의미, 벡터 검색 통합), 재귀 검색(작은 덩어리에서 큰 덩어리로 점진적 검색), ANN 알고리즘(예: HNSW, FAISS)을 활용한 고속 근사 최근접 이웃 검색을 적용해야 합니다...."
+      ],
+      "sources": [
+        "vector",
+        "vector",
+        "keyword",
+        "vector",
+        "keyword"
+      ],
+      "latency_ms": 1.8,
+      "result_count": 5,
+      "top1_source": "vector",
+      "top1_score": 0.043742,
+      "answer": "컨텍스트에 따르면 검색 성능 최적화를 위해서는 다음과 같은 전략을 사용해야 합니다.\n\n1. **하이브리드 검색**: 키워드 기반 검색, 의미적 검색, 벡터 검색을 지능적으로 결합합니다.\n2. **재귀 검색 및 쿼리 엔진**: 작은 정보 덩어리로 검색을 시작한 후, 점차 더 크고 맥락이 풍부한 정보를 확장해 나갑니다.\n3. **하위 쿼리 및 ANN 알고리즘**: 트리/벡터/순차 쿼리와 HNSW, FAISS 같은 근사 최근접 이웃 알고리즘을 활용합니다."
+    },
+    {
+      "question": "환경변수를 안전하게 관리하는 방법은?",
+      "type": "semantic",
+      "contexts": [
+        "**HRKP** (105c, 53.6ms): 컨텍스트에 환경변수를 안전하게 관리하는 구체적인 방법은 명시되어 있지 않습니다. 제공된 컨텍스트는 주로 자연환경 보전, 환경오염, 그리고 AI/ML 학습 작업 환경 정의에 관한 내용입니다....\n\n**RCSV** (410c, 411.3ms): 환경변수를 안전하게 관리하는 방법은 다음과 같습니다:\n\n1. **정기적인 점검**: 환경 관련 시설 및 장비의 정기적인 점검을 통해 이상 유무를 확인합니다.\n2. **환경영향평가**: 새로운 프로젝트나 시설 설치 시 환경영향평가를 실시하여 잠재적인 환경 영향을 사전에 파악합니다.\n3. **환경기준 준수**: 관련 법규 및 환경기준을 준수하여 오염물질 배출을...",
+        "**HRKP** (124c, 4.7ms): 컨텍스트에 제시된 환경변수 관리 방법은 없습니다. 컨텍스트는 AI 오케스트레이션의 보안 조치로 '데이터 암호화, 보안 API, 정기적인 보안 감사'를 언급하고 있으나, 이는 특정 '환경변수' 관리 방법을 지칭하지 않습니다....\n\n**RCSV** (323c, 356.4ms): 환경변수를 안전하게 관리하는 방법은 다음과 같습니다:\n\n1. **정기적인 모니터링**: 환경변수를 지속적으로 감시하여 이상 징후를 조기에 발견합니다.\n2. **환경기준 준수**: 관련 법규 및 환경기준을 준수하여 오염을 예방합니다.\n3. **위험 평가**: 환경영향평가를 실시하여 잠재적인 위험 요소를 사전에 파악합니다.\n4. **오염 방지 대책**: 환경오...",
+        "**HRKP-FULL** [grade=PARTIAL, 35541.5ms, 1 sources]:\n> 검색된 컨텍스트에는 '환경변수'의 안전한 관리 방법에 대한 직접적인 설명은 없습니다. 다만, [출처1]에서 **환경(environment)** 을 \"국민이 건강하고 쾌적하게 생활할 수 있도록 관리하고 보전하는 대상\"으로 정의하며, 이를 위해 법적·제도적 관리의 중요성을 언급하고 있습니다[출처1].\n\n이 맥락을 바탕으로, **일반적인 소프트웨어 개발에서 환경변수(environment variables)를 안전하게 관리하는 방법**을 보충 설명드리겠습니다. 이는 컨텍스트 외 일반 지식입니다.",
+        "- `.env` 파일에 환경변수를 저장하되, **반드시 `.gitignore`에 추가**하여 버전 관리 시스템에 실수로 커밋되지 않도록 합니다.\n   - `....\n\n**RCSV** [169.8ms, 10 results]:\n> 환경변수를 안전하게 관리하는 방법은 다음과 같습니다:\n\n1. **정기적인 모니터링**: 환경오염원 및 환경영향을 지속적으로 감시하여 문제를 조기에 발견합니다.\n2. **환경기준 준수**: 관련 법규 및 환경기준을 준수하여 환경오염을 예방합니다.\n3. **환경영향평가 실시**: 새로운 프로젝트나 활동에 대해 환경영향평가(EIA)를 실시하여 잠재적 영향을 분석합니다.\n4. **오염물질 관리**: 환경오염물질의 발생을 최소화하고, 발생 시 적절한 처리 및 제거 방법을 적용합니다.\n5. **교육 및 훈련**: 관련 직원에게 환경관리 및 안...",
+        "**HRKP-FULL** [grade=NONE, 24854.9ms, 0 sources]:\n> 검색된 문서에서 직접적인 정보를 찾지 못했습니다.  \n참고로 컨텍스트 외 일반 정보입니다.\n\n환경변수를 안전하게 관리하는 방법은 다음과 같습니다:"
+      ],
+      "sources": [
+        "vector",
+        "keyword",
+        "vector",
+        "vector",
+        "keyword"
+      ],
+      "latency_ms": 2.0,
+      "result_count": 5,
+      "top1_source": "vector",
+      "top1_score": 0.043548,
+      "answer": "제공된 컨텍스트에 따르면, 환경변수를 안전하게 관리하는 구체적인 방법은 명시되어 있지 않습니다. 컨텍스트는 주로 자연환경 보전, 환경오염 관리, 환경영향평가 등에 관한 내용입니다."
+    }
+  ],
+  "questions": [
+    {
+      "question": "Neo4j와 Elasticsearch의 역할 차이점은?",
+      "type": "entity_relation",
+      "ground_truth": "Neo4j는 Knowledge Graph 저장소로 엔티티 간 관계를 관리하고, Elasticsearch는 벡터 검색(kNN)과 BM25 키워드 검색을 담당합니다."
+    },
+    {
+      "question": "LangGraph와 LangChain 중 어떤 것을 사용해야 하나요?",
+      "type": "entity_relation",
+      "ground_truth": "LangGraph는 상태 기반 에이전트 워크플로우에 적합하고, LangChain은 단순 체인 기반 RAG 파이프라인에 적합합니다."
+    },
+    {
+      "question": "FastAPI와 PostgreSQL을 연동하여 RAGAS 평가를 수행하려면?",
+      "type": "entity_relation",
+      "ground_truth": "FastAPI에서 asyncpg로 PostgreSQL에 연결하고, RAGAS 라이브러리를 통해 Faithfulness 등 메트릭을 측정합니다."
+    },
+    {
+      "question": "RAG Pipeline에서 BGE-M3 임베딩 모델의 역할은?",
+      "type": "multi_hop",
+      "ground_truth": "BGE-M3는 RAG Pipeline에서 문서와 쿼리를 1024차원 벡터로 변환하여 시맨틱 검색을 가능하게 합니다."
+    },
+    {
+      "question": "Kubernetes에서 Spring Boot 마이크로서비스를 배포하는 방법은?",
+      "type": "multi_hop",
+      "ground_truth": "Spring Boot 앱을 Docker 이미지로 빌드한 후 Kubernetes Deployment와 Service를 생성하여 배포합니다."
+    },
+    {
+      "question": "Agentic AI 에이전트 워크플로우 설계 패턴은 무엇인가요?",
+      "type": "multi_hop",
+      "ground_truth": "Agentic AI 워크플로우는 Planner-Retriever-Generator 패턴을 따르며 LangGraph로 상태 기반 그래프를 구현합니다."
+    },
+    {
+      "question": "Docker Compose 설정 방법은?",
+      "type": "keyword",
+      "ground_truth": "docker-compose.yml에 서비스, 네트워크, 볼륨을 정의하고 docker-compose up 명령으로 실행합니다."
+    },
+    {
+      "question": "RRF 알고리즘이 Hybrid 검색에서 하는 역할은?",
+      "type": "keyword",
+      "ground_truth": "RRF(Reciprocal Rank Fusion)는 Vector, BM25, Graph 검색 결과의 순위를 융합하여 최종 순위를 결정합니다."
+    },
+    {
+      "question": "RAGAS 평가 메트릭의 종류와 의미는?",
+      "type": "keyword",
+      "ground_truth": "Faithfulness(충실도), Answer Relevancy(답변 관련성), Context Precision(맥락 정밀도), Context Recall(맥락 재현율) 4가지입니다."
+    },
+    {
+      "question": "대규모 문서를 효율적으로 처리하는 방법은?",
+      "type": "semantic",
+      "ground_truth": "청킹(chunking)으로 문서를 분할하고 배치 임베딩으로 벡터화한 후 Elasticsearch에 색인합니다."
+    },
+    {
+      "question": "검색 성능을 최적화하려면 어떻게 해야 하나요?",
+      "type": "semantic",
+      "ground_truth": "Hybrid 검색(BM25+Dense+Graph), RRF 퓨전, Redis 캐싱, 배치 임베딩으로 성능을 최적화합니다."
+    },
+    {
+      "question": "환경변수를 안전하게 관리하는 방법은?",
+      "type": "semantic",
+      "ground_truth": ".env 파일에 환경변수를 정의하고 docker-compose에서 env_file로 로드하며, 시크릿은 별도 관리합니다."
+    }
+  ]
+}
