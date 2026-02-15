@@ -202,7 +202,11 @@
       "Bash(do echo \"$name -> $status\")",
       "Bash(done)",
       "mcp__jira__jira_add_comment",
-      "WebFetch(domain:bundlephobia.com)"
+      "WebFetch(domain:bundlephobia.com)",
+      "WebFetch(domain:www.elastic.co)",
+      "WebFetch(domain:api-docs.deepseek.com)",
+      "mcp__slack__slack_get_thread_replies",
+      "mcp__github__get_issue"
     ]
   },
   "enabledMcpjsonServers": [

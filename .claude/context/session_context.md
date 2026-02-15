@@ -1,20 +1,20 @@
-# Session Context - 2026-02-15 (Sunday)
+# Session Context - 2026-02-16 (Monday)
 
 ## Git Status
 **Branch**: main
 
 ### Recent Commits
 ```
-c01d334 [FIX] Chunker v3 병합 임계값 20→100 tokens + 장애보고서 #27
-c72a3b3 [DOCS] 2026-02-14 일일 마무리 - ETL OOM 대응 + OCR 복원 + 문서 현행화
-191a737 [FIX] ETL Phase 1 품질 복원 - OCR ON + P0/P1 수정 4건 + 속도 최적화
-2fbca95 [FIX] graph.py HAS_ENTITY 추가 + ETL 3-Phase 운영 가이드 + 스탠드업 기록
-e7708cb [FIX] Neo4j HAS_ENTITY 관계 + PG chunk_count 버그 수정 + Phase 1 스크립트
+45652a8 [DOCS] RAGAS v9 종합 평가 - 4-Way RRF + Graph RAG (51쿼리)
+af608ec [DOCS] 일일 마무리 - Graph Search 통합 야간 세션 (6개 Task 완료)
+e979acf [DOCS] Neo4j-ES Graph Search 통합 장애 보고서 + Phase 1 보고서 현행화
+b6b2c24 [DOCS] RAGAS Cross-System 평가 + Entity Extraction 보고서
+06aa8a5 [FEAT] Graph Search 통합 - Entity-Enhanced BM25 방식
 ```
 
 ## Work Log Status
 - Today's log: not_created
-- Path: work_logs/daily_logs/2026/02-February/2026-02-15.md
+- Path: work_logs/daily_logs/2026/02-February/2026-02-16.md
 
 ## Quick Commands
 - `/daily:standup` - 팀 스탠드업
