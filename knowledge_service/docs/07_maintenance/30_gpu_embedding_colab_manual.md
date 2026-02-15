@@ -1,10 +1,10 @@
 # GPU 임베딩 Colab 실행 매뉴얼 (Phase 2)
 
-> **Version**: 1.0
+> **Version**: 1.3
 > **Date**: 2026-02-15
 > **Author**: Claude Opus 4.6 (AI Service Team)
 > **Sprint**: Sprint 10
-> **Status**: Verified (53,414건 실행 완료)
+> **Status**: **COMPLETED** - 56,063건 전체 임베딩 완료 (100%), 3-Store 정합성 검증 통과
 
 ---
 
@@ -836,23 +836,97 @@ curl -L --max-time 600 \
 
 ### 10.4 ES Import 결과
 
+#### 10.4.1 GPU 임베딩분 (53,414건)
+
 | 항목 | 값 |
 |------|-----|
-| GPU 임베딩 임포트 | 53,414건 (0 실패) |
+| 대상 | 53,414건 (GPU Colab에서 생성) |
 | 임포트 속도 | **434 docs/s** |
-| 임포트 소요 시간 | **123초 (2.1분)** |
-| 나머지 CPU 임베딩 | 2,649건 (CPU ~32분) |
-| 최종 completed | **56,063건 (100.0%)** |
-| 저장 형식 | `sparse_vector_json` (JSON 문자열) |
-| 트러블슈팅 | 1차: 동적매핑 폭발 → 2차: JSON 문자열로 해결 |
+| 소요 시간 | **123초 (2.1분)** |
+| 실패 | 0건 |
+| Bulk 크기 | 100건/배치 |
 
-### 10.5 비용
+**트러블슈팅 경과**:
+1. **1차 시도**: `sparse_vector` (object) 방식 → 23,974개 동적 필드 생성 → 16,400건 부근에서 `mapper_exception` → ES 크래시
+2. **수정**: `sparse_vector_json` (JSON 문자열) 방식으로 전환
+3. **2차 시도**: 전건 성공, 에러 0건
+
+#### 10.4.2 CPU 보충분 (2,649건)
+
+| 항목 | 값 |
+|------|-----|
+| 대상 | 2,649건 (GPU JSONL 추출 시 누락분, 133개 문서) |
+| 임베딩 속도 | **1.2 chunks/s** (CPU, batch_size=4) |
+| 임베딩 소요 시간 | **2,299초 (38.3분)** |
+| 임포트 속도 | **418 docs/s** |
+| 임포트 소요 시간 | **6.3초** |
+| 실패 | 0건 |
+
+### 10.5 최종 검증 결과
+
+```
+=== Final Embedding Verification ===
+
+Embedding Status:
+  completed: 56,063 (100.0%)
+  pending:   0
+
+Has dense_vector:      56,063 (100.0%)
+Has sparse_vector_json: 56,063 (100.0%)
+Embedding model:       bge-m3: 56,063 (100.0%)
+
+=== 3-Store Consistency Verification ===
+
+PostgreSQL:    1,437 docs, 56,063 chunks
+Elasticsearch: 1,437 docs, 56,063 chunks
+Neo4j:         1,437 docs, 56,063 chunks
+
+ES-only orphans:  0 docs (0 chunks)
+PG-only (no ES):  0 docs
+Count mismatch:   0 docs
+
+*** 3-Store PERFECTLY CONSISTENT ***
+```
+
+### 10.6 비용
 
 | 항목 | 값 |
 |------|-----|
 | Colab 무료 티어 | T4 GPU 사용 가능 |
-| 소요 시간 | ~13.5분 (무료 한도 내) |
-| 추가 비용 | 없음 |
+| GPU 소요 시간 | ~13.5분 (무료 한도 내) |
+| CPU 보충 소요 시간 | ~38.3분 (Docker 컨테이너) |
+| 추가 비용 | **없음 ($0)** |
+
+### 10.7 전체 타임라인
+
+```mermaid
+gantt
+    title Phase 2 GPU 임베딩 전체 타임라인
+    dateFormat HH:mm
+    axisFormat %H:%M
+
+    section 준비
+    ES pending 청크 추출 (53,414건)     :done, prep1, 10:40, 5min
+    Google Drive 업로드 (53MB)          :done, prep2, after prep1, 3min
+
+    section GPU 임베딩
+    BGE-M3 모델 로드                    :done, gpu1, after prep2, 1min
+    GPU 배치 임베딩 (65.6c/s)           :done, gpu2, after gpu1, 14min
+    결과 저장 + 검증                     :done, gpu3, after gpu2, 2min
+
+    section ES Import
+    Drive → WSL2 다운로드 (1.16GB)      :done, imp1, after gpu3, 5min
+    docker cp → 컨테이너               :done, imp2, after imp1, 1min
+    1차 시도 (동적매핑 폭발, ES 크래시)  :crit, imp3, after imp2, 30min
+    sparse_vector_json 수정 + 재시도    :done, imp4, after imp3, 3min
+
+    section CPU 보충
+    나머지 2,649건 CPU 임베딩            :done, cpu1, after imp4, 38min
+    보충분 ES Import (6.3초)            :done, cpu2, after cpu1, 1min
+
+    section 검증
+    3-Store 정합성 검증                 :done, ver1, after cpu2, 1min
+```
 
 ---
 
@@ -965,3 +1039,4 @@ CPU에서 두 벡터를 별도로 생성하면 2배 시간이 필요하지만, G
 | 2026-02-15 | 1.0 | 초기 작성 - 53,414건 GPU 임베딩 실행 결과 기반 |
 | 2026-02-15 | 1.1 | Appendix A: GPU vs CPU 비교 추가 |
 | 2026-02-15 | 1.2 | ES Import 실제 결과 반영, 동적매핑 폭발 트러블슈팅 추가, sparse_vector_json 문서화 |
+| 2026-02-15 | 1.3 | **최종 완료** - CPU 보충 2,649건, 3-Store 검증 결과, Gantt 타임라인 추가 |
