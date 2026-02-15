@@ -75,6 +75,9 @@ class ParserConfig:
     table_max_rows: int = 500
     table_max_cols: int = 50
 
+    # 타임아웃 설정
+    parse_timeout: float = 300.0  # 단일 문서 파싱 타임아웃 (초)
+
     # 재시도 설정
     max_retries: int = 3
     retry_delay: float = 1.0
@@ -465,7 +468,7 @@ class OptimizedDocumentParser:
             image_extraction_enabled=self.config.image_extraction_enabled,
         )
 
-        return adapter.parse(file_path)
+        return adapter.parse(file_path, timeout=self.config.parse_timeout)
 
     async def parse_batch(
         self,

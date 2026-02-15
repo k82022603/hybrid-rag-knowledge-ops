@@ -7,6 +7,7 @@ ParsedDocument 형식으로 변환하는 어댑터
 
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
@@ -176,9 +177,28 @@ class DoclingAdapter:
                 message=doc.error_message,
             )
 
+        # 기본 타임아웃: 300초 (5분)
+        parse_timeout = timeout or 300.0
+
         try:
-            # Docling으로 파싱 (OCR ON)
-            result = self.converter.convert(str(path))
+            # Docling으로 파싱 (OCR ON) - ThreadPool 타임아웃 적용
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(self.converter.convert, str(path))
+                try:
+                    result = future.result(timeout=parse_timeout)
+                except FuturesTimeoutError:
+                    elapsed_ms = (time.time() - start_time) * 1000
+                    doc.parsing_time_ms = elapsed_ms
+                    doc.status = ParseStatus.FAILED
+                    doc.error_message = (
+                        f"Parsing timed out after {parse_timeout:.0f}s: {path.name}"
+                    )
+                    logger.error(doc.error_message)
+                    return ParseResult(
+                        document=doc,
+                        success=False,
+                        message=doc.error_message,
+                    )
 
             # 결과 변환
             doc = self._convert_result(doc, result)
@@ -191,7 +211,7 @@ class DoclingAdapter:
             logger.info(
                 f"Document parsed successfully: {path.name} "
                 f"(pages: {doc.page_count}, tables: {len(doc.tables)}, "
-                f"time: {elapsed_ms:.0f}ms)"
+                f"time: {elapsed_ms:.0f}ms, timeout: {parse_timeout:.0f}s)"
             )
 
             return ParseResult(

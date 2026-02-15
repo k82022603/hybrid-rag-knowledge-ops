@@ -99,6 +99,9 @@ class Settings(BaseSettings):
         default=86400 * 7, description="임베딩 캐시 TTL (초, 기본 7일)"
     )
 
+    # Docling 파싱 설정
+    docling_parse_timeout: float = Field(default=300.0, description="Docling 단일 문서 파싱 타임아웃 (초)")
+
     # Search Cache 설정 (STORY-060)
     search_cache_enabled: bool = Field(default=True, description="검색 캐시 활성화 여부")
     search_cache_ttl: int = Field(default=3600, description="검색 캐시 TTL (초, 기본 1시간)")
