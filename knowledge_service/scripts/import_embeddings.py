@@ -10,12 +10,13 @@ Usage:
     docker exec kp-ai-service python3 scripts/import_embeddings.py /tmp/embeddings_result.jsonl
 """
 import json
+import os
 import sys
 import time
 import urllib.request
 import urllib.error
 
-ES_URL = "http://kp-elasticsearch:9200"
+ES_URL = os.getenv("ELASTICSEARCH_URL", "http://elasticsearch:9200")
 INDEX = "knowledge_chunks"
 BULK_SIZE = 200
 

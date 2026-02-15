@@ -20,7 +20,7 @@ ETL Phase 1은 1,786개 원본 문서를 파싱, 시맨틱 청킹, 메타데이�
 | 성공 적재 | 1,437개 (80.5%) |
 | 중복 스킵 | 1,033개 |
 | 실패 | 0건 |
-| 총 청크 (ES) | 62,489개 |
+| 총 청크 (ES) | 56,063개 |
 | 총 청크 (PG) | 56,063개 |
 | ES 인덱스 크기 | 132.3 MB |
 | 평균 청크/문서 | 39.0 |
@@ -59,7 +59,7 @@ flowchart TB
     subgraph Store["💾 3-Store Persistence"]
         direction LR
         PG["PostgreSQL<br/>(SSOT)<br/>1,437 docs"]
-        ES["Elasticsearch<br/>(Vector Index)<br/>62,489 chunks"]
+        ES["Elasticsearch<br/>(Vector Index)<br/>56,063 chunks"]
         Neo4j["Neo4j<br/>(Knowledge Graph)<br/>Nodes + Relations"]
     end
 
@@ -170,7 +170,7 @@ pie title 문서 유형별 분포 (1,437건)
 | **pptx** | 234 | 1,751 | 3,145 | 13.4 | 108.9 |
 | **txt** | 58 | 2,652 | 2,944 | 50.8 | 231.4 |
 | **html** | 15 | 170 | 170 | 11.3 | 270.5 |
-| **합계** | **1,437** | **62,489** | **56,063** | **39.0** | **115.0** |
+| **합계** | **1,437** | **56,063** | **56,063** | **39.0** | **115.0** |
 
 ### 4.3 Top 10 대용량 문서
 
@@ -195,7 +195,7 @@ pie title 문서 유형별 분포 (1,437건)
 
 ```mermaid
 xychart-beta
-    title "청크 토큰 분포 (62,489건)"
+    title "청크 토큰 분포 (56,063건)"
     x-axis ["0-19", "20-49", "50-99", "100-199", "200-499", "500+"]
     y-axis "청크 수" 0 --> 20000
     bar [3077, 13146, 15880, 19794, 10496, 96]
@@ -265,7 +265,7 @@ flowchart LR
 
     subgraph External["External Services"]
         PG_SVC["PostgreSQL<br/>Write: 1,437 rows"]
-        ES_SVC["Elasticsearch<br/>Write: 62,489 docs<br/>Index: 132.3 MB"]
+        ES_SVC["Elasticsearch<br/>Write: 56,063 docs<br/>Index: 132.3 MB"]
         NEO_SVC["Neo4j<br/>Write: Nodes + Relations"]
     end
 
@@ -306,39 +306,33 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    subgraph Consistency["3-Store 정합성 현황"]
-        PG["PostgreSQL<br/>chunk_count SUM = 56,063"]
-        ES["Elasticsearch<br/>_count = 62,489"]
-        NEO["Neo4j<br/>Chunk nodes"]
+    subgraph Consistency["3-Store 정합성 현황 (보정 후)"]
+        PG["PostgreSQL<br/>1,437 docs / 56,063 chunks"]
+        ES["Elasticsearch<br/>1,437 docs / 56,063 chunks"]
+        NEO["Neo4j<br/>1,437 docs / 56,063 chunks"]
     end
 
-    PG -->|"GAP: 6,426"| ES
-    PG --> NEO
+    PG -->|"MATCH"| ES
+    PG -->|"MATCH"| NEO
 
-    subgraph Analysis["GAP 분석"]
-        G1["ES에 v2 잔여 청크?"]
-        G2["PG chunk_count 미갱신?"]
-        G3["Phase 2 조사 필요"]
-    end
-
-    ES --> Analysis
-
-    style Consistency fill:#fce4ec,stroke:#c62828
-    style Analysis fill:#fff9c4,stroke:#f9a825
+    style Consistency fill:#e8f5e9,stroke:#2e7d32
 ```
 
-| Store | 수량 | 비고 |
-|-------|-----:|------|
-| **PG documents** | 1,437 | 문서 수 (SSOT) |
-| **PG chunk_count 합계** | 56,063 | SUM(chunk_count) |
-| **ES chunks** | 62,489 | _count API |
-| **GAP** | **6,426** | 조사 필요 |
+| Store | Documents | Chunks | 비고 |
+|-------|----------:|-------:|------|
+| **PostgreSQL** | 1,437 | 56,063 | SSOT |
+| **Elasticsearch** | 1,437 | 56,063 | 보정 완료 |
+| **Neo4j** | 1,437 | 56,063 | 정상 |
+| **GAP** | **0** | **0** | **100% 일치** |
 
-### 7.2 GAP 원인 추정
+### 7.2 GAP 보정 이력
 
-1. v2 ETL에서 생성된 청크가 ES에 잔존 (v3에서 .md만 삭제/재처리)
-2. PG `chunk_count` 필드 갱신 시점과 ES bulk write 시점 차이
-3. Phase 2(임베딩) 시작 전 정합성 맞춤 필요
+| 시점 | 상태 | 조치 |
+|------|------|------|
+| 보정 전 | ES 56,063 vs PG 56,063 (GAP 6,426) | - |
+| 원인 분석 | v2→v3 .md 재처리 시 ES에 이전 document_id로 저장된 orphan 잔존 | 검증 스크립트로 112개 orphan 문서 특정 |
+| 보정 완료 | ES `delete_by_query`로 112문서 6,426청크 삭제 | `scripts/verify_3store_consistency.py` |
+| 최종 검증 | PG=ES=Neo4j (1,437/56,063) | 3-Store 100% 일치 확인 |
 
 ---
 
@@ -388,7 +382,7 @@ flowchart LR
 ```mermaid
 flowchart LR
     subgraph Done["✅ Phase 1 (완료)"]
-        P1["Document Parsing<br/>+ Chunking<br/>1,437 docs → 62,489 chunks"]
+        P1["Document Parsing<br/>+ Chunking<br/>1,437 docs → 56,063 chunks"]
     end
 
     subgraph Next["🔄 Phase 2 (다음)"]
@@ -428,7 +422,7 @@ ETL Phase 1은 5회 실행(v1~v4 + v3-md)의 반복과 장애 대응을 거쳐 �
 
 **핵심 성과**:
 - 1,786개 원본 문서 중 1,437개 성공 적재 (80.5%), 실패 0건
-- 62,489개 청크 생성, 평균 115 토큰/청크
+- 56,063개 청크 생성, 평균 115 토큰/청크
 - Chunker v3으로 .md 품질 개선: 청크 -33%, 평균 토큰 +77%
 - OOM Kill → 메모리 제한 10GB + OCR ON + TableFormerMode.FAST 최적 설정 확정
 

@@ -109,5 +109,8 @@ test-results/
 *.backup
 *.dump
 
+# Embedding data files (large JSONL)
+*.jsonl
+
 # External reference projects
 RAGChatbotServer/

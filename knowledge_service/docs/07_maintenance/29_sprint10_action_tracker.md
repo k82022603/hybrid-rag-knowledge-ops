@@ -2,7 +2,7 @@
 
 > **Version**: 1.0
 > **Created**: 2026-02-15 10:17 KST
-> **Last Updated**: 2026-02-15 10:33 KST
+> **Last Updated**: 2026-02-15 10:40 KST
 > **Source**: Sprint 10 전원 회의 (PM, TL, Arch, RAG, ETL, Infra, QA 7명)
 
 ---
@@ -25,7 +25,7 @@
 | P0-1 | 디스크 공간 확보 (97% → 91GB 회수) | Infra | 사용자 | **완료** | 02-15 | `docker_data.vhdx.bak.bak` 91GB 삭제 |
 | P0-2 | search.py BM25 필드명 불일치 (`content` → `text`) | TL | 클로드 | **완료** | 02-15 | `content^3` → `text^3`, highlight도 수정 |
 | P0-3 | ES 클라이언트 매번 재생성 → 싱글톤화 | TL | 클로드 | **완료** | 02-15 | `_es_client` 인스턴스 변수 + load_all() cleanup |
-| P0-4 | Phase 2 GPU 임베딩 (59,767건) | PM/RAG | RAG | 대기 | - | Colab T4, Dense+Sparse 동시 생성 |
+| P0-4 | Phase 2 GPU 임베딩 (53,414건) | PM/RAG | RAG | **준비완료** | - | Colab T4, Dense+Sparse 동시 생성, JSONL 추출 완료 |
 | P0-5 | ES-PG 정합성 GAP 6,426건 조사/보정 | Arch | 클로드 | **완료** | 02-15 | ES orphan 112문서 6,426청크 삭제 → 3-Store 정합성 100% |
 
 ### P0-2 수정 상세
@@ -44,6 +44,20 @@
 - **조치**: ES `delete_by_query`로 orphan 112문서 6,426청크 삭제
 - **검증**: 3-Store 정합성 확인 — PG=1,437/56,063, ES=1,437/56,063, Neo4j=1,437/56,063 (100% 일치)
 - **근본 원인**: `_store_to_elasticsearch()` L1360에서 PG 저장 실패를 `non-critical`로 처리 → 향후 트랜잭션 보장 필요
+
+### P0-4 GPU 임베딩 준비 상세
+- **대상**: 53,414건 (전체 56,063 중 dense_vector 미생성분)
+- **데이터**: `scripts/chunks_for_gpu.jsonl` (53MB JSONL)
+- **노트북**: `scripts/gpu_embedding_colab.ipynb` (T4 GPU, FP16, batch_size=64)
+- **예상 소요**: ~9분 (T4 GPU 100 chunks/s 기준)
+- **Import**: `scripts/import_embeddings.py` → ES bulk update (dense+sparse+status)
+- **전체 워크플로우**:
+  1. `chunks_for_gpu.jsonl`을 Google Drive에 업로드
+  2. Colab에서 `gpu_embedding_colab.ipynb` 실행 (T4 GPU)
+  3. 결과 `chunks_for_gpu_embeddings.jsonl` 다운로드
+  4. `docker cp` → 컨테이너에 복사
+  5. `docker exec kp-ai-service python3 scripts/import_embeddings.py /tmp/chunks_for_gpu_embeddings.jsonl`
+  6. `docker exec kp-ai-service python3 scripts/verify_3store_consistency.py` 로 검증
 
 ---
 
@@ -104,6 +118,7 @@ flowchart TB
 | 02-15 10:25 | P0-2 | search.py BM25 필드명 수정 완료 | 클로드 |
 | 02-15 10:25 | P0-3 | ES 클라이언트 싱글톤화 완료 | 클로드 |
 | 02-15 10:33 | P0-5 | ES orphan 6,426청크 삭제, 3-Store 정합성 100% 달성 | 클로드 |
+| 02-15 10:40 | P0-4 | GPU 임베딩 데이터 추출 (53,414건/53MB), Colab 노트북 업데이트 | 클로드 |
 
 ---
 
