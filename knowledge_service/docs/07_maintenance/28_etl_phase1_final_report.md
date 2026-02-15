@@ -390,20 +390,20 @@ flowchart LR
         P2["GPU Embedding<br/>Colab T4 (65.6c/s)<br/>Dense 1024d + Sparse"]
     end
 
-    subgraph Future1["📋 Phase 3"]
-        P3["Entity Extraction<br/>Gleaning (DeepSeek V3.2)<br/>Knowledge Graph"]
+    subgraph Future1["✅ Phase 3 (완료)"]
+        P3["Entity Extraction<br/>Gleaning (DeepSeek V3.2)<br/>70,855 Entity + 375,229 Rel"]
     end
 
-    subgraph Future2["📋 Phase 4"]
-        P4["Search Integration<br/>4-Way RRF<br/>Dense+Sparse+BM25+Graph"]
+    subgraph Future2["✅ Phase 4 (완료)"]
+        P4["Search Integration<br/>4-Way RRF<br/>Entity-Enhanced BM25"]
     end
 
     Done --> Next --> Future1 --> Future2
 
     style Done fill:#c8e6c9,stroke:#2e7d32
     style Next fill:#c8e6c9,stroke:#2e7d32
-    style Future1 fill:#e3f2fd,stroke:#1565c0
-    style Future2 fill:#f3e5f5,stroke:#6a1b9a
+    style Future1 fill:#c8e6c9,stroke:#2e7d32
+    style Future2 fill:#c8e6c9,stroke:#2e7d32
 ```
 
 ### 9.2 Phase별 상세
@@ -412,8 +412,8 @@ flowchart LR
 |-------|------|------|----------|:----:|
 | **Phase 1** | Parsing + Chunking | Docker (CPU) | 12시간 | ✅ 완료 |
 | **Phase 2** | Dense + Sparse Embedding | Colab GPU (T4) | 13.5분 (GPU) + 2.1분 (Import) | ✅ 완료 |
-| **Phase 3** | Gleaning Entity Extraction | DeepSeek API | 4~8시간 | 대기 |
-| **Phase 4** | 4-Way RRF Search | Docker (CPU) | 코드 변경 | 대기 |
+| **Phase 3** | Gleaning Entity Extraction | DeepSeek API | 8시간 (듀얼 키) | ✅ 완료 |
+| **Phase 4** | 4-Way RRF Search (Entity-Enhanced BM25) | Docker (CPU) | 4시간 | ✅ 완료 |
 
 ---
 
@@ -432,7 +432,8 @@ ETL Phase 1은 5회 실행(v1~v4 + v3-md)의 반복과 장애 대응을 거쳐 �
 - ~~Phase 2 GPU 임베딩으로 검색 품질 확보~~ → **완료** (56,063건 100% Dense+Sparse 임베딩)
 - ~~Neo4j token_count 누락~~ → **해결 완료** (Sprint 11 코드 버그 수정 + 56,063건 보정)
 - .md 62.5% <100토큰 구조적 한계 (코드블록/헤더)
-- Phase 3 Gleaning Entity Extraction (Neo4j Entity 0건)
+- ~~Phase 3 Gleaning Entity Extraction~~ → **완료** (70,855 엔티티, 375,229 관계)
+- ~~Phase 4 4-Way RRF Search~~ → **완료** (Entity-Enhanced BM25, Graph 기여 40~80%)
 
 ---
 
