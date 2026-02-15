@@ -2,7 +2,7 @@
 
 > **Version**: 1.0
 > **Created**: 2026-02-15 10:17 KST
-> **Last Updated**: 2026-02-15 10:25 KST
+> **Last Updated**: 2026-02-15 10:33 KST
 > **Source**: Sprint 10 전원 회의 (PM, TL, Arch, RAG, ETL, Infra, QA 7명)
 
 ---
@@ -11,10 +11,10 @@
 
 | 우선순위 | 전체 | 완료 | 진행중 | 대기 | 완료율 |
 |---------|:----:|:----:|:-----:|:----:|:-----:|
-| **P0** | 5 | 3 | 0 | 2 | 60% |
+| **P0** | 5 | 4 | 0 | 1 | 80% |
 | **P1** | 5 | 0 | 0 | 5 | 0% |
 | **P2** | 7 | 0 | 0 | 7 | 0% |
-| **합계** | **17** | **3** | **0** | **14** | **18%** |
+| **합계** | **17** | **4** | **0** | **13** | **24%** |
 
 ---
 
@@ -26,7 +26,7 @@
 | P0-2 | search.py BM25 필드명 불일치 (`content` → `text`) | TL | 클로드 | **완료** | 02-15 | `content^3` → `text^3`, highlight도 수정 |
 | P0-3 | ES 클라이언트 매번 재생성 → 싱글톤화 | TL | 클로드 | **완료** | 02-15 | `_es_client` 인스턴스 변수 + load_all() cleanup |
 | P0-4 | Phase 2 GPU 임베딩 (59,767건) | PM/RAG | RAG | 대기 | - | Colab T4, Dense+Sparse 동시 생성 |
-| P0-5 | ES-PG 정합성 GAP 6,426건 조사/보정 | Arch | ETL/Arch | 대기 | - | PG 저장 실패 시 ES만 진행하는 코드 결함 |
+| P0-5 | ES-PG 정합성 GAP 6,426건 조사/보정 | Arch | 클로드 | **완료** | 02-15 | ES orphan 112문서 6,426청크 삭제 → 3-Store 정합성 100% |
 
 ### P0-2 수정 상세
 - **파일**: `knowledge_service/src/app/services/search.py`
@@ -38,10 +38,12 @@
 - **변경**: `__init__`에 `self._es_client = None` 추가, `_store_to_elasticsearch()`에서 싱글톤 재사용, `load_all()` 종료 시 cleanup
 - **원인**: 매 파일마다 `AsyncElasticsearch()` new + close → TCP 오버헤드
 
-### P0-5 GAP 원인 (Arch 분석)
-- `_store_to_elasticsearch()` L1360: PG 저장 실패 시 `non-critical` 경고만 남기고 ES는 계속 저장
-- ES에는 청크가 있으나 PG `chunk_count`에 미반영 → SUM 차이 6,426건
-- **해결 방향**: 정합성 검증 스크립트 → PG 재동기화 → 주기적 배치 잡
+### P0-5 GAP 보정 상세
+- **원인**: v2→v3 .md 재처리 시 PG에서 CASCADE DELETE 했으나, ES에 v2 시절 document_id로 저장된 orphan 청크가 잔존
+- **분석 결과**: ES 1,549 unique doc_ids vs PG 1,437 docs = 112개 orphan (전부 `.md` 파일)
+- **조치**: ES `delete_by_query`로 orphan 112문서 6,426청크 삭제
+- **검증**: 3-Store 정합성 확인 — PG=1,437/56,063, ES=1,437/56,063, Neo4j=1,437/56,063 (100% 일치)
+- **근본 원인**: `_store_to_elasticsearch()` L1360에서 PG 저장 실패를 `non-critical`로 처리 → 향후 트랜잭션 보장 필요
 
 ---
 
@@ -101,6 +103,7 @@ flowchart TB
 | 02-15 10:25 | P0-1 | 디스크 91GB 삭제 완료 | 사용자 |
 | 02-15 10:25 | P0-2 | search.py BM25 필드명 수정 완료 | 클로드 |
 | 02-15 10:25 | P0-3 | ES 클라이언트 싱글톤화 완료 | 클로드 |
+| 02-15 10:33 | P0-5 | ES orphan 6,426청크 삭제, 3-Store 정합성 100% 달성 | 클로드 |
 
 ---
 
