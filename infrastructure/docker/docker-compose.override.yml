@@ -55,7 +55,7 @@ services:
     cap_add: []
     security_opt: []
 
-  # AI Service - 권한 완화
+  # AI Service - 권한 완화 + 메모리 조정 (10GB -> 9GB, ES 증설분 재배분)
   ai-service:
     user: ""
     read_only: false
@@ -63,6 +63,12 @@ services:
     cap_drop: []
     cap_add: []
     security_opt: []
+    deploy:
+      resources:
+        limits:
+          memory: 9G
+        reservations:
+          memory: 4G
 
   # ===========================================================================
   # AUTH LAYER - 권한 완화
@@ -151,7 +157,8 @@ services:
         reservations:
           memory: 512M
 
-  # Elasticsearch 경량화 (4GB -> 1.5GB)
+  # Elasticsearch (4GB -> 2.5GB, Heap 512MB -> 1GB) [Sprint 11 ADR-004]
+  # 56K docs + HNSW 1024d + Sparse match 쿼리 안정성 확보
   elasticsearch:
     user: ""
     cap_drop: []
@@ -164,14 +171,14 @@ services:
       - xpack.security.enabled=false
       - xpack.security.enrollment.enabled=false
       - xpack.ml.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
       - bootstrap.memory_lock=true
     deploy:
       resources:
         limits:
-          memory: 1536M
+          memory: 2560M
         reservations:
-          memory: 768M
+          memory: 1280M
 
   # Kibana - 권한 완화 + 경량화
   kibana:

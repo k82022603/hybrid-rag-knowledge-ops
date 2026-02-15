@@ -135,13 +135,13 @@ services:
       - cluster.name=knowledge-platform-cluster
       - discovery.type=single-node
       - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
     deploy:
       resources:
         limits:
-          memory: 1536M
+          memory: 2560M
         reservations:
-          memory: 768M
+          memory: 1280M
 
   kibana:
     user: ""

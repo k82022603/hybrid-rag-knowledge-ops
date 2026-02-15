@@ -11,9 +11,10 @@ Hybrid 검색 (Dense + Sparse + Graph) 통합 서비스
 """
 
 import asyncio
+import json
 import time
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 
 from app.agents.state import SearchResult
@@ -302,6 +303,20 @@ class SearchService:
                         "debug": cached_result.get("debug", {}),
                     }
 
+            # 0. Dense + Sparse 임베딩 동시 생성 (1회 모델 호출)
+            query_dense: Optional[List[float]] = None
+            query_sparse: Optional[Dict[str, float]] = None
+
+            if use_vector or settings.sparse_search_enabled:
+                try:
+                    dense_list, sparse_list = await self._embedding_service.aembed_batch(
+                        [query], return_sparse=True
+                    )
+                    query_dense = dense_list[0] if dense_list else None
+                    query_sparse = sparse_list[0] if sparse_list else None
+                except Exception as e:
+                    logger.warning(f"Dense+Sparse embedding failed: {e}")
+
             # 1. 병렬 검색 실행 (조건부: Vector + Keyword + Graph)
             tasks = []
             task_names = []
@@ -309,7 +324,8 @@ class SearchService:
             # Vector/Semantic 검색 (use_vector=True 일 때)
             if use_vector:
                 tasks.append(self.semantic_search(
-                    query=query, filters=filters, top_k=top_k * 2
+                    query=query, filters=filters, top_k=top_k * 2,
+                    query_vector=query_dense,
                 ))
                 task_names.append("vector")
 
@@ -351,6 +367,27 @@ class SearchService:
                     elif isinstance(result, Exception):
                         logger.warning(f"Graph search failed: {result}")
 
+            # 1.5 Sparse 검색 (2-Phase: 후보 청크의 stored sparse로 dot-product)
+            sparse_results: List[SearchResult] = []
+            if settings.sparse_search_enabled and query_sparse and self.es_client:
+                # 후보 chunk_ids 수집 (vector + keyword 결과의 합집합)
+                candidate_ids = set()
+                candidate_map: Dict[str, SearchResult] = {}
+                for r in vector_results + keyword_results:
+                    candidate_ids.add(r.chunk_id)
+                    if r.chunk_id not in candidate_map:
+                        candidate_map[r.chunk_id] = r
+
+                if candidate_ids:
+                    try:
+                        sparse_results = await self._sparse_search(
+                            query_sparse=query_sparse,
+                            candidate_ids=list(candidate_ids),
+                            candidate_map=candidate_map,
+                        )
+                    except Exception as e:
+                        logger.warning(f"Sparse search failed: {e}")
+
             # 2. RRF 융합 (활성화된 소스만, 채널별 가중치 적용)
             result_lists = []
             source_names = []
@@ -365,6 +402,11 @@ class SearchService:
                 result_lists.append(keyword_results)
                 source_names.append("keyword")
                 source_weights.append(settings.rrf_weight_keyword)
+
+            if sparse_results:
+                result_lists.append(sparse_results)
+                source_names.append("sparse")
+                source_weights.append(settings.rrf_weight_sparse)
 
             if use_graph and graph_results:
                 result_lists.append(graph_results)
@@ -386,6 +428,7 @@ class SearchService:
             debug_info = {
                 "vector_count": len(vector_results),
                 "keyword_count": len(keyword_results),
+                "sparse_count": len(sparse_results),
                 "graph_count": len(graph_results),
                 "fused_count": len(fused_results),
             }
@@ -427,6 +470,7 @@ class SearchService:
                 f"Hybrid search complete - "
                 f"Vector: {len(vector_results)}, "
                 f"Keyword: {len(keyword_results)}, "
+                f"Sparse: {len(sparse_results)}, "
                 f"Graph: {len(graph_results)}, "
                 f"Fused: {len(final_results)}, "
                 f"Latency: {latency_ms:.1f}ms"
@@ -455,6 +499,7 @@ class SearchService:
         filters: Optional[Dict[str, Any]] = None,
         top_k: int = 10,
         user_id: Optional[str] = None,
+        query_vector: Optional[List[float]] = None,
     ) -> Dict[str, Any]:
         """
         시맨틱 벡터 검색
@@ -466,6 +511,7 @@ class SearchService:
             filters: 필터 조건 딕셔너리
             top_k: 반환할 결과 수
             user_id: 사용자 ID (이력 기록용)
+            query_vector: 사전 계산된 Dense 벡터 (None이면 내부 생성)
 
         Returns:
             검색 결과 딕셔너리
@@ -479,8 +525,9 @@ class SearchService:
         logger.info(f"Semantic search - Query: '{query[:80]}...', top_k={top_k}")
 
         try:
-            # 1. 쿼리 임베딩 생성
-            query_vector = await self._embedding_service.aembed(query)
+            # 1. 쿼리 임베딩 생성 (사전 계산된 벡터가 없으면 생성)
+            if query_vector is None:
+                query_vector = await self._embedding_service.aembed(query)
 
             results: List[SearchResult] = []
 
@@ -649,6 +696,108 @@ class SearchService:
     # ------------------------------------------------------------------
     # Internal methods
     # ------------------------------------------------------------------
+
+    async def _sparse_search(
+        self,
+        query_sparse: Dict[str, float],
+        candidate_ids: List[str],
+        candidate_map: Dict[str, "SearchResult"],
+    ) -> List["SearchResult"]:
+        """Application-level Sparse 검색 (2-Phase, ADR-002)
+
+        ES kNN+BM25로 선별한 후보 청크에 대해 저장된 sparse_vector_json을
+        파싱하여 query sparse 벡터와 dot-product 스코어를 계산합니다.
+
+        Args:
+            query_sparse: 쿼리의 Sparse 벡터 {token: weight}
+            candidate_ids: 후보 청크 ID 리스트
+            candidate_map: chunk_id -> SearchResult 매핑
+
+        Returns:
+            Sparse 점수 기준 내림차순 정렬된 SearchResult 리스트
+        """
+        if not candidate_ids or not query_sparse:
+            return []
+
+        start_time = time.monotonic()
+
+        # 쿼리 sparse 프루닝 (top_tokens + min_weight)
+        pruned_query = {
+            token: weight
+            for token, weight in query_sparse.items()
+            if weight >= settings.sparse_min_weight
+        }
+        if pruned_query:
+            sorted_tokens = sorted(
+                pruned_query.items(), key=lambda x: x[1], reverse=True
+            )
+            pruned_query = dict(sorted_tokens[: settings.sparse_top_tokens])
+
+        if not pruned_query:
+            return []
+
+        # ES mget으로 후보 청크의 sparse_vector_json 조회
+        try:
+            mget_body = {"ids": candidate_ids}
+            response = await self.es_client.mget(
+                index=settings.elasticsearch_index,
+                body=mget_body,
+                _source=["sparse_vector_json"],
+            )
+        except Exception as e:
+            logger.warning(f"Sparse mget failed: {e}")
+            return []
+
+        # Dot-product 스코어 계산
+        scored: List[Tuple[str, float]] = []
+        for doc in response.get("docs", []):
+            if not doc.get("found"):
+                continue
+            chunk_id = doc["_id"]
+            source = doc.get("_source", {})
+            sparse_json_str = source.get("sparse_vector_json")
+            if not sparse_json_str:
+                continue
+            try:
+                doc_sparse = json.loads(sparse_json_str)
+            except (json.JSONDecodeError, TypeError):
+                continue
+
+            # dot-product: query_sparse · doc_sparse
+            score = sum(
+                pruned_query.get(token, 0.0) * weight
+                for token, weight in doc_sparse.items()
+            )
+            if score > 0:
+                scored.append((chunk_id, score))
+
+        # 스코어 기준 정렬
+        scored.sort(key=lambda x: x[1], reverse=True)
+
+        # SearchResult 리스트 생성
+        sparse_results: List[SearchResult] = []
+        for chunk_id, score in scored:
+            if chunk_id in candidate_map:
+                original = candidate_map[chunk_id]
+                sparse_result = SearchResult(
+                    chunk_id=original.chunk_id,
+                    document_id=original.document_id,
+                    content=original.content,
+                    score=score,
+                    source="sparse",
+                    metadata={**original.metadata, "search_source": "sparse"},
+                    has_embedding=original.has_embedding,
+                )
+                sparse_results.append(sparse_result)
+
+        elapsed_ms = (time.monotonic() - start_time) * 1000
+        logger.info(
+            f"Sparse search - candidates={len(candidate_ids)}, "
+            f"scored={len(scored)}, query_tokens={len(pruned_query)}, "
+            f"latency={elapsed_ms:.1f}ms"
+        )
+
+        return sparse_results
 
     async def _graph_search(
         self,
