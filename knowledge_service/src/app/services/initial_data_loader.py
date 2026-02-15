@@ -1432,7 +1432,8 @@ class InitialDataLoader:
                                 MERGE (c:Chunk {id: $chunk_id})
                                 SET c.content = $content,
                                     c.chunk_index = $chunk_index,
-                                    c.heading = $heading
+                                    c.heading = $heading,
+                                    c.token_count = $token_count
                                 WITH c
                                 MATCH (d:Document {id: $doc_id})
                                 MERGE (c)-[:PART_OF]->(d)
@@ -1441,6 +1442,7 @@ class InitialDataLoader:
                                 content=chunk.content[:500],  # 저장 시 내용 제한
                                 chunk_index=chunk.chunk_index,
                                 heading=chunk.heading,
+                                token_count=getattr(chunk, "token_count", 0),
                                 doc_id=document_id,
                             )
 

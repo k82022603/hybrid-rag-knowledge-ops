@@ -1,7 +1,7 @@
 # ETL Phase 1 최종 결과 보고서
 
-> **Version**: 1.0
-> **Date**: 2026-02-15
+> **Version**: 1.1
+> **Date**: 2026-02-15 (v1.1 업데이트)
 > **Author**: Claude Opus 4.6 (AI Service Team)
 > **Sprint**: Sprint 10
 > **Status**: Phase 1 Complete
@@ -372,6 +372,7 @@ flowchart LR
 | 2 | 153시간 예상 | OCR + 자원 경합 | Backfill 중단 | 동시 부하 측정 필수 |
 | 3 | 58% 저품질 | OCR OFF | OCR ON 복원 | 속도 < 품질 |
 | 4 | .md 과분할 | merge threshold 20 | threshold 100 | 파일 유형별 튜닝 |
+| 5 | Neo4j token_count NULL (56,063건) | `initial_data_loader.py` 저장 시 필드 누락 | 코드 수정 + 배치 보정 | 3-Store 필드 일관성 검증 필수 |
 
 ---
 
@@ -429,8 +430,106 @@ ETL Phase 1은 5회 실행(v1~v4 + v3-md)의 반복과 장애 대응을 거쳐 �
 **잔여 과제**:
 - ~~ES-PG 청크 수 불일치 (6,426건) 조사~~ → **해결 완료** (P0-5: orphan 112문서 6,426청크 삭제)
 - ~~Phase 2 GPU 임베딩으로 검색 품질 확보~~ → **완료** (56,063건 100% Dense+Sparse 임베딩)
+- ~~Neo4j token_count 누락~~ → **해결 완료** (Sprint 11 코드 버그 수정 + 56,063건 보정)
 - .md 62.5% <100토큰 구조적 한계 (코드블록/헤더)
 - Phase 3 Gleaning Entity Extraction (Neo4j Entity 0건)
+
+---
+
+## 11. Neo4j token_count 누락 사고 보고 및 반성
+
+### 11.1 사고 개요
+
+| 항목 | 내용 |
+|------|------|
+| **발견일** | 2026-02-15 (Sprint 12 시작 시점) |
+| **영향 범위** | Neo4j 56,063 청크 전체 |
+| **근본 원인** | `initial_data_loader.py`의 Chunk 저장 Cypher에서 `token_count` 필드 누락 |
+| **책임** | Claude Code (Opus 4.6) - ETL Phase 1 구현 담당 |
+
+### 11.2 무엇이 잘못되었나
+
+1. **Pydantic 모델** (`chunk.py:43`)에 `token_count: int` 필드가 명확히 정의됨
+2. **Chunker** (`chunker.py:226`)에서 `_estimate_token_count()`로 정확히 계산함
+3. **PG 스키마** (`chunks.token_count integer`)에도 컬럼이 있음
+4. **Neo4j 저장 코드** (`neo4j_storage.py:689`)에서도 `token_count` 저장 로직 있음
+5. **그런데** `initial_data_loader.py:1432`에서 Chunk 노드 생성 시 `token_count`를 빠뜨림
+
+설계는 정확했으나, **구현 단계에서 실수**가 발생했다. 모델에 필드가 있고, 계산 로직도 있고, 다른 저장소에는 컬럼까지 있는데, 정작 Neo4j에 저장하는 코드에서 한 줄을 빠뜨린 것이다.
+
+### 11.3 왜 놓쳤는가
+
+- ETL Phase 1 개발 당시 **3-Store 저장 필드 일관성 검증을 하지 않았음**
+- `neo4j_storage.py`와 `initial_data_loader.py`에 **중복된 Neo4j 저장 경로**가 존재하여, 한쪽만 수정하고 다른 쪽을 놓침
+- 적재 완료 후 **Neo4j 노드 속성 검증**(token_count가 실제로 저장되었는지)을 수행하지 않음
+- Phase 1 최종 보고서에 "토큰 분포" 통계를 기재했으나, 이는 **chunker 메모리 기준**이지 Neo4j 저장값 기준이 아니었음
+
+### 11.4 조치 내용
+
+| # | 조치 | 상태 |
+|---|------|:----:|
+| 1 | `initial_data_loader.py`에 `c.token_count = $token_count` 추가 | 완료 |
+| 2 | Neo4j 56,063 청크 `token_count` 배치 보정 (content 기반 추정) | **완료** (32.5분) |
+| 3 | 본 보고서에 장애 이력 #5로 추가 | 완료 |
+
+#### 보정 결과
+
+| 지표 | 값 | 비고 |
+|------|-----|------|
+| 보정 건수 | 56,063건 (100%) | NULL → 정수값 |
+| 평균 token_count | 74 | Neo4j content[:500] 기준 |
+| min / max | 1 / 271 | |
+| token_count >= 100 | 16,185건 (28.9%) | 엔티티 추출 대상 |
+| token_count >= 50 | ~30,000건 (추정) | |
+
+> **주의**: Neo4j의 content는 `content[:500]`으로 잘려 저장됨. 따라서 Neo4j 기준 토큰 수는 원본 chunker 기준보다 낮음. ETL 보고서 4장의 토큰 분포(30,290건 ≥ 100)는 원본 content 기준.
+
+### 11.5 재발 방지
+
+- **3-Store 필드 일관성 체크리스트**: 모델 필드 → PG 컬럼 → ES 매핑 → Neo4j 속성이 모두 일치하는지 검증
+- **적재 후 검증 쿼리 의무화**: 각 Store별로 `NULL 비율`, `필드 존재 여부` 자동 검증
+- **Neo4j 저장 경로 통일**: `neo4j_storage.py`와 `initial_data_loader.py`의 중복 제거
+- **QA 상시 검증 프로세스 도입**: ETL 포함 모든 데이터 변경 작업에 QA 검증 필수화
+
+#### QA 상시 검증 체크리스트 (신규)
+
+ETL, 배치 작업, 스키마 변경 등 데이터 변경이 있을 때마다 QA가 검증해야 할 항목:
+
+```
+[ ] 3-Store 건수 일치 (PG = ES = Neo4j)
+[ ] 필수 필드 NULL 비율 0% (token_count, content, chunk_index 등)
+[ ] 데이터 정합성 (chunk_id 매핑, document_id 참조 무결성)
+[ ] 인덱스/제약조건 정상 작동
+[ ] 모델 정의 ↔ 실제 저장 필드 일치
+```
+
+**교훈**: QA가 ETL 적재 이후 "건수만 확인"하고 "필드 완전성"은 확인하지 않았다. 앞으로 QA는 모든 데이터 변경 작업에 고정 참여하여 적재 결과를 검증해야 한다.
+
+### 11.6 시간 비용 분석
+
+이 코드 버그 한 줄(`token_count` 누락)로 인해 발생한 추가 시간:
+
+| 항목 | 소요 시간 | 비고 |
+|------|:---------:|------|
+| 문제 발견 및 원인 분석 | 15분 | Sprint 12 시작 시 Neo4j 조회하다 발견 |
+| 코드 수정 | 2분 | `initial_data_loader.py` 한 줄 추가 |
+| 설계문서 추적 | 10분 | 3개 저장 경로(neo4j_storage/pipeline/initial_data_loader) 비교 |
+| **Neo4j 56,063건 보정** | **32.5분** | 5,000건/배치, 200초/배치, content 기반 토큰 재추정 |
+| 보고서 + 반성문 작성 | 15분 | 장애 이력 #5 + 시간 비용 분석 + QA 프로세스 개선 |
+| **합계** | **74.5분** | 코드 한 줄 누락의 대가 |
+
+만약 처음부터 올바르게 구현했다면:
+- ETL Phase 1 적재 시 `token_count` 저장 = **추가 시간 0초** (기존 파이프라인에 이미 계산 로직 존재)
+- Sprint 12 시작 즉시 엔티티 추출 가능 = **74.5분 절약**
+- QA가 적재 후 필드 검증을 했다면 = **Sprint 10 시점에 발견** 가능 (2일 전)
+
+### 11.7 반성
+
+이 실수는 "설계를 했으니 구현도 됐겠지"라는 안일한 가정에서 비롯되었다. 56,063건의 데이터가 잘못 저장되었는데 Sprint 12 시작 전까지 발견하지 못했다. 특히 Phase 1 최종 보고서에서 토큰 분포 통계를 자신 있게 기재했지만, 실제 Neo4j에는 해당 데이터가 존재하지 않았다는 것은 **검증 없이 보고서를 작성**한 것과 같다.
+
+**코드 한 줄**(SET c.token_count = $token_count)을 누락하여 **74분의 재처리 시간**이 발생했다. 이는 5회 ETL 실행(v1~v4+v3-md)에서 12시간+을 투자한 적재 결과의 데이터 무결성을 훼손한 것이다. `initial_data_loader.py`와 `neo4j_storage.py`에 **중복된 Neo4j 저장 경로**가 있으면서 한쪽만 완성한 것은 DRY 원칙 위반이자 통합 테스트 부재의 결과다.
+
+적재 파이프라인에서 "저장했다"와 "올바르게 저장했다"는 다른 문제이며, 후자를 확인하지 않은 것은 QA 프로세스의 부재를 의미한다.
 
 ---
 
