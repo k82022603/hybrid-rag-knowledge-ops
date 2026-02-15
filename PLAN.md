@@ -2,9 +2,9 @@
 
 > Claude Code 세션 간 컨텍스트 유지를 위한 계획 문서
 >
-> **Last Updated**: 2026-02-15 KST (Sprint 10 - ETL Phase 1+2 완료, P0 5건 전체 해결)
-> **Current Phase**: Phase 5 배포 완료 ✅ → Sprint 10 ETL Phase 1+2 완료 (1,437 docs / 56,063 chunks / 100% 임베딩)
-> **Sprint 10**: ETL Phase 1 완료 → P0 5건 해결 → GPU 임베딩(Colab T4) → ES Import → 3-Store 100% 정합성
+> **Last Updated**: 2026-02-15 KST (Sprint 12 - Entity Extraction 배치 진행 중, 26.9%)
+> **Current Phase**: Phase 5 배포 완료 ✅ → Sprint 12 Entity Extraction (4,347/16,185 chunks, 60K entities, 54K relationships)
+> **Sprint 12**: Entity Extraction 배치 + Neo4j 메모리 수정 + 듀얼 API 키 3.1x 속도 향상
 > **Frontend 전략 변경**: Tailwind + Antigravity + Stitch MCP 도입 결정 (2026-01-25)
 > **소스코드 리뷰**: 72.5/100 B+ (Gateway 65, Backend 72, AI Service 78, Frontend 75)
 
@@ -941,7 +941,17 @@ CI/CD Pipeline (GitHub Actions)
 
 ## Session Notes
 
-### 2026-02-15 (Sprint 10 Day 2 - P0 전체 해결 + GPU 임베딩 완료)
+### 2026-02-15 PM (Sprint 12 - Entity Extraction 배치)
+
+- **Neo4j override 메모리 캡 발견**: docker-compose.override.yml이 1GB로 제한 → 2GB로 수정 (88.89%→48%)
+- **Concurrency 테스트**: 5/10/20 비교 → 10이 최적 (API 키당 Rate Limit)
+- **듀얼 API 키 전략**: ENTITY_PARTITION 파티셔닝 구현, 3.1x 속도 향상 (14.3→44.7 chunks/min)
+- **Slack 모니터링**: entity_monitor_slack.sh (15분 간격 자동 보고 + 워커 사망 감지)
+- **Entity Extraction 진행**: 4,347/16,185 (26.9%), 60,383 엔티티, 54,418 관계, 10 에러
+- **마감 스탠드업**: 주제 "한국에서 가장 맛있는 음식", 전원 14명 참석
+- **커밋**: 2건 (ebc65cd, afed7ad)
+
+### 2026-02-15 AM (Sprint 10 Day 2 - P0 전체 해결 + GPU 임베딩 완료)
 
 - **P0 5건 전체 해결 (100%)**:
   - P0-1: 디스크 91GB 회수 (사용자)
