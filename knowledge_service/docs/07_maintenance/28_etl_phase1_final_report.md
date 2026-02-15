@@ -385,8 +385,8 @@ flowchart LR
         P1["Document Parsing<br/>+ Chunking<br/>1,437 docs → 56,063 chunks"]
     end
 
-    subgraph Next["🔄 Phase 2 (다음)"]
-        P2["GPU Embedding<br/>Colab T4/A100<br/>Dense 1024d + Sparse"]
+    subgraph Next["✅ Phase 2 (완료)"]
+        P2["GPU Embedding<br/>Colab T4 (65.6c/s)<br/>Dense 1024d + Sparse"]
     end
 
     subgraph Future1["📋 Phase 3"]
@@ -400,7 +400,7 @@ flowchart LR
     Done --> Next --> Future1 --> Future2
 
     style Done fill:#c8e6c9,stroke:#2e7d32
-    style Next fill:#fff3e0,stroke:#e65100
+    style Next fill:#c8e6c9,stroke:#2e7d32
     style Future1 fill:#e3f2fd,stroke:#1565c0
     style Future2 fill:#f3e5f5,stroke:#6a1b9a
 ```
@@ -410,7 +410,7 @@ flowchart LR
 | Phase | 내용 | 환경 | 예상 소요 | 상태 |
 |-------|------|------|----------|:----:|
 | **Phase 1** | Parsing + Chunking | Docker (CPU) | 12시간 | ✅ 완료 |
-| **Phase 2** | Dense + Sparse Embedding | Colab GPU (T4) | 2~4시간 | 준비 중 |
+| **Phase 2** | Dense + Sparse Embedding | Colab GPU (T4) | 13.5분 (GPU) + 2.1분 (Import) | ✅ 완료 |
 | **Phase 3** | Gleaning Entity Extraction | DeepSeek API | 4~8시간 | 대기 |
 | **Phase 4** | 4-Way RRF Search | Docker (CPU) | 코드 변경 | 대기 |
 
@@ -427,9 +427,10 @@ ETL Phase 1은 5회 실행(v1~v4 + v3-md)의 반복과 장애 대응을 거쳐 �
 - OOM Kill → 메모리 제한 10GB + OCR ON + TableFormerMode.FAST 최적 설정 확정
 
 **잔여 과제**:
-- ES-PG 청크 수 불일치 (6,426건) 조사
+- ~~ES-PG 청크 수 불일치 (6,426건) 조사~~ → **해결 완료** (P0-5: orphan 112문서 6,426청크 삭제)
+- ~~Phase 2 GPU 임베딩으로 검색 품질 확보~~ → **완료** (56,063건 100% Dense+Sparse 임베딩)
 - .md 62.5% <100토큰 구조적 한계 (코드블록/헤더)
-- Phase 2 GPU 임베딩으로 검색 품질 확보
+- Phase 3 Gleaning Entity Extraction (Neo4j Entity 0건)
 
 ---
 

@@ -1,6 +1,6 @@
 # ETL 3-Phase 파이프라인 운영 가이드
 
-**Version**: 1.0 | **Updated**: 2026-02-14
+**Version**: 1.1 | **Updated**: 2026-02-15
 
 ---
 
@@ -32,7 +32,7 @@ flowchart LR
 | Phase | 환경 | 소요시간 | 핵심 작업 |
 |-------|------|---------|----------|
 | **Phase 1** | CPU (Docker) | ~6시간/1,786파일 | 파싱 + 청킹 → ES/PG/Neo4j |
-| **Phase 2** | GPU (Colab T4) | ~30분/5,000청크 | dense+sparse 임베딩 |
+| **Phase 2** | GPU (Colab T4) | 13.5분/53,414청크 | dense+sparse 임베딩 ✅ |
 | **Phase 3** | CPU (Docker) | TBD | 엔티티 추출 → Neo4j/PG |
 
 ---
@@ -143,6 +143,18 @@ embeddings = model.encode(
 | max_text_length | 1000 | 1000 | 1500은 OOM (7.3GB+) |
 | workers | 1 | - | CPU 2워커는 경합 |
 | use_fp16 | False | True | GPU에서만 fp16 사용 |
+
+### 3.4 Phase 2 실행 결과 (2026-02-15)
+
+| 항목 | 값 |
+|------|-----|
+| GPU 임베딩 | 53,414건, **65.6 c/s**, 814.8초 |
+| CPU 보충 임베딩 | 2,649건, 1.5 c/s, ~30분 |
+| ES Import | 53,414건, **434 docs/s**, 123초 |
+| 최종 완료 | 56,063건 (100%) |
+| Sparse 저장 형식 | `sparse_vector_json` (JSON 문자열) |
+
+> **주의**: Sparse vector를 ES object로 저장하면 동적 매핑 폭발이 발생한다. 반드시 JSON 문자열(`sparse_vector_json`)로 저장해야 한다. 상세: [GPU 임베딩 Colab 매뉴얼 Section 9.7](./30_gpu_embedding_colab_manual.md)
 
 ---
 

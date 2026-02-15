@@ -2,9 +2,9 @@
 
 > Claude Code 세션 간 컨텍스트 유지를 위한 계획 문서
 >
-> **Last Updated**: 2026-02-15 09:58 KST (Sprint 10 - ETL Phase 1 완료 + Chunker v3 .md 품질 개선)
-> **Current Phase**: Phase 5 배포 완료 ✅ → Sprint 10 ETL Phase 1 완료 (1,437 docs / 62,489 chunks) + Phase 2 GPU 임베딩 준비
-> **Sprint 10**: ETL OOM Kill 대응 → 속도 최적화 → OCR 복원 → v4 완주 → Chunker v3 .md 품질 개선 완료
+> **Last Updated**: 2026-02-15 KST (Sprint 10 - ETL Phase 1+2 완료, P0 5건 전체 해결)
+> **Current Phase**: Phase 5 배포 완료 ✅ → Sprint 10 ETL Phase 1+2 완료 (1,437 docs / 56,063 chunks / 100% 임베딩)
+> **Sprint 10**: ETL Phase 1 완료 → P0 5건 해결 → GPU 임베딩(Colab T4) → ES Import → 3-Store 100% 정합성
 > **Frontend 전략 변경**: Tailwind + Antigravity + Stitch MCP 도입 결정 (2026-01-25)
 > **소스코드 리뷰**: 72.5/100 B+ (Gateway 65, Backend 72, AI Service 78, Frontend 75)
 
@@ -940,6 +940,22 @@ CI/CD Pipeline (GitHub Actions)
 ---
 
 ## Session Notes
+
+### 2026-02-15 (Sprint 10 Day 2 - P0 전체 해결 + GPU 임베딩 완료)
+
+- **P0 5건 전체 해결 (100%)**:
+  - P0-1: 디스크 91GB 회수 (사용자)
+  - P0-2: search.py BM25 `content^3` → `text^3` 수정
+  - P0-3: ES 클라이언트 싱글톤화
+  - P0-4: GPU 임베딩 56,063건 100% 완료
+  - P0-5: ES orphan 112문서 6,426청크 삭제 → 3-Store 정합성 100%
+- **GPU 임베딩**: Colab T4, 65.6 chunks/s, 53,414건 814.8초(13.5분)
+- **ES Import**: sparse_vector_json(JSON 문자열) 방식, 434 docs/s, 123초
+  - 1차 시도: sparse_vector(object) → 동적 매핑 폭발 → ES 크래시
+  - 2차: JSON 문자열로 전환 → 전건 성공
+- **나머지 2,649건**: GPU JSONL 추출 시 누락분, CPU 보충 임베딩(1.5c/s, ~30분)
+- **문서**: GPU Colab 매뉴얼, Action Tracker 업데이트, ETL 보고서 Phase 2 완료 반영
+- **커밋**: 2건
 
 ### 2026-02-14 (Sprint 10 Day 1 - ETL Phase 1 OOM→속도최적화→OCR복원)
 

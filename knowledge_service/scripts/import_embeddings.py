@@ -3,11 +3,14 @@ GPU 임베딩 결과를 Elasticsearch에 벌크 임포트하는 스크립트
 
 Usage:
     # 컨테이너 내부에서 실행
-    python3 scripts/import_embeddings.py /tmp/chunks_need_sparse_embeddings.jsonl
+    python3 scripts/import_embeddings.py /tmp/chunks_for_gpu_embeddings.jsonl
 
     # 또는 호스트에서 docker exec로 실행
     docker cp embeddings_result.jsonl kp-ai-service:/tmp/
     docker exec kp-ai-service python3 scripts/import_embeddings.py /tmp/embeddings_result.jsonl
+
+    # pending 건만 처리 (이어하기)
+    docker exec kp-ai-service python3 scripts/import_embeddings.py /tmp/embeddings_result.jsonl --skip-completed
 """
 import json
 import os
@@ -18,10 +21,33 @@ import urllib.error
 
 ES_URL = os.getenv("ELASTICSEARCH_URL", "http://elasticsearch:9200")
 INDEX = "knowledge_chunks"
-BULK_SIZE = 200
+BULK_SIZE = 100
 
 
-def bulk_update_embeddings(input_file: str):
+def get_completed_ids():
+    """이미 completed인 chunk_id 목록 조회"""
+    completed = set()
+    body = json.dumps({
+        "size": 0,
+        "query": {"term": {"embedding_status.keyword": "completed"}},
+        "aggs": {"ids": {"terms": {"field": "_id", "size": 60000}}}
+    })
+    try:
+        req = urllib.request.Request(
+            f"{ES_URL}/{INDEX}/_search",
+            data=body.encode(),
+            headers={"Content-Type": "application/json"},
+        )
+        resp = urllib.request.urlopen(req)
+        data = json.loads(resp.read())
+        for b in data["aggregations"]["ids"]["buckets"]:
+            completed.add(b["key"])
+    except Exception:
+        pass
+    return completed
+
+
+def bulk_update_embeddings(input_file: str, skip_completed: bool = False):
     """JSONL 파일에서 임베딩을 읽어 ES에 벌크 업데이트"""
     print(f"Loading embeddings from: {input_file}")
 
@@ -31,7 +57,18 @@ def bulk_update_embeddings(input_file: str):
             if line.strip():
                 records.append(json.loads(line))
 
-    print(f"Total records: {len(records)}")
+    total_loaded = len(records)
+    print(f"Total records loaded: {total_loaded}")
+
+    if skip_completed:
+        print("Fetching already completed IDs...")
+        completed_ids = get_completed_ids()
+        records = [r for r in records if r["chunk_id"] not in completed_ids]
+        print(f"Skipping {total_loaded - len(records)} completed, processing {len(records)} remaining")
+
+    if not records:
+        print("No records to process!")
+        return
 
     updated = 0
     failed = 0
@@ -46,12 +83,15 @@ def bulk_update_embeddings(input_file: str):
             dense = rec["dense_vector"]
             sparse = rec["sparse_vector"]
 
+            # sparse_vector를 JSON 문자열로 직렬화 (동적 매핑 폭발 방지)
+            sparse_json = json.dumps(sparse, ensure_ascii=False)
+
             action = json.dumps({"update": {"_index": INDEX, "_id": chunk_id}})
             doc = json.dumps(
                 {
                     "doc": {
                         "dense_vector": dense,
-                        "sparse_vector": sparse,
+                        "sparse_vector_json": sparse_json,
                         "embedding_status": "completed",
                         "embedding_model": "bge-m3",
                     }
@@ -65,45 +105,50 @@ def bulk_update_embeddings(input_file: str):
                 data=bulk_body.encode("utf-8"),
                 headers={"Content-Type": "application/x-ndjson"},
             )
-            resp = urllib.request.urlopen(req)
+            resp = urllib.request.urlopen(req, timeout=120)
             result = json.loads(resp.read())
 
+            batch_errors = 0
             if result.get("errors"):
                 for item in result["items"]:
                     if "error" in item.get("update", {}):
+                        batch_errors += 1
                         failed += 1
-                        err = item["update"]["error"]
-                        print(f"  Error: {err.get('type')}: {err.get('reason', '')[:100]}")
+                        if batch_errors <= 3:
+                            err = item["update"]["error"]
+                            print(f"  Error: {err.get('type')}: {err.get('reason', '')[:100]}")
                     else:
                         updated += 1
+                if batch_errors > 3:
+                    print(f"  ... and {batch_errors - 3} more errors in this batch")
             else:
                 updated += len(batch)
 
-        except urllib.error.URLError as e:
+        except (urllib.error.URLError, Exception) as e:
             print(f"  Bulk request failed: {e}")
             failed += len(batch)
 
         progress = batch_start + len(batch)
         elapsed = time.time() - start
         rate = progress / elapsed if elapsed > 0 else 0
-        print(f"  Progress: {progress}/{len(records)} ({rate:.0f} docs/s)")
+        remaining = (len(records) - progress) / rate if rate > 0 else 0
+        print(f"  Progress: {progress}/{len(records)} ({rate:.0f} docs/s, ~{remaining/60:.0f}m left)")
 
     elapsed = time.time() - start
-    print(f"\nCompleted in {elapsed:.1f}s")
+    print(f"\nCompleted in {elapsed:.1f}s ({elapsed/60:.1f}m)")
     print(f"  Updated: {updated}")
     print(f"  Failed: {failed}")
 
-    # 결과 검증
+    # 결과 검증 (embedding_status 기반)
     verify_url = f"{ES_URL}/{INDEX}/_search"
-    verify_query = json.dumps(
-        {
-            "size": 0,
-            "aggs": {
-                "has_sparse": {"filter": {"exists": {"field": "sparse_vector"}}},
-                "has_dense": {"filter": {"exists": {"field": "dense_vector"}}},
-            },
+    verify_query = json.dumps({
+        "size": 0,
+        "aggs": {
+            "status": {
+                "terms": {"field": "embedding_status.keyword", "size": 10, "missing": "none"}
+            }
         }
-    )
+    })
     try:
         req = urllib.request.Request(
             verify_url,
@@ -113,19 +158,19 @@ def bulk_update_embeddings(input_file: str):
         resp = urllib.request.urlopen(req)
         vdata = json.loads(resp.read())
         total = vdata["hits"]["total"]["value"]
-        has_sparse = vdata["aggregations"]["has_sparse"]["doc_count"]
-        has_dense = vdata["aggregations"]["has_dense"]["doc_count"]
         print(f"\nVerification:")
         print(f"  Total chunks: {total}")
-        print(f"  Has dense: {has_dense} ({has_dense/total*100:.1f}%)")
-        print(f"  Has sparse: {has_sparse} ({has_sparse/total*100:.1f}%)")
+        for b in vdata["aggregations"]["status"]["buckets"]:
+            pct = b['doc_count'] / total * 100
+            print(f"  {b['key']}: {b['doc_count']} ({pct:.1f}%)")
     except Exception as e:
         print(f"Verification failed: {e}")
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python import_embeddings.py <embeddings.jsonl>")
+        print("Usage: python import_embeddings.py <embeddings.jsonl> [--skip-completed]")
         sys.exit(1)
 
-    bulk_update_embeddings(sys.argv[1])
+    skip = "--skip-completed" in sys.argv
+    bulk_update_embeddings(sys.argv[1], skip_completed=skip)
