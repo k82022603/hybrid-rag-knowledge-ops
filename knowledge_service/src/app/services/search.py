@@ -806,10 +806,18 @@ class SearchService:
         top_k: int = 20,
     ) -> List[SearchResult]:
         """
-        Neo4j Graph Search
+        Neo4j Graph Search (Entity-Enhanced BM25)
 
-        엔티티 기반으로 Knowledge Graph를 탐색하여 관련 청크를 검색합니다.
-        실제 스키마: Chunk -[:PART_OF]-> Document, Entity/Technology/Topic 노드 활용
+        Knowledge Graph에서 쿼리 관련 엔티티를 추출한 뒤, 엔티티명으로
+        ES를 검색합니다. 이 방식으로 chunk_id가 Vector/Keyword와 겹쳐
+        RRF 부스트가 가능합니다.
+
+        전략:
+        1. Neo4j에서 쿼리와 관련된 엔티티 매칭 + RELATED 1-hop 확장
+        2. 상위 엔티티명을 expanded query로 구성
+        3. ES에서 expanded query로 BM25 검색
+        → chunk_id가 Vector/Keyword 결과와 동일하여 RRF 융합 시 부스트
+        → Graph 고유 문서도 entity context 포함하여 반환
 
         Args:
             query: 검색 질의
@@ -826,133 +834,119 @@ class SearchService:
         try:
             entity_names = [e.get("name", "") for e in (entities or [])]
 
+            # Step 1: Neo4j에서 관련 엔티티 추출
             if entity_names:
-                # 제공된 엔티티로 직접 매칭 + RELATED_TO 1-hop 확장
                 cypher = """
-                MATCH (e) WHERE (e:Technology OR e:Topic OR e:Person
-                    OR e:Keyword OR e:Entity)
-                AND (e.name IN $entity_names OR e.value IN $entity_names)
-                OPTIONAL MATCH (e)-[:RELATED_TO]-(related)
+                MATCH (e:Entity)
+                WHERE e.name IN $entity_names
+                OPTIONAL MATCH (e)-[:RELATED]-(related:Entity)
                 WHERE related.name IS NOT NULL AND related.name <> 'None'
-                WITH collect(DISTINCT e.name) +
-                     collect(DISTINCT related.name) AS all_entities
-                UNWIND all_entities AS ename
-                WITH DISTINCT ename
-                WHERE ename IS NOT NULL AND ename <> 'None'
-                MATCH (c:Chunk)-[:PART_OF]->(d:Document)
-                WHERE c.content CONTAINS ename
-                WITH c, d,
-                     collect(DISTINCT ename) AS matched_entities,
-                     count(DISTINCT ename) AS match_count
-                ORDER BY match_count DESC
-                LIMIT $top_k
-                RETURN COALESCE(c.chunk_id, c.id) AS chunk_id,
-                       c.content AS content,
-                       COALESCE(c.knowledge_id, d.id) AS document_id,
-                       d.title AS title,
-                       match_count AS score, matched_entities
+                WITH collect(DISTINCT e.name) + collect(DISTINCT related.name) AS all_names
+                UNWIND all_names AS name
+                WITH DISTINCT name
+                WHERE name IS NOT NULL AND name <> 'None' AND size(name) >= 2
+                RETURN name
+                LIMIT 20
                 """
-                params = {"entity_names": entity_names, "top_k": top_k}
+                params: Dict[str, Any] = {"entity_names": entity_names}
             else:
-                # 3단계 매칭 전략:
-                # 1) 쿼리에서 엔티티명 매칭 (역방향/정방향 CONTAINS)
-                # 2) RELATED_TO 1-hop 확장으로 관련 엔티티 추가
-                # 3) 확장된 엔티티명으로 청크 content 검색
                 query_lower = query.lower()
                 query_words = [w for w in query.split() if len(w) >= 2]
                 if not query_words:
                     query_words = [query]
 
                 cypher = """
-                MATCH (e) WHERE (e:Technology OR e:Topic OR e:Person
-                    OR e:Keyword OR e:Entity)
-                AND e.name IS NOT NULL AND e.name <> 'None'
-                AND size(e.name) >= 2
+                MATCH (e:Entity)
+                WHERE e.name IS NOT NULL AND size(e.name) >= 2
                 AND (
                     toLower($query_str) CONTAINS toLower(e.name)
                     OR any(word IN $query_words WHERE
                         toLower(e.name) CONTAINS toLower(word))
                 )
-                OPTIONAL MATCH (e)-[:RELATED_TO]-(related)
+                WITH DISTINCT e
+                LIMIT 30
+                OPTIONAL MATCH (e)-[r:RELATED]-(related:Entity)
                 WHERE related.name IS NOT NULL AND related.name <> 'None'
-                WITH collect(DISTINCT e.name) +
-                     collect(DISTINCT related.name) AS all_entities
-                UNWIND all_entities AS ename
-                WITH DISTINCT ename
-                WHERE ename IS NOT NULL AND ename <> 'None'
-                MATCH (c:Chunk)-[:PART_OF]->(d:Document)
-                WHERE c.content CONTAINS ename
-                WITH c, d,
-                     collect(DISTINCT ename) AS matched_entities,
-                     count(DISTINCT ename) AS match_count
-                ORDER BY match_count DESC
-                LIMIT $top_k
-                RETURN COALESCE(c.chunk_id, c.id) AS chunk_id,
-                       c.content AS content,
-                       COALESCE(c.knowledge_id, d.id) AS document_id,
-                       d.title AS title,
-                       match_count AS score, matched_entities
+                WITH e, related, COALESCE(r.weight, 1.0) AS w
+                ORDER BY w DESC
+                WITH e, collect(related.name)[0..3] AS rel_names
+                WITH collect(e.name) + reduce(acc=[], n IN collect(rel_names) |
+                    acc + n) AS all_names
+                UNWIND all_names AS name
+                WITH DISTINCT name
+                WHERE name IS NOT NULL AND name <> 'None' AND size(name) >= 2
+                RETURN name
+                LIMIT 20
                 """
                 params = {
                     "query_str": query_lower,
                     "query_words": query_words,
-                    "top_k": top_k,
                 }
-                logger.debug(
-                    f"Graph search query: '{query}', words: {query_words}"
+
+            entity_records = await self._neo4j_query(cypher, params)
+
+            if not entity_records:
+                logger.info("Graph search: no matching entities found")
+                return []
+
+            # Step 2: 엔티티명으로 enhanced query 구성
+            graph_entities = [
+                str(r.get("name", ""))
+                for r in entity_records
+                if r.get("name")
+            ]
+
+            logger.debug(
+                f"Graph search - Entities: {graph_entities[:5]}"
+            )
+
+            # Step 3: keyword search와 동일한 multi_match + 엔티티 부스트
+            # must: keyword search와 동일한 multi_match 쿼리 (동일한 청크 풀)
+            # should: 엔티티명으로 부스트 (entity 관련 청크 우선)
+            # → keyword와 동일 chunk_id를 찾아 RRF에서 부스트
+            results: List[SearchResult] = []
+
+            if self.es_client is not None:
+                should_clauses = [
+                    {"match": {"text": {"query": ent, "boost": 1.5}}}
+                    for ent in graph_entities[:10]
+                ]
+
+                es_query: Dict[str, Any] = {
+                    "bool": {
+                        "must": [
+                            {
+                                "multi_match": {
+                                    "query": query,
+                                    "fields": [
+                                        "text^3",
+                                        "heading^2",
+                                        "metadata.title^2",
+                                    ],
+                                    "type": "best_fields",
+                                    "fuzziness": "AUTO",
+                                }
+                            },
+                        ],
+                        "should": should_clauses,
+                    }
+                }
+
+                response = await self._es_search(
+                    body={"query": es_query, "size": top_k},
+                    index=settings.elasticsearch_index,
                 )
 
-                records = await self._neo4j_query(cypher, params)
+                # _parse_es_results로 파싱 (keyword와 동일한 chunk_id 생성)
+                results = self._parse_es_results(response, source="graph")
+                # matched_entities 메타데이터 추가
+                for r in results:
+                    r.metadata["matched_entities"] = graph_entities[:5]
 
-                # 엔티티 매칭 실패 시 컨텐츠 기반 폴백
-                if not records:
-                    logger.info(
-                        "Graph entity match returned 0 "
-                        "- falling back to content search"
-                    )
-                    cypher_fallback = """
-                    MATCH (c:Chunk)-[:PART_OF]->(d:Document)
-                    WHERE any(word IN $query_words WHERE
-                        c.content CONTAINS word)
-                    WITH c, d
-                    LIMIT $top_k
-                    RETURN COALESCE(c.chunk_id, c.id) AS chunk_id,
-                           c.content AS content,
-                           COALESCE(c.knowledge_id, d.id) AS document_id,
-                           d.title AS title,
-                           1 AS score, [] AS matched_entities
-                    """
-                    records = await self._neo4j_query(
-                        cypher_fallback, params
-                    )
-                    logger.info(
-                        f"Graph content fallback - Results: {len(records)}"
-                    )
-
-            if entity_names:
-                records = await self._neo4j_query(cypher, params)
-
-            results = []
-            for record in records:
-                # chunk_id가 None인 경우 고유 UUID 생성 (RRF 점수 합산 버그 방지)
-                raw_chunk_id = record.get("chunk_id")
-                chunk_id = str(raw_chunk_id) if raw_chunk_id else str(uuid4())
-                results.append(SearchResult(
-                    chunk_id=chunk_id,
-                    document_id=str(record.get("document_id", "")),
-                    content=str(record.get("content", "")),
-                    score=float(record.get("score", 0.0)),
-                    source="graph",
-                    metadata={
-                        "title": record.get("title", ""),
-                        "search_source": "neo4j_graph",
-                        "matched_entities": record.get(
-                            "matched_entities", []
-                        ),
-                    },
-                ))
-
-            logger.info(f"Graph search complete - Results: {len(results)}")
+            logger.info(
+                f"Graph search complete - "
+                f"Entities: {len(graph_entities)}, Results: {len(results)}"
+            )
             return results
 
         except Exception as e:

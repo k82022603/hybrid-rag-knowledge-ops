@@ -135,28 +135,20 @@ async def search_experts(
             # 전문가 검색 Cypher 쿼리
             # Person 노드가 Technology/Topic/Knowledge 노드와 연결된 관계 기반으로 검색
             cypher = """
-            // 1. 토픽/기술과 매칭되는 노드 찾기
-            MATCH (topic)
-            WHERE (topic:Technology AND toLower(topic.name) CONTAINS toLower($topic_keyword))
-               OR (topic:Topic AND toLower(topic.name) CONTAINS toLower($topic_keyword))
-               OR (topic:Keyword AND toLower(topic.value) CONTAINS toLower($topic_keyword))
+            // 1. 토픽/기술과 매칭되는 Entity 노드 찾기
+            MATCH (topic:Entity)
+            WHERE toLower(topic.name) CONTAINS toLower($topic_keyword)
 
-            // 2. 관련 Person 노드 찾기 (여러 관계 유형)
-            MATCH (person:Person)-[r]-(topic)
-            WHERE type(r) IN ['MENTIONED_IN', 'HAS_ENTITY', 'USES', 'PARTICIPATED', 'RELATED_TO', 'CREATED', 'MANAGES']
+            // 2. 관련 Person 엔티티 찾기 (RELATED 관계)
+            MATCH (person:Person:Entity)-[r:RELATED]-(topic)
 
             // 3. Person별 통계 집계
             WITH person,
-                 collect(DISTINCT CASE
-                     WHEN topic:Technology THEN topic.name
-                     WHEN topic:Topic THEN topic.name
-                     WHEN topic:Keyword THEN topic.value
-                 END) AS expertise_list,
+                 collect(DISTINCT topic.name) AS expertise_list,
                  count(DISTINCT r) AS rel_count
 
             // 4. 관련 프로젝트 조회
-            OPTIONAL MATCH (person)-[:PARTICIPATED|CREATED|MANAGES]->(project)
-            WHERE project:Topic OR project:Knowledge
+            OPTIONAL MATCH (person)-[:RELATED]->(project:Project)
 
             WITH person, expertise_list, rel_count,
                  collect(DISTINCT COALESCE(project.name, project.title)) AS projects
