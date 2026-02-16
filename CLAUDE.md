@@ -23,7 +23,7 @@
 ## 🚨 인프라 설정 검증 원칙 (CRITICAL)
 
 > **2026-02-13 Nori 미적용 사고에서 도출된 원칙**
-> 상세: [04_ragas_v7_comprehensive_evaluation.md §11](./knowledge_service/docs/04_testing/embedding_evaluation/04_ragas_v7_comprehensive_evaluation.md)
+> 상세: [04_ragas_v7_comprehensive_evaluation.md §11](./knowledge_service/docs/04_testing/12_embedding_evaluation/04_ragas_v7_comprehensive_evaluation.md)
 
 ### 교훈
 
@@ -597,7 +597,7 @@ PM 승인: [PM Agent]
 - [개발자 에이전트 가이드](./knowledge_service/docs/05_development/01_developer_agent_guide.md) - AI 에이전트 도구 사용법 ⭐
 - [개발자 통합 가이드](./knowledge_service/docs/05_development/02_developer_integration_guide.md) - MCP/Agent/Skills 설정 ⭐
 - [Agent Teams 활용 가이드 v3.0](./docs/12_Agent_Teams_활용_가이드.md) - 멀티-에이전트 협업 + 세션별 표준 워크플로우 ⭐
-- [테스트 계획서](./knowledge_service/docs/04_testing/test_plans/00_unit_integration_test_plan.md) - TDD/Test-Along 기준
+- [테스트 계획서](./knowledge_service/docs/04_testing/01_test_plans/00_unit_integration_test_plan.md) - TDD/Test-Along 기준
 - [백로그 관리 가이드](./backlog/README.md) - Jira-free 백로그 관리
 - [ALM 완전가이드](./docs/technical_assessment/claude_code_virtual_team_alm_guide/) - 가상팀 협업 가이드 (4개 문서)
 - [ETL 배치 파이프라인 설계서](./knowledge_service/docs/03_implementation/etl_batch_pipeline_design.md) - 3-Phase 분리 전략, 엔티티 추출 배치 ⭐

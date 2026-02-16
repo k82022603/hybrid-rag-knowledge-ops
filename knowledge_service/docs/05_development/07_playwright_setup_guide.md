@@ -628,8 +628,8 @@ webServer: {
 
 ### 10.2 Project References
 
-- [E2E Test Plan](../04_testing/test_plans/01_E2E_playwright_test_plan.md)
-- [E2E Test Results](../04_testing/test_results/02_E2E_playwright_test_result.md)
+- [E2E Test Plan](../04_testing/01_test_plans/01_E2E_playwright_test_plan.md)
+- [E2E Test Results](../04_testing/07_test_results/02_E2E_playwright_test_result.md)
 - [Frontend Architecture](../02_design/frontend_architecture.md)
 
 ### 10.3 Useful Commands Summary

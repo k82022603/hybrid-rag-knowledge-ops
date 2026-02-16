@@ -726,8 +726,8 @@ infrastructure/docker/
 
 ## 10. 참고 문서
 
-- [E2E Test Report (2026-01-21)](../infrastructure_e2e/04.infrastructure_e2e_test_report_2026-01-21.md)
-- [E2E 100% Test Plan](../infrastructure_e2e/02.e2e_100_percent_test_plan.md)
+- [E2E Test Report (2026-01-21)](../04_infrastructure_e2e/04_infrastructure_e2e_test_report_2026-01-21.md)
+- [E2E 100% Test Plan](../04_infrastructure_e2e/02_e2e_100_percent_test_plan.md)
 - [Session Log](../../../../work_logs/session_logs/2026-01-21_e2e_test.md)
 - [Infrastructure Design](../../02_design/technical_assessment/04_infrastructure_k8s_reference_design.md)
 

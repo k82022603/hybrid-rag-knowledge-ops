@@ -235,7 +235,7 @@ Graph 채널이 추가되면 3채널 RRF에서 엔티티 매칭 점수가 합산
 - **테스트 결과 JSON**: `docs/results/smoke_test/smoke_test_search_2026-02-10.json`
 - **테스트 스크립트**: `scripts/smoke_test_search.py`
 - **Graph 검색 코드**: `src/app/services/search.py` (`_graph_search` 메서드)
-- **비교 평가 가이드**: `docs/04_testing/ragas/04_ragas_cross_system_evaluation_guide.md`
+- **비교 평가 가이드**: `docs/04_testing/11_ragas/04_ragas_cross_system_evaluation_guide.md`
 
 ---
 

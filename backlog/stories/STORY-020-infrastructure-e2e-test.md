@@ -155,7 +155,7 @@ pytest tests/e2e/infrastructure/ -v --html=report.html
 
 ## Test Plan Reference
 
-- [Infrastructure E2E Test Plan](../../knowledge_service/docs/04_testing/e2e/01_e2e_test_plan_sprint02.md)
+- [Infrastructure E2E Test Plan](../../knowledge_service/docs/04_testing/05_e2e/01_e2e_test_plan_sprint02.md)
 
 ---
 

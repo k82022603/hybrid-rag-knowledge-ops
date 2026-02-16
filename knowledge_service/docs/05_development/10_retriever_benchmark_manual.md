@@ -994,5 +994,5 @@ WSL2 터미널 또는 PowerShell에서 실행하세요. CMD는 ANSI 색상을 �
 ---
 
 *Related Documents:*
-- [UAT 종합 테스트 시나리오](../04_testing/user_acceptance_tests/04_uat_comprehensive_test_2026-02-06.md)
-- [UAT Part B 실행 결과](../04_testing/user_acceptance_tests/06_uat_partB_execution_results_2026-02-06.md)
+- [UAT 종합 테스트 시나리오](../04_testing/09_user_acceptance_tests/04_uat_comprehensive_test_2026-02-06.md)
+- [UAT Part B 실행 결과](../04_testing/09_user_acceptance_tests/06_uat_partB_execution_results_2026-02-06.md)

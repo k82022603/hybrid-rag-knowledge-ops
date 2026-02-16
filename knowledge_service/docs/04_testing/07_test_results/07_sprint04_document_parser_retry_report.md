@@ -228,7 +228,7 @@ def test_max_retries_exceeded(self, tmp_path):
 | `knowledge_service/src/tests/unit/test_document_parser.py` | 재시도 테스트 케이스 (Line 353~379) |
 | `knowledge_service/docs/results/story-002_retest_report.md` | STORY-002 재테스트 결과 (AC-4 PASS) |
 | `knowledge_service/docs/results/sprint04_day1_e2e_test_results.md` | Sprint04 E2E 결과 (전체 PASS) |
-| `knowledge_service/docs/04_testing/analysis/01_docling_parser_test_report.md` | 최초 테스트 보고서 |
+| `knowledge_service/docs/04_testing/08_analysis/01_docling_parser_test_report.md` | 최초 테스트 보고서 |
 
 ---
 

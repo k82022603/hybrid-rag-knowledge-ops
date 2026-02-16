@@ -603,7 +603,7 @@ GROUP BY processing_status;
 | Context Precision | **0.645** | 0.278 | +132% |
 | Context Recall | **0.717** | N/A | 신규 |
 
-**상세 결과**: `docs/04_testing/embedding_evaluation/03_ragas_v7_live_evaluation.md` 참조
+**상세 결과**: `docs/04_testing/12_embedding_evaluation/03_ragas_v7_live_evaluation.md` 참조
 
 ### 10.6 Step 5: RAGAS v7 종합 평가 (51쿼리, 7도메인)
 
@@ -635,7 +635,7 @@ v7 Live 10쿼리 평가 후, 이전 v5/v6 수준의 종합 평가를 실행했�
 > 51쿼리 확대 시 난이도 높은 도메인(legal, graph_entity)이 포함되어 Precision/Recall 하락.
 > Faithfulness는 0.885로 일관 유지 — LLM이 컨텍스트에 충실하게 답변하는 것은 확인됨.
 
-**상세 결과**: `docs/04_testing/embedding_evaluation/04_ragas_v7_comprehensive_evaluation.md` 참조
+**상세 결과**: `docs/04_testing/12_embedding_evaluation/04_ragas_v7_comprehensive_evaluation.md` 참조
 
 ---
 

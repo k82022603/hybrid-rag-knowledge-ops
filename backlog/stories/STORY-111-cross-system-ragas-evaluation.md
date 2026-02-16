@@ -111,7 +111,7 @@
 
 ## 참고 자료
 
-- [RAGAS 크로스 시스템 평가 가이드](../../knowledge_service/docs/04_testing/ragas/04_ragas_cross_system_evaluation_guide.md)
+- [RAGAS 크로스 시스템 평가 가이드](../../knowledge_service/docs/04_testing/11_ragas/04_ragas_cross_system_evaluation_guide.md)
 - [RAGAS 평가 파이프라인 가이드](../../knowledge_service/docs/05_development/08_ragas_evaluation_guide.md)
 - [STORY-105: RAGAS 평가 기준 문서 확정](./STORY-105-ragas-evaluation-criteria.md)
 - [RAGChatbotServer README](../../RAGChatbotServer/README.md)

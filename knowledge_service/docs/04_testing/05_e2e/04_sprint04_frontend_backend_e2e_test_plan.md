@@ -1439,7 +1439,7 @@ knowledge_service/frontend/
 | API Integration Design | `knowledge_service/docs/02_design/04_api_integration_design.md` | API contract reference |
 | Security Issue Report | `knowledge_service/docs/02_design/review/2026-01-28_sprint04_security_issue_report.md` | OWASP findings |
 | Day 1 E2E Results | `knowledge_service/docs/results/sprint04_day1_e2e_test_results.md` | Baseline results |
-| Playwright E2E Plan | `knowledge_service/docs/04_testing/test_plans/E2E_playwright_test_plan.md` | Browser E2E reference |
+| Playwright E2E Plan | `knowledge_service/docs/04_testing/01_test_plans/01_E2E_playwright_test_plan.md` | Browser E2E reference |
 | Existing SSE Test | `knowledge_service/src/tests/integration/test_story050_sse_protocol.py` | SSE integration tests |
 | Existing Security Test | `knowledge_service/src/tests/integration/test_story053_security.py` | Security integration tests |
 | STORY-050 | `backlog/stories/STORY-050-sse-protocol-fix.md` | SSE protocol fix |

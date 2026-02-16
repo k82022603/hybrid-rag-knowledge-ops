@@ -11,7 +11,33 @@ Hybrid RAG Knowledge Operations Platform의 테스트 관련 문서 모음입니
 ├── README.md                                          # 본 문서
 ├── 01_unit_integration_test_plan.md                   # 단위/통합 테스트 계획서 (기반 문서)
 │
-├── e2e/                                               # E2E 테스트 (계획서, 결과, 가이드)
+├── 01_test_plans/                                     # Story별 테스트 계획서
+│   ├── 00_unit_integration_test_plan.md               # 단위/통합 테스트 계획서
+│   ├── 01_E2E_playwright_test_plan.md                 # Playwright E2E 테스트 계획서
+│   ├── 02_STORY-024_auth_test_plan.md                 # STORY-024 인증 테스트 계획서
+│   ├── 03_STORY-031_rrf_fusion_test_plan.md           # STORY-031 RRF Fusion 테스트 계획서
+│   ├── 04_STORY-041_dashboard_ui_test_plan.md         # STORY-041 Dashboard UI 테스트 계획서
+│   ├── 05_STORY-044_backend_search_service_test_plan.md # STORY-044 Backend 검색 테스트 계획서
+│   ├── 06_STORY-045_initial_data_etl_test_plan.md     # STORY-045 초기 데이터 ETL 테스트 계획서
+│   ├── 07_STORY-032_bge_reranker_test_plan.md         # STORY-032 BGE Reranker 테스트 계획서
+│   └── 08_STORY-042_search_ui_test_plan.md            # STORY-042 검색 UI 테스트 계획서
+│
+├── 02_test_cases/                                     # 테스트 케이스
+│   └── auth/
+│       └── 01_login_redis_integration_test.md         # 로그인 Redis 통합 테스트
+│
+├── 03_technical_assessment/                           # 기술 평가
+│   └── 01_stub_services_testing_strategy.md           # Stub 서비스 테스트 전략
+│
+├── 04_infrastructure_e2e/                             # 인프라 E2E 테스트
+│   ├── 01_infrastructure_e2e_test_plan.md             # 인프라 E2E 테스트 계획서
+│   ├── 02_e2e_100_percent_test_plan.md                # E2E 100% 테스트 계획서
+│   ├── 03_infrastructure_e2e_test_report_2026-01-20.md # 인프라 E2E 결과 (01-20)
+│   ├── 04_infrastructure_e2e_test_report_2026-01-21.md # 인프라 E2E 결과 (01-21)
+│   ├── 05_infrastructure_e2e_test_report_2026-01-26.md # 인프라 E2E 결과 (01-26)
+│   └── 06_keycloak_e2e_test_report_2026-01-30.md      # Keycloak E2E 결과 (01-30)
+│
+├── 05_e2e/                                            # E2E 테스트 (계획서, 결과, 가이드)
 │   ├── 01_e2e_test_plan_sprint02.md                   # Sprint 02 E2E 테스트 계획서
 │   ├── 02_sprint03_wave3_test_plan.md                 # Sprint 03 Wave 3 테스트 계획서 (88 TC)
 │   ├── 03_sprint04_e2e_test_plan.md                   # Sprint 04 E2E 테스트 계획서 (78 TC)
@@ -31,15 +57,36 @@ Hybrid RAG Knowledge Operations Platform의 테스트 관련 문서 모음입니
 │   ├── 17_frontend_ui_test_methodology.md             # Frontend UI 테스트 방법론
 │   └── 18_sprint04_day1_e2e_test_results.md           # Sprint 04 Day 1 E2E 결과 (01-28) *from results/*
 │
-├── infrastructure_e2e/                                # 인프라 E2E 테스트
-│   ├── 01_infrastructure_e2e_test_plan.md             # 인프라 E2E 테스트 계획서
-│   ├── 02_e2e_100_percent_test_plan.md                # E2E 100% 테스트 계획서
-│   ├── 03_infrastructure_e2e_test_report_2026-01-20.md # 인프라 E2E 결과 (01-20)
-│   ├── 04_infrastructure_e2e_test_report_2026-01-21.md # 인프라 E2E 결과 (01-21)
-│   ├── 05_infrastructure_e2e_test_report_2026-01-26.md # 인프라 E2E 결과 (01-26)
-│   └── 06_keycloak_e2e_test_report_2026-01-30.md      # Keycloak E2E 결과 (01-30)
+├── 06_staging/                                        # Staging 환경 검증
+│   ├── 01_staging_validation_checklist.md             # Staging 검증 체크리스트
+│   └── 02_staging_validation_report_template.md       # Staging 검증 보고서 템플릿
 │
-├── user_acceptance_tests/                             # UAT (사용자 인수 테스트)
+├── 07_test_results/                                   # 테스트 실행 결과
+│   ├── 01_STORY-024_auth_test_result.md               # STORY-024 인증 테스트 결과
+│   ├── 02_E2E_playwright_test_result.md               # Playwright E2E 테스트 결과
+│   ├── 03_docker_mode_test_report_2026-02-05.md       # Docker 모드 Unit 테스트 결과 (02-05) *from results/*
+│   ├── 04_unit_test_coverage_improvement_report.md    # 커버리지 개선 결과 (02-05) *from results/*
+│   ├── 05_embedding_pipeline_verification_report_2026-02-05.md # 임베딩 파이프라인 검증 (02-05) *from results/*
+│   ├── 06_story-002_retest_report.md                  # STORY-002 재테스트 결과 (01-27) *from results/*
+│   ├── 07_sprint04_document_parser_retry_report.md    # DocumentParser Retry 검증 (01-28) *from results/*
+│   └── 08_sprint11_test_gap_p1_report.md              # Sprint 11 테스트 갭 P1 보고서
+│
+├── 08_analysis/                                       # 분석/감사 보고서
+│   ├── 01_docling_parser_test_report.md               # Docling Parser 테스트 보고서
+│   ├── 02_sprint03_day2_qa_report.md                  # Sprint 03 Day 2 QA 보고서
+│   ├── 03_mock_test_audit_report.md                   # Mock 테스트 전수조사 보고서
+│   ├── 04_security_test_results_story055.md           # 보안 테스트 결과 (STORY-055)
+│   ├── 05_sprint04_contract_test_report.md            # Sprint 04 Contract 테스트 보고서
+│   ├── 06_rag_service_analysis_report.md              # RAG 서비스 분석 보고서
+│   ├── 07_unimplemented_api_analysis_report.md        # 미구현 API 분석 보고서
+│   ├── 08_full_codebase_unimplemented_analysis_2026-01-30.md # 전체 코드베이스 미구현 분석 (01-30)
+│   ├── 09_rag_pipeline_test_results_2026-02-02.md     # RAG 파이프라인 테스트 결과 (02-02)
+│   ├── 10_performance_baseline_report.md              # 성능 베이스라인 보고서
+│   ├── 11_issue_report_hybrid_search_cpu_bottleneck.md # CPU 병목 이슈 보고서
+│   ├── 12_sprint06_phase4_completion_report.md        # Sprint 06 Phase 4 완료 보고서 (02-04) *from results/*
+│   └── 13_perf_benchmark_2026-02-06.md                # 성능 벤치마크 결과 (02-06) *from results/*
+│
+├── 09_user_acceptance_tests/                          # UAT (사용자 인수 테스트)
 │   ├── README.md                                      # UAT 개요
 │   ├── 00_full_cycle_test_guide.md                    # 전체 사이클 테스트 가이드
 │   ├── 01_authentication_login_test_2026-02-04.md     # 인증/로그인 테스트 (02-04)
@@ -52,7 +99,11 @@ Hybrid RAG Knowledge Operations Platform의 테스트 관련 문서 모음입니
 │   ├── 08_uat_partB_execution_results_2026-02-07.md   # UAT Part B 실행 결과 (02-07)
 │   └── 09_uat_manual_test_timeline_2026-02-07.md      # UAT 수동 테스트 타임라인 (02-07)
 │
-├── ragas/                                             # RAGAS/RAG 품질 평가
+├── 10_smoke_test/                                     # 검색 품질 스모크 테스트 *from results/smoke_test/*
+│   ├── smoke_test_search_2026-02-10.json              # 스모크 테스트 원본 (JSON)
+│   └── smoke_test_search_report_2026-02-10.md         # 스모크 테스트 리포트 (Graph ON/OFF 비교)
+│
+├── 11_ragas/                                          # RAGAS/RAG 품질 평가
 │   ├── 01_rag_test_dataset_plan.md                    # RAG 테스트 데이터셋 계획서
 │   ├── 02_ragas_evaluation_criteria.md                # RAGAS 평가 기준/메트릭
 │   ├── 03_graph_rag_effectiveness_analysis.md         # Graph RAG 효과성 분석
@@ -76,58 +127,23 @@ Hybrid RAG Knowledge Operations Platform의 테스트 관련 문서 모음입니
 │       ├── 10_hrkp_ragas_v6_2026-02-11.json           # v6 평가 결과 (JSON, 50쿼리)
 │       └── 10_hrkp_ragas_v6_report_2026-02-11.md      # v6 평가 리포트
 │
-├── analysis/                                          # 분석/감사 보고서
-│   ├── 01_docling_parser_test_report.md               # Docling Parser 테스트 보고서
-│   ├── 02_sprint03_day2_qa_report.md                  # Sprint 03 Day 2 QA 보고서
-│   ├── 03_mock_test_audit_report.md                   # Mock 테스트 전수조사 보고서
-│   ├── 04_security_test_results_story055.md           # 보안 테스트 결과 (STORY-055)
-│   ├── 05_sprint04_contract_test_report.md            # Sprint 04 Contract 테스트 보고서
-│   ├── 06_rag_service_analysis_report.md              # RAG 서비스 분석 보고서
-│   ├── 07_unimplemented_api_analysis_report.md        # 미구현 API 분석 보고서
-│   ├── 08_full_codebase_unimplemented_analysis_2026-01-30.md # 전체 코드베이스 미구현 분석 (01-30)
-│   ├── 09_rag_pipeline_test_results_2026-02-02.md     # RAG 파이프라인 테스트 결과 (02-02)
-│   ├── 10_performance_baseline_report.md              # 성능 베이스라인 보고서
-│   ├── 11_issue_report_hybrid_search_cpu_bottleneck.md # CPU 병목 이슈 보고서
-│   ├── 12_sprint06_phase4_completion_report.md        # Sprint 06 Phase 4 완료 보고서 (02-04) *from results/*
-│   └── 13_perf_benchmark_2026-02-06.md                # 성능 벤치마크 결과 (02-06) *from results/*
+├── 12_embedding_evaluation/                           # 임베딩 평가
+│   ├── 01_etl_3phase_embedding_report.md              # ETL 3-Phase 임베딩 보고서
+│   ├── 02_bge_m3_and_107k_embeddings.md               # BGE-M3 107K 임베딩 평가
+│   ├── 03_ragas_v7_live_evaluation.md                 # RAGAS v7 라이브 평가
+│   └── 04_ragas_v7_comprehensive_evaluation.md        # RAGAS v7 종합 평가
 │
-├── staging/                                           # Staging 환경 검증
-│   ├── 01_staging_validation_checklist.md             # Staging 검증 체크리스트
-│   └── 02_staging_validation_report_template.md       # Staging 검증 보고서 템플릿
+├── 13_etl_v2_reprocessing/                            # ETL v2 재처리
+│   ├── 00_work_plan.md                                # 작업 계획
+│   ├── 01_speed_optimization_report.md                # 속도 최적화 보고서
+│   ├── 02_data_quality_report.md                      # 데이터 품질 보고서
+│   ├── 03_gcloud_gpu_embedding_guide.md               # GCloud GPU 임베딩 가이드
+│   ├── 04_ragas_v9_4way_rrf_evaluation.md             # RAGAS v9 4-Way RRF 평가
+│   └── 05_ragas_v10_post_entity_evaluation.md         # RAGAS v10 엔티티 후처리 평가
 │
-├── test_plans/                                        # Story별 테스트 계획서
-│   ├── 01_E2E_playwright_test_plan.md                 # Playwright E2E 테스트 계획서
-│   ├── 02_STORY-024_auth_test_plan.md                 # STORY-024 인증 테스트 계획서
-│   ├── 03_STORY-031_rrf_fusion_test_plan.md           # STORY-031 RRF Fusion 테스트 계획서
-│   ├── 04_STORY-041_dashboard_ui_test_plan.md         # STORY-041 Dashboard UI 테스트 계획서
-│   ├── 05_STORY-044_backend_search_service_test_plan.md # STORY-044 Backend 검색 테스트 계획서
-│   ├── 06_STORY-045_initial_data_etl_test_plan.md     # STORY-045 초기 데이터 ETL 테스트 계획서
-│   ├── 07_STORY-032_bge_reranker_test_plan.md         # STORY-032 BGE Reranker 테스트 계획서
-│   └── 08_STORY-042_search_ui_test_plan.md            # STORY-042 검색 UI 테스트 계획서
-│
-├── test_cases/                                        # 테스트 케이스
-│   └── auth/
-│       └── 01_login_redis_integration_test.md         # 로그인 Redis 통합 테스트
-│
-├── smoke_test/                                        # 검색 품질 스모크 테스트 *from results/smoke_test/*
-│   ├── smoke_test_search_2026-02-10.json              # 스모크 테스트 원본 (JSON)
-│   └── smoke_test_search_report_2026-02-10.md         # 스모크 테스트 리포트 (Graph ON/OFF 비교)
-│
-├── test_results/                                      # 테스트 실행 결과
-│   ├── 01_STORY-024_auth_test_result.md               # STORY-024 인증 테스트 결과
-│   ├── 02_E2E_playwright_test_result.md               # Playwright E2E 테스트 결과
-│   ├── 03_docker_mode_test_report_2026-02-05.md       # Docker 모드 Unit 테스트 결과 (02-05) *from results/*
-│   ├── 04_unit_test_coverage_improvement_report.md    # 커버리지 개선 결과 (02-05) *from results/*
-│   ├── 05_embedding_pipeline_verification_report_2026-02-05.md # 임베딩 파이프라인 검증 (02-05) *from results/*
-│   ├── 06_story-002_retest_report.md                  # STORY-002 재테스트 결과 (01-27) *from results/*
-│   └── 07_sprint04_document_parser_retry_report.md    # DocumentParser Retry 검증 (01-28) *from results/*
-│
-├── issues/                                            # 테스트 이슈 트래킹
-│   ├── 01_ISSUE-010_graph_search_zero_results.md      # Graph 검색 0건 이슈
-│   └── 02_ISSUE-011_entity_name_filename_bug.md       # Entity 이름 파일명 버그
-│
-└── technical_assessment/                              # 기술 평가
-    └── 01_stub_services_testing_strategy.md           # Stub 서비스 테스트 전략
+└── 14_issues/                                         # 테스트 이슈 트래킹
+    ├── 01_ISSUE-010_graph_search_zero_results.md      # Graph 검색 0건 이슈
+    └── 02_ISSUE-011_entity_name_filename_bug.md       # Entity 이름 파일명 버그
 ```
 
 ---
@@ -137,20 +153,22 @@ Hybrid RAG Knowledge Operations Platform의 테스트 관련 문서 모음입니
 | 카테고리 | 폴더 | 문서 수 | 설명 |
 |----------|------|---------|------|
 | 기반 계획서 | `/` (루트) | 1 | 단위/통합 테스트 계획서 |
-| E2E 테스트 | `e2e/` | 18 | Sprint별 E2E 계획서, 결과, 가이드 |
-| 인프라 E2E | `infrastructure_e2e/` | 6 | 인프라 레벨 E2E 테스트 |
-| UAT | `user_acceptance_tests/` | 10 | 사용자 인수 테스트 |
-| RAGAS 평가 (가이드) | `ragas/` | 4 | RAG 품질 평가 기준/가이드 |
-| RAGAS 결과 | `ragas/results/` | 17 | RAGAS 평가 실행 결과 (JSON + MD) |
-| 스모크 테스트 | `smoke_test/` | 2 | 검색 품질 스모크 테스트 |
-| 분석/보고서 | `analysis/` | 13 | 감사, 분석, 성능 보고서 |
-| Staging | `staging/` | 2 | Staging 환경 검증 |
-| Story 계획서 | `test_plans/` | 8 | Story 단위 테스트 계획서 |
-| 테스트 케이스 | `test_cases/` | 1 | 상세 테스트 케이스 |
-| 테스트 결과 | `test_results/` | 7 | 테스트 실행 결과 |
-| 이슈 | `issues/` | 2 | 테스트 중 발견된 이슈 |
-| 기술 평가 | `technical_assessment/` | 1 | 기술 평가/전략 문서 |
-| **합계** | | **90** | |
+| Story 계획서 | `01_test_plans/` | 9 | Story 단위 테스트 계획서 |
+| 테스트 케이스 | `02_test_cases/` | 1 | 상세 테스트 케이스 |
+| 기술 평가 | `03_technical_assessment/` | 1 | 기술 평가/전략 문서 |
+| 인프라 E2E | `04_infrastructure_e2e/` | 6 | 인프라 레벨 E2E 테스트 |
+| E2E 테스트 | `05_e2e/` | 18 | Sprint별 E2E 계획서, 결과, 가이드 |
+| Staging | `06_staging/` | 2 | Staging 환경 검증 |
+| 테스트 결과 | `07_test_results/` | 8 | 테스트 실행 결과 |
+| 분석/보고서 | `08_analysis/` | 13 | 감사, 분석, 성능 보고서 |
+| UAT | `09_user_acceptance_tests/` | 10 | 사용자 인수 테스트 |
+| 스모크 테스트 | `10_smoke_test/` | 2 | 검색 품질 스모크 테스트 |
+| RAGAS 평가 (가이드) | `11_ragas/` | 4 | RAG 품질 평가 기준/가이드 |
+| RAGAS 결과 | `11_ragas/results/` | 17 | RAGAS 평가 실행 결과 (JSON + MD) |
+| 임베딩 평가 | `12_embedding_evaluation/` | 4 | 임베딩 품질 평가 |
+| ETL v2 재처리 | `13_etl_v2_reprocessing/` | 6 | ETL v2 재처리 평가 |
+| 이슈 | `14_issues/` | 2 | 테스트 중 발견된 이슈 |
+| **합계** | | **104** | |
 
 ---
 
@@ -240,14 +258,14 @@ Hybrid RAG Knowledge Operations Platform의 테스트 관련 문서 모음입니
 
 | 원본 경로 (results/) | 이동 경로 (04_testing/) | 분류 |
 |----------------------|------------------------|------|
-| `ragas/` (15개 파일 전체) | `ragas/results/` | RAGAS 평가 결과 |
-| `smoke_test/` (2개 파일 전체) | `smoke_test/` | 검색 품질 스모크 테스트 |
-| `docker_mode_test_report_2026-02-05.md` | `test_results/03_docker_mode_test_report_2026-02-05.md` | Unit 테스트 결과 |
-| `unit_test_coverage_improvement_report.md` | `test_results/04_unit_test_coverage_improvement_report.md` | 커버리지 개선 보고서 |
-| `embedding_pipeline_verification_report_2026-02-05.md` | `test_results/05_embedding_pipeline_verification_report_2026-02-05.md` | 파이프라인 검증 보고서 |
-| `story-002_retest_report.md` | `test_results/06_story-002_retest_report.md` | 재테스트 결과 |
-| `sprint04_document_parser_retry_report.md` | `test_results/07_sprint04_document_parser_retry_report.md` | QA 검증 보고서 |
-| `sprint04_day1_e2e_test_results.md` | `e2e/18_sprint04_day1_e2e_test_results.md` | E2E 테스트 결과 |
+| `ragas/` (15개 파일 전체) | `11_ragas/results/` | RAGAS 평가 결과 |
+| `smoke_test/` (2개 파일 전체) | `10_smoke_test/` | 검색 품질 스모크 테스트 |
+| `docker_mode_test_report_2026-02-05.md` | `07_test_results/03_docker_mode_test_report_2026-02-05.md` | Unit 테스트 결과 |
+| `unit_test_coverage_improvement_report.md` | `07_test_results/04_unit_test_coverage_improvement_report.md` | 커버리지 개선 보고서 |
+| `embedding_pipeline_verification_report_2026-02-05.md` | `07_test_results/05_embedding_pipeline_verification_report_2026-02-05.md` | 파이프라인 검증 보고서 |
+| `story-002_retest_report.md` | `07_test_results/06_story-002_retest_report.md` | 재테스트 결과 |
+| `sprint04_document_parser_retry_report.md` | `07_test_results/07_sprint04_document_parser_retry_report.md` | QA 검증 보고서 |
+| `sprint04_day1_e2e_test_results.md` | `05_e2e/18_sprint04_day1_e2e_test_results.md` | E2E 테스트 결과 |
 
 ### results/ 정리 완료 (2026-02-11 2차 이동)
 
@@ -261,8 +279,8 @@ Hybrid RAG Knowledge Operations Platform의 테스트 관련 문서 모음입니
 | `sprint03_wave3_pre_review.md` | `02_design/review/2026-01-28_sprint03_wave3_pre_review.md` | 사전 구현 리뷰 |
 | `story-001_code_review.md` | `02_design/review/2026-01-27_story-001_code_review.md` | 코드 리뷰 |
 | `camelcase_snake_case_audit_report.md` | `02_design/review/2026-02-08_camelcase_snake_case_audit_report.md` | 코드 감사 |
-| `sprint06_phase4_completion_report.md` | `04_testing/analysis/12_sprint06_phase4_completion_report.md` | 스프린트 완료 보고서 |
-| `perf_benchmark_2026-02-06.md` | `04_testing/analysis/13_perf_benchmark_2026-02-06.md` | 성능 벤치마크 |
+| `sprint06_phase4_completion_report.md` | `04_testing/08_analysis/12_sprint06_phase4_completion_report.md` | 스프린트 완료 보고서 |
+| `perf_benchmark_2026-02-06.md` | `04_testing/08_analysis/13_perf_benchmark_2026-02-06.md` | 성능 벤치마크 |
 | `performance/` (빈 폴더) | 삭제됨 | - |
 | `staging_validation/` (빈 폴더) | 삭제됨 | - |
 
@@ -272,9 +290,9 @@ Hybrid RAG Knowledge Operations Platform의 테스트 관련 문서 모음입니
 
 | 참조하는 문서 | 영향받는 경로 |
 |--------------|-------------|
-| `knowledge_service/docs/07_maintenance/20_rag_quality_improvement_manual.md` | `docs/results/ragas/` -> `docs/04_testing/ragas/results/` |
-| `knowledge_service/docs/04_testing/ragas/02_ragas_evaluation_criteria.md` | `docs/results/ragas/` -> `docs/04_testing/ragas/results/` |
-| `knowledge_service/docs/04_testing/ragas/04_ragas_cross_system_evaluation_guide.md` | `docs/results/ragas/` -> `docs/04_testing/ragas/results/` |
-| `knowledge_service/docs/05_development/08_ragas_evaluation_guide.md` | `docs/results/ragas` -> `docs/04_testing/ragas/results` |
-| `knowledge_service/docs/e2e/04_sprint04_frontend_backend_e2e_test_plan.md` | `docs/results/sprint04_day1_e2e_test_results.md` -> `docs/04_testing/e2e/18_sprint04_day1_e2e_test_results.md` |
+| `knowledge_service/docs/07_maintenance/20_rag_quality_improvement_manual.md` | `docs/results/ragas/` -> `docs/04_testing/11_ragas/results/` |
+| `knowledge_service/docs/04_testing/11_ragas/02_ragas_evaluation_criteria.md` | `docs/results/ragas/` -> `docs/04_testing/11_ragas/results/` |
+| `knowledge_service/docs/04_testing/11_ragas/04_ragas_cross_system_evaluation_guide.md` | `docs/results/ragas/` -> `docs/04_testing/11_ragas/results/` |
+| `knowledge_service/docs/05_development/08_ragas_evaluation_guide.md` | `docs/results/ragas` -> `docs/04_testing/11_ragas/results` |
+| `knowledge_service/docs/05_e2e/04_sprint04_frontend_backend_e2e_test_plan.md` | `docs/results/sprint04_day1_e2e_test_results.md` -> `docs/04_testing/05_e2e/18_sprint04_day1_e2e_test_results.md` |
 | `work_logs/` (세션 로그, 일일 로그) | 과거 기록이므로 업데이트 불필요 (이력 보존) |

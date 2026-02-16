@@ -55,7 +55,7 @@ Sparse 벡터 검색을 통합하면:
 |------|------|
 | 플랫폼 상세 설계서 v2.4 | `docs/02_design/01_hybrid_rag_platform_detailed_design.md` |
 | 임베딩 배치 설계서 | `docs/02_design/16_embedding_batch_detailed_design.md` |
-| 임베딩 파이프라인 검증 보고서 | `docs/04_testing/test_results/05_embedding_pipeline_verification_report_2026-02-05.md` |
+| 임베딩 파이프라인 검증 보고서 | `docs/04_testing/07_test_results/05_embedding_pipeline_verification_report_2026-02-05.md` |
 
 ---
 

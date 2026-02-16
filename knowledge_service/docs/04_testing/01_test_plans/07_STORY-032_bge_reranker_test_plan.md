@@ -639,7 +639,7 @@ mock_tokenizer.__call__ = MagicMock(return_value={"input_ids": torch.zeros(10, 5
 | 문서 | 위치 |
 |------|------|
 | STORY-032 백로그 | `backlog/stories/STORY-032-bge-reranker.md` |
-| STORY-031 RRF Fusion 테스트 계획서 | `knowledge_service/docs/04_testing/test_plans/STORY-031_rrf_fusion_test_plan.md` |
+| STORY-031 RRF Fusion 테스트 계획서 | `knowledge_service/docs/04_testing/01_test_plans/03_STORY-031_rrf_fusion_test_plan.md` |
 | 상세 설계서 v2.4 | `knowledge_service/docs/02_design/01_hybrid_rag_platform_detailed_design.md` |
 | 단위/통합 테스트 계획 | `knowledge_service/docs/04_testing/unit_integration_test_plan.md` |
 | BGE Reranker HuggingFace | [BAAI/bge-reranker-v2-m3](https://huggingface.co/BAAI/bge-reranker-v2-m3) |

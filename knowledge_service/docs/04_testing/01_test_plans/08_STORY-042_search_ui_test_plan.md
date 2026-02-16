@@ -790,10 +790,10 @@ npx vitest run src/features/search --coverage
 | 문서 | 위치 |
 |------|------|
 | STORY-042 백로그 | `backlog/stories/STORY-042-search-ui.md` |
-| STORY-041 Dashboard 테스트 계획서 | `knowledge_service/docs/04_testing/test_plans/STORY-041_dashboard_ui_test_plan.md` |
+| STORY-041 Dashboard 테스트 계획서 | `knowledge_service/docs/04_testing/01_test_plans/04_STORY-041_dashboard_ui_test_plan.md` |
 | Frontend 상세 설계서 | `knowledge_service/docs/02_design/02_frontend_detailed_design.md` |
 | 단위/통합 테스트 계획 | `knowledge_service/docs/04_testing/unit_integration_test_plan.md` |
-| E2E Playwright 테스트 계획서 | `knowledge_service/docs/04_testing/test_plans/E2E_playwright_test_plan.md` |
+| E2E Playwright 테스트 계획서 | `knowledge_service/docs/04_testing/01_test_plans/01_E2E_playwright_test_plan.md` |
 | MUI to Tailwind 마이그레이션 가이드 | `knowledge_service/docs/05_development/06_mui_to_tailwind_migration.md` |
 
 ---

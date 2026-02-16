@@ -236,6 +236,6 @@ K6_OUT=json=results.json k6 run --no-connection-reuse k6-load-test.js
 
 ## Related Documents
 
-- [Performance Baseline Report](../../knowledge_service/docs/04_testing/analysis/10_performance_baseline_report.md)
+- [Performance Baseline Report](../../knowledge_service/docs/04_testing/08_analysis/10_performance_baseline_report.md)
 - [Infrastructure Design](../../knowledge_service/docs/02_design/10_infrastructure_detailed_design.md)
 - [API Integration Design](../../knowledge_service/docs/02_design/04_api_integration_design.md)

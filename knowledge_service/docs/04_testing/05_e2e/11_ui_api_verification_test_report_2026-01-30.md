@@ -259,7 +259,7 @@ e2e/
 
 ## 7. 관련 문서
 
-- PM 보고서: `docs/04_testing/e2e/09.qa_test_issue_report_2026-01-30.md`
+- PM 보고서: `docs/04_testing/05_e2e/10_qa_test_issue_report_2026-01-30.md`
 - 테스트 환경 헬퍼: `e2e/helpers/test-env.helper.ts`
 - API 통합 테스트: `e2e/api-integration.spec.ts`
 

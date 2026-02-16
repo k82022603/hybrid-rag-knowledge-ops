@@ -323,7 +323,7 @@ test('should display upload dropzone', async ({ page }) => {
 ## 관련 문서
 
 - [UI E2E 테스트 결과 보고서](./07.ui_e2e_test_report_2026-01-30.md)
-- [Keycloak E2E 테스트 보고서](../infrastructure_e2e/06.keycloak_e2e_test_report_2026-01-30.md)
+- [Keycloak E2E 테스트 보고서](../04_infrastructure_e2e/06_keycloak_e2e_test_report_2026-01-30.md)
 - [E2E 테스트 계획서](./e2e_test_plan.md)
 
 ---

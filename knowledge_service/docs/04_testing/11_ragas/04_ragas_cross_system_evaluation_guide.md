@@ -1078,7 +1078,7 @@ class RagasEvaluator:
 ### A.4 기존 평가 결과 (HRKP, 2026-02-04)
 
 ```
-파일: knowledge_service/docs/04_testing/ragas/results/01_ragas_evaluation_2026-02-04_022522.md
+파일: knowledge_service/docs/04_testing/11_ragas/results/01_ragas_evaluation_2026-02-04_022522.md
 ```
 
 | 메트릭 | 점수 | 목표 | 달성 |

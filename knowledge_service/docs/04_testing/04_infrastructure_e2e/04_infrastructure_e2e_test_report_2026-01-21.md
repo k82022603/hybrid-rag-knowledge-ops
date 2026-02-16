@@ -285,7 +285,7 @@
 | API Gateway | Stub | Sprint 03 | Backend Agent |
 | Nginx | Stub | Sprint 03 | Infra Agent |
 
-> **상세 전환 계획 및 Dockerfile 관리 전략**: [Stub Services 테스트 전략 기술 검토](../technical_assessment/01.stub_services_testing_strategy.md#8-stub-services-전환-계획) 참조
+> **상세 전환 계획 및 Dockerfile 관리 전략**: [Stub Services 테스트 전략 기술 검토](../03_technical_assessment/01_stub_services_testing_strategy.md#8-stub-services-전환-계획) 참조
 
 ---
 

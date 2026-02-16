@@ -132,7 +132,7 @@ pip install -r ../performance/requirements.txt
 
 ### 관련 문서
 
-- [Performance Baseline Report](../../knowledge_service/docs/04_testing/analysis/10_performance_baseline_report.md)
+- [Performance Baseline Report](../../knowledge_service/docs/04_testing/08_analysis/10_performance_baseline_report.md)
 - [Performance Testing Suite README](../performance/README.md)
 - [k6 Load Test Script](../performance/k6-load-test.js)
 - [Locust Test File](../performance/locustfile.py)
@@ -236,8 +236,8 @@ Full validation 실행 시 자동으로 보고서가 생성됩니다:
 
 ### 관련 문서
 
-- [Staging Validation Checklist](../../knowledge_service/docs/04_testing/staging/01_staging_validation_checklist.md)
-- [Staging Validation Report Template](../../knowledge_service/docs/04_testing/staging/02_staging_validation_report_template.md)
+- [Staging Validation Checklist](../../knowledge_service/docs/04_testing/06_staging/01_staging_validation_checklist.md)
+- [Staging Validation Report Template](../../knowledge_service/docs/04_testing/06_staging/02_staging_validation_report_template.md)
 
 ---
 
@@ -752,10 +752,10 @@ docker logs --tail 100 kp-ai-service
 
 ## 참고
 
-- [Performance Baseline Report](../../knowledge_service/docs/04_testing/analysis/10_performance_baseline_report.md)
+- [Performance Baseline Report](../../knowledge_service/docs/04_testing/08_analysis/10_performance_baseline_report.md)
 - [Performance Testing Suite](../performance/README.md)
-- [Staging Validation Checklist](../../knowledge_service/docs/04_testing/staging/01_staging_validation_checklist.md)
-- [Staging Validation Report Template](../../knowledge_service/docs/04_testing/staging/02_staging_validation_report_template.md)
+- [Staging Validation Checklist](../../knowledge_service/docs/04_testing/06_staging/01_staging_validation_checklist.md)
+- [Staging Validation Report Template](../../knowledge_service/docs/04_testing/06_staging/02_staging_validation_report_template.md)
 - [배포 계획](../../knowledge_service/docs/06_deployment/05_deployment_plan.md)
 - [롤백 절차 가이드](../../knowledge_service/docs/06_deployment/08_rollback_procedure.md)
 - [시크릿 관리 가이드](../../knowledge_service/docs/06_deployment/09_secrets_management_guide.md)

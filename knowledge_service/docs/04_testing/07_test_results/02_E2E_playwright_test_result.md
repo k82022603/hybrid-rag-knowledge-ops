@@ -443,7 +443,7 @@ test.describe('Authentication E2E Tests', () => {
 
 ### 9.3 Related Documents
 
-- [E2E Playwright Test Plan](../test_plans/E2E_playwright_test_plan.md)
+- [E2E Playwright Test Plan](../01_test_plans/01_E2E_playwright_test_plan.md)
 - [Playwright Setup Guide](../../05_development/playwright_setup_guide.md)
 - [Unit/Integration Test Plan](../unit_integration_test_plan.md)
 
