@@ -21,6 +21,7 @@ from app.agents.state import SearchResult
 from app.core.config import settings
 from app.core.exceptions import ElasticsearchError, Neo4jError, SearchError
 from app.core.logging import get_logger
+from app.rag.bge_reranker import get_reranker
 from app.services.embedding import get_embedding_service
 
 logger = get_logger(__name__)
@@ -420,7 +421,49 @@ class SearchService:
                 k=settings.rrf_k,
             )
 
-            # 2.5 청크별 Neo4j 엔티티 직접 조회 (Phase 2)
+            # 2.5 Reranker 적용 (Post-RRF, STORY-032)
+            # RRF 융합 결과를 BGE Reranker로 재순위화하여 Context Precision 개선
+            reranker_used = False
+            try:
+                reranker = get_reranker()
+                if not reranker.is_loaded:
+                    await reranker.load_model()
+                rerank_candidates = fused_results[:top_k * 2]  # 상위 2배를 rerank 대상
+                reranked = await reranker.arerank_with_timeout(
+                    query=query,
+                    documents=[
+                        {
+                            "doc_id": r.chunk_id,
+                            "content": r.content,
+                            "score": r.score,
+                            "metadata": r.metadata,
+                        }
+                        for r in rerank_candidates
+                    ],
+                    top_k=top_k,
+                    timeout=30.0,
+                )
+                # rerank 결과를 SearchResult로 매핑
+                result_map = {r.chunk_id: r for r in rerank_candidates}
+                reranked_results: List[SearchResult] = []
+                for rr in reranked:
+                    original = result_map.get(rr.doc_id)
+                    if original is not None:
+                        original.metadata["rerank_score"] = round(rr.score, 6)
+                        original.metadata["original_rrf_score"] = original.score
+                        original.score = round(rr.score, 6)
+                        reranked_results.append(original)
+                fused_results = reranked_results if reranked_results else fused_results
+                reranker_used = bool(reranked_results)
+                if reranker_used:
+                    logger.info(
+                        f"Reranker applied - top_score={reranked[0].score:.4f}, "
+                        f"candidates={len(rerank_candidates)}, output={len(reranked_results)}"
+                    )
+            except Exception as e:
+                logger.warning(f"Reranker failed (non-critical, using RRF order): {e}")
+
+            # 2.6 청크별 Neo4j 엔티티 직접 조회 (Phase 2)
             # post-RRF 결과의 chunk_id로 Neo4j MENTIONS 관계를 직접 조회하여
             # 각 청크에 실제 연결된 엔티티만 할당 (글로벌 엔티티 리스트 제거)
             # 3. 상위 top_k 반환
@@ -448,6 +491,7 @@ class SearchService:
                 "sparse_count": len(sparse_results),
                 "graph_count": len(graph_results),
                 "fused_count": len(fused_results),
+                "reranker_used": reranker_used,
             }
 
             # STORY-060: 캐시 저장
