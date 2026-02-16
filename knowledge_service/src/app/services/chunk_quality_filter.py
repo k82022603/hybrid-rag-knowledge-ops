@@ -5,7 +5,7 @@ SemanticChunker v2 최종 방어선으로, 임베딩 전에
 의미 없는 청크를 걸러낸다.
 
 검증 기준:
-1. 최소 토큰 수 (10) / 최소 문자 수 (30)
+1. 최소 토큰 수 (50) / 최소 문자 수 (30)
 2. 노이즈 패턴 매칭 (수평선, 빈 헤더, 테이블 구분선 등)
 3. 의미있는 문자 비율 (30% 이상)
 """
@@ -22,8 +22,8 @@ logger = logging.getLogger(__name__)
 class ChunkQualityGate:
     """청크 품질 최종 검증 게이트"""
 
-    # 하드 기각 기준
-    MIN_TOKEN_COUNT = 10
+    # 하드 기각 기준 (2026-02-16: 10→50 상향, token<50은 쓰레기 데이터)
+    MIN_TOKEN_COUNT = 50
     MIN_CHAR_LENGTH = 30
 
     # 노이즈 패턴 (섹션 전처리를 통과한 잔여 노이즈)
@@ -73,10 +73,10 @@ class ChunkQualityGate:
         if not text:
             return False
 
-        # 코드/테이블 블록: 최소 기준만 완화 적용 (P1-2 수정: 2026-02-14)
+        # 코드/테이블 블록: 완화 적용하되 최소 20 토큰 (P1-2: 2026-02-14, P2: 2026-02-16)
         block_type = chunk.metadata.get("block_type")
         if block_type in ("code", "table"):
-            return chunk.token_count >= 3 and len(text) >= 10
+            return chunk.token_count >= 20 and len(text) >= 30
 
         # 1. 최소 길이 기준
         if chunk.token_count < self.MIN_TOKEN_COUNT:

@@ -33,7 +33,7 @@ flowchart LR
 |-------|------|---------|----------|
 | **Phase 1** | CPU (Docker) | ~6시간/1,786파일 | 파싱 + 청킹 → ES/PG/Neo4j |
 | **Phase 2** | GPU (Colab T4) | 13.5분/53,414청크 | dense+sparse 임베딩 ✅ |
-| **Phase 3** | CPU (Docker) | TBD | 엔티티 추출 → Neo4j/PG |
+| **Phase 3** | CPU (Docker) | ~43h (3워커) / ~128h (1워커) | 엔티티 추출 → Neo4j (MENTIONS/RELATED) |
 
 ---
 
@@ -163,16 +163,85 @@ embeddings = model.encode(
 ### 4.1 실행 방법
 
 ```bash
-# Phase 3 실행 (구현 예정)
-docker exec kp-ai-service bash -c "nohup python3 /app/scripts/run_etl_phase3_entities.py > /tmp/etl_phase3.log 2>&1 &"
+# 단일 워커 실행
+docker exec kp-ai-service bash -c "nohup bash -c 'ENTITY_MIN_TOKENS=50 ENTITY_CONCURRENCY=3 python3 /app/scripts/batch_entity_extraction.py' > /tmp/entity_extraction.log 2>&1 &"
+
+# 3-워커 병렬 실행 (API Key 3개 필요)
+# Step 1: 체크포인트 시딩 (기존 처리 완료 ID 복사)
+docker exec kp-ai-service bash -c 'python3 -c "
+import json, shutil
+cp = json.load(open(\"/tmp/entity_checkpoint.json\"))
+ids = cp.get(\"processed_ids\", [])
+for w in range(3):
+    d = {\"processed_ids\": ids, \"stats\": {\"total_entities\":0,\"total_relationships\":0,\"total_chunks_processed\":0,\"total_errors\":0,\"start_time\":None,\"last_save_time\":None}}
+    json.dump(d, open(\"/tmp/entity_checkpoint_w%d.json\" % w, \"w\"))
+"'
+
+# Step 2: 3개 워커 동시 실행
+docker exec kp-ai-service bash -c 'nohup bash -c "ENTITY_MIN_TOKENS=50 ENTITY_CONCURRENCY=3 ENTITY_PARTITION=0/3 ENTITY_CHECKPOINT_FILE=/tmp/entity_checkpoint_w0.json DEEPSEEK_API_KEY=<KEY1> python3 /app/scripts/batch_entity_extraction.py" > /tmp/entity_w0.log 2>&1 &'
+docker exec kp-ai-service bash -c 'nohup bash -c "ENTITY_MIN_TOKENS=50 ENTITY_CONCURRENCY=3 ENTITY_PARTITION=1/3 ENTITY_CHECKPOINT_FILE=/tmp/entity_checkpoint_w1.json DEEPSEEK_API_KEY=<KEY2> python3 /app/scripts/batch_entity_extraction.py" > /tmp/entity_w1.log 2>&1 &'
+docker exec kp-ai-service bash -c 'nohup bash -c "ENTITY_MIN_TOKENS=50 ENTITY_CONCURRENCY=3 ENTITY_PARTITION=2/3 ENTITY_CHECKPOINT_FILE=/tmp/entity_checkpoint_w2.json DEEPSEEK_API_KEY=<KEY3> python3 /app/scripts/batch_entity_extraction.py" > /tmp/entity_w2.log 2>&1 &'
 ```
 
-### 4.2 핵심 로직
+### 4.2 핵심 파라미터
 
-- DeepSeek V3.2 API로 텍스트에서 엔티티(기술명, 인물명, 조직명 등) 추출
-- Neo4j: `(Document)-[:HAS_ENTITY]->(Entity)` 관계 생성
-- Neo4j: 동일 문서 내 엔티티 간 `(Entity)-[:RELATED_TO]->(Entity)` 생성
-- PG: `documents.entity_count` 업데이트
+| 파라미터 | 환경변수 | 기본값 | 설명 |
+|---------|---------|-------|------|
+| 최소 토큰 | `ENTITY_MIN_TOKENS` | 150 | 처리 대상 최소 token_count (**50 권장**) |
+| 동시 처리 | `ENTITY_CONCURRENCY` | 3 | 워커당 동시 LLM 호출 수 |
+| 배치 크기 | `ENTITY_BATCH_SIZE` | 50 | 체크포인트 저장 간격 |
+| 파티셔닝 | `ENTITY_PARTITION` | "" | "ID/TOTAL" (예: "0/3" = 3워커 중 첫째) |
+| 체크포인트 | `ENTITY_CHECKPOINT_FILE` | /tmp/entity_checkpoint.json | 워커별 분리 시 `_w0`, `_w1` 등 |
+| API 키 | `DEEPSEEK_API_KEY` | (컨테이너 env) | 워커별 다른 키 지정 가능 |
+| Gleaning | `ENTITY_MAX_GLEANINGS` | 1 | 2-pass extraction |
+
+### 4.3 핵심 로직
+
+- `batch_entity_extraction.py`로 청크 단위 엔티티/관계 추출
+- DeepSeek V3.2 API: 1차 추출 → Gleaning(누락 보완) → 관계 추출 (3-pass)
+- Neo4j: `(Chunk)-[:MENTIONS]->(Entity)` 관계 생성
+- Neo4j: `(Entity)-[:RELATED]->(Entity)` 의미적 관계 생성
+- Neo4j: `c.entity_extracted=true`, `c.entity_count` 업데이트
+- 체크포인트 기반 중단/재개 지원
+
+### 4.4 모니터링
+
+```bash
+# 각 워커 로그 확인
+docker exec kp-ai-service tail -5 /tmp/entity_w0.log
+docker exec kp-ai-service tail -5 /tmp/entity_w1.log
+docker exec kp-ai-service tail -5 /tmp/entity_w2.log
+
+# 처리 완료 수 확인 (각 워커 체크포인트)
+docker exec kp-ai-service bash -c 'for w in 0 1 2; do echo -n "Worker $w: "; python3 -c "import json; print(len(json.load(open(\"/tmp/entity_checkpoint_w${w}.json\"))[\"processed_ids\"]))" 2>/dev/null || echo "N/A"; done'
+
+# Neo4j 전체 MENTIONS 수 확인
+docker exec kp-ai-service bash -c 'python3 -c "
+from neo4j import GraphDatabase
+d = GraphDatabase.driver(\"bolt://neo4j:7687\", auth=(\"neo4j\", \"neo4j_dev_2026!\"))
+with d.session() as s:
+    r = s.run(\"MATCH ()-[m:MENTIONS]->() RETURN count(m) as cnt\")
+    print(\"MENTIONS:\", r.single()[\"cnt\"])
+d.close()
+"'
+```
+
+### 4.5 실행 이력
+
+| 실행 | 날짜 | 설정 | 대상 | 결과 |
+|------|------|------|------|------|
+| 1차 | 2026-02-15 | MIN_TOKENS=100, 2워커 | 16,185건 | 완료 (70,855 엔티티) |
+| 2차 | 2026-02-16 | MIN_TOKENS=50, **3워커** | 23,074건 | **진행 중** |
+
+### 4.6 token_count < 50 쓰레기 데이터
+
+| 범위 | 청크 수 | 설명 |
+|------|--------:|------|
+| 0-9 | ~3,000 | 빈 문자열, 단일 기호 |
+| 10-29 | ~7,000 | 테이블 셀 조각 ("항목", "---") |
+| 30-49 | ~6,766 | 짧은 구분선, 캡션 |
+
+→ Phase 1 청킹에서 테이블/구분선이 개별 청크로 분리된 결과. **엔티티 추출 대상 제외** (token_count < 50).
 
 ---
 
@@ -266,6 +335,7 @@ curl -d @/tmp/req.json
 | `etl_phase1_monitor.sh` | `knowledge_service/scripts/` | Phase 1 모니터 (15분) |
 | `etl_v2_monitor.sh` | `knowledge_service/scripts/` | 전체 ETL v2 모니터 |
 | `embedding_monitor.sh` | `knowledge_service/scripts/` | 임베딩 전용 모니터 |
+| `batch_entity_extraction.py` | `knowledge_service/scripts/` | Phase 3 엔티티 추출 (멀티워커) |
 | `send_slack.sh` | `scripts/` | Slack 메시지 전송 |
 
 자세한 목록: [scripts/README.md](../../../scripts/README.md)

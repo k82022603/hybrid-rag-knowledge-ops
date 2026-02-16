@@ -127,7 +127,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, width, onClose }) => {
       {/* Overlay for mobile */}
       {open && (
         <div
-          className="fixed inset-0 z-30 bg-black/60 md:hidden backdrop-blur-sm"
+          className="fixed inset-0 z-30 bg-black/50 md:hidden"
           onClick={onClose}
           aria-hidden="true"
         />
@@ -138,41 +138,31 @@ const Sidebar: React.FC<SidebarProps> = ({ open, width, onClose }) => {
         id="sidebar-navigation"
         aria-label="Main navigation sidebar"
         aria-hidden={!open}
-        className={`fixed top-0 left-0 z-40 h-screen glass border-r-0 border-r border-white/5 flex flex-col transition-transform duration-300 ease-in-out ${open ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed top-16 left-0 z-40 h-[calc(100vh-4rem)] bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-r border-gray-200/60 dark:border-gray-800/60 transition-transform duration-300 ease-in-out flex flex-col ${open ? 'translate-x-0' : '-translate-x-full'
           }`}
         style={{ width: `${width}px` }}
         data-testid="sidebar"
       >
-        {/* Logo Section */}
-        <div className="h-20 flex items-center justify-center border-b border-white/5 shrink-0">
-          <div className="flex items-center space-x-3">
-            <div className="relative w-10 h-10 flex items-center justify-center">
-              <div className="absolute inset-0 bg-neon-cyan/20 blur-md rounded-full animate-pulse"></div>
-              <div className="relative w-8 h-8 rounded-lg bg-gradient-to-br from-neon-cyan to-neon-purple flex items-center justify-center text-white font-bold text-lg">
-                N
-              </div>
-            </div>
-            <span className="text-2xl font-bold font-display text-white tracking-wide text-glow">NEXUS</span>
-          </div>
-        </div>
-
         {/* Mobile close button */}
-        <div className="flex items-center justify-between p-4 md:hidden border-b border-white/5">
-          <span className="text-sm font-bold text-gray-400">MENU</span>
+        <div className="flex items-center justify-between p-4 md:hidden border-b border-gray-100 dark:border-gray-800">
+          <span className="text-lg font-bold text-gray-900 dark:text-white" id="sidebar-title">
+            메뉴
+          </span>
           <button
             onClick={onClose}
-            className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/10"
+            className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500"
             aria-label="Close sidebar"
+            data-testid="sidebar-close"
           >
             <XMarkIcon className="h-5 w-5" aria-hidden="true" />
           </button>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-3 py-6 space-y-8 scrollbar-hide">
-          {filteredSections.map((section) => (
-            <div key={section.label} className="space-y-2">
-              <p className="px-4 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+        <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-8 scrollbar-hide" aria-label="Main menu">
+          {filteredSections.map((section, sectionIdx) => (
+            <div key={section.label} className="space-y-3">
+              <p className="px-3 text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                 {section.label}
               </p>
               <div className="space-y-1">
@@ -185,22 +175,27 @@ const Sidebar: React.FC<SidebarProps> = ({ open, width, onClose }) => {
                       key={item.path}
                       onClick={() => handleNavigation(item.path)}
                       aria-current={isActive ? 'page' : undefined}
-                      className={`group relative w-full flex items-center gap-3 px-4 py-3 rounded-r-lg text-sm font-medium transition-all duration-200 border-l-2 ${isActive
-                          ? 'border-neon-cyan bg-gradient-to-r from-neon-cyan/10 to-transparent text-neon-cyan'
-                          : 'border-transparent text-gray-400 hover:text-white hover:bg-white/5'
+                      aria-label={isActive ? `${item.text} (current page)` : item.text}
+                      className={`group relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${isActive
+                          ? 'bg-primary-50 text-primary-700 shadow-sm dark:bg-primary-900/20 dark:text-primary-300'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800/50 dark:hover:text-gray-200'
                         }`}
+                      data-testid={`nav-${item.path.replace('/', '')}`}
                     >
                       <span
-                        className={`transition-colors duration-200 ${isActive ? 'text-neon-cyan drop-shadow-[0_0_5px_rgba(6,182,212,0.5)]' : 'text-gray-500 group-hover:text-gray-300'
+                        className={`transition-colors duration-200 ${isActive
+                            ? 'text-primary-600 dark:text-primary-400'
+                            : 'text-gray-400 group-hover:text-gray-600 dark:text-gray-500 dark:group-hover:text-gray-300'
                           }`}
+                        aria-hidden="true"
                       >
                         {item.icon}
                       </span>
                       <span>{item.text}</span>
 
-                      {/* Active Glow Effect */}
+                      {/* Active indicator dot */}
                       {isActive && (
-                        <div className="absolute inset-0 bg-neon-cyan/5 blur-sm -z-10" />
+                        <span className="absolute right-3 w-1.5 h-1.5 rounded-full bg-primary-500" aria-hidden="true" />
                       )}
                     </button>
                   );
@@ -210,20 +205,17 @@ const Sidebar: React.FC<SidebarProps> = ({ open, width, onClose }) => {
           ))}
         </nav>
 
-        {/* User / System Info */}
-        <div className="flex-shrink-0 p-4 border-t border-white/5 bg-black/20">
-          <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5 transition-colors cursor-pointer group">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-neon-purple to-neon-pink p-[1px]">
-              <div className="w-full h-full bg-dark-200 rounded-full flex items-center justify-center">
-                <UserIcon className="w-4 h-4 text-gray-400 group-hover:text-white transition-colors" />
-              </div>
+        {/* Bottom section - Version info */}
+        <div className="flex-shrink-0 p-4 border-t border-gray-100 dark:border-gray-800/60 bg-gray-50/50 dark:bg-gray-900/30">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-600 to-indigo-600 flex items-center justify-center flex-shrink-0 shadow-sm">
+              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
             </div>
-            <div className="overflow-hidden">
-              <p className="text-xs font-semibold text-gray-300 group-hover:text-white transition-colors">System Admin</p>
-              <p className="text-[10px] text-neon-cyan flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-neon-cyan animate-pulse"></span>
-                Online
-              </p>
+            <div>
+              <p className="text-xs font-semibold text-gray-700 dark:text-gray-200">Knowledge Portal</p>
+              <p className="text-[10px] text-gray-500 dark:text-gray-500">v0.1.0 · Graph RAG</p>
             </div>
           </div>
         </div>

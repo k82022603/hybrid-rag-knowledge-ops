@@ -74,11 +74,7 @@ const MainLayout: React.FC = () => {
   }, [sidebarOpen]);
 
   return (
-    <div className="min-h-screen relative overflow-hidden bg-dark-200">
-      {/* Background Ambient Glow */}
-      <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-neon-purple/20 via-dark-200 to-dark-300 -z-10 pointer-events-none" />
-      <div className="absolute bottom-0 left-0 w-1/2 h-1/2 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-neon-cyan/10 via-transparent to-transparent -z-10 pointer-events-none" />
-
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Skip Link for keyboard navigation - WCAG 2.4.1 */}
       <SkipLink targetId="main-content" />
 
@@ -98,10 +94,11 @@ const MainLayout: React.FC = () => {
         role="main"
         aria-label="Main content"
         tabIndex={-1}
-        className={`min-h-screen pt-20 transition-all duration-300 ease-in-out focus:outline-none ${sidebarOpen ? 'md:ml-64' : 'ml-0'
-          }`}
+        className={`min-h-screen pt-16 transition-all duration-300 ease-in-out focus:outline-none ${
+          sidebarOpen ? 'md:ml-64' : 'ml-0'
+        }`}
       >
-        <div className="p-4 md:p-8 max-w-7xl mx-auto">
+        <div className="p-4 md:p-6">
           <Outlet />
         </div>
       </main>

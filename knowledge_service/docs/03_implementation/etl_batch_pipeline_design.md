@@ -1,9 +1,9 @@
 # ETL 배치 파이프라인 상세 설계서
 
-**Version**: 1.1
-**작성일**: 2026-02-13 (v1.1: 2026-02-14 Sparse 벡터 + 엔티티 추출 활성화)
+**Version**: 1.2
+**작성일**: 2026-02-13 (v1.1: 2026-02-14 Sparse+엔티티 활성화 / v1.2: 2026-02-16 Phase 3 실행 결과 반영)
 **작성자**: Claude Code (Opus 4.6)
-**상태**: 구현 진행 중
+**상태**: Phase 3 재실행 중 (3-워커 병렬)
 
 ---
 
@@ -183,7 +183,7 @@ docker exec -d kp-ai-service nohup python scripts/run_etl_full.py > /tmp/etl.log
 | workers | **1** | CPU 경합 방지 (2워커 무의미) |
 | 모델 | BGE-M3 | 1024차원, 다국어 |
 | **Sparse 벡터** | **활성화 (v1.1)** | Dense + Sparse 동시 생성, ES sparse_vector 필드 |
-| QualityGate | 활성화 | v2 노이즈 필터 적용 |
+| QualityGate | 활성화 | **MIN_TOKEN_COUNT=50** (v1.2), 노이즈 필터 적용 |
 
 #### Phase 1 소요시간 추정
 
@@ -403,61 +403,55 @@ loader = InitialDataLoader(
 
 ## 5. Phase 2 배치 스크립트 설계 (`run_entity_extraction_batch.py`)
 
-### 5.1 스크립트 구조
+### 5.1 구현된 스크립트: `batch_entity_extraction.py`
 
 ```python
 """
-Phase 2: 엔티티 추출 배치
-- 기존 ES 청크에서 문서 텍스트를 재구성
-- DeepSeek LLM으로 엔티티/관계 추출
-- Neo4j Knowledge Graph에 저장
+Phase 2: 청크 단위 엔티티 추출 배치 (구현 완료)
+- Neo4j에서 token_count >= MIN_TOKENS인 Chunk 노드 조회
+- DeepSeek V3.2로 3-pass 추출 (엔티티 → Gleaning → 관계)
+- Neo4j에 Entity 노드 + MENTIONS/RELATED 관계 저장
+- 체크포인트 기반 중단/재개 지원
+- ENTITY_PARTITION으로 멀티 워커 파티셔닝
+
+환경변수:
+    ENTITY_MIN_TOKENS: 최소 토큰 수 (기본: 150, 권장: 50)
+    ENTITY_CONCURRENCY: 동시 처리 수 (기본: 3)
+    ENTITY_MAX_GLEANINGS: Gleaning 횟수 (기본: 1)
+    ENTITY_BATCH_SIZE: 체크포인트 저장 간격 (기본: 50)
+    ENTITY_CHECKPOINT_FILE: 체크포인트 파일 경로
+    ENTITY_PARTITION: 파티션 설정 "ID/TOTAL" (예: "0/3")
+    DEEPSEEK_API_KEY: 워커별 다른 키 지정 가능
 
 Usage:
-    docker exec -d kp-ai-service nohup python scripts/run_entity_extraction_batch.py \
-        --concurrency 3 --checkpoint-interval 50 > /tmp/entity_extraction.log 2>&1 &
+    # 단일 워커
+    docker exec kp-ai-service bash -c "nohup bash -c 'ENTITY_MIN_TOKENS=50 python3 /app/scripts/batch_entity_extraction.py' > /tmp/entity.log 2>&1 &"
+
+    # 3-워커 병렬 (API Key 3개)
+    ENTITY_PARTITION=0/3 DEEPSEEK_API_KEY=<KEY1> ...
+    ENTITY_PARTITION=1/3 DEEPSEEK_API_KEY=<KEY2> ...
+    ENTITY_PARTITION=2/3 DEEPSEEK_API_KEY=<KEY3> ...
 """
 
-class EntityExtractionBatch:
-    def __init__(
-        self,
-        concurrency: int = 3,
-        max_text_length: int = 30000,
-        checkpoint_interval: int = 50,
-        max_retries: int = 3,
-    ):
-        self.es = Elasticsearch(...)
-        self.neo4j = Neo4jStorageService(...)
-        self.extractor = EntityExtractionService(...)
-        self.semaphore = asyncio.Semaphore(concurrency)
+# 핵심 클래스: Checkpoint (체크포인트 관리)
+# - processed_ids: Set[str] - 완료된 chunk_id
+# - save()/mark_done()/mark_error() 메서드
+# - 다른 워커의 체크포인트도 읽어서 중복 방지
 
-    async def get_unprocessed_documents(self) -> List[str]:
-        """엔티티 미추출 문서 ID 목록 조회"""
-        # Neo4j에 Knowledge 노드가 없는 document_id 조회
-        ...
+# 핵심 함수: process_chunk()
+# - EntityExtractionService.extract_full(content, enable_gleaning=True)
+# - save_entities_to_neo4j(): Entity MERGE + MENTIONS + RELATED + entity_extracted 플래그
 
-    async def reconstruct_document_text(self, doc_id: str) -> str:
-        """ES 청크를 결합하여 문서 텍스트 재구성"""
-        ...
-
-    async def process_document(self, doc_id: str, title: str):
-        """단일 문서 엔티티 추출 + Neo4j 저장"""
-        async with self.semaphore:
-            text = await self.reconstruct_document_text(doc_id)
-            result = await self.extractor.extract_full(text)
-            await self.neo4j.save_document_graph(
-                document_id=doc_id,
-                title=title,
-                entities=result.entities,
-                relationships=result.relationships,
-            )
-
-    async def run(self):
-        """배치 실행 메인"""
-        docs = await self.get_unprocessed_documents()
-        tasks = [self.process_document(d.id, d.title) for d in docs]
-        # checkpoint 간격으로 진행률 저장
-        ...
+# 핵심 함수: run_batch()
+# - Neo4j에서 token_count >= MIN_TOKENS 청크 조회
+# - 파티셔닝 적용 (pending[PARTITION_ID::PARTITION_TOTAL])
+# - asyncio.Semaphore(CONCURRENCY)로 동시 처리 제어
+# - 배치 단위 체크포인트 저장
 ```
+
+> **설계서 vs 실제 구현 차이**: 설계서는 문서 단위(document_id) 처리를 제안했으나,
+> 실제 구현은 **청크 단위**(chunk_id) 처리로 변경. 이유: 청크별 MENTIONS 관계가
+> Graph Panel의 출처별 서브그래프 표시에 직접 사용되므로 청크 단위가 더 적합.
 
 ### 5.2 진행률 모니터링
 
@@ -613,30 +607,36 @@ POST /knowledge_chunks/_update_by_query
 
 ## 8. 실행 로드맵
 
-### 8.1 단기 (이번 주)
+### 8.1 완료된 작업
+
+| 순서 | 작업 | 완료일 | 결과 |
+|------|------|--------|------|
+| 1 | Phase 2 스크립트 구현 (`batch_entity_extraction.py`) | 2026-02-15 | 완료 |
+| 2 | Phase 2 1차 실행 (MIN_TOKENS=100, 2워커) | 2026-02-15 | 16,185건, 70,855 엔티티 |
+| 3 | 그래프 시각화 검증 | 2026-02-16 | Graph Panel 장애 발견 → Phase 1+2 수정 |
+| 4 | Phase 2 2차 실행 (MIN_TOKENS=50, **3워커**) | 2026-02-16 | **진행 중** (23,074건) |
+
+### 8.2 진행 중
+
+| 순서 | 작업 | 예상 소요 | 상태 |
+|------|------|---------|------|
+| 5 | Phase 2 2차 완료 후 MENTIONS 커버리지 검증 | ~43시간 | 실행 중 |
+| 6 | token_count < 50 청크 처리: QualityGate MIN_TOKEN=50 적용 + 기존 쓰레기 삭제 | - | **결정 완료** |
+
+### 8.3 중기 (다음 스프린트)
 
 | 순서 | 작업 | 소요시간 | 비용 |
 |------|------|---------|------|
-| 1 | Phase 2 스크립트 구현 | ~2시간 | - |
-| 2 | Phase 2 실행 (기존 1,460문서) | ~2.5시간 | ~$2.7 |
-| 3 | 그래프 시각화 검증 | ~30분 | - |
-| 4 | ES v2 필드 PUT /_mapping | ~5분 | - |
-| 5 | 기존 청크 기본값 백필 | ~10분 | - |
-
-### 8.2 중기 (다음 스프린트)
-
-| 순서 | 작업 | 소요시간 | 비용 |
-|------|------|---------|------|
-| 6 | Phase 3 메타데이터 추출 (선택) | ~50분 | ~$1.0 |
-| 7 | run_etl_full.py에 Phase 2 통합 옵션 | ~1시간 | - |
+| 7 | Phase 3 메타데이터 추출 (선택) | ~50분 | ~$1.0 |
 | 8 | BackgroundWorker 엔티티 추출 E2E 검증 | ~1시간 | - |
+| 9 | token_count < 50 쓰레기 청크 ES/Neo4j/PG 삭제 | ~1시간 | - |
 
-### 8.3 장기 (Re-Chunking)
+### 8.4 장기 (Re-Chunking)
 
 | 순서 | 작업 | 소요시간 | 비용 |
 |------|------|---------|------|
-| 9 | v2 청커로 Re-Chunking + Dense+Sparse 동시 생성 (alias 전략) | ~40시간 | - |
-| 10 | Re-Chunking 후 Phase 2 재실행 | ~2.5시간 | ~$2.7 |
+| 10 | v2 청커로 Re-Chunking + Dense+Sparse 동시 생성 (alias 전략) | ~40시간 | - |
+| 11 | Re-Chunking 후 Phase 2 재실행 | ~2.5시간 | ~$2.7 |
 
 > 기존 96K 청크의 Sparse 백필은 별도로 하지 않음. Re-Chunking 시 Dense+Sparse를 한 번에 생성.
 
@@ -749,7 +749,7 @@ Sparse 검색 활성화는 별도 작업으로, `rag_workflow.py`에서 ES 쿼�
 | `run_embedding_backfill.py` | 1 | 임베딩 백필 (초기 버전) |
 | `run_embedding_backfill_v2.py` | 1 | 임베딩 백필 (CPU 최적화) |
 | `run_etl_workers.py` | 1 | 멀티워커 ETL |
-| `run_entity_extraction_batch.py` | **2** | **엔티티 추출 배치 (미구현)** |
+| `batch_entity_extraction.py` | **2** | **엔티티 추출 배치 (구현 완료, 실행 중)** |
 | `batch_load.py` | 1 | 배치 로드 유틸리티 |
 | `load_single.py` | 1+2 | 단일 문서 처리 |
 | `load_single_noembedding.py` | 1 | 단일 문서 (임베딩 없이) |

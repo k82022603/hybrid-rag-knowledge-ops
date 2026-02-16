@@ -54,15 +54,15 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ filters, onFilterChange }
     <div
       role="search"
       aria-label="검색 필터"
-      className="glass-panel p-5"
+      className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4"
       data-testid="search-filters"
     >
-      <div className="flex items-center justify-between mb-4">
-        <h3 id="filters-heading" className="text-sm font-bold text-gray-900 dark:text-white uppercase tracking-wider">필터 옵션</h3>
+      <div className="flex items-center justify-between mb-3">
+        <h3 id="filters-heading" className="text-sm font-medium text-gray-900 dark:text-white">필터</h3>
         {hasFilters && (
           <button
             onClick={handleClear}
-            className="inline-flex items-center gap-1 text-xs text-neon-cyan hover:text-neon-cyan/80 transition-colors focus:outline-none focus:ring-2 focus:ring-neon-cyan rounded-md px-2 py-1 bg-neon-cyan/10 hover:bg-neon-cyan/20"
+            className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-md px-1"
             aria-label="모든 필터 초기화"
             data-testid="clear-all-filters"
           >
@@ -72,12 +72,12 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ filters, onFilterChange }
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4" role="group" aria-labelledby="filters-heading">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3" role="group" aria-labelledby="filters-heading">
         {/* Document Type */}
         <div>
           <label
             htmlFor="filter-doc-type"
-            className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 ml-1"
+            className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1"
           >
             문서 유형
           </label>
@@ -85,10 +85,10 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ filters, onFilterChange }
             id="filter-doc-type"
             value={filters.documentType || ''}
             onChange={(e) => handleChange('documentType', e.target.value)}
-            className="w-full px-3 py-2.5 text-sm rounded-lg border border-white/10 bg-black/20 text-gray-200 outline-none focus:ring-1 focus:ring-neon-cyan focus:border-neon-cyan transition-all hover:bg-black/30"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           >
             {DOCUMENT_TYPES.map((type) => (
-              <option key={type.value} value={type.value} className="bg-dark-200 text-gray-200">
+              <option key={type.value} value={type.value}>
                 {type.label}
               </option>
             ))}
@@ -99,7 +99,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ filters, onFilterChange }
         <div>
           <label
             htmlFor="filter-date-from"
-            className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 ml-1"
+            className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1"
           >
             시작일
           </label>
@@ -108,7 +108,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ filters, onFilterChange }
             type="date"
             value={filters.dateFrom || ''}
             onChange={(e) => handleChange('dateFrom', e.target.value)}
-            className="w-full px-3 py-2.5 text-sm rounded-lg border border-white/10 bg-black/20 text-gray-200 outline-none focus:ring-1 focus:ring-neon-cyan focus:border-neon-cyan transition-all hover:bg-black/30 placeholder-gray-600"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           />
         </div>
 
@@ -116,7 +116,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ filters, onFilterChange }
         <div>
           <label
             htmlFor="filter-date-to"
-            className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2 ml-1"
+            className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1"
           >
             종료일
           </label>
@@ -125,7 +125,7 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ filters, onFilterChange }
             type="date"
             value={filters.dateTo || ''}
             onChange={(e) => handleChange('dateTo', e.target.value)}
-            className="w-full px-3 py-2.5 text-sm rounded-lg border border-white/10 bg-black/20 text-gray-200 outline-none focus:ring-1 focus:ring-neon-cyan focus:border-neon-cyan transition-all hover:bg-black/30 placeholder-gray-600"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           />
         </div>
       </div>
@@ -133,19 +133,19 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ filters, onFilterChange }
       {/* Active filter chips */}
       {hasFilters && (
         <div
-          className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-white/10"
+          className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100 dark:border-gray-700"
           role="list"
           aria-label="적용된 필터"
         >
           {filters.documentType && (
             <span
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/20 shadow-[0_0_10px_rgba(6,182,212,0.2)]"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200"
               role="listitem"
             >
               <span>유형: {filters.documentType.toUpperCase()}</span>
               <button
                 onClick={() => handleChange('documentType', '')}
-                className="hover:text-white focus:outline-none rounded-full p-0.5 hover:bg-neon-cyan/20 transition-colors"
+                className="ml-0.5 hover:text-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-full"
                 aria-label={`문서 유형 필터 제거: ${filters.documentType}`}
               >
                 <XMarkIcon className="h-3 w-3" aria-hidden="true" />
@@ -154,13 +154,13 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ filters, onFilterChange }
           )}
           {filters.dateFrom && (
             <span
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-neon-purple/10 text-neon-purple border border-neon-purple/20 shadow-[0_0_10px_rgba(168,85,247,0.2)]"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200"
               role="listitem"
             >
               <span>시작: {filters.dateFrom}</span>
               <button
                 onClick={() => handleChange('dateFrom', '')}
-                className="hover:text-white focus:outline-none rounded-full p-0.5 hover:bg-neon-purple/20 transition-colors"
+                className="ml-0.5 hover:text-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-full"
                 aria-label={`시작일 필터 제거: ${filters.dateFrom}`}
               >
                 <XMarkIcon className="h-3 w-3" aria-hidden="true" />
@@ -169,13 +169,13 @@ const SearchFilters: React.FC<SearchFiltersProps> = ({ filters, onFilterChange }
           )}
           {filters.dateTo && (
             <span
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-neon-purple/10 text-neon-purple border border-neon-purple/20 shadow-[0_0_10px_rgba(168,85,247,0.2)]"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200"
               role="listitem"
             >
               <span>종료: {filters.dateTo}</span>
               <button
                 onClick={() => handleChange('dateTo', '')}
-                className="hover:text-white focus:outline-none rounded-full p-0.5 hover:bg-neon-purple/20 transition-colors"
+                className="ml-0.5 hover:text-primary-600 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-full"
                 aria-label={`종료일 필터 제거: ${filters.dateTo}`}
               >
                 <XMarkIcon className="h-3 w-3" aria-hidden="true" />

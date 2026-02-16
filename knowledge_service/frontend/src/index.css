@@ -5,7 +5,8 @@
 /* Custom base styles */
 @layer base {
   :root {
-    font-family: 'Roboto', 'Pretendard', sans-serif;
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+      Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
     line-height: 1.6;
     font-weight: 400;
     letter-spacing: -0.01em;
@@ -20,38 +21,49 @@
     box-sizing: border-box;
   }
 
-  /* Typography optimization */
+  /* Korean typography optimization */
   h1, h2, h3, h4, h5, h6 {
-    @apply font-display text-white;
     line-height: 1.3;
-    letter-spacing: 0.02em;
+    letter-spacing: -0.02em;
+  }
+
+  p, li, td, th {
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
+
+  .numeric, [data-numeric] {
+    font-variant-numeric: tabular-nums;
   }
 
   body {
-    @apply min-h-screen bg-dark-200 text-gray-200 overflow-x-hidden selection:bg-neon-purple selection:text-white;
+    @apply min-h-screen bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-100;
     min-width: 320px;
   }
 
   /* Glassmorphism utilities */
   .glass {
-    @apply bg-dark-800/60 backdrop-blur-md border border-white/5 shadow-lg;
+    @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-sm
+           dark:bg-gray-900/80 dark:border-gray-700/30;
   }
 
   .glass-header {
-    @apply bg-dark-200/80 backdrop-blur-md border-b border-white/5 shadow-sm z-50;
+    @apply bg-white/90 backdrop-blur-md border-b border-gray-200/50 shadow-sm z-50
+           dark:bg-gray-900/90 dark:border-gray-800/50;
   }
 
   .glass-panel {
-    @apply bg-dark-300/40 backdrop-blur-xl border border-white/5 shadow-soft rounded-2xl;
+    @apply bg-white/70 backdrop-blur-xl border border-white/50 shadow-soft
+           dark:bg-gray-800/70 dark:border-gray-700/30;
   }
 
   #root {
-    @apply min-h-screen relative;
+    @apply min-h-screen;
   }
 
-  /* Focus visible styles */
+  /* Focus visible styles for accessibility */
   :focus-visible {
-    @apply outline-none ring-2 ring-neon-cyan ring-offset-2 ring-offset-dark-200;
+    @apply outline-none ring-2 ring-primary-500 ring-offset-2 ring-offset-white dark:ring-offset-gray-900;
   }
 
   /* Custom Scrollbar */
@@ -60,11 +72,11 @@
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-dark-300;
+    @apply bg-transparent;
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-gray-700 rounded-full hover:bg-gray-600 transition-colors;
+    @apply bg-gray-300 dark:bg-gray-600 rounded-full hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors;
   }
 }
 
@@ -80,74 +92,82 @@
   }
 
   .btn-primary {
-    @apply btn bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/50
-           hover:bg-neon-cyan/20 hover:border-neon-cyan hover:shadow-[0_0_10px_rgba(6,182,212,0.3)]
-           focus-visible:ring-neon-cyan;
+    @apply btn bg-primary-600 text-white shadow-sm hover:bg-primary-500 hover:shadow-md hover:-translate-y-0.5
+           focus-visible:ring-primary-500 active:bg-primary-700;
   }
 
   .btn-secondary {
-    @apply btn bg-white/5 text-gray-300 border border-white/10
-           hover:bg-white/10 hover:text-white hover:border-white/20
-           focus-visible:ring-gray-500;
+    @apply btn bg-white text-gray-700 border border-gray-200 shadow-sm hover:bg-gray-50 hover:text-gray-900 hover:border-gray-300
+           focus-visible:ring-gray-400 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-700;
   }
 
   .btn-ghost {
-    @apply btn text-gray-400 hover:text-white hover:bg-white/5
-           focus-visible:ring-gray-500;
+    @apply btn text-gray-600 hover:bg-gray-100 hover:text-gray-900
+           focus-visible:ring-gray-400 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white;
   }
 
   .btn-danger {
-    @apply btn bg-error-900/20 text-error-500 border border-error-900/50
-           hover:bg-error-900/40 hover:text-error-400 hover:border-error-700
-           focus-visible:ring-error-500;
+    @apply btn bg-error-50 text-error-600 hover:bg-error-100 hover:text-error-700
+           focus-visible:ring-error-500 active:bg-error-200
+           dark:bg-error-900/20 dark:text-error-400 dark:hover:bg-error-900/40;
   }
 
   .btn-icon {
-    @apply p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors;
+    @apply p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors
+           dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800;
   }
 
   /* Input styles */
   .input {
-    @apply w-full px-3 py-2 border border-white/10 rounded-lg
-           bg-black/20 text-gray-200 shadow-inner transition-all duration-200
-           placeholder:text-gray-600
-           focus:outline-none focus:ring-1 focus:ring-neon-cyan focus:border-neon-cyan
-           hover:border-white/20
-           disabled:bg-white/5 disabled:text-gray-600 disabled:cursor-not-allowed;
+    @apply w-full px-3 py-2 border border-gray-200 rounded-lg
+           bg-white text-gray-900 shadow-sm transition-all duration-200
+           placeholder:text-gray-400
+           focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500
+           hover:border-gray-300
+           disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed
+           dark:bg-gray-800/50 dark:border-gray-700 dark:text-gray-100
+           dark:placeholder:text-gray-500 dark:focus:border-primary-400 dark:hover:border-gray-600;
   }
 
   /* Card styles */
   .card {
-    @apply glass-panel p-6 hover:border-white/10 transition-colors duration-300;
+    @apply bg-white rounded-xl shadow-soft border border-gray-100 p-5
+           dark:bg-gray-800 dark:shadow-none dark:border-gray-700;
   }
 
   .card-hover {
-    @apply card hover:shadow-glow-cyan/20 hover:-translate-y-1;
+    @apply card transition-all duration-300 hover:shadow-medium hover:-translate-y-1;
   }
 
   /* Badge styles */
   .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium border;
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full
+           text-xs font-medium border;
   }
 
   .badge-primary {
-    @apply badge bg-neon-cyan/10 text-neon-cyan border-neon-cyan/30;
+    @apply badge bg-primary-50 text-primary-700 border-primary-100
+           dark:bg-primary-900/30 dark:text-primary-300 dark:border-primary-800;
   }
 
   .badge-success {
-    @apply badge bg-success-900/20 text-success-500 border-success-900/30;
+    @apply badge bg-success-50 text-success-700 border-success-100
+           dark:bg-success-900/30 dark:text-success-300 dark:border-success-800;
   }
 
   .badge-warning {
-    @apply badge bg-warning-900/20 text-warning-500 border-warning-900/30;
+    @apply badge bg-warning-50 text-warning-700 border-warning-100
+           dark:bg-warning-900/30 dark:text-warning-300 dark:border-warning-800;
   }
 
   .badge-error {
-    @apply badge bg-error-900/20 text-error-500 border-error-900/30;
+    @apply badge bg-error-50 text-error-700 border-error-100
+           dark:bg-error-900/30 dark:text-error-300 dark:border-error-800;
   }
 
   .badge-neutral {
-    @apply badge bg-white/5 text-gray-400 border-white/10;
+    @apply badge bg-gray-50 text-gray-600 border-gray-200
+           dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700;
   }
 
   /* Spinner */
@@ -158,14 +178,6 @@
 
 /* Custom utility styles */
 @layer utilities {
-  .text-glow {
-    text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
-  }
-
-  .text-glow-purple {
-    text-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
-  }
-
   /* Text truncation */
   .truncate-2 {
     display: -webkit-box;
@@ -174,9 +186,22 @@
     overflow: hidden;
   }
 
+  .truncate-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
   /* Gradient text */
   .gradient-text {
-    @apply bg-gradient-to-r from-neon-cyan to-neon-purple bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-primary-600 to-accent-600
+           bg-clip-text text-transparent;
+  }
+
+  /* Smooth scroll */
+  .scroll-smooth {
+    scroll-behavior: smooth;
   }
 
   /* Hide scrollbar but keep functionality */
@@ -184,6 +209,7 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
