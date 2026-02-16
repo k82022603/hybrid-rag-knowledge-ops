@@ -2,9 +2,9 @@
 
 > Claude Code 세션 간 컨텍스트 유지를 위한 계획 문서
 >
-> **Last Updated**: 2026-02-16 KST (Sprint 12 - RAGAS v9 평가 완료 B+, Entity Extraction 진행 중)
-> **Current Phase**: Phase 5 배포 완료 ✅ → Sprint 12 RAGAS v9 평가 완료 + Entity Extraction 계속
-> **Sprint 12**: RAGAS v9 평가 B+ (Faith 0.913, Prec 0.577, Recall 0.600) + 4-Way RRF + Graph RAG
+> **Last Updated**: 2026-02-16 KST (Sprint 12 - RAGAS v11 A- 달성, BGE-Reranker 적용 완료)
+> **Current Phase**: Phase 5 배포 완료 ✅ → Sprint 12 전 태스크 완료 + RAGAS v11 A-
+> **Sprint 12**: RAGAS v11 A- (Faith 0.935, Prec 0.618, Recall 0.672, Mean 0.711) + 4-Way RRF + Reranker + Graph RAG
 > **Frontend 전략 변경**: Tailwind + Antigravity + Stitch MCP 도입 결정 (2026-01-25)
 > **소스코드 리뷰**: 72.5/100 B+ (Gateway 65, Backend 72, AI Service 78, Frontend 75)
 
