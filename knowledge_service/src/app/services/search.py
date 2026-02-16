@@ -420,8 +420,25 @@ class SearchService:
                 k=settings.rrf_k,
             )
 
+            # 2.5 청크별 Neo4j 엔티티 직접 조회 (Phase 2)
+            # post-RRF 결과의 chunk_id로 Neo4j MENTIONS 관계를 직접 조회하여
+            # 각 청크에 실제 연결된 엔티티만 할당 (글로벌 엔티티 리스트 제거)
             # 3. 상위 top_k 반환
             final_results = fused_results[:top_k]
+
+            if use_graph:
+                chunk_ids = [
+                    r.metadata.get("chunk_id") or r.chunk_id
+                    for r in final_results
+                    if r.metadata.get("chunk_id") or r.chunk_id
+                ]
+                if chunk_ids:
+                    chunk_entity_map = await self._get_chunk_entities(chunk_ids)
+                    for r in final_results:
+                        cid = r.metadata.get("chunk_id") or r.chunk_id
+                        if cid and cid in chunk_entity_map:
+                            r.metadata["matched_entities"] = chunk_entity_map[cid]
+                        # chunk_id가 없거나 엔티티가 없으면 matched_entities 미할당 → Graph 버튼 미표시
 
             latency_ms = (time.monotonic() - start_time) * 1000
 
@@ -697,6 +714,40 @@ class SearchService:
     # Internal methods
     # ------------------------------------------------------------------
 
+    async def _get_chunk_entities(self, chunk_ids: List[str]) -> Dict[str, List[str]]:
+        """각 청크의 고유 엔티티를 Neo4j에서 직접 조회 (Phase 2)
+
+        post-RRF 결과의 chunk_id로 Neo4j MENTIONS 관계를 조회하여
+        각 청크에 실제 연결된 엔티티만 반환합니다.
+
+        Args:
+            chunk_ids: 조회할 청크 ID 리스트
+
+        Returns:
+            {chunk_id: [entity_name, ...]} 매핑
+        """
+        cypher = """
+        UNWIND $chunk_ids AS cid
+        MATCH (c:Chunk {id: cid})-[:MENTIONS]->(e:Entity)
+        WHERE NOT e.name STARTS WITH '/' AND NOT e.name STARTS WITH '.'
+          AND size(e.name) >= 2
+          AND NOT e.name CONTAINS '.py' AND NOT e.name CONTAINS '.ts'
+          AND NOT e.name CONTAINS '.js' AND NOT e.name CONTAINS '.json'
+          AND NOT e.name CONTAINS '//' AND NOT e.name CONTAINS '()'
+          AND NOT e.name CONTAINS '{}' AND NOT e.name CONTAINS '*'
+        RETURN cid, collect(DISTINCT e.name)[0..5] AS entities
+        """
+        try:
+            records = await self._neo4j_query(cypher, {"chunk_ids": chunk_ids})
+            return {
+                str(r.get("cid", "")): r.get("entities", [])
+                for r in records
+                if r.get("entities")
+            }
+        except Exception as e:
+            logger.warning(f"Chunk entity lookup failed: {e}")
+            return {}
+
     async def _sparse_search(
         self,
         query_sparse: Dict[str, float],
@@ -851,32 +902,64 @@ class SearchService:
                 params: Dict[str, Any] = {"entity_names": entity_names}
             else:
                 query_lower = query.lower()
-                query_words = [w for w in query.split() if len(w) >= 2]
+                # 한국어 조사 + 구두점 제거 후 query_words 생성
+                import re as _re
+                _punct = _re.compile(r'[?!.。,;:]+$')
+                _particles = _re.compile(r'[은는이가을를의와과에서로도만으로부터까지에게]+$')
+                raw_words = [w for w in query.split() if len(w) >= 2]
+                query_words = []
+                for w in raw_words:
+                    cleaned = _punct.sub('', w)
+                    stripped = _particles.sub('', cleaned)
+                    if stripped and len(stripped) >= 2 and stripped not in query_words:
+                        query_words.append(stripped)
+                    if cleaned and len(cleaned) >= 2 and cleaned not in query_words:
+                        query_words.append(cleaned)
                 if not query_words:
                     query_words = [query]
 
-                cypher = """
-                MATCH (e:Entity)
-                WHERE e.name IS NOT NULL AND size(e.name) >= 2
-                AND (
-                    toLower($query_str) CONTAINS toLower(e.name)
-                    OR any(word IN $query_words WHERE
-                        toLower(e.name) CONTAINS toLower(word))
+                # 2단계 Cypher: 정확 매칭 우선 + 부분 매칭 보조
+                _ef = (
+                    "e.name IS NOT NULL AND size(e.name) >= 2"
+                    " AND NOT e.name STARTS WITH '/'"
+                    " AND NOT e.name STARTS WITH '.'"
+                    " AND NOT e.name CONTAINS '.py' AND NOT e.name CONTAINS '.ts'"
+                    " AND NOT e.name CONTAINS '.js' AND NOT e.name CONTAINS '.json'"
+                    " AND NOT e.name CONTAINS '.md' AND NOT e.name CONTAINS '.yml'"
+                    " AND NOT e.name CONTAINS '.yaml'"
+                    " AND NOT e.name CONTAINS '//'"
+                    " AND NOT e.name CONTAINS '()' AND NOT e.name CONTAINS '{}'"
+                    " AND NOT e.name CONTAINS '*'"
                 )
-                WITH DISTINCT e
-                LIMIT 30
-                OPTIONAL MATCH (e)-[r:RELATED]-(related:Entity)
-                WHERE related.name IS NOT NULL AND related.name <> 'None'
-                WITH e, related, COALESCE(r.weight, 1.0) AS w
+                cypher = f"""
+                MATCH (e:Entity) WHERE {_ef}
+                AND any(word IN $query_words WHERE toLower(word) = toLower(e.name))
+                WITH collect(DISTINCT e) AS exact
+
+                OPTIONAL MATCH (e2:Entity)
+                WHERE {_ef.replace('e.name', 'e2.name')}
+                AND any(word IN $query_words WHERE
+                    toLower(e2.name) CONTAINS toLower(word) AND size(word) >= 2)
+                AND NOT any(word IN $query_words WHERE toLower(word) = toLower(e2.name))
+                WITH exact, collect(DISTINCT e2)[0..15] AS partial
+
+                WITH exact + partial AS all_e
+                UNWIND all_e AS e
+                WITH DISTINCT e LIMIT 20
+
+                OPTIONAL MATCH (e)-[r:RELATED]-(rel:Entity)
+                WHERE rel.name IS NOT NULL AND rel.name <> 'None'
+                  AND NOT rel.name STARTS WITH '/' AND NOT rel.name STARTS WITH '.'
+                  AND size(rel.name) >= 2
+                WITH e, rel, COALESCE(r.weight, 1.0) AS w
                 ORDER BY w DESC
-                WITH e, collect(related.name)[0..3] AS rel_names
-                WITH collect(e.name) + reduce(acc=[], n IN collect(rel_names) |
-                    acc + n) AS all_names
-                UNWIND all_names AS name
+                WITH e, collect(rel.name)[0..3] AS rn
+                WITH collect(e.name) + reduce(a=[], n IN collect(rn) | a + n) AS names
+                UNWIND names AS name
                 WITH DISTINCT name
                 WHERE name IS NOT NULL AND name <> 'None' AND size(name) >= 2
-                RETURN name
-                LIMIT 20
+                  AND NOT name STARTS WITH '/' AND NOT name STARTS WITH '.'
+                RETURN name LIMIT 20
                 """
                 params = {
                     "query_str": query_lower,
@@ -890,10 +973,14 @@ class SearchService:
                 return []
 
             # Step 2: 엔티티명으로 enhanced query 구성
+            # 경로/코드/파일 패턴 필터 (Neo4j에 잘못 저장된 엔티티 제외)
+            _junk_patterns = ('/', '//', '()', '{}', '*', '.py', '.ts', '.js', '.json', '.md', '.yml', '.yaml')
             graph_entities = [
                 str(r.get("name", ""))
                 for r in entity_records
                 if r.get("name")
+                and not str(r.get("name", "")).startswith(("/", "."))
+                and not any(p in str(r.get("name", "")) for p in _junk_patterns)
             ]
 
             logger.debug(
@@ -939,13 +1026,16 @@ class SearchService:
 
                 # _parse_es_results로 파싱 (keyword와 동일한 chunk_id 생성)
                 results = self._parse_es_results(response, source="graph")
-                # matched_entities 메타데이터 추가
-                for r in results:
-                    r.metadata["matched_entities"] = graph_entities[:5]
+                # Phase 2: matched_entities는 post-RRF에서 Neo4j MENTIONS 직접 조회로 할당
+                # _graph_search에서는 ES 검색 결과만 반환
 
+            # Debug: 매칭 통계
+            matched_count = sum(1 for r in results if r.metadata.get("matched_entities"))
             logger.info(
                 f"Graph search complete - "
-                f"Entities: {len(graph_entities)}, Results: {len(results)}"
+                f"Entities: {len(graph_entities)}, Results: {len(results)}, "
+                f"WithMatchedEntities: {matched_count}, "
+                f"AllEntities: {graph_entities}"
             )
             return results
 

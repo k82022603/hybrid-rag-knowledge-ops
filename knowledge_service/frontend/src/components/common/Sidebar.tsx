@@ -160,7 +160,7 @@ const Sidebar: React.FC<SidebarProps> = ({ open, width, onClose }) => {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto px-4 py-6 space-y-8 scrollbar-hide" aria-label="Main menu">
-          {filteredSections.map((section, sectionIdx) => (
+          {filteredSections.map((section) => (
             <div key={section.label} className="space-y-3">
               <p className="px-3 text-[11px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                 {section.label}

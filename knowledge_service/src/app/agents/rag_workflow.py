@@ -357,30 +357,10 @@ def build_sources_from_results(
         }
 
         # ISSUE-011: 모든 소스에 대해 graph_context 생성
-        # Graph 소스: matched_entities 사용 (Neo4j 쿼리에서 추출된 실제 엔티티)
-        # Vector/Keyword 소스: 메타데이터의 제목에서 엔티티 추출 (파일명 제외)
-        related_entities: List[str] = []
-
+        # matched_entities만 사용 (search.py에서 Neo4j 검증된 엔티티만 전달)
+        # Tier 2/3 fallback(제목/콘텐츠 추출) 제거: Neo4j 미검증 엔티티는 잘못된 그래프 표시 유발
         matched_entities = result.metadata.get("matched_entities", [])
-        if matched_entities:
-            # 파일명 패턴 필터링
-            related_entities = [e for e in matched_entities if e and not _is_filename(e)]
-
-        # matched_entities가 비어 있으면 제목에서 엔티티 후보 추출
-        if not related_entities:
-            title = result.metadata.get("title", "")
-            related_entities = _extract_entities_from_title(title)
-
-        # ISSUE-011 보강: 제목이 파일명이라서 엔티티를 못 찾은 경우
-        # content에서 명사구/키워드 후보를 추출 (snippet 기반)
-        if not related_entities and result.content:
-            content_snippet = result.content[:300]
-            # 영문 대문자로 시작하는 단어 (기술명, 고유명사 후보)
-            proper_nouns = re.findall(r'\b([A-Z][a-zA-Z]{2,}(?:\s+[A-Z][a-zA-Z]+)*)\b', content_snippet)
-            # 한글 키워드 (2-6글자, 한자어/복합어 패턴)
-            korean_keywords = re.findall(r'([가-힣]{2,6}(?:\s[가-힣]{2,6})?)', content_snippet)
-            candidates = list(dict.fromkeys(proper_nouns[:3] + korean_keywords[:3]))
-            related_entities = [c for c in candidates if not _is_filename(c)][:3]
+        related_entities = [e for e in matched_entities if e and not _is_filename(e)]
 
         if related_entities:
             source_info["graph_context"] = {
