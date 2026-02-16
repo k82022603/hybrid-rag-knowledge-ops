@@ -72,9 +72,9 @@ PM / TechLead / Developer / QA role separation.
 
 | 항목 | 내용 |
 |------|------|
-| **Version** | 5.0 |
+| **Version** | 5.1 |
 | **Updated** | 2026-02-16 |
-| **Status** | Sprint 12 - Entity Extraction Phase 2 (66% complete) |
+| **Status** | Sprint 12 - Entity Extraction 완료, RAGAS v10 B+ 등급 |
 | **Test Coverage** | 97% avg across 5 core modules (Docker mode) |
 | **CI/CD** | 8 GitHub Actions workflows |
 | **AI Model** | Claude Opus 4.6 + Agent Teams (13 agents) |
@@ -138,10 +138,11 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 | 항목 | 수치 |
 |------|------|
 | 문서 | 1,437개 |
-| 청크 | 56,063개 |
-| 엔티티 | 90,000+ (Neo4j) |
-| 관계 | 488,000+ (MENTIONS + RELATED + PART_OF) |
+| 청크 | 42,462개 (쓰레기 청크 13,601건 정리 후) |
+| 엔티티 노드 | 169,886 (Entity + Technology + Person) |
+| 관계 | 775,366 (MENTIONS + RELATED_TO + HAS_ENTITY + PART_OF) |
 | Dense + Sparse 임베딩 | 100% 완료 |
+| Entity Extraction | 100% 완료 (23,074건 처리) |
 | 3-Store 정합성 | ES = PG = Neo4j 100% |
 
 ## 📅 현재 진행 상황
@@ -153,11 +154,10 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 | ✅ | ETL Phase 1 | 파싱+청킹 → 1,437 docs → 56,063 chunks |
 | ✅ | ETL Phase 2 | Colab GPU 임베딩 (Dense+Sparse 100%) |
 | ✅ | Phase 3 Round 1 | Entity Extraction (tc>=100) → 16,185건 |
+| ✅ | Phase 3 Round 2 | Entity Extraction (tc>=50) → 23,074건 완료 |
+| ✅ | 쓰레기 청크 삭제 | tc<50 청크 13,601건 ES/Neo4j/PG 정리 |
 | ✅ | 4-Way RRF 검색 | Dense+Sparse+BM25+Graph 통합 |
-| ✅ | RAGAS v9 평가 | B+ 등급 (51쿼리) |
-| ⏳ | **Phase 3 Round 2** | **Entity Extraction (tc>=50) → 23,074건 (66%)** |
-| 📋 | 쓰레기 청크 삭제 | tc<50 청크 16,766건 ES/Neo4j/PG 정리 |
-| 📋 | Neo4j MERGE 최적화 | UNWIND 배치 MERGE 적용 |
+| ✅ | RAGAS v10 평가 | **B+ 등급** (51쿼리, 7도메인) |
 
 ### 주요 마일스톤
 
@@ -168,8 +168,61 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 | 01-30 | Backend API 12개 + 테스트 626/627 |
 | 02-05 | Phase 5 배포, 테스트 97%, Opus 4.6 전환 |
 | 02-10 | ETL Phase 1+2 완료 (56,063건 100%) |
-| 02-15 | Phase 3 Entity Extraction + RAGAS v9 |
-| 02-16 | Phase 3 Round 2 (3-워커 병렬, 66% 진행 중) |
+| 02-15 | Phase 3 Entity Extraction Round 1 + RAGAS v9 |
+| 02-16 | **Phase 3 Round 2 완료 + RAGAS v10 B+ 달성** |
+
+## 📈 프로젝트 성과
+
+### 검색 품질 (RAGAS v10)
+
+| 지표 | 점수 | 등급 | 의미 |
+|------|:----:|:----:|------|
+| **Faithfulness** | 0.919 | A | 환각 8% 이하 — 실무 배포 가능 수준 |
+| **Answer Relevancy** | 0.647 | B | v9 대비 +18.3% 회복 |
+| **Context Precision** | 0.489 | C | 검색 정밀도 — 개선 여지 |
+| **Context Recall** | 0.474 | C | 검색 재현율 — 개선 여지 |
+| **종합** | **B+** | | HIGH 30건(59%), PARTIAL 11건, NONE 10건 |
+
+### 핵심 성과
+
+**"데이터의 양이 아닌 구조화의 질이 검색 성능을 결정한다"**는 것을 수치로 입증했다.
+
+v8 시스템은 108,000개 청크를 무차별 인덱싱했다.
+v10은 그 중 61%를 제거하고 42,462개만 남겼음에도
+동등하거나 그 이상의 검색 품질을 달성했다.
+92,209개 엔티티와 775,366개 관계를 Knowledge Graph로 구축하여,
+비정형 텍스트 덩어리를 의미적 연결을 갖춘 지식 네트워크로 전환한 결과다.
+
+- **entity_relation 도메인**: 7건 전부 HIGH (100%) — 엔티티 간 관계 질의 완벽 대응
+- **multi_hop 도메인**: 7건 중 6건 HIGH (86%) — 여러 문서에 걸친 추론 경로 제공
+- **v8→v9→v10 진화**: "양으로 밀어붙이기" → "품질 정제" → "Knowledge Graph로 보강"
+
+### 기술적 의의
+
+1. **4-Way RRF 검증**: Dense + Sparse + BM25(Nori) + Graph Search를 RRF로 결합하여
+   한국어 1,437문서 / 7도메인 51쿼리에서 체계적으로 평가한 실무 사례
+2. **3-Phase ETL 확립**: GPU 없는 환경에서도 Colab 무료 GPU를 활용한 대규모 RAG 구축 가능 —
+   소규모 팀/개인 프로젝트에서 현실적으로 적용 가능한 아키텍처
+3. **Post-RRF 엔티티 보강**: RRF 퓨전 후 chunk_id로 Neo4j MENTIONS 직접 조회하여
+   검색 재현율을 유지하면서 답변 관련성을 높이는 패턴 적용
+
+### 비용 효율
+
+전체 파이프라인(Entity Extraction + RAGAS 평가 + 운영)을
+**DeepSeek V3.2로 약 $52(~75,000원)**에 완료했다.
+
+| 비교 대상 | 예상 비용 | 배수 |
+|----------|:---------:|:----:|
+| **DeepSeek V3.2** (실측) | **$52** | 1x |
+| GPT-4o | $775 | 15x |
+| Claude Sonnet 4.5 | $1,063 | 20x |
+| Claude Opus 4.6 | $5,314 | 102x |
+
+$52로 92,209개 엔티티 추출 + 775,366개 관계 구축 + B+ 등급 달성 —
+DeepSeek V3.2의 비용 효율은 "실험적으로 재미있는 수준"이 아니라
+**"실용 시스템 구축을 가능하게 하는 수준"**이다.
+
+> 상세 평가: [RAGAS v10 종합 보고서](./knowledge_service/docs/04_testing/etl_v2_reprocessing/05_ragas_v10_post_entity_evaluation.md)
 
 ## 📚 문서
 
@@ -180,6 +233,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 | [플랫폼 상세 설계서](./knowledge_service/docs/02_design/01_hybrid_rag_platform_detailed_design.md) | Gleaning 포함 핵심 설계 |
 | [ETL 배치 설계서](./knowledge_service/docs/03_implementation/etl_batch_pipeline_design.md) | 3-Phase 분리 전략 |
 | [ETL 운영 가이드](./knowledge_service/docs/07_maintenance/22_etl_3phase_operations_guide.md) | 3-Phase 실행/모니터링 |
+| [RAGAS v10 종합 보고서](./knowledge_service/docs/04_testing/etl_v2_reprocessing/05_ragas_v10_post_entity_evaluation.md) | B+ 등급 달성 + 총평 + LLM 비용 비교 |
 | [Entity Extraction 보고서](./knowledge_service/docs/results/entity_extraction_report_2026-02-15.md) | 실측 비용 + 타 LLM 비교 |
 | [개발자 에이전트 가이드](./knowledge_service/docs/05_development/01_developer_agent_guide.md) | AI 에이전트 도구 사용법 |
 | [Agent Teams 가이드](./docs/12_Agent_Teams_활용_가이드.md) | 멀티-에이전트 협업 |
