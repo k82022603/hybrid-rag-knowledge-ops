@@ -40,9 +40,9 @@ An enterprise knowledge platform that automatically processes internal documents
 
 | 항목 | 내용 |
 |------|------|
-| **Version** | 5.1 |
-| **Updated** | 2026-02-16 |
-| **Status** | Sprint 12 - Entity Extraction + Reranker 완료, RAGAS v11 A- 등급 |
+| **Version** | 5.2 |
+| **Updated** | 2026-02-18 |
+| **Status** | Sprint 12 Final - 사용자 테스트 완료, 산출물 9종 v1.1, RAGAS v11 A- 등급 |
 | **Test Coverage** | 97% avg across 5 core modules (Docker mode) |
 | **CI/CD** | 8 GitHub Actions workflows |
 | **AI Model** | Claude Opus 4.6 / Sonnet 4.6 + Agent Teams (13 agents, tiered) |
