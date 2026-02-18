@@ -6,7 +6,7 @@
 |------|-----|
 | **Jira ID** | SCRUM-93 |
 | **Epic** | - |
-| **Status** | In Progress |
+| **Status** | Done |
 | **Priority** | P0 - Critical |
 | **Story Points** | 5 |
 | **Assignee** | MLRag/Data |

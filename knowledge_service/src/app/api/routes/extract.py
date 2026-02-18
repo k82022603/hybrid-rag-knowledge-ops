@@ -9,8 +9,10 @@
 
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
+
+from app.api.routes.auth import get_current_user
 
 from app.agents.state import (
     CategoryMetadata,
@@ -93,7 +95,10 @@ class FullExtractionResponse(BaseModel):
     summary="엔티티 추출",
     description="문서에서 엔티티 및 관계 추출 (Gleaning 지원)",
 )
-async def extract_entities(request: ExtractEntitiesRequest) -> ExtractEntitiesResponse:
+async def extract_entities(
+    request: ExtractEntitiesRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+) -> ExtractEntitiesResponse:
     """
     엔티티 및 관계 추출
 
@@ -159,7 +164,10 @@ async def extract_entities(request: ExtractEntitiesRequest) -> ExtractEntitiesRe
     summary="메타데이터 추출",
     description="문서 유형, 카테고리, 요약 등 메타데이터 자동 추출",
 )
-async def extract_metadata(request: ExtractMetadataRequest) -> ExtractMetadataResponse:
+async def extract_metadata(
+    request: ExtractMetadataRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+) -> ExtractMetadataResponse:
     """
     문서 메타데이터 추출
 
@@ -207,7 +215,10 @@ async def extract_metadata(request: ExtractMetadataRequest) -> ExtractMetadataRe
     summary="통합 추출",
     description="엔티티 + 관계 + 메타데이터 통합 추출",
 )
-async def extract_full(request: FullExtractionRequest) -> FullExtractionResponse:
+async def extract_full(
+    request: FullExtractionRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+) -> FullExtractionResponse:
     """
     엔티티 + 관계 + 메타데이터 통합 추출
 

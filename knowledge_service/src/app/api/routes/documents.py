@@ -14,9 +14,10 @@ from uuid import UUID, uuid4
 
 from pathlib import Path
 
-from fastapi import APIRouter, Form, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 
+from app.api.routes.auth import get_current_user
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.models.document import (
@@ -254,6 +255,7 @@ async def upload_document(
         default=None,
         description="메타데이터 JSON 문자열 (title, description, tags, project_name)",
     ),
+    current_user: Dict[str, Any] = Depends(get_current_user),
 ) -> DocumentResponse:
     """
     문서 업로드 API
@@ -284,9 +286,10 @@ async def upload_document(
         HTTPException 413: 파일 크기 초과
     """
     logger.info(
-        "Document upload request - filename: %s, content_type: %s",
+        "Document upload request - filename: %s, content_type: %s, user: %s",
         file.filename,
         file.content_type,
+        current_user.get("email", "unknown"),
     )
 
     # 1. 파일명 처리 및 보안
@@ -328,11 +331,23 @@ async def upload_document(
             ),
         )
 
-    # 5. 빈 파일 검증
+    # 5. 빈 파일 및 최소 크기 검증
     if file_size == 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="빈 파일은 업로드할 수 없습니다",
+        )
+
+    # 최소 파일 크기 검증 (100B 미만은 유의미한 텍스트 추출 불가)
+    MIN_FILE_SIZE = 100  # bytes
+    if file_size < MIN_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"파일 크기가 너무 작습니다 ({file_size}B). "
+                f"최소 {MIN_FILE_SIZE}B 이상의 파일만 업로드할 수 있습니다. "
+                f"텍스트 추출 및 청크 생성이 가능한 충분한 내용이 필요합니다."
+            ),
         )
 
     # 6. 메타데이터 파싱
@@ -708,7 +723,10 @@ async def list_documents(
     description="업로드된 문서의 처리(파싱, 청킹, 임베딩, 저장)를 수동으로 트리거합니다",
     status_code=status.HTTP_202_ACCEPTED,
 )
-async def trigger_document_processing(document_id: UUID) -> Dict[str, Any]:
+async def trigger_document_processing(
+    document_id: UUID,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+) -> Dict[str, Any]:
     """
     문서 처리 트리거 API
 
@@ -796,7 +814,10 @@ async def trigger_document_processing(document_id: UUID) -> Dict[str, Any]:
     description="처리에 실패한 문서를 재시도합니다. 상태를 queued로 초기화하고 파이프라인을 다시 실행합니다.",
     status_code=status.HTTP_202_ACCEPTED,
 )
-async def retry_failed_document(document_id: UUID) -> Dict[str, Any]:
+async def retry_failed_document(
+    document_id: UUID,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+) -> Dict[str, Any]:
     """
     실패 문서 재시도 API
 
@@ -900,6 +921,7 @@ async def retry_failed_document(document_id: UUID) -> Dict[str, Any]:
 )
 async def process_pending_documents(
     batch_size: int = Query(default=5, ge=1, le=20, description="한 번에 처리할 문서 수"),
+    current_user: Dict[str, Any] = Depends(get_current_user),
 ) -> Dict[str, Any]:
     """
     대기 중인 문서 일괄 처리 API

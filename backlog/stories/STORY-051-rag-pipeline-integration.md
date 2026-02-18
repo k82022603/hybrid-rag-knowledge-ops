@@ -6,7 +6,7 @@
 |------|-----|
 | **Jira ID** | SCRUM-41 |
 | **Epic** | EPIC-002 |
-| **Status** | In Progress |
+| **Status** | Done |
 | **Priority** | Critical |
 | **Story Points** | 8 |
 | **Assignee** | RAG |

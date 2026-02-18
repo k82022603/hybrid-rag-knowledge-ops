@@ -21,10 +21,7 @@
     },
     "stitch": {
       "command": "npx",
-      "args": ["-y", "@anthropic/stitch-mcp@latest"],
-      "env": {
-        "ANTHROPIC_MODEL": "claude-opus-4-6"
-      }
+      "args": ["-y", "@anthropic/stitch-mcp@latest"]
     }
   }
 }

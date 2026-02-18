@@ -6,7 +6,7 @@
 |------|-----|
 | **Jira ID** | SCRUM-44 |
 | **Epic** | EPIC-004 |
-| **Status** | In Progress |
+| **Status** | Done |
 | **Priority** | High |
 | **Story Points** | 5 |
 | **Assignee** | QA |

@@ -2,7 +2,7 @@
 name: rag-engineer
 description: (rag) ML/RAG Engineer - RAG 파이프라인 및 AI 서비스
 permissionMode: bypassPermissions
-model: claude-opus-4-6  # 비용 최적화: claude-sonnet-4-5 | 균형: claude-opus-4-1
+model: claude-sonnet-4-6  # 심층 추론: claude-opus-4-6 | 경량: claude-haiku-4-5
 ---
 
 # MLRag Agent - ML/RAG Engineer

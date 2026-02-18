@@ -2,7 +2,7 @@
 
 🤖 Hybrid RAG Knowledge Operations 프로젝트 개발 규칙
 
-**Version**: 2.28 | **Updated**: 2026-02-16
+**Version**: 2.29 | **Updated**: 2026-02-18
 
 ---
 
@@ -355,7 +355,7 @@ mcp__slack__slack_post_message
 
 ## 🔄 Agent Teams 운영 원칙 (매 세션 필수)
 
-> 상세: [Agent Teams 활용 가이드 v3.0](./docs/12_Agent_Teams_활용_가이드.md)
+> 상세: [Agent Teams 활용 가이드 v3.1](./docs/12_Agent_Teams_활용_가이드.md)
 
 1. **클로드(Main) = 소통 + spawn/shutdown** - 사용자 창구, 팀원 소환/정리 담당 (Task tool)
 2. **PM 에이전트 = 백로그 관리 + Jira/Slack + 팀 조율** - 매 세션 PM 먼저 spawn (spawn 자체는 클로드가 실행)
@@ -365,29 +365,30 @@ mcp__slack__slack_post_message
 
 ---
 
-## 🤖 AI 에이전트 목록 (13개) - Agent Teams v3.0
+## 🤖 AI 에이전트 목록 (13개) - Agent Teams v3.1
 
 > **2026-02-08 전환**: 기존 서브에이전트(Task tool 일회성) → **Agent Teams(상주 팀원, 양방향 통신)** 전환 완료
 > - 팀 이름: `hrkp-sprint-08` | 공유 TaskList + SendMessage 기반 자율 협업
-> - 상세: [Agent Teams 활용 가이드 v3.0](./docs/12_Agent_Teams_활용_가이드.md)
+> - **2026-02-18 모델 최적화**: Sonnet 4.6 출시 반영, 11개 에이전트 Sonnet 4.6 전환 (73% 비용 절감)
+> - 상세: [Agent Teams 활용 가이드 v3.1](./docs/12_Agent_Teams_활용_가이드.md)
 
 프로젝트 특화 에이전트들이 `.claude/agents/`에 정의되어 있습니다.
 
-| 파일명 | 약어 | 역할 |
-|--------|------|------|
-| `project-manager.md` | **(pm)** | Sprint/Jira/Slack 관리 |
-| `tech-lead.md` | **(tl)** | 아키텍처 검토, 코드 리뷰 |
-| `backend-developer.md` | **(backend)** | SpringBoot API Gateway |
-| `frontend-developer.md` | **(frontend)** | React 18 UI |
-| `rag-engineer.md` | **(rag)** | RAG 파이프라인, AI Service |
-| `etl-engineer.md` | **(etl)** | ETL 파이프라인, 데이터 품질 |
-| `database-designer.md` | **(db)** | DB 스키마 설계, 쿼리 최적화 |
-| `infra-engineer.md` | **(infra)** | Docker Compose 인프라 |
-| `devops-engineer.md` | **(devops)** | CI/CD, Observability |
-| `qa-engineer.md` | **(qa)** | 테스트, RAGAS 평가 |
-| `software-architect.md` | **(arch)** | 시스템/기능 상세 설계 |
-| `code-documenter.md` | **(doc)** | API/코드 문서화 |
-| `web-designer.md` | **(web)** | UI/UX 설계 |
+| 파일명 | 약어 | 역할 | 모델 |
+|--------|------|------|------|
+| `project-manager.md` | **(pm)** | Sprint/Jira/Slack 관리 | Sonnet 4.6 |
+| `tech-lead.md` | **(tl)** | 아키텍처 검토, 코드 리뷰 | **Opus 4.6** |
+| `backend-developer.md` | **(backend)** | SpringBoot API Gateway | Sonnet 4.6 |
+| `frontend-developer.md` | **(frontend)** | React 18 UI | Sonnet 4.6 |
+| `rag-engineer.md` | **(rag)** | RAG 파이프라인, AI Service | Sonnet 4.6 |
+| `etl-engineer.md` | **(etl)** | ETL 파이프라인, 데이터 품질 | Sonnet 4.6 |
+| `database-designer.md` | **(db)** | DB 스키마 설계, 쿼리 최적화 | Sonnet 4.6 |
+| `infra-engineer.md` | **(infra)** | Docker Compose 인프라 | Sonnet 4.6 |
+| `devops-engineer.md` | **(devops)** | CI/CD, Observability | Sonnet 4.6 |
+| `qa-engineer.md` | **(qa)** | 테스트, RAGAS 평가 | Sonnet 4.6 |
+| `software-architect.md` | **(arch)** | 시스템/기능 상세 설계 | **Opus 4.6** |
+| `code-documenter.md` | **(doc)** | API/코드 문서화 | Sonnet 4.6 |
+| `web-designer.md` | **(web)** | UI/UX 설계 | Sonnet 4.6 |
 
 ### 역할 구분 매트릭스 (혼동 방지)
 
@@ -596,7 +597,7 @@ PM 승인: [PM Agent]
 - [Claude Commands README](./.claude/commands/README.md) - 설치된 명령어 전체 목록
 - [개발자 에이전트 가이드](./knowledge_service/docs/05_development/01_developer_agent_guide.md) - AI 에이전트 도구 사용법 ⭐
 - [개발자 통합 가이드](./knowledge_service/docs/05_development/02_developer_integration_guide.md) - MCP/Agent/Skills 설정 ⭐
-- [Agent Teams 활용 가이드 v3.0](./docs/12_Agent_Teams_활용_가이드.md) - 멀티-에이전트 협업 + 세션별 표준 워크플로우 ⭐
+- [Agent Teams 활용 가이드 v3.1](./docs/12_Agent_Teams_활용_가이드.md) - 멀티-에이전트 협업 + 모델 티어링 + 세션별 표준 워크플로우 ⭐
 - [테스트 계획서](./knowledge_service/docs/04_testing/01_test_plans/00_unit_integration_test_plan.md) - TDD/Test-Along 기준
 - [백로그 관리 가이드](./backlog/README.md) - Jira-free 백로그 관리
 - [ALM 완전가이드](./docs/technical_assessment/claude_code_virtual_team_alm_guide/) - 가상팀 협업 가이드 (4개 문서)

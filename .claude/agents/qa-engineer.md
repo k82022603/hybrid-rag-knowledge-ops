@@ -4,7 +4,7 @@ description: (qa) QA Engineer - 테스트 및 RAG 평가
 permissionMode: bypassPermissions
 tools: [Read, Write, Bash, Glob, Grep]
 allowedPaths: [tests/, benchmarks/, knowledge_service/src/tests/]
-model: claude-opus-4-6  # 비용 최적화: claude-sonnet-4-5 | 균형: claude-opus-4-1
+model: claude-sonnet-4-6  # 심층 추론: claude-opus-4-6 | 경량: claude-haiku-4-5
 ---
 
 # QA Agent - QA Engineer

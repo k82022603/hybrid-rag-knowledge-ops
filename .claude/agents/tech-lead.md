@@ -4,7 +4,7 @@ description: (tl) Technical Lead - 아키텍처 검토 및 코드 리뷰
 permissionMode: bypassPermissions
 tools: [Read, Grep, Bash, Glob]
 disallowedTools: [Write, Edit]
-model: claude-opus-4-6  # 비용 최적화: claude-sonnet-4-5 | 균형: claude-opus-4-1
+model: claude-opus-4-6  # 심층 추론 필수 (아키텍처 검토/코드 리뷰) | 비용 최적화: claude-sonnet-4-6
 ---
 
 # TechLead Agent - Technical Lead

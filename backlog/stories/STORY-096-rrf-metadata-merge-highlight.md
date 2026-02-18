@@ -9,7 +9,7 @@
 | **Priority** | High (P1) |
 | **Story Points** | 5 |
 | **Sprint** | 08 |
-| **Status** | To Do |
+| **Status** | Deferred (Sprint 12 project closure) |
 | **Jira ID** | - |
 | **Created** | 2026-02-08 |
 | **Primary** | RAG |

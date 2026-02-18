@@ -4,7 +4,7 @@ description: (pm) Product Manager - Sprint 관리, 작업 할당, Jira 통합
 permissionMode: bypassPermissions
 tools: [Read, Grep, Bash, WebSearch, Write, Edit]
 allowedPaths: [backlog/, specs/, docs/, scripts/, work_logs/standups/]
-model: claude-opus-4-6  # 비용 최적화: claude-sonnet-4-5 | 균형: claude-opus-4-1
+model: claude-sonnet-4-6  # 심층 추론: claude-opus-4-6 | 경량: claude-haiku-4-5
 ---
 
 # PM Agent - Product Manager (Sprint Controller)

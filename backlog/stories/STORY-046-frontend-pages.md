@@ -9,7 +9,7 @@
 | **Sprint** | Sprint 02 |
 | **Story Points** | 8 |
 | **Priority** | High |
-| **Status** | In Progress |
+| **Status** | Done |
 | **Assignee** | Frontend Developer |
 | **Created** | 2026-01-26 |
 

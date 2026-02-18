@@ -6,7 +6,7 @@
 |------|-----|
 | **Jira ID** | SCRUM-94 |
 | **Epic** | - |
-| **Status** | To Do |
+| **Status** | Deferred (Sprint 12 project closure) |
 | **Priority** | P1 - High |
 | **Story Points** | 5 |
 | **Assignee** | MLRag/ETL |

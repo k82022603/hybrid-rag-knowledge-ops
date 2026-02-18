@@ -9,7 +9,7 @@
 | **Sprint** | Sprint 02 |
 | **Story Points** | 13 |
 | **Priority** | High |
-| **Status** | In Progress |
+| **Status** | Done |
 | **Assignee** | Backend Developer |
 | **Created** | 2026-01-26 |
 

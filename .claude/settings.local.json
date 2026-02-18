@@ -206,7 +206,8 @@
       "WebFetch(domain:www.elastic.co)",
       "WebFetch(domain:api-docs.deepseek.com)",
       "mcp__slack__slack_get_thread_replies",
-      "mcp__github__get_issue"
+      "mcp__github__get_issue",
+      "WebFetch(domain:pricepertoken.com)"
     ]
   },
   "enabledMcpjsonServers": [

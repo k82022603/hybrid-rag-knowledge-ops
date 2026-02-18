@@ -6,8 +6,10 @@ BGE-M3 기반 텍스트 임베딩 생성
 
 from typing import Any, Dict, List
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
+
+from app.api.routes.auth import get_current_user
 
 from app.services.embedding import get_embedding_service
 from app.core.config import settings
@@ -55,7 +57,10 @@ class EmbedBatchResponse(BaseModel):
     summary="단일 임베딩",
     description="단일 텍스트에 대한 임베딩 벡터 생성",
 )
-async def embed_single(request: EmbedRequest) -> EmbedResponse:
+async def embed_single(
+    request: EmbedRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+) -> EmbedResponse:
     """
     단일 텍스트 임베딩
 
@@ -91,7 +96,10 @@ async def embed_single(request: EmbedRequest) -> EmbedResponse:
     summary="배치 임베딩",
     description="여러 텍스트에 대한 배치 임베딩 생성",
 )
-async def embed_batch(request: EmbedBatchRequest) -> EmbedBatchResponse:
+async def embed_batch(
+    request: EmbedBatchRequest,
+    current_user: Dict[str, Any] = Depends(get_current_user),
+) -> EmbedBatchResponse:
     """
     배치 임베딩
 

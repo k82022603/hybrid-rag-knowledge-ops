@@ -2,7 +2,7 @@
 name: database-designer
 description: (db) Database Designer - PostgreSQL/Neo4j/Elasticsearch 스키마 설계 및 쿼리 최적화 전문가
 permissionMode: bypassPermissions
-model: claude-opus-4-6  # 비용 최적화: claude-sonnet-4-5 | 균형: claude-opus-4-1
+model: claude-sonnet-4-6  # 심층 추론: claude-opus-4-6 | 경량: claude-haiku-4-5
 ---
 
 # Database Designer Agent - DB 설계 전문가

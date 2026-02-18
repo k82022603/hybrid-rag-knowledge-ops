@@ -235,6 +235,10 @@ class DocumentRepository:
         status: str,
         error_message: Optional[str] = None,
         progress_percent: int = 0,
+        chunk_count: Optional[int] = None,
+        entity_count: Optional[int] = None,
+        es_synced: Optional[bool] = None,
+        neo4j_synced: Optional[bool] = None,
     ) -> None:
         """문서 처리 상태 업데이트
 
@@ -243,23 +247,63 @@ class DocumentRepository:
             status: 새 처리 상태 문자열
             error_message: 에러 메시지 (실패 시)
             progress_percent: 진행률 (현재 미사용, 향후 확장)
+            chunk_count: 청크 수 (처리 완료 시)
+            entity_count: 엔티티 수 (처리 완료 시)
+            es_synced: ES 동기화 완료 여부
+            neo4j_synced: Neo4j 동기화 완료 여부
         """
         if self._pool is None:
             return
 
+        now = _naive_utcnow()
+
+        # 동적 SET 절 구성
+        set_parts = [
+            "processing_status = $2",
+            "processing_error = $3",
+            "updated_at = $4",
+        ]
+        params: list = [document_id, status, error_message, now]
+        idx = 5
+
+        if chunk_count is not None:
+            set_parts.append(f"chunk_count = ${idx}")
+            params.append(chunk_count)
+            idx += 1
+
+        if entity_count is not None:
+            set_parts.append(f"entity_count = ${idx}")
+            params.append(entity_count)
+            idx += 1
+
+        if es_synced is not None:
+            set_parts.append(f"es_synced = ${idx}")
+            params.append(es_synced)
+            idx += 1
+            if es_synced:
+                set_parts.append(f"es_synced_at = ${idx}")
+                params.append(now)
+                idx += 1
+
+        if neo4j_synced is not None:
+            set_parts.append(f"neo4j_synced = ${idx}")
+            params.append(neo4j_synced)
+            idx += 1
+            if neo4j_synced:
+                set_parts.append(f"neo4j_synced_at = ${idx}")
+                params.append(now)
+                idx += 1
+
+        set_clause = ",\n                    ".join(set_parts)
+
         async with self._pool.acquire() as conn:
             await conn.execute(
-                """
+                f"""
                 UPDATE documents
-                SET processing_status = $2,
-                    processing_error = $3,
-                    updated_at = $4
+                SET {set_clause}
                 WHERE id = $1
                 """,
-                document_id,
-                status,
-                error_message,
-                _naive_utcnow(),
+                *params,
             )
 
     def _row_to_dict(self, row: asyncpg.Record) -> Dict[str, Any]:

@@ -9,7 +9,7 @@
 | **Priority** | Medium (P2) |
 | **Story Points** | 5 |
 | **Sprint** | Backlog (충분한 데이터 임베딩 후) |
-| **Status** | To Do |
+| **Status** | Deferred (Sprint 12 project closure) |
 | **Jira ID** | - |
 | **Created** | 2026-02-08 |
 | **Primary** | QA |

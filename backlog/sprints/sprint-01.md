@@ -229,7 +229,7 @@ Sprint 01 인프라 산출물의 품질 검증을 위한 관통 테스트입니�
 
 | Priority | ID | Jira | 제목 | Points | Assignee | Status |
 |----------|-----|------|------|--------|----------|--------|
-| P0 | STORY-020 | SCRUM-20 | Infrastructure E2E Test | 5 | QA | To Do |
+| P0 | STORY-020 | SCRUM-20 | Infrastructure E2E Test | 5 | QA | **Done** |
 
 **테스트 범위**:
 - 18개 컨테이너 Health Check

@@ -67,10 +67,10 @@ Sprint 1 완료 항목 (필수):
 
 | ID | 제목 | Points | Status | 비고 | 이월 |
 |----|------|--------|--------|------|------|
-| STORY-046 | Frontend 4개 페이지 + 11개 개선 | 8 | **In Progress** | 20파일 완료 (커밋: 1579504) | → Sprint 03 |
-| STORY-047 | Backend API 32개 전체 구현 | 13 | **In Progress** | 57파일 완료 (커밋: 34f0d10) | → Sprint 03 |
-| STORY-004 | BGE-M3 EmbeddingService (선행) | 5 | **90%** | 전면 구현 + 68/68 테스트 (커밋: 9b95a3a) | → Sprint 03 (통합 테스트) |
-| - | AI Service 코어 파이프라인 | - | **In Progress** | SearchService+RAGPipeline (커밋: 6dc4575) | → Sprint 03 |
+| STORY-046 | Frontend 4개 페이지 + 11개 개선 | 8 | **Done** (Sprint 03) | 20파일 완료 (커밋: 1579504) | Sprint 03 완료 |
+| STORY-047 | Backend API 32개 전체 구현 | 13 | **Done** (Sprint 03) | 57파일 완료 (커밋: 34f0d10) | Sprint 03 완료 |
+| STORY-004 | BGE-M3 EmbeddingService (선행) | 5 | **Done** (Sprint 03) | 전면 구현 + 68/68 테스트 (커밋: 9b95a3a) | Sprint 03 완료 |
+| - | AI Service 코어 파이프라인 | - | **Done** (Sprint 03) | SearchService+RAGPipeline (커밋: 6dc4575) | Sprint 03 완료 |
 
 > **이월 결정**: 4건 모두 Sprint 03으로 이월. Sprint 03의 RAG/Frontend Epic에 직접 기여하므로 연속 작업으로 처리.
 
@@ -160,7 +160,7 @@ Sprint 1 완료 항목 (필수):
 | Risk | HWP 파싱 정확도 미달 | Medium | pyhwpx 폴백 준비 | Monitoring |
 | Risk | Docling 모델 다운로드 지연 | Low | 사전 다운로드 완료 | Resolved |
 | Blocker | Sprint 1 미완료 | Critical | Sprint 1 우선 완료 | Monitoring |
-| **Blocker** | **직접 로그인 API 미개발** | **Critical** | **STORY-024 긴급 추가** | **In Progress** |
+| **Blocker** | **직접 로그인 API 미개발** | **Critical** | **STORY-024 긴급 추가** | **Resolved** |
 
 ---
 

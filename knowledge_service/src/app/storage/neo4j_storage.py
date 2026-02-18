@@ -117,10 +117,15 @@ class EntityLabelStrategy:
 
         set_clause = ",\n                ".join(set_clauses)
 
+        # Entity 라벨도 추가하여 범용 쿼리 (MATCH (e:Entity)) 지원
+        entity_label_clause = ""
+        if label != "Entity":
+            entity_label_clause = "\n            SET n:Entity"
+
         return f"""
             UNWIND $entities AS ent
             MERGE (n:{label} {{{self.merge_key}: ent.merge_val}})
-            SET {set_clause}
+            SET {set_clause}{entity_label_clause}
             RETURN count(n) AS cnt
             """
 
@@ -589,6 +594,7 @@ class Neo4jStorageService:
                 MERGE (k:Knowledge {knowledge_id: $knowledge_id})
                 ON CREATE SET k.created_at = $now
                 SET k.title = $title,
+                    k.document_id = $knowledge_id,
                     k.document_type = $document_type,
                     k.project_name = $project_name,
                     k.summary = $summary,
@@ -675,6 +681,7 @@ class Neo4jStorageService:
                         "content": c.get("content", "")[:500],  # 그래프에는 요약만
                         "chunk_index": c.get("chunk_index", 0),
                         "token_count": c.get("token_count", 0),
+                        "document_id": c.get("document_id", knowledge_id),
                     }
                     for c in chunks
                 ]
@@ -688,6 +695,7 @@ class Neo4jStorageService:
                     c.chunk_index = chunk.chunk_index,
                     c.token_count = chunk.token_count,
                     c.knowledge_id = $knowledge_id,
+                    c.document_id = chunk.document_id,
                     c.updated_at = $now
                 MERGE (k)-[r:CONTAINS]->(c)
                 SET r.chunk_index = chunk.chunk_index
@@ -715,6 +723,82 @@ class Neo4jStorageService:
                 message=f"청크 저장 실패: {e}",
                 details={"knowledge_id": knowledge_id, "chunk_count": len(chunks)},
             )
+
+    async def save_chunk_entities(
+        self,
+        chunk_id: str,
+        entities: List[Entity],
+    ) -> int:
+        """청크와 엔티티 간 HAS_ENTITY 관계 생성
+
+        해당 청크에서 추출된 엔티티들을 (Chunk)-[:HAS_ENTITY]->(Entity) 관계로 연결합니다.
+        엔티티 노드는 이미 save_entities()로 생성되어 있어야 합니다.
+
+        Args:
+            chunk_id: Chunk 노드의 chunk_id
+            entities: 해당 청크에서 추출된 엔티티 리스트
+
+        Returns:
+            생성된 HAS_ENTITY 관계 수
+
+        Raises:
+            Neo4jError: 저장 실패 시
+        """
+        if not entities or not chunk_id:
+            return 0
+
+        driver = self._ensure_driver()
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        # 엔티티를 라벨별로 그룹핑
+        grouped: Dict[str, List[Tuple[str, str]]] = {}
+        for entity in entities:
+            label = _get_neo4j_label(entity.type)
+            strategy = _get_label_strategy(label)
+            grouped.setdefault(label, []).append(
+                (entity.name, strategy.merge_key)
+            )
+
+        total_count = 0
+
+        try:
+            async with driver.session(database=self._database) as session:
+                for label, name_key_pairs in grouped.items():
+                    merge_key = name_key_pairs[0][1]  # 같은 라벨은 같은 merge_key
+                    entity_names = [pair[0] for pair in name_key_pairs]
+
+                    cypher = f"""
+                    MATCH (c:Chunk {{chunk_id: $chunk_id}})
+                    UNWIND $names AS entity_name
+                    MATCH (e:{label} {{{merge_key}: entity_name}})
+                    MERGE (c)-[r:HAS_ENTITY]->(e)
+                    SET r.created_at = $now
+                    RETURN count(r) AS cnt
+                    """
+
+                    result = await session.run(
+                        cypher,
+                        chunk_id=chunk_id,
+                        names=entity_names,
+                        now=now_iso,
+                    )
+                    record = await result.single()
+                    total_count += record["cnt"] if record else 0
+
+            logger.debug(
+                "Chunk-Entity HAS_ENTITY relations created: chunk_id=%s, count=%d",
+                chunk_id,
+                total_count,
+            )
+            return total_count
+
+        except Exception as e:
+            logger.warning(
+                "Failed to create HAS_ENTITY relations: chunk_id=%s, error=%s",
+                chunk_id,
+                e,
+            )
+            return 0
 
     # ------------------------------------------------------------------
     # Query operations

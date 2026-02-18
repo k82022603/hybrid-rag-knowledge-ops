@@ -1,72 +1,40 @@
 # Hybrid RAG Knowledge Operations
 
-Graph RAG 기반 지능형 지식 검색 시스템
+> Graph RAG 기반 지능형 지식 검색 시스템 — 4-Way Hybrid Search + Knowledge Graph + 13 AI Agents
 
-`#GraphRAG` `#HybridSearch` `#AI가상팀`
+[![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white)](#) [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi&logoColor=white)](#) [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](#) [![Docker](https://img.shields.io/badge/Docker_Compose-18_containers-2496ED?logo=docker&logoColor=white)](#) [![RAGAS](https://img.shields.io/badge/RAGAS-A--grade-brightgreen)](#) [![Coverage](https://img.shields.io/badge/Coverage-97%25-success)](#)
 
----
+기업 내부 문서를 **3-Phase ETL**(파싱 → 청킹 → 임베딩 → 엔티티 추출)로 자동 처리하고, **4-Way Hybrid Search**(Dense + Sparse + BM25 + Graph)를 RRF로 통합하여 최적의 검색 결과를 제공합니다. Knowledge Graph가 문서 간 숨겨진 관계를 시각화하고 관계 기반 질의를 지원합니다.
 
-기업 내부 문서(기술 문서, 매뉴얼, 위키 등)를 자동 수집하여
-파싱 → 청킹 → 임베딩 → 엔티티 추출까지
-**3-Phase ETL**로 처리한다.
+### Highlights
 
-검색은 **4-Way Hybrid** 방식:
-Dense Vector(의미 유사도) + Sparse Vector(키워드) +
-BM25(Nori 한국어) + Graph Search(Neo4j 엔티티 관계)를
-**RRF(Reciprocal Rank Fusion)** 로 통합하여 최적 결과를 도출한다.
-
-**Knowledge Graph** 는 문서 간 숨겨진 관계를 시각화하고,
-"A 기술이 B 프로젝트에 어떻게 쓰이는가" 같은
-관계 기반 질의를 지원한다.
-
-기술 스택은 **Python FastAPI**(AI Service) +
-**SpringBoot**(API Gateway) + **React 18**(Frontend).
-데이터는 **PostgreSQL**(SSOT) + **Elasticsearch**(벡터/전문검색) +
-**Neo4j**(그래프) 3중 저장.
-런타임 LLM은 **DeepSeek V3.2**로
-GPT-4o급 품질을 95% 비용 절감으로 운영한다.
-
-**Docker Compose** 기반 18개 컨테이너로 구성되며,
-Prometheus / Grafana / Kibana / Jaeger
-옵저버빌리티 스택을 갖추고 있다.
-
-개발은 **Claude Code + 13개 AI 에이전트 가상팀**이 협업하며,
-PM / TechLead / Developer / QA 역할 분리로
-실제 개발팀처럼 운영한다.
+- **4-Way Hybrid Search** — Dense Vector + Sparse Vector + BM25(Nori) + Graph Search, RRF 통합 + BGE-Reranker
+- **Knowledge Graph** — 92K 엔티티, 775K 관계로 "A 기술이 B 프로젝트에 어떻게 쓰이는가" 같은 관계 질의 지원
+- **3-Phase ETL** — 108K 청크 처리, CPU/GPU 분리 파이프라인, DeepSeek V3.2 기반 엔티티 추출
+- **Triple-Store** — PostgreSQL(SSOT) + Elasticsearch(벡터/전문검색) + Neo4j(그래프)
+- **95% 비용 절감** — DeepSeek V3.2로 GPT-4o급 품질, 전체 파이프라인 $52 운영
+- **AI 가상팀** — Claude Code + 13개 AI 에이전트(PM/TL/Dev/QA)가 실제 개발팀처럼 협업
+- **Full Observability** — Prometheus / Grafana / Kibana / Jaeger / Loki, Docker Compose 18개 컨테이너
 
 ---
 
-Automatically collects internal enterprise documents
-(technical docs, manuals, wikis) and processes them through
-a **3-Phase ETL** pipeline:
-parsing, chunking, embedding, and entity extraction.
+<details>
+<summary><b>English</b></summary>
 
-Search uses a **4-Way Hybrid** approach:
-Dense Vector (semantic similarity) + Sparse Vector (keyword) +
-BM25 (Nori Korean analyzer) + Graph Search (Neo4j entity relationships),
-unified through **RRF (Reciprocal Rank Fusion)**
-to deliver optimal results.
+> Intelligent knowledge search system powered by Graph RAG — 4-Way Hybrid Search + Knowledge Graph + 13 AI Agents
 
-The **Knowledge Graph** visualizes hidden relationships
-between documents, supporting relationship-based queries like
-"How is Technology A used in Project B?"
+An enterprise knowledge platform that automatically processes internal documents through a **3-Phase ETL** pipeline (parsing → chunking → embedding → entity extraction) and delivers optimal search results via **4-Way Hybrid Search** (Dense + Sparse + BM25 + Graph) unified with RRF. The Knowledge Graph visualizes hidden relationships between documents and supports relationship-based queries.
 
-Tech stack: **Python FastAPI** (AI Service) +
-**SpringBoot** (API Gateway) + **React 18** (Frontend).
-Data is stored across **PostgreSQL** (SSOT) +
-**Elasticsearch** (vector/full-text search) +
-**Neo4j** (graph) — a triple-store architecture.
-Runtime LLM is **DeepSeek V3.2**,
-delivering GPT-4o-level quality at 95% cost reduction.
+**Key Features:**
+- **4-Way Hybrid Search** — Dense Vector + Sparse Vector + BM25 (Nori Korean analyzer) + Graph Search, RRF fusion + BGE-Reranker
+- **Knowledge Graph** — 92K entities, 775K relationships enabling queries like "How is Technology A used in Project B?"
+- **3-Phase ETL** — 108K chunks processed, CPU/GPU split pipeline, DeepSeek V3.2-powered entity extraction
+- **Triple-Store Architecture** — PostgreSQL (SSOT) + Elasticsearch (vector/full-text) + Neo4j (graph)
+- **95% Cost Reduction** — GPT-4o-level quality via DeepSeek V3.2, entire pipeline operated at $52
+- **AI Virtual Team** — Claude Code + 13 AI agents (PM/TL/Dev/QA) collaborating like a real development team
+- **Full Observability** — Prometheus / Grafana / Kibana / Jaeger / Loki on Docker Compose (18 containers)
 
-Built on **Docker Compose** with 18 containers,
-equipped with a Prometheus / Grafana / Kibana / Jaeger
-observability stack.
-
-Development is powered by
-**Claude Code + a virtual team of 13 AI agents**,
-operating like a real dev team with
-PM / TechLead / Developer / QA role separation.
+</details>
 
 ---
 
@@ -77,7 +45,7 @@ PM / TechLead / Developer / QA role separation.
 | **Status** | Sprint 12 - Entity Extraction + Reranker 완료, RAGAS v11 A- 등급 |
 | **Test Coverage** | 97% avg across 5 core modules (Docker mode) |
 | **CI/CD** | 8 GitHub Actions workflows |
-| **AI Model** | Claude Opus 4.6 + Agent Teams (13 agents) |
+| **AI Model** | Claude Opus 4.6 / Sonnet 4.6 + Agent Teams (13 agents, tiered) |
 
 ---
 
@@ -94,7 +62,7 @@ PM / TechLead / Developer / QA role separation.
 ├── infrastructure/docker/         # Docker Compose + Nginx
 ├── scripts/                       # 공통 유틸 (send_slack.sh 등)
 ├── work_logs/                     # 작업 일지 / 세션 로그
-├── CLAUDE.md                      # Claude Code 규칙 (v2.28)
+├── CLAUDE.md                      # Claude Code 규칙 (v2.29)
 ├── PLAN.md                        # 프로젝트 계획
 └── README.md                      # 이 파일
 ```
@@ -127,7 +95,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 | **API Gateway** | SpringBoot 3.x, Resilience4j |
 | **Frontend** | React 18, Tailwind CSS, TypeScript |
 | **Database** | PostgreSQL 16, Neo4j 5.x, Elasticsearch 8.x |
-| **LLM** | DeepSeek V3.2 (런타임), Claude Opus 4.6 (개발) |
+| **LLM** | DeepSeek V3.2 (런타임), Claude Opus 4.6 + Sonnet 4.6 (개발) |
 | **Embedding** | BGE-M3 (Dense + Sparse) |
 | **문서 파싱** | Docling 2.x (PDF, DOCX, HWP, MD, TXT, HTML) |
 | **Infra** | Docker Compose (18 컨테이너), Nginx |
@@ -218,7 +186,7 @@ BGE-Reranker로 정밀 재순위하여 달성한 결과다.
 |----------|:---------:|:----:|
 | **DeepSeek V3.2** (실측) | **$52** | 1x |
 | GPT-4o | $775 | 15x |
-| Claude Sonnet 4.5 | $1,063 | 20x |
+| Claude Sonnet 4.6 | $1,063 | 20x |
 | Claude Opus 4.6 | $5,314 | 102x |
 
 $52로 92,209개 엔티티 추출 + 775,366개 관계 구축 + A- 등급 달성 —
@@ -231,7 +199,7 @@ DeepSeek V3.2의 비용 효율은 "실험적으로 재미있는 수준"이 아�
 
 | 문서 | 설명 |
 |------|------|
-| [CLAUDE.md](./CLAUDE.md) | Claude Code 규칙 v2.28 |
+| [CLAUDE.md](./CLAUDE.md) | Claude Code 규칙 v2.29 |
 | [PLAN.md](./PLAN.md) | 프로젝트 계획 |
 | [플랫폼 상세 설계서](./knowledge_service/docs/02_design/01_hybrid_rag_platform_detailed_design.md) | Gleaning 포함 핵심 설계 |
 | [ETL 배치 설계서](./knowledge_service/docs/03_implementation/etl_batch_pipeline_design.md) | 3-Phase 분리 전략 |
@@ -239,7 +207,7 @@ DeepSeek V3.2의 비용 효율은 "실험적으로 재미있는 수준"이 아�
 | [RAGAS v10 종합 보고서](./knowledge_service/docs/04_testing/13_etl_v2_reprocessing/05_ragas_v10_post_entity_evaluation.md) | B+ 등급 달성 + 총평 + LLM 비용 비교 |
 | [Entity Extraction 보고서](./knowledge_service/docs/results/entity_extraction_report_2026-02-15.md) | 실측 비용 + 타 LLM 비교 |
 | [개발자 에이전트 가이드](./knowledge_service/docs/05_development/01_developer_agent_guide.md) | AI 에이전트 도구 사용법 |
-| [Agent Teams 가이드](./docs/12_Agent_Teams_활용_가이드.md) | 멀티-에이전트 협업 |
+| [Agent Teams 가이드 v3.1](./docs/12_Agent_Teams_활용_가이드.md) | 멀티-에이전트 협업 + 모델 티어링 |
 
 ## 🔐 보안
 
@@ -253,4 +221,4 @@ DeepSeek V3.2의 비용 효율은 "실험적으로 재미있는 수준"이 아�
 
 ---
 
-**Made with Claude Code (Opus 4.6) & DeepSeek V3.2**
+**Made with Claude Code (Opus 4.6 + Sonnet 4.6) & DeepSeek V3.2**

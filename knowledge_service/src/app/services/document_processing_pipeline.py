@@ -225,6 +225,10 @@ class DocumentRepository:
                     status=status,
                     error_message=error_message,
                     progress_percent=progress_percent,
+                    chunk_count=metadata.get("chunk_count") if metadata else None,
+                    entity_count=metadata.get("entity_count") if metadata else None,
+                    es_synced=metadata.get("es_synced") if metadata else None,
+                    neo4j_synced=metadata.get("neo4j_synced") if metadata else None,
                 )
             except Exception as e:
                 # PG 실패해도 in-memory는 이미 업데이트됨 (non-critical)
@@ -624,7 +628,11 @@ class DocumentProcessingPipeline:
                 if not content or not content.strip():
                     return await self._handle_failure(
                         document_id=document_id,
-                        error_message="문서에서 텍스트를 추출할 수 없습니다",
+                        error_message=(
+                            "문서에서 텍스트를 추출할 수 없습니다. "
+                            "파일이 이미지만 포함하고 있거나, "
+                            "암호화되었거나, 내용이 비어있을 수 있습니다."
+                        ),
                         start_time=start_time,
                     )
 
@@ -647,7 +655,12 @@ class DocumentProcessingPipeline:
                 if not raw_chunks:
                     return await self._handle_failure(
                         document_id=document_id,
-                        error_message="청크를 생성할 수 없습니다",
+                        error_message=(
+                            f"청크를 생성할 수 없습니다. "
+                            f"문서 내용이 너무 짧거나 ({len(content)}자) "
+                            f"유의미한 텍스트가 부족합니다. "
+                            f"최소 200자 이상의 텍스트가 필요합니다."
+                        ),
                         start_time=start_time,
                     )
 
@@ -657,7 +670,11 @@ class DocumentProcessingPipeline:
                 if not chunks:
                     return await self._handle_failure(
                         document_id=document_id,
-                        error_message="품질 기준을 통과한 청크가 없습니다",
+                        error_message=(
+                            f"품질 기준을 통과한 청크가 없습니다. "
+                            f"원본 청크 {len(raw_chunks)}개 중 모두 품질 검증에 실패했습니다. "
+                            f"문서 내용이 의미 있는 텍스트를 충분히 포함하는지 확인해주세요."
+                        ),
                         start_time=start_time,
                     )
 
@@ -730,16 +747,53 @@ class DocumentProcessingPipeline:
 
                 es_result = await self.es_storage.index_chunks(es_chunks)
 
+                es_indexed = es_result.get("indexed", 0)
+                es_synced = es_indexed > 0
+
                 logger.info(
                     f"Elasticsearch indexed: {document_id}, "
-                    f"indexed={es_result.get('indexed', 0)}, "
-                    f"errors={es_result.get('errors', 0)}"
+                    f"indexed={es_indexed}, "
+                    f"errors={es_result.get('errors', 0)}, "
+                    f"es_synced={es_synced}"
                 )
 
-                # 6. 엔티티/관계 추출 및 Neo4j 저장 (옵션)
+                # 6. Neo4j 기본 노드 생성 + 엔티티/관계 추출 (옵션)
                 entity_count = 0
                 relationship_count = 0
+                neo4j_synced = False
 
+                # 6a. Neo4j 기본 구조: Knowledge + Chunk 노드 생성 (3-Store 일관성)
+                # 엔티티 추출 성공 여부와 관계없이 기본 그래프 구조를 즉시 생성
+                if self._enable_neo4j and self.neo4j_storage:
+                    try:
+                        # Knowledge 노드 생성 (엔티티/관계 없이 빈 리스트로)
+                        neo4j_result = await self.neo4j_storage.save_document_graph(
+                            document_id=doc_id_str,
+                            title=document.get("filename", ""),
+                            entities=[],
+                            relationships=[],
+                            metadata=doc_metadata,
+                        )
+
+                        # Chunk 노드 + CONTAINS 관계 생성
+                        await self.neo4j_storage.save_chunks(
+                            knowledge_id=doc_id_str,
+                            chunks=es_chunks,
+                        )
+
+                        neo4j_synced = True
+
+                        logger.info(
+                            f"Neo4j base graph created: {document_id}, "
+                            f"chunks={len(es_chunks)}"
+                        )
+                    except Exception as e:
+                        logger.warning(
+                            f"Neo4j base graph creation failed for {document_id}: {e}"
+                        )
+
+                # 6b. 엔티티/관계 추출 및 Neo4j 저장 (필수 수행)
+                # 온라인 업로드 시 엔티티 추출 + HAS_ENTITY + RELATED_TO 완전 수행
                 if self._enable_entity_extraction and self._enable_neo4j:
                     await self.repository.update_document_status(
                         document_id=document_id,
@@ -748,6 +802,7 @@ class DocumentProcessingPipeline:
                     )
 
                     try:
+                        # 전체 문서 수준에서 엔티티 + 관계 추출
                         extraction_result = await self.entity_extractor.extract_full(
                             text=content,
                             enable_gleaning=True,
@@ -765,31 +820,52 @@ class DocumentProcessingPipeline:
                             f"relationships={relationship_count}"
                         )
 
-                        # Neo4j 저장
-                        if self.neo4j_storage:
-                            neo4j_result = await self.neo4j_storage.save_document_graph(
-                                document_id=doc_id_str,
-                                title=document.get("filename", ""),
+                        # 엔티티/관계를 Neo4j에 저장
+                        if self.neo4j_storage and (entities or relationships):
+                            # 1) Entity 노드 생성 + MENTIONED_IN 관계
+                            await self.neo4j_storage.save_entities(
                                 entities=entities,
-                                relationships=relationships,
-                                metadata=doc_metadata,
+                                knowledge_id=doc_id_str,
                             )
 
-                            # 청크도 Neo4j에 저장
-                            await self.neo4j_storage.save_chunks(
-                                knowledge_id=doc_id_str,
-                                chunks=es_chunks,
+                            # 2) Entity 간 RELATED_TO 관계 생성
+                            await self.neo4j_storage.save_relationships(
+                                relationships=relationships,
+                                entities=entities,
                             )
+
+                            # 3) Chunk-Entity HAS_ENTITY 관계 생성
+                            # 각 청크의 텍스트에 언급된 엔티티를 매칭하여 연결
+                            has_entity_total = 0
+                            entity_names_lower = {
+                                e.name.lower(): e for e in entities
+                            }
+
+                            for chunk in chunks:
+                                chunk_text_lower = chunk.content.lower()
+                                matched_entities = [
+                                    entity
+                                    for name_lower, entity in entity_names_lower.items()
+                                    if name_lower in chunk_text_lower
+                                ]
+
+                                if matched_entities:
+                                    count = await self.neo4j_storage.save_chunk_entities(
+                                        chunk_id=chunk.id,
+                                        entities=matched_entities,
+                                    )
+                                    has_entity_total += count
 
                             logger.info(
-                                f"Neo4j saved: {document_id}, "
-                                f"knowledge={neo4j_result.get('knowledge', 0)}, "
-                                f"entities={neo4j_result.get('entities', 0)}, "
-                                f"relationships={neo4j_result.get('relationships', 0)}"
+                                f"Neo4j entities/rels saved: {document_id}, "
+                                f"entities={entity_count}, "
+                                f"relationships={relationship_count}, "
+                                f"has_entity_links={has_entity_total}"
                             )
 
                     except Exception as e:
                         # 엔티티 추출 실패는 경고만 하고 진행
+                        # (기본 Knowledge + Chunk 노드는 이미 생성됨)
                         logger.warning(
                             f"Entity extraction failed for {document_id}: {e}"
                         )
@@ -806,6 +882,8 @@ class DocumentProcessingPipeline:
                         "entity_count": entity_count,
                         "relationship_count": relationship_count,
                         "processing_time_ms": processing_time_ms,
+                        "es_synced": es_synced,
+                        "neo4j_synced": neo4j_synced,
                     },
                 )
 

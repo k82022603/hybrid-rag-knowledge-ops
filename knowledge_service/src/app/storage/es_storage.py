@@ -59,7 +59,6 @@ DEFAULT_INDEX_SETTINGS: Dict[str, Any] = {
                 },
             },
         },
-        "index.knn": True,
     },
     "mappings": {
         "properties": {
@@ -286,6 +285,26 @@ class ElasticsearchStorageService:
             exists = await client.indices.exists(index=idx)
             if exists:
                 logger.info("Index already exists: %s", idx)
+                # 매핑 검증 — Nori 미적용 재발 방지 (2026-02-13 사고)
+                mismatches = await self.validate_index_mapping(index_name=idx)
+                if mismatches:
+                    for field_path, detail in mismatches.items():
+                        logger.warning(
+                            "MAPPING MISMATCH [%s] field '%s': "
+                            "expected analyzer='%s', actual analyzer='%s'",
+                            idx,
+                            field_path,
+                            detail.get("expected"),
+                            detail.get("actual"),
+                        )
+                    logger.warning(
+                        "Index '%s' exists but has %d mapping mismatch(es). "
+                        "Consider recreating the index with correct mappings. "
+                        "Mismatched fields: %s",
+                        idx,
+                        len(mismatches),
+                        ", ".join(mismatches.keys()),
+                    )
                 return True
 
             await client.indices.create(index=idx, body=body)
@@ -303,6 +322,89 @@ class ElasticsearchStorageService:
                 message=f"인덱스 생성 실패: {e}",
                 details={"index": idx},
             )
+
+    async def validate_index_mapping(
+        self,
+        index_name: Optional[str] = None,
+    ) -> Dict[str, Dict[str, str]]:
+        """인덱스 매핑이 DEFAULT_INDEX_SETTINGS와 일치하는지 검증
+
+        korean_analyzer가 적용되어야 하는 핵심 필드들의 analyzer 설정을
+        실제 인덱스 매핑과 비교하여 차이점을 반환합니다.
+
+        Nori 미적용 사고(2026-02-13, 32일간 미발견) 재발을 방지합니다.
+
+        Args:
+            index_name: 검증할 인덱스 이름 (기본: 설정값)
+
+        Returns:
+            매핑 불일치 딕셔너리. 비어 있으면 정상.
+            예: {"text": {"expected": "korean_analyzer", "actual": "standard"}}
+        """
+        client = self._ensure_client()
+        idx = index_name or self._index_name
+
+        # 검증 대상: (필드 경로, 기대 analyzer)
+        # DEFAULT_INDEX_SETTINGS에서 korean_analyzer를 사용하는 핵심 필드
+        fields_to_check = [
+            ("text", "korean_analyzer"),
+            ("heading", "korean_analyzer"),
+            ("metadata.properties.title", "korean_analyzer"),
+        ]
+
+        mismatches: Dict[str, Dict[str, str]] = {}
+
+        try:
+            mapping_resp = await client.indices.get_mapping(index=idx)
+
+            # 응답 형식: {index_name: {"mappings": {"properties": {...}}}}
+            index_mapping = mapping_resp.get(idx, {})
+            properties = index_mapping.get("mappings", {}).get("properties", {})
+
+            for field_path, expected_analyzer in fields_to_check:
+                actual_analyzer = self._get_field_analyzer(properties, field_path)
+
+                if actual_analyzer != expected_analyzer:
+                    # 읽기 편한 필드명으로 변환
+                    display_name = field_path.replace(".properties.", ".")
+                    mismatches[display_name] = {
+                        "expected": expected_analyzer,
+                        "actual": actual_analyzer or "(not set)",
+                    }
+
+        except Exception as e:
+            logger.warning(
+                "Failed to validate index mapping for '%s': %s", idx, e,
+            )
+
+        return mismatches
+
+    @staticmethod
+    def _get_field_analyzer(
+        properties: Dict[str, Any],
+        field_path: str,
+    ) -> Optional[str]:
+        """중첩 필드 경로에서 analyzer 값을 추출
+
+        Args:
+            properties: 인덱스 매핑의 properties 딕셔너리
+            field_path: 점(.)으로 구분된 필드 경로
+                예: "text", "metadata.properties.title"
+
+        Returns:
+            analyzer 값 (없으면 None)
+        """
+        parts = field_path.split(".")
+        current = properties
+
+        for part in parts:
+            if not isinstance(current, dict):
+                return None
+            current = current.get(part, {})
+
+        if isinstance(current, dict):
+            return current.get("analyzer")
+        return None
 
     async def delete_index(self, index_name: Optional[str] = None) -> bool:
         """인덱스 삭제

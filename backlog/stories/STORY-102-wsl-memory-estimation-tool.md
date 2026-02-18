@@ -6,7 +6,7 @@
 |------|-----|
 | **Jira ID** | SCRUM-95 |
 | **Epic** | - |
-| **Status** | To Do |
+| **Status** | Deferred (Sprint 12 project closure) |
 | **Priority** | P2 - Medium |
 | **Story Points** | 3 |
 | **Assignee** | Infra/DevOps |

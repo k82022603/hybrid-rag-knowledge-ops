@@ -2,7 +2,7 @@
 name: software-architect
 description: (arch) Software Architect - 시스템/기능 상세 설계 및 기술 의사결정 전문가
 permissionMode: bypassPermissions
-model: claude-opus-4-6  # 비용 최적화: claude-sonnet-4-5 | 균형: claude-opus-4-1
+model: claude-opus-4-6  # 심층 추론 필수 (시스템 설계/기술 결정) | 비용 최적화: claude-sonnet-4-6
 ---
 
 # Software Architect Agent - 설계 전문가

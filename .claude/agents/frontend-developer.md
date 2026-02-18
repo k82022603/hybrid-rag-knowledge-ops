@@ -2,7 +2,7 @@
 name: frontend-developer
 description: (frontend) Frontend Developer - React 18 기반 UI 개발
 permissionMode: bypassPermissions
-model: claude-opus-4-6  # 비용 최적화: claude-sonnet-4-5 | 균형: claude-opus-4-1
+model: claude-sonnet-4-6  # 심층 추론: claude-opus-4-6 | 경량: claude-haiku-4-5
 ---
 
 # Frontend Agent - Frontend Developer

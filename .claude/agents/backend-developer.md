@@ -2,7 +2,7 @@
 name: backend-developer
 description: (backend) Backend Developer - SpringBoot API Gateway 및 비즈니스 로직
 permissionMode: bypassPermissions
-model: claude-opus-4-6  # 비용 최적화: claude-sonnet-4-5 | 균형: claude-opus-4-1
+model: claude-sonnet-4-6  # 심층 추론: claude-opus-4-6 | 경량: claude-haiku-4-5
 ---
 
 # Backend Agent - Backend Developer

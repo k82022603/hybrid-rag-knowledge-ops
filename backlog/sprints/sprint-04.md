@@ -6,8 +6,8 @@
 |------|-----|
 | **기간** | 2026-01-29 ~ (2주) |
 | **Velocity (계획)** | 55 pts (14 Stories) |
-| **Velocity (실제)** | - |
-| **Status** | active |
+| **Velocity (실제)** | 39 pts (8/13 Done, 5 deferred to Sprint 05) |
+| **Status** | completed |
 | **Jira Sprint ID** | - |
 | **근거** | [Sprint 03 완료 리뷰](../../work_logs/meetings/2026/01-January/2026-01-28_sprint03_completion_review.md) |
 
@@ -48,10 +48,10 @@ Sprint 03 완료 항목 (모두 충족):
 
 | Priority | ID | Jira | 제목 | Points | Assignee | Status |
 |----------|-----|------|------|--------|----------|--------|
-| P0 | STORY-050 | SCRUM-40 | SSE 프로토콜 수정 (fetch+ReadableStream 전환) | 5 | Frontend | **In Review** |
-| P0 | STORY-051 | SCRUM-41 | RAG 파이프라인 통합 (ai_service ↔ knowledge_service) | 8 | RAG | **In Progress** |
-| P0 | STORY-052 | SCRUM-42 | Reranker async 전환 (asyncio.to_thread) | 2 | RAG | **In Review** |
-| P0 | STORY-053 | SCRUM-43 | 보안 강화 (JWT Secret, 입력 검증, 기본 자격증명 제거) | 3 | Backend | **In Review** |
+| P0 | STORY-050 | SCRUM-40 | SSE 프로토콜 수정 (fetch+ReadableStream 전환) | 5 | Frontend | **Done** |
+| P0 | STORY-051 | SCRUM-41 | RAG 파이프라인 통합 (ai_service ↔ knowledge_service) | 8 | RAG | **Done** |
+| P0 | STORY-052 | SCRUM-42 | Reranker async 전환 (asyncio.to_thread) | 2 | RAG | **Done** |
+| P0 | STORY-053 | SCRUM-43 | 보안 강화 (JWT Secret, 입력 검증, 기본 자격증명 제거) | 3 | Backend | **Done** |
 
 **소계**: 18 pts (4 Stories)
 
@@ -59,11 +59,11 @@ Sprint 03 완료 항목 (모두 충족):
 
 | Priority | ID | Jira | 제목 | Points | Assignee | Status |
 |----------|-----|------|------|--------|----------|--------|
-| P1 | STORY-054 | SCRUM-44 | 서비스 간 통합 테스트 (Contract Test) | 5 | QA | **In Progress** |
-| P1 | STORY-055 | SCRUM-45 | 보안 테스트 (XSS, SQL Injection, Auth) | 3 | QA | To Do |
-| P1 | STORY-056 | SCRUM-46 | Frontend ErrorBoundary + 성능 최적화 | 3 | Frontend | To Do |
-| P1 | STORY-057 | SCRUM-47 | Generator 대화이력 전달 + 진정한 스트리밍 | 5 | RAG | To Do |
-| P1 | STORY-058 | SCRUM-48 | RAGAS 평가 프레임워크 통합 | 5 | RAG | To Do |
+| P1 | STORY-054 | SCRUM-44 | 서비스 간 통합 테스트 (Contract Test) | 5 | QA | **Done** |
+| P1 | STORY-055 | SCRUM-45 | 보안 테스트 (XSS, SQL Injection, Auth) | 3 | QA | **Done** |
+| P1 | STORY-056 | SCRUM-46 | Frontend ErrorBoundary + 성능 최적화 | 3 | Frontend | **Done** |
+| P1 | STORY-057 | SCRUM-47 | Generator 대화이력 전달 + 진정한 스트리밍 | 5 | RAG | **Done** |
+| P1 | STORY-058 | SCRUM-48 | RAGAS 평가 프레임워크 통합 | 5 | RAG | **Done** (Sprint 05) |
 
 **소계**: 21 pts (5 Stories)
 
@@ -71,11 +71,11 @@ Sprint 03 완료 항목 (모두 충족):
 
 | Priority | ID | Jira | 제목 | Points | Assignee | Status |
 |----------|-----|------|------|--------|----------|--------|
-| P2 | STORY-059 | SCRUM-49 | Frontend 테스트 커버리지 확장 (25%→60%) | 5 | Frontend | To Do |
-| P2 | STORY-060 | SCRUM-50 | Planner 전략 유효화 + 검색 캐싱 | 3 | RAG | To Do |
-| P2 | STORY-061 | SCRUM-51 | 파이프라인 타임아웃 + Circuit Breaker | 3 | RAG | To Do |
-| P2 | STORY-062 | SCRUM-52 | 접근성 (WCAG 2.1 AA) 보완 | 2 | Frontend | To Do |
-| P2 | STORY-063 | SCRUM-53 | Docling 라이브러리 Docker 이미지 포함 및 테스트 활성화 | 3 | Infra, ETL | **In Review** |
+| P2 | STORY-059 | SCRUM-49 | Frontend 테스트 커버리지 확장 (25%→60%) | 5 | Frontend | **Done** (Sprint 05) |
+| P2 | STORY-060 | SCRUM-50 | Planner 전략 유효화 + 검색 캐싱 | 3 | RAG | **Done** (Sprint 05) |
+| P2 | STORY-061 | SCRUM-51 | 파이프라인 타임아웃 + Circuit Breaker | 3 | RAG | **Done** (Sprint 05) |
+| P2 | STORY-062 | SCRUM-52 | 접근성 (WCAG 2.1 AA) 보완 | 2 | Frontend | **Done** (Sprint 05) |
+| P2 | STORY-063 | SCRUM-53 | Docling 라이브러리 Docker 이미지 포함 및 테스트 활성화 | 3 | Infra, ETL | **Done** (Sprint 05) |
 
 **소계**: 16 pts (5 Stories)
 

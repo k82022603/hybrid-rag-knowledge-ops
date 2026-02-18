@@ -11,7 +11,7 @@
 | **Points** | 2 |
 | **Priority** | P2 - Medium |
 | **Assignee** | RAG |
-| **Status** | To Do |
+| **Status** | Deferred (Sprint 12 project closure) |
 
 ---
 
