@@ -181,7 +181,7 @@ async def save_entities_to_neo4j(
                 """
                 MATCH (s:Entity {name: $source_name})
                 MATCH (t:Entity {name: $target_name})
-                MERGE (s)-[r:RELATED {type: $rel_type}]->(t)
+                MERGE (s)-[r:RELATED_TO {type: $rel_type}]->(t)
                 ON CREATE SET r.description = $description,
                               r.created_at = datetime()
                 """,
@@ -426,7 +426,7 @@ async def run_batch():
             rec["types"],
         )
 
-        r2 = session.run("MATCH ()-[r:RELATED]->() RETURN count(r) as cnt")
+        r2 = session.run("MATCH ()-[r:RELATED_TO]->() RETURN count(r) as cnt")
         logger.info("Neo4j Relationships: %d", r2.single()["cnt"])
 
         r3 = session.run("MATCH ()-[r:MENTIONS]->() RETURN count(r) as cnt")

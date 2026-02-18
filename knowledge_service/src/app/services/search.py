@@ -908,7 +908,7 @@ class SearchService:
         RRF 부스트가 가능합니다.
 
         전략:
-        1. Neo4j에서 쿼리와 관련된 엔티티 매칭 + RELATED 1-hop 확장
+        1. Neo4j에서 쿼리와 관련된 엔티티 매칭 + RELATED_TO 1-hop 확장
         2. 상위 엔티티명을 expanded query로 구성
         3. ES에서 expanded query로 BM25 검색
         → chunk_id가 Vector/Keyword 결과와 동일하여 RRF 융합 시 부스트
@@ -934,7 +934,7 @@ class SearchService:
                 cypher = """
                 MATCH (e:Entity)
                 WHERE e.name IN $entity_names
-                OPTIONAL MATCH (e)-[:RELATED]-(related:Entity)
+                OPTIONAL MATCH (e)-[:RELATED_TO]-(related:Entity)
                 WHERE related.name IS NOT NULL AND related.name <> 'None'
                 WITH collect(DISTINCT e.name) + collect(DISTINCT related.name) AS all_names
                 UNWIND all_names AS name
@@ -991,7 +991,7 @@ class SearchService:
                 UNWIND all_e AS e
                 WITH DISTINCT e LIMIT 20
 
-                OPTIONAL MATCH (e)-[r:RELATED]-(rel:Entity)
+                OPTIONAL MATCH (e)-[r:RELATED_TO]-(rel:Entity)
                 WHERE rel.name IS NOT NULL AND rel.name <> 'None'
                   AND NOT rel.name STARTS WITH '/' AND NOT rel.name STARTS WITH '.'
                   AND size(rel.name) >= 2

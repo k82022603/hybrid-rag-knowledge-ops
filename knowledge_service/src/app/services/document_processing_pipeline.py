@@ -793,7 +793,7 @@ class DocumentProcessingPipeline:
                         )
 
                 # 6b. 엔티티/관계 추출 및 Neo4j 저장 (필수 수행)
-                # 온라인 업로드 시 엔티티 추출 + HAS_ENTITY + RELATED_TO 완전 수행
+                # 온라인 업로드 시 엔티티 추출 + MENTIONS + RELATED_TO 완전 수행
                 if self._enable_entity_extraction and self._enable_neo4j:
                     await self.repository.update_document_status(
                         document_id=document_id,
@@ -834,7 +834,7 @@ class DocumentProcessingPipeline:
                                 entities=entities,
                             )
 
-                            # 3) Chunk-Entity HAS_ENTITY 관계 생성
+                            # 3) Chunk-Entity MENTIONS 관계 생성
                             # 각 청크의 텍스트에 언급된 엔티티를 매칭하여 연결
                             has_entity_total = 0
                             entity_names_lower = {

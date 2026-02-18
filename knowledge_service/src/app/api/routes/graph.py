@@ -140,7 +140,7 @@ async def search_experts(
             WHERE toLower(topic.name) CONTAINS toLower($topic_keyword)
 
             // 2. 관련 Person 엔티티 찾기 (RELATED 관계)
-            MATCH (person:Person:Entity)-[r:RELATED]-(topic)
+            MATCH (person:Person:Entity)-[r:RELATED_TO]-(topic)
 
             // 3. Person별 통계 집계
             WITH person,
@@ -148,7 +148,7 @@ async def search_experts(
                  count(DISTINCT r) AS rel_count
 
             // 4. 관련 프로젝트 조회
-            OPTIONAL MATCH (person)-[:RELATED]->(project:Project)
+            OPTIONAL MATCH (person)-[:RELATED_TO]->(project:Project)
 
             WITH person, expertise_list, rel_count,
                  collect(DISTINCT COALESCE(project.name, project.title)) AS projects

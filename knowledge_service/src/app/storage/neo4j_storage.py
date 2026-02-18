@@ -10,11 +10,12 @@ STORY-006: Neo4j/Elasticsearch 저장 서비스 구현
 - 트랜잭션 기반 원자성 보장
 - 싱글톤 패턴 (get_neo4j_storage_service)
 
-Neo4j Schema (infrastructure/database/neo4j/schema.cypher 참조):
+Neo4j Schema (batch_entity_extraction.py 기준 통일):
     - Knowledge 노드: knowledge_id (UNIQUE), title, document_type
-    - Chunk 노드: chunk_id (UNIQUE), knowledge_id
+    - Chunk 노드: id (UNIQUE, = chunk_id), knowledge_id
     - Person/Technology/Topic/Keyword 엔티티 노드
-    - 관계: CONTAINS, MENTIONED_IN, USED_IN, CATEGORIZED_BY 등
+    - 관계: CONTAINS (Knowledge→Chunk), MENTIONS (Chunk→Entity),
+            MENTIONED_IN (Entity→Knowledge), RELATED_TO (Entity↔Entity)
 """
 
 import asyncio
@@ -689,9 +690,10 @@ class Neo4jStorageService:
                 cypher = """
                 MATCH (k:Knowledge {knowledge_id: $knowledge_id})
                 UNWIND $chunks AS chunk
-                MERGE (c:Chunk {chunk_id: chunk.chunk_id})
+                MERGE (c:Chunk {id: chunk.chunk_id})
                 ON CREATE SET c.created_at = $now
-                SET c.content = chunk.content,
+                SET c.chunk_id = chunk.chunk_id,
+                    c.content = chunk.content,
                     c.chunk_index = chunk.chunk_index,
                     c.token_count = chunk.token_count,
                     c.knowledge_id = $knowledge_id,
@@ -729,9 +731,9 @@ class Neo4jStorageService:
         chunk_id: str,
         entities: List[Entity],
     ) -> int:
-        """청크와 엔티티 간 HAS_ENTITY 관계 생성
+        """청크와 엔티티 간 MENTIONS 관계 생성
 
-        해당 청크에서 추출된 엔티티들을 (Chunk)-[:HAS_ENTITY]->(Entity) 관계로 연결합니다.
+        해당 청크에서 추출된 엔티티들을 (Chunk)-[:MENTIONS]->(Entity) 관계로 연결합니다.
         엔티티 노드는 이미 save_entities()로 생성되어 있어야 합니다.
 
         Args:
@@ -739,7 +741,7 @@ class Neo4jStorageService:
             entities: 해당 청크에서 추출된 엔티티 리스트
 
         Returns:
-            생성된 HAS_ENTITY 관계 수
+            생성된 MENTIONS 관계 수
 
         Raises:
             Neo4jError: 저장 실패 시
@@ -768,10 +770,10 @@ class Neo4jStorageService:
                     entity_names = [pair[0] for pair in name_key_pairs]
 
                     cypher = f"""
-                    MATCH (c:Chunk {{chunk_id: $chunk_id}})
+                    MATCH (c:Chunk {{id: $chunk_id}})
                     UNWIND $names AS entity_name
                     MATCH (e:{label} {{{merge_key}: entity_name}})
-                    MERGE (c)-[r:HAS_ENTITY]->(e)
+                    MERGE (c)-[r:MENTIONS]->(e)
                     SET r.created_at = $now
                     RETURN count(r) AS cnt
                     """
@@ -786,7 +788,7 @@ class Neo4jStorageService:
                     total_count += record["cnt"] if record else 0
 
             logger.debug(
-                "Chunk-Entity HAS_ENTITY relations created: chunk_id=%s, count=%d",
+                "Chunk-Entity MENTIONS relations created: chunk_id=%s, count=%d",
                 chunk_id,
                 total_count,
             )
@@ -794,7 +796,7 @@ class Neo4jStorageService:
 
         except Exception as e:
             logger.warning(
-                "Failed to create HAS_ENTITY relations: chunk_id=%s, error=%s",
+                "Failed to create MENTIONS relations: chunk_id=%s, error=%s",
                 chunk_id,
                 e,
             )
