@@ -2,7 +2,7 @@
 
 **Project**: Hybrid RAG Knowledge Operations
 **Version**: 1.0
-**Date**: 2026-02-18
+**Date**: 2026-02-19
 **Sprint**: 12 (Final)
 **Status**: Project Closed
 
@@ -25,15 +25,15 @@
 
 **TechLead Risk Assessment (Sprint 12)**:
 - **변경 규모**: ~180 라인
-- **핵심 차단 요소**: Neo4j 스키마 불일치 — Online은 `(Knowledge)-[:CONTAINS]->(Chunk)`, Batch는 `(Chunk)-[:PART_OF]->(Document)` 구조 사용
+- **핵심 차단 요소**: Neo4j 스키마 불일치 -- Online은 `(Knowledge)-[:CONTAINS]->(Chunk)`, Batch는 `(Chunk)-[:PART_OF]->(Document)` 구조 사용
 - **통합 시 필요**: 기존 169K+ 엔티티의 그래프 마이그레이션 수반
-- **리스크 판정**: **HIGH** — 마지막 스프린트에서 진행 시 서비스 장애 위험
+- **리스크 판정**: **HIGH** -- 마지막 스프린트에서 진행 시 서비스 장애 위험
 - **초기 결정**: 리팩토링 대신 문서화로 대체 (Sprint 12 TechLead 검토 결과)
 - **최종 조치 (Sprint 12 마감일)**: 사용자 직접 지시로 스키마 통일 실행
-  - 코드 5개 파일 수정: `HAS_ENTITY` → `MENTIONS`, `RELATED` → `RELATED_TO`, `Chunk.chunk_id` → `Chunk.id`
-  - DB 마이그레이션 실행: 298K RELATED→RELATED_TO, 13 HAS_ENTITY→MENTIONS, 11 Chunk.id 보정
+  - 코드 5개 파일 수정: `HAS_ENTITY` -> `MENTIONS`, `RELATED` -> `RELATED_TO`, `Chunk.chunk_id` -> `Chunk.id`
+  - DB 마이그레이션 실행: 298K RELATED->RELATED_TO, 13 HAS_ENTITY->MENTIONS, 11 Chunk.id 보정
   - 서비스 중단 없이 25.7초 완료
-  - **상태**: ~~문서화로 대체~~ → **해결 완료** (커밋 ebf822b)
+  - **상태**: ~~문서화로 대체~~ -> **해결 완료** (커밋 ebf822b)
 
 ### TD-002: Pipeline Class Duplication
 
@@ -53,7 +53,7 @@
 - **Online**: 단일 문서, 동기 처리, JWT 인증, 즉시 Neo4j/Entity 생성
 - **Batch**: 다중 문서, 비동기 벌크 처리, Phase별 분리, GPU 오프로드 지원
 - **BasePipeline 추출 시도**: 추상화 레벨에서 공통점이 적어 오히려 복잡도 증가
-- **리스크 판정**: **HIGH** — 추상화의 이점 < 리팩토링 비용 + 회귀 버그 위험
+- **리스크 판정**: **HIGH** -- 추상화의 이점 < 리팩토링 비용 + 회귀 버그 위험
 - **결정**: 리팩토링 대신 문서화로 대체 (Sprint 12 TechLead 검토 결과)
 
 ### TD-003: Batch Script Proliferation (7+ Variants)
@@ -151,9 +151,97 @@
 | **Workaround** | Convert HWP to DOCX or PDF before uploading for better fidelity. |
 | **Severity** | Low |
 
+### KL-008: Admin UI vs config.py Dual Configuration
+
+| Item | Detail |
+|------|--------|
+| **Description** | Admin UI의 System Settings와 AI Service의 config.py/.env가 독립적으로 운영됨. Admin UI에서 변경한 설정이 AI Service에 반영되지 않음. |
+| **Reason** | Admin UI는 Spring Boot DB(system_config 테이블)를 변경하고, AI Service는 config.py + 환경변수(.env)를 사용. 두 시스템이 별도 설정 저장소를 사용하여 동기화되지 않음. |
+| **Impact** | Admin UI에서 모델/파라미터 변경 시 AI Service에 반영되지 않아 혼란 유발 가능. |
+| **Workaround** | AI Service 설정 변경은 `.env` 파일 수정 + 컨테이너 재시작으로 적용. Admin UI의 System Settings는 Spring Boot 서비스 설정에만 영향. |
+| **Severity** | Low |
+
 ---
 
-## 3. Deferred Backlog Items
+## 3. Resolved Issues (2026-02-18 Sprint 12 User Test)
+
+### RI-001: Large PDF Upload Timeout (Resolved)
+
+| Item | Detail |
+|------|--------|
+| **Severity** | High |
+| **Discovered** | 2026-02-18 (Sprint 12 사용자 테스트) |
+| **Symptom** | Nike 10-K (140+ pages) PDF 업로드 시 504 Gateway Timeout. 3건 전부 실패 (0/3). |
+| **Root Cause** | Frontend axios (120s), Nginx proxy_read_timeout (300s), Docling docling_parse_timeout (300s) 등 타임아웃 체인이 대용량 PDF 처리 시간보다 짧게 설정됨. SEC 공시 서류의 표/차트/이미지에 대한 OCR(RapidOCR) 처리가 300초를 초과. |
+| **Resolution** | 전체 타임아웃 체인을 1200초(20분)로 통일 적용 (2026-02-18). Frontend axios, Nginx proxy_send/read_timeout, Docling parse_timeout 6개 설정 변경. kp-frontend, kp-nginx, kp-ai-service 3개 컨테이너 재빌드/재배포. |
+| **Remaining Risk** | Spring Cloud Gateway response-timeout (120s)이 미적용 상태. 대용량 문서가 Gateway를 경유할 경우 추가 타임아웃 발생 가능 (Section 4 KI-001 참조). |
+| **Verification** | 타임아웃 증가 적용 완료. 대용량 PDF 재테스트는 미수행 (컨테이너 재배포 후 추가 검증 필요). |
+
+### RI-002: Dashboard Quick Search Not Working (Resolved)
+
+| Item | Detail |
+|------|--------|
+| **Severity** | Medium |
+| **Discovered** | 2026-02-18 (Sprint 12 사용자 테스트) |
+| **Symptom** | 대시보드에서 "빠른 검색" 입력 후 엔터 -> `/search?q=` 페이지로 이동하지만 검색이 실행되지 않음. 검색 페이지의 입력창이 비어 있고 Chat Search가 자동 실행되지 않음. |
+| **Root Cause** | `SearchPage.tsx`에서 URL `?q=` 파라미터를 읽지 않음. `ChatSearch` 컴포넌트에 초기 쿼리를 전달하는 로직이 없음. |
+| **Resolution** | 3개 파일 수정 (2026-02-18): `SearchPage.tsx` (useSearchParams로 ?q= 읽기), `ChatSearch.tsx` (initialQuery prop 수신), `useChatSearch.ts` (useEffect로 자동 sendMessage). kp-frontend 재빌드/재배포. |
+| **Verification** | 수정 완료 후 배포. 대시보드 -> 검색 페이지 자동 검색 실행 확인. |
+
+### RI-003: Upload Endpoint Authentication Missing (Resolved)
+
+| Item | Detail |
+|------|--------|
+| **Severity** | High (Security) |
+| **Discovered** | 2026-02-18 (업로드 E2E 테스트 케이스 #9) |
+| **Symptom** | `/api/v1/documents/upload` 등 13개 엔드포인트에 JWT 인증 없이 접근 가능 |
+| **Root Cause** | `documents.py` (7개), `extract.py` (3개), `embed.py` (3개) 라우트에 `Depends(get_current_user)` 누락 |
+| **Resolution** | 3개 라우트 파일 전체에 JWT 인증 dependency 추가 (2026-02-18) |
+| **Verification** | 인증 없이 요청 시 401 Unauthorized 반환 확인 |
+
+### RI-004: Neo4j Online Upload Not Syncing (Resolved)
+
+| Item | Detail |
+|------|--------|
+| **Severity** | High |
+| **Discovered** | 2026-02-18 (업로드 E2E 테스트) |
+| **Symptom** | 실시간 업로드 후 Neo4j에 Document/Chunk 노드 미생성. 엔티티 추출도 온라인에서 미수행. |
+| **Root Cause** | 업로드 파이프라인에 Neo4j 기본 노드 생성 로직 없음. 엔티티 추출이 배치 ETL Phase 3에만 존재. |
+| **Resolution** | `document_processing_pipeline.py` + `neo4j_storage.py` 수정. 업로드 시 Knowledge/Chunk/CONTAINS 즉시 생성 + 엔티티 추출 온라인 실행 (2026-02-18) |
+| **Verification** | 테스트 문서 업로드 -> Neo4j에 Entity + MENTIONS + RELATED_TO 관계 생성 확인 |
+
+### RI-005: Neo4j Schema Unification (Resolved)
+
+| Item | Detail |
+|------|--------|
+| **Severity** | High |
+| **Discovered** | 2026-02-18 (TechLead TD-001 분석) |
+| **Symptom** | 검색 코드(search.py)가 참조하는 스키마와 온라인 파이프라인이 생성하는 스키마 불일치. 온라인 업로드 문서의 엔티티가 그래프 검색에서 누락. |
+| **Root Cause** | Online: `HAS_ENTITY`, `RELATED_TO`, `Chunk.chunk_id` / Batch: `MENTIONS`, `RELATED`, `Chunk.id` -- 3종 혼재 |
+| **Resolution** | 코드 5개 파일 통일 + DB 마이그레이션 (298,636 RELATED_TO + 404,411 MENTIONS). 25.7초, 서비스 중단 없음. (커밋 ebf822b, 2026-02-18) |
+| **Verification** | 14건 검색 재검증 전체 PASS. 기존 42,458 chunks 검색 영향 없음. |
+
+---
+
+## 4. Known Issues (Open)
+
+### KI-001: Spring Cloud Gateway Timeout
+
+| Item | Detail |
+|------|--------|
+| **Severity** | Medium |
+| **Component** | API Gateway (Spring Cloud Gateway) |
+| **Discovered** | 2026-02-18 (타임아웃 체인 분석) |
+| **Description** | API Gateway의 `response-timeout`이 120초로 설정되어 있음. Frontend/Nginx/Docling은 1200초로 통일했으나 Gateway 단은 미적용. |
+| **Impact** | 대용량 문서 처리 시 Gateway를 경유하는 API 호출에서 120초 초과 시 504 Gateway Timeout 발생 가능. 현재 AI Service 직접 호출(/api/v1/documents/upload)은 영향 없음. |
+| **Root Cause** | Spring Cloud Gateway 빌드가 별도 필요하며, Sprint 12 마감일에 게이트웨이 재빌드 범위에 포함하지 않음. |
+| **Recommended Fix** | `application.yml`의 `response-timeout`을 1200s로 변경 + Gateway 컨테이너 재빌드. Resilience4j `ai-service-circuit-breaker` TimeLimiter도 함께 조정. |
+| **Workaround** | 대용량 문서 업로드는 Nginx -> AI Service 직접 경로 사용 (Gateway 미경유) |
+| **Effort Estimate** | 1 SP |
+
+---
+
+## 5. Deferred Backlog Items
 
 The following stories were planned but not implemented due to project closure at Sprint 12. They are categorized by priority for potential future work.
 
@@ -196,9 +284,9 @@ The following stories were planned but not implemented due to project closure at
 
 ---
 
-## 4. Future Improvement Recommendations
+## 6. Future Improvement Recommendations
 
-### 4.1 Storage Layer Unification
+### 6.1 Storage Layer Unification
 
 **Priority**: High
 **Effort**: 2-3 weeks
@@ -208,7 +296,7 @@ Consolidate the dual storage approach (online `es_storage.py` vs batch direct cl
 - Reduce maintenance overhead by 40-50%
 - Enable consistent error handling and retry logic across all data paths
 
-### 4.2 Batch Script CLI Consolidation
+### 6.2 Batch Script CLI Consolidation
 
 **Priority**: Medium
 **Effort**: 1-2 weeks
@@ -221,7 +309,7 @@ etl_cli.py phase3 --concurrency 10 --api-key-partition 0
 etl_cli.py status  # Show pipeline status across all phases
 ```
 
-### 4.3 Kubernetes Migration
+### 6.3 Kubernetes Migration
 
 **Priority**: Low (when scale demands)
 **Effort**: 4-6 weeks
@@ -233,7 +321,7 @@ Docker Compose (current) --> Docker Swarm (medium scale) --> Kubernetes (enterpr
 
 K8s reference architecture is already documented in `docs/02_design/technical_assessment/infrastructure_k8s_reference_design.md`.
 
-### 4.4 HWP Parsing Enhancement
+### 6.4 HWP Parsing Enhancement
 
 **Priority**: Low
 **Effort**: 2-3 weeks
@@ -243,7 +331,7 @@ Options:
 2. Pre-conversion pipeline: HWP -> DOCX -> Docling
 3. OCR fallback for complex HWP layouts
 
-### 4.5 Search Quality Enhancement
+### 6.5 Search Quality Enhancement
 
 **Priority**: Medium
 **Effort**: 3-4 weeks
@@ -253,7 +341,7 @@ Options:
 - Add content viewer modal for full-text chunk inspection (STORY-093)
 - Implement document download links via MinIO presigned URLs (STORY-092)
 
-### 4.6 Production GPU Infrastructure
+### 6.6 Production GPU Infrastructure
 
 **Priority**: High (for production)
 **Effort**: 1-2 weeks
@@ -262,9 +350,19 @@ Options:
 - Expected latency reduction: 650ms -> 50ms per query
 - Estimated cost: ~$0.50/hour (cloud GPU) vs current CPU-only
 
+### 6.7 Async Upload Pipeline for Large Documents
+
+**Priority**: High
+**Effort**: 2-3 weeks
+
+- Implement fully asynchronous upload: upload returns immediately, processing runs in background
+- SSE (Server-Sent Events) for real-time progress notification to frontend
+- Page-level PDF splitting: parse 50-page segments in parallel for faster throughput
+- Would resolve remaining large PDF processing concerns even after timeout increase
+
 ---
 
-## 5. Project Metrics Summary
+## 7. Project Metrics Summary
 
 | Metric | Value | Target | Status |
 |--------|-------|--------|--------|
@@ -283,7 +381,7 @@ Options:
 
 ---
 
-## 6. Risk Register (Closed)
+## 8. Risk Register (Closed)
 
 | ID | Risk | Likelihood | Impact | Mitigation | Final Status |
 |----|------|:----------:|:------:|------------|:------------:|
@@ -293,9 +391,11 @@ Options:
 | R-004 | Neo4j memory pressure | Realized | Medium | Override YML 2GB cap | Resolved |
 | R-005 | RAGAS NaN scores | Realized | High | ChatOpenAI(n=1) workaround | Resolved |
 | R-006 | HWP parsing quality | Low | Low | DOCX conversion recommended | Accepted |
+| R-007 | Large PDF timeout chain | Realized | High | Timeout unification to 1200s | Mitigated (Gateway pending) |
+| R-008 | Neo4j schema inconsistency | Realized | High | Schema unification + migration | Resolved (Sprint 12) |
 
 ---
 
-*Hybrid RAG Knowledge Operations | Sprint 12 (Final) | 2026-02-18*
+*Hybrid RAG Knowledge Operations | Sprint 12 (Final) | 2026-02-19*
 
-*Author: PM Agent | Reviewed: Claude Code (Opus 4.6)*
+*Author: QA Agent | Reviewed: Claude Code (Opus 4.6)*

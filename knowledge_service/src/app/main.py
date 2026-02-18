@@ -222,6 +222,19 @@ def create_app() -> FastAPI:
     # API 라우터 등록
     app.include_router(api_router, prefix=settings.api_v1_prefix)
 
+    # Prometheus 메트릭 엔드포인트 (/metrics)
+    try:
+        from prometheus_fastapi_instrumentator import Instrumentator
+
+        Instrumentator(
+            should_group_status_codes=True,
+            should_ignore_untemplated=True,
+            excluded_handlers=["/health", "/health/live", "/health/ready", "/metrics"],
+        ).instrument(app).expose(app, endpoint="/metrics", include_in_schema=False)
+        logger.info("Prometheus metrics enabled at /metrics")
+    except ImportError:
+        logger.warning("prometheus-fastapi-instrumentator not installed, /metrics disabled")
+
     # 루트 레벨 Health Check 엔드포인트 (E2E 테스트 및 Docker 헬스체크용)
     @app.get(
         "/health",

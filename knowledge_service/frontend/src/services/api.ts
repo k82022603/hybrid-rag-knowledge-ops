@@ -12,7 +12,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 120000,
+  timeout: 1200000, // 20분 (대용량 PDF 업로드+처리 대응)
 });
 
 /**

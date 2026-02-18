@@ -5,6 +5,7 @@
  * Tailwind CSS 기반
  */
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   ChatBubbleLeftRightIcon,
   MagnifyingGlassIcon,
@@ -33,6 +34,8 @@ const TABS: { key: SearchTab; label: string; icon: React.ReactNode; description:
  * SearchPage - 검색 페이지 메인 컴포넌트
  */
 const SearchPage: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const initialQuery = searchParams.get('q') || undefined;
   const [activeTab, setActiveTab] = useState<SearchTab>('chat');
 
   return (
@@ -84,7 +87,7 @@ const SearchPage: React.FC = () => {
         role="tabpanel"
         aria-labelledby={`tab-${activeTab}`}
       >
-        {activeTab === 'chat' && <ChatSearch />}
+        {activeTab === 'chat' && <ChatSearch initialQuery={initialQuery} />}
         {activeTab === 'keyword' && <KeywordSearch />}
       </div>
     </div>

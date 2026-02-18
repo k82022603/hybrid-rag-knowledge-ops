@@ -100,7 +100,7 @@ class Settings(BaseSettings):
     )
 
     # Docling 파싱 설정
-    docling_parse_timeout: float = Field(default=300.0, description="Docling 단일 문서 파싱 타임아웃 (초)")
+    docling_parse_timeout: float = Field(default=1200.0, description="Docling 단일 문서 파싱 타임아웃 (초, SEC 10-K 등 대용량 PDF 대응)")
 
     # Search Cache 설정 (STORY-060)
     search_cache_enabled: bool = Field(default=True, description="검색 캐시 활성화 여부")

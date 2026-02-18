@@ -71,6 +71,7 @@ ragas = "^0.1.0"             # RAG evaluation metrics
 # Logging & Monitoring
 python-json-logger = "^2.0.0"
 colorlog = "^6.8.0"
+prometheus-fastapi-instrumentator = "^7.0.0"  # Prometheus /metrics endpoint
 
 # Time & Date
 pytz = "^2023.3"

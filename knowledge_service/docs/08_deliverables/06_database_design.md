@@ -1,8 +1,8 @@
 # 데이터베이스 설계서
 
 **프로젝트명**: Hybrid RAG Knowledge Operations
-**작성일**: 2026-02-18
-**버전**: 1.0
+**작성일**: 2026-02-19
+**버전**: 1.1
 
 ---
 
@@ -334,13 +334,22 @@ erDiagram
 
 **system_config** -- 시스템 설정 (Key-Value)
 
+Spring Boot Backend(`AdminController`)가 관리하는 시스템 설정 테이블이다. Admin UI에서 설정을 변경하면 이 테이블에 저장되며, 프론트엔드 표시 및 Backend 로직에서 참조된다. AI Service(FastAPI)의 런타임 동작은 `config.py`(환경변수 기반)가 제어하므로 system_config와는 독립적이다.
+
 | 컬럼 | 타입 | 설명 |
 |------|------|------|
-| key | varchar (PK) | 설정 키 |
-| value | jsonb | 설정 값 |
+| key | varchar(100) (PK) | 설정 키 (예: `document_types`, `max_file_size_mb`, `chunk_size`) |
+| value | jsonb | 설정 값 (JSON 형식으로 다양한 타입 저장) |
 | description | text | 설명 |
-| updated_by | uuid | 수정한 사용자 |
+| updated_by | uuid (FK) | 수정한 사용자 (users 테이블 참조) |
 | updated_at | timestamp | 수정 시각 |
+
+초기 데이터:
+- `document_types`: `["manual", "specification", "report", "meeting_note", "design_doc", "api_doc"]`
+- `max_file_size_mb`: `100`
+- `supported_file_types`: `["pdf", "docx", "xlsx", "pptx", "txt", "md"]`
+- `chunk_size`: `512` (참고용, 실제 AI Service는 config.py의 600 토큰 사용)
+- `chunk_overlap`: `50` (참고용, 실제 AI Service는 config.py의 100 토큰 사용)
 
 **projects** -- 프로젝트 관리
 
@@ -392,8 +401,8 @@ erDiagram
 | text.keyword | keyword | - | 정확 매칭용 |
 | text.standard | text | text_analyzer | 영문/범용 검색용 |
 | heading | text | korean_analyzer | 청크 제목/헤딩 |
-| dense_vector | dense_vector (1024d) | - | BGE-M3 Dense 임베딩 (cosine similarity) |
-| sparse_vector | sparse_vector | - | BGE-M3 Sparse 임베딩 |
+| dense_vector | dense_vector (1024d) | - | BGE-M3 Dense 임베딩 (index: true, similarity: cosine) |
+| sparse_vector | sparse_vector | - | BGE-M3 Sparse 임베딩 (lexical weight 기반) |
 | sparse_vector_json | - | - | Sparse 벡터 JSON 백업 |
 | chunk_index | integer | - | 문서 내 청크 순서 |
 | token_count | integer | - | 토큰 수 |
@@ -536,7 +545,19 @@ graph TB
     Entity -->|"RELATED_TO<br/>(317,003)"| Entity
 ```
 
-### 4.5 주요 Cypher 쿼리 패턴
+### 4.5 스키마 명명 규칙
+
+Neo4j 관계 타입은 **snake_case 대문자**로 통일 완료 (STORY-088 기반):
+
+| 관계 타입 | 명명 규칙 | 비고 |
+|----------|----------|------|
+| `RELATED_TO` | snake_case | v1 초기 `relatedTo` camelCase에서 통일 |
+| `MENTIONS` | snake_case | 통일 완료 |
+| `PART_OF` | snake_case | 통일 완료 |
+
+노드 라벨은 **PascalCase**: `Entity`, `Technology`, `Person`, `Chunk`, `Document`
+
+### 4.6 주요 Cypher 쿼리 패턴
 
 **엔티티 관계 탐색** (Graph Search):
 ```cypher
@@ -562,7 +583,7 @@ WHERE c.id IN $chunk_ids
 RETURN c.id, collect(e.name) as entities
 ```
 
-### 4.6 Slim Graph 전략
+### 4.7 Slim Graph 전략
 
 16GB RAM 환경에서 Neo4j를 운영하기 위해 Slim Graph 전략을 적용한다.
 
@@ -588,19 +609,38 @@ RETURN c.id, collect(e.name) as entities
 
 ### 5.2 캐시 전략
 
-| 캐시 대상 | TTL | 키 패턴 | 설명 |
-|----------|:---:|---------|------|
-| 검색 결과 | 300초 | `search:{query_hash}` | 동일 쿼리 반복 시 캐시 반환 |
-| LLM 응답 | 600초 | `llm:{prompt_hash}` | 동일 프롬프트 반복 시 캐시 |
-| 문서 메타 | 3600초 | `doc:{document_id}` | 자주 참조되는 문서 메타 |
-| 사용자 세션 | 86400초 | `session:{user_id}` | JWT 검증 결과 캐시 |
+> 설정 출처: `knowledge_service/src/app/core/config.py` + `cache_service.py`
 
-### 5.3 캐시 무효화
+| 캐시 대상 | TTL | 최대 엔트리 | 키 패턴 | 설명 |
+|----------|:---:|:----------:|---------|------|
+| **검색 결과** | **3,600초** (1시간) | **1,000개** | `search_cache:{SHA256}` | Hybrid Search 결과 캐싱 (`search_cache_ttl`) |
+| **임베딩 캐시** | **604,800초** (7일) | - | Redis 내부 관리 | BGE-M3 임베딩 결과 (`redis_embedding_cache_ttl`) |
+| LLM 응답 | 600초 | - | `llm:{prompt_hash}` | 동일 프롬프트 반복 시 캐시 |
+| 문서 메타 | 3,600초 | - | `doc:{document_id}` | 자주 참조되는 문서 메타 |
+| 사용자 세션 | 86,400초 | - | `session:{user_id}` | JWT 검증 결과 캐시 |
+
+**캐시 키 생성 방식**: 쿼리 + 필터 + top_k + search_type + use_graph + use_vector를 조합하여 SHA256 해시 생성
+
+**폴백 메커니즘**: Redis 연결 실패 시 InMemory LRU 캐시로 자동 폴백 (`InMemoryLRUCache`, OrderedDict 기반). Redis 장애가 검색 기능을 중단시키지 않도록 보장한다.
+
+### 5.3 캐시 아키텍처
+
+```
+SearchCacheService (싱글톤)
+├── Redis 연결 성공 → RedisCacheBackend
+│   └── prefix: "search_cache:", TTL: 3600s, max_size: 10000 (참조용)
+│
+└── Redis 연결 실패 → InMemoryLRUCache (폴백)
+    └── OrderedDict 기반 LRU, max_size: 1000, TTL: 3600s
+```
+
+### 5.4 캐시 무효화
 
 | 이벤트 | 무효화 대상 | 방법 |
 |--------|------------|------|
-| 문서 업로드/수정 | 관련 검색 캐시 | 패턴 삭제 (`search:*`) |
-| ETL 재실행 | 전체 검색 캐시 | FLUSHDB |
+| 문서 업로드/수정 | 관련 검색 캐시 | 패턴 삭제 (`search_cache:*`) |
+| ETL 재실행 | 전체 검색 캐시 | `SearchCacheService.invalidate()` |
+| 관리자 수동 초기화 | 전체 캐시 | Admin API `/api/v1/admin/cache/reset` |
 | 설정 변경 | 시스템 캐시 | 키별 삭제 |
 
 ---
@@ -642,7 +682,7 @@ sequenceDiagram
 | **삭제 동기화** | 쓰레기 청크 삭제 시 ES + Neo4j + PG 3-Store 동시 삭제 |
 | **ES Aggregation 보정** | ES aggregation으로 실제 청크 수 확인 후 PG chunk_count 보정 |
 
-### 6.3 현재 정합성 상태 (2026-02-18)
+### 6.3 현재 정합성 상태 (2026-02-19)
 
 | 기준 | PG | ES | Neo4j | 일치 |
 |------|---:|---:|------:|:----:|
@@ -654,4 +694,4 @@ PG chunk_count 합계(42,484)와 ES 실측(42,462)의 22건 차이는 일부 문
 
 ---
 
-*작성: Claude Code (Opus 4.6) | 2026-02-18*
+*작성: Claude Code (Opus 4.6) | 2026-02-19 (v1.1 현행화)*

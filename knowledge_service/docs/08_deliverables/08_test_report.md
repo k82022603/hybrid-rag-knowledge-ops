@@ -2,7 +2,7 @@
 
 **시스템**: Hybrid RAG Knowledge Platform
 **버전**: 1.0
-**작성일**: 2026-02-18
+**작성일**: 2026-02-19
 
 ---
 
@@ -12,8 +12,9 @@
 2. [단위 테스트](#2-단위-테스트)
 3. [RAGAS 검색 품질 평가](#3-ragas-검색-품질-평가)
 4. [사전점검 테스트 (2026-02-18)](#4-사전점검-테스트-2026-02-18)
-5. [성능 테스트](#5-성능-테스트)
-6. [종합 평가](#6-종합-평가)
+5. [Sprint 12 사용자 테스트 (2026-02-18)](#5-sprint-12-사용자-테스트-2026-02-18)
+6. [성능 테스트](#6-성능-테스트)
+7. [종합 평가](#7-종합-평가)
 
 ---
 
@@ -26,6 +27,7 @@ Hybrid RAG Knowledge Platform의 품질을 다각도로 검증합니다.
 - **단위 테스트**: 핵심 모듈의 코드 품질 및 커버리지
 - **RAGAS 평가**: 검색 파이프라인의 정량적 품질 측정
 - **사전점검**: 전체 인프라 및 서비스 통합 검증
+- **사용자 테스트**: UI 기반 E2E 업로드/검색/대용량 PDF 테스트
 - **성능 테스트**: 검색 응답 시간 측정
 
 ### 1.2 범위
@@ -35,6 +37,7 @@ Hybrid RAG Knowledge Platform의 품질을 다각도로 검증합니다.
 | 단위 테스트 | 5개 핵심 Python 모듈 | pytest + Docker 환경 | Sprint 8~12 |
 | RAGAS 평가 | 검색 파이프라인 (v8~v11) | RAGAS 0.2.15 + DeepSeek V3.2 | Sprint 10~12 |
 | 사전점검 | 18개 컨테이너 + 소스코드 + API | Agent Teams (Infra + DevOps + QA) | 2026-02-18 |
+| 사용자 테스트 | 업로드 E2E 13 케이스 + 대용량 PDF 3건 | UI 직접 테스트 + curl | 2026-02-18 |
 | 성능 테스트 | Keyword / Hybrid / Semantic 검색 | curl + 응답시간 측정 | 2026-02-18 |
 
 ### 1.3 테스트 환경
@@ -279,9 +282,164 @@ UI 사용자 테스트 전 전체 인프라/서비스를 Agent Teams(Infra + Dev
 
 ---
 
-## 5. 성능 테스트
+## 5. Sprint 12 사용자 테스트 (2026-02-18)
 
-### 5.1 검색 응답 시간
+### 5.1 테스트 개요
+
+Sprint 12 완료 후 UI 기반 사용자 테스트를 수행했습니다. 업로드 E2E 테스트, 발견 이슈 수정, Neo4j 스키마 통일, 대용량 PDF 테스트, 대시보드 빠른 검색 버그 수정까지 전 과정을 포함합니다.
+
+**테스트 타임라인**:
+
+| 시간 | 내용 | 결과 |
+|------|------|:----:|
+| 14:00~15:00 | 사전점검 (인프라 18개 컨테이너) | PASS |
+| 15:40~16:30 | 업로드 E2E 테스트 (13 케이스) | 9 PASS, 3 WARN, 1 FAIL |
+| 16:30~18:00 | 발견 이슈 6건 수정 (인증, Neo4j, PG, 엔티티) | 6/6 해결 |
+| 19:30~20:30 | Neo4j 스키마 통일 코드 수정 + DB 마이그레이션 | 완료 (298K 관계) |
+| 20:50~21:15 | 스키마 통일 후 재검증 (4파일 업로드 + 14건 검색) | 전체 PASS |
+| 21:05~21:15 | 대용량 PDF 업로드 테스트 (Nike 10-K 3건) | 0/3 FAIL |
+| 21:15~21:30 | 타임아웃 증가 적용 (1200s 통일) | 적용 완료 |
+| 21:30~21:50 | 대시보드 빠른 검색 버그 수정 | 수정 완료 |
+
+### 5.2 업로드 E2E 테스트 (13 케이스)
+
+| # | 테스트 케이스 | HTTP | 상태 | 결과 | 비고 |
+|---|-------------|:----:|:----:|:----:|------|
+| 1 | TXT 업로드 (Direct :8000) | 201 | completed | PASS | 457B, document_id 반환 |
+| 2 | MD 업로드 (Direct, 508B) | 201 | failed | WARN | "청크를 생성할 수 없습니다" |
+| 3 | HTML 업로드 (Direct, 331B) | 201 | failed | WARN | "품질 기준 미달" |
+| 4 | 미지원 형식 (.xyz) | 400 | - | PASS | 에러 메시지 반환 |
+| 5 | TXT 업로드 (Nginx :80) | 201 | completed | PASS | 프록시 정상 |
+| 6 | MD 업로드 (Nginx, 508B) | 201 | failed | WARN | Direct와 동일 |
+| 7 | 문서 목록 조회 | 200 | - | PASS | 전체 표시 |
+| 8 | 큰 MD 업로드 (2829B) | 201 | completed | PASS | 정상 처리 |
+| 9 | **인증 없이 업로드** | **201** | completed | **FAIL** | 보안 이슈 (수정 완료) |
+| 10 | 파일 없이 업로드 | 422 | - | PASS | 검증 정상 |
+| 11 | 메타데이터 포함 업로드 | 201 | completed | PASS | metadata 저장 |
+| 12 | 문서 다운로드 | 200 | - | PASS | 원본 반환 |
+| 13 | Nginx 경유 상태 조회 | 200 | - | PASS | 정상 |
+
+**통과율**: PASS 9/13 (69%), WARN 3/13, FAIL 1/13
+
+### 5.3 발견 이슈 6건 및 조치 결과
+
+| # | 이슈 | 심각도 | 상태 |
+|---|------|:------:|:----:|
+| 1 | 인증 미적용 (13개 엔드포인트 JWT 없이 접근 가능) | HIGH | **FIXED** |
+| 2 | Neo4j 미동기화 (업로드 후 Document/Chunk 노드 미생성) | HIGH | **FIXED** |
+| 3 | PG chunk_count 미갱신 (ES에 청크 존재하나 PG에 0) | MEDIUM | **FIXED** |
+| 4 | PG es_synced 미갱신 (ES 저장 완료됐으나 false) | MEDIUM | **FIXED** |
+| 5 | 소형 파일 안내 부족 (4B 파일 업로드 시 불명확한 에러) | LOW | **FIXED** |
+| 6 | 엔티티 추출 온라인 미수행 (배치 ETL Phase 3에만 의존) | HIGH | **FIXED** |
+
+**수정 파일**: `documents.py`, `extract.py`, `embed.py`, `document_repository.py`, `document_processing_pipeline.py`, `neo4j_storage.py` (6개 파일)
+
+### 5.4 Neo4j 스키마 통일 마이그레이션
+
+검색 엔진(search.py)과 온라인 업로드 파이프라인(neo4j_storage.py)의 스키마 불일치를 통일했습니다.
+
+**마이그레이션 결과**:
+
+| 관계 타입 | Before | After | 상태 |
+|-----------|-------:|------:|:----:|
+| RELATED | 298,579 | 0 | 전량 RELATED_TO로 마이그레이션 |
+| RELATED_TO | 57 | 298,636 | 통합 완료 |
+| MENTIONS | 404,398 | 404,411 | 통합 완료 (+13 HAS_ENTITY 병합) |
+| HAS_ENTITY | 13 | 0 | 전량 MENTIONS로 마이그레이션 |
+| Chunk id 누락 | 11 | 0 | 전량 보정 |
+
+**통일된 최종 스키마**:
+
+```
+(Knowledge)-[:CONTAINS]->(Chunk {id})          -- 문서->청크
+(Chunk)-[:MENTIONS]->(Entity)                  -- 청크->엔티티 (404K)
+(Entity)-[:MENTIONED_IN]->(Knowledge)          -- 엔티티->문서
+(Entity)-[:RELATED_TO]->(Entity)               -- 엔티티<->엔티티 (298K)
+```
+
+마이그레이션 25.7초 완료, 서비스 중단 없음. 코드 5개 파일 수정 (커밋 ebf822b).
+
+### 5.5 스키마 통일 후 재검증
+
+| 검증 카테고리 | 쿼리 수 | 결과 |
+|-------------|:-------:|:----:|
+| 단일 업로드 파일 검색 | 4 | PASS (3/4 상위 5위 내) |
+| 배치 업로드 파일 검색 | 4 | PASS (4/4 상위 2위 내) |
+| 기존 배치 데이터 검색 | 3 | PASS (마이그레이션 영향 없음) |
+| 검색 타입별 비교 (Keyword/Semantic/Hybrid) | 3 | PASS |
+| **합계** | **14** | **전체 PASS** |
+
+### 5.6 대용량 PDF 업로드 테스트
+
+사용자가 직접 UI에서 Nike SEC 공시 PDF 3건을 업로드하여 대용량 PDF 파이프라인 한계를 확인했습니다.
+
+**테스트 파일**:
+
+| 파일명 | 크기 | 유형 |
+|--------|:----:|------|
+| `414759-1-_5_Nike-NPS-Combo_Form-10-K_WR.pdf` | 3.3MB | Nike 10-K SEC 공시 |
+| `nke4278571-ars.pdf` | 4.3MB | Nike Annual Report |
+| `Nike-Inc-2025_10K.pdf` | 1.3MB | Nike 10-K |
+
+**테스트 결과**:
+
+| 파일 | 업로드 | 파싱 | 최종 상태 | 실패 원인 |
+|------|:------:|:----:|:---------:|----------|
+| `414759-...10-K_WR.pdf` (3.3MB) | PASS | FAIL | Processing 50% 멈춤 | Docling `Parsing timed out after 300s` x2 |
+| `nke4278571-ars.pdf` (4.3MB) | FAIL | - | timeout | Frontend `timeout of 120000ms exceeded` |
+| `Nike-Inc-2025_10K.pdf` (1.3MB) | FAIL | - | timeout | Frontend `timeout of 120000ms exceeded` |
+
+**통과율**: 0/3 (0%) -- 대용량 PDF 전부 실패
+
+**병목 분석 (TOP 4)**:
+
+| 순위 | 병목 | 현재 제한 | 증상 |
+|:----:|------|:---------:|------|
+| 1 | Docling PDF 파싱 (OCR) | 300s | `Parsing timed out after 300s` |
+| 2 | BGE-M3 임베딩 (CPU) | 없음 | 장시간 Processing |
+| 3 | DeepSeek LLM 엔티티 추출 | 60s/call | 장시간 Extracting |
+| 4 | Frontend axios 타임아웃 | 120s | `timeout of 120000ms exceeded` |
+
+**조치**: 전체 타임아웃 체인을 1200초(20분)로 통일 적용 (Section 5.7 참조)
+
+### 5.7 타임아웃 증가 적용
+
+| # | 파일 | 설정 | 변경 전 | 변경 후 |
+|---|------|------|:-------:|:-------:|
+| 1 | `frontend/src/services/api.ts` | axios timeout | 120,000ms | 1,200,000ms |
+| 2 | `src/app/core/config.py` | docling_parse_timeout | 300s | 1,200s |
+| 3 | `nginx/conf.d/default.conf` | proxy_send_timeout (/api/v1/) | 300s | 1,200s |
+| 4 | `nginx/conf.d/default.conf` | proxy_read_timeout (/api/v1/) | 300s | 1,200s |
+| 5 | `nginx/conf.d/default.conf` | upload proxy_send_timeout | (없음) | 1,200s |
+| 6 | `nginx/conf.d/default.conf` | upload proxy_read_timeout | 600s | 1,200s |
+
+kp-frontend, kp-nginx, kp-ai-service 3개 컨테이너 `--no-cache` 재빌드 + 재배포 완료.
+
+**미적용 항목** (후속 검토 필요):
+- Spring Cloud Gateway `response-timeout`: 120s (별도 게이트웨이 빌드 필요)
+- Resilience4j `ai-service-circuit-breaker`: 120s (TimeLimiter)
+
+### 5.8 대시보드 빠른 검색 버그 수정
+
+**증상**: 대시보드 "빠른 검색"에서 검색어 입력 후 엔터 -> `/search?q=...` URL로 이동하나 검색이 실행되지 않음.
+
+**원인**: `SearchPage.tsx`가 URL의 `?q=` 파라미터를 읽지 않음.
+
+**수정 (3개 파일)**:
+
+| # | 파일 | 수정 내용 |
+|---|------|----------|
+| 1 | `pages/SearchPage.tsx` | `useSearchParams()`로 `?q=` 읽어서 `ChatSearch`에 `initialQuery` prop 전달 |
+| 2 | `features/search/ChatSearch.tsx` | `initialQuery` prop 수신 -> `useChatSearch(initialQuery)` 전달 |
+| 3 | `features/search/hooks/useChatSearch.ts` | `initialQuery` 파라미터 추가, `useEffect`로 마운트 시 자동 `sendMessage(initialQuery)` 실행 |
+
+kp-frontend 재배포 완료 (Section 5.7과 동시 배포).
+
+---
+
+## 6. 성능 테스트
+
+### 6.1 검색 응답 시간
 
 사전점검 시 측정된 검색 API 응답 시간입니다 (쿼리: "프로젝트 관리", top_k=5).
 
@@ -293,7 +451,7 @@ UI 사용자 테스트 전 전체 인프라/서비스를 Agent Teams(Infra + Dev
 
 > Hybrid Search의 높은 응답 시간(18초)은 4-Way 병렬 검색 + RRF 퓨전 + BGE-Reranker + Entity Enrichment + DeepSeek RAG 생성의 전체 파이프라인을 포함합니다. CPU 환경에서의 ONNX Reranker 추론이 주요 병목입니다.
 
-### 5.2 검색 품질 스코어
+### 6.2 검색 품질 스코어
 
 | 검색 유형 | Top-1 Score | 의미 |
 |----------|:----------:|------|
@@ -301,7 +459,7 @@ UI 사용자 테스트 전 전체 인프라/서비스를 Agent Teams(Infra + Dev
 | Hybrid | 0.9964 | RRF 정규화 점수 (0~1) |
 | Semantic | 0.8324 | Cosine 유사도 (0~1) |
 
-### 5.3 인프라 헬스체크 응답 시간
+### 6.3 인프라 헬스체크 응답 시간
 
 | 엔드포인트 | 응답 시간 | 비고 |
 |-----------|:---------:|------|
@@ -312,18 +470,21 @@ UI 사용자 테스트 전 전체 인프라/서비스를 Agent Teams(Infra + Dev
 
 ---
 
-## 6. 종합 평가
+## 7. 종합 평가
 
-### 6.1 평가 요약
+### 7.1 평가 요약
 
 | 테스트 유형 | 결과 | 핵심 수치 | 판정 |
 |------------|:----:|----------|:----:|
 | **단위 테스트** | 174건 ALL PASS | 97% 커버리지 (5모듈) | PASS |
 | **RAGAS 검색 품질** | A- 등급 | 산술평균 0.711, HIGH 33/51(65%) | PASS |
 | **사전점검** | 18/18 컨테이너 정상 | CRITICAL 3건 전부 해결 | PASS |
+| **업로드 E2E** | 13 케이스 | 9 PASS, 3 WARN, 1 FAIL -> 이슈 6건 전부 FIXED | PASS |
+| **스키마 통일 후 재검증** | 14건 검색 전체 PASS | 298K RELATED_TO + 404K MENTIONS 통합 | PASS |
+| **대용량 PDF** | 0/3 실패 | 타임아웃 1200s 통일 적용 | PARTIAL (미검증) |
 | **성능** | 검색 정상 작동 | Keyword 19ms, Hybrid 18s, Semantic 4s | PASS (개선 여지) |
 
-### 6.2 검색 파이프라인 진화
+### 7.2 검색 파이프라인 진화
 
 ```
 v8 (2026-02-13)     v9 (2026-02-16)     v10 (2026-02-16)    v11 (2026-02-16)
@@ -340,7 +501,7 @@ NONE 11건           NONE 11건            NONE 10건            NONE 6건
 - v8: 108K 청크 무차별 인덱싱 -> 산술평균 0.632
 - v11: 42K 청크(-61%) + 엔티티 구조화 + Reranker -> 산술평균 0.711(+12.5%)
 
-### 6.3 기술적 의의
+### 7.3 기술적 의의
 
 1. **4-Way RRF + Reranker 검증**: Dense + Sparse + BM25(Nori) + Graph Search를 RRF로 결합하고 BGE-Reranker(ONNX)로 재순위. 한국어 1,437문서 / 7도메인 51쿼리에서 체계적으로 평가한 실무 사례
 
@@ -350,24 +511,30 @@ NONE 11건           NONE 11건            NONE 10건            NONE 6건
 
 4. **Reranker ROI 최고**: 코드 변경량 대비 효과가 가장 큰 개선. Context Precision +26%, Recall +42%
 
-### 6.4 개선 권고사항
+5. **온라인 업로드 파이프라인 완성**: 업로드 -> 파싱 -> 청킹 -> 임베딩 -> Neo4j 기본 그래프 -> 엔티티 추출 -> PG 메타데이터 갱신까지 전 과정 자동화. 3-Store(PG/ES/Neo4j) 일관성 확보
+
+### 7.4 개선 권고사항
 
 | 항목 | 현재 상태 | 개선 방향 | 우선순위 |
 |------|----------|----------|:--------:|
 | Hybrid Search 응답 시간 | 18초 | GPU 환경 + 비동기 파이프라인 | 높음 |
+| 대용량 PDF 처리 | 타임아웃 1200s 적용 (미검증) | 비동기 업로드 + SSE 진행률 + 페이지 분할 파싱 | 높음 |
+| Spring Cloud Gateway 타임아웃 | 120초 | 1200초로 통일 (별도 빌드 필요) | 높음 |
 | semantic 도메인 | C+ (0.638) | 의미 검색 프롬프트 튜닝, 청크 전략 개선 | 중간 |
 | legal 도메인 | C (0.592) | 법률 특화 문서 추가, 도메인 특화 엔티티 | 중간 |
 | ai-service /metrics | 미구현 | Prometheus 메트릭 엔드포인트 구현 | 낮음 |
 | Answer Relevancy | 0.621 | 프롬프트 최적화, 답변 생성 전략 개선 | 중간 |
 
-### 6.5 결론
+### 7.5 결론
 
 Hybrid RAG Knowledge Platform은 4-Way Hybrid Search + Knowledge Graph + BGE-Reranker를 통해 **RAGAS A- 등급(산술평균 0.711)** 을 달성했습니다. 42,462개 청크에서 169,886개 엔티티와 775,366개 관계를 구축하고, 51개 쿼리 중 33건(65%)이 HIGH 등급을 받았습니다.
 
-단위 테스트 97% 커버리지, 18개 컨테이너 전원 정상 기동, 검색 API 3종 정상 작동이 확인되어 **시스템 품질은 운영 가능 수준** 입니다.
+단위 테스트 97% 커버리지, 18개 컨테이너 전원 정상 기동, 검색 API 3종 정상 작동이 확인되었습니다. Sprint 12 사용자 테스트에서 업로드 E2E 13케이스 중 발견된 이슈 6건을 모두 수정하고, Neo4j 스키마 통일 마이그레이션(298K RELATED_TO + 404K MENTIONS)을 완료했습니다. 스키마 통일 후 14건 검색 재검증에서 전체 PASS를 확인하여 **시스템 품질은 운영 가능 수준** 입니다.
+
+대용량 PDF(Nike 10-K 3건) 테스트에서는 타임아웃 한계가 확인되어 1200초로 통일 적용했으며, 대시보드 빠른 검색 미동작 버그도 수정 완료했습니다.
 
 DeepSeek V3.2 기반 $52 비용으로 전체 파이프라인을 구축한 비용 효율성은 소규모 팀에서 실용 RAG 시스템을 구축할 수 있음을 실증합니다.
 
 ---
 
-*작성: Claude Code (Opus 4.6) | 2026-02-18*
+*작성: Claude Code (Opus 4.6) | 2026-02-19*

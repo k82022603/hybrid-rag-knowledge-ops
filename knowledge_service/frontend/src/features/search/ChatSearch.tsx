@@ -30,10 +30,14 @@ import { useChatSearch } from './hooks/useChatSearch';
 import { LiveRegion } from '@/components/common';
 import type { Source } from './types';
 
+interface ChatSearchProps {
+  initialQuery?: string;
+}
+
 /**
  * ChatSearch page component (/search/chat)
  */
-const ChatSearch: React.FC = () => {
+const ChatSearch: React.FC<ChatSearchProps> = ({ initialQuery }) => {
   const {
     query,
     setQuery,
@@ -43,7 +47,7 @@ const ChatSearch: React.FC = () => {
     sendMessage,
     clearMessages,
     dismissError,
-  } = useChatSearch();
+  } = useChatSearch(initialQuery);
 
   // Graph panel state
   const [showGraphPanel, setShowGraphPanel] = useState(false);

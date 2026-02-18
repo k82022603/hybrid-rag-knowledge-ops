@@ -370,9 +370,116 @@ flowchart TB
 
 ---
 
-## 6. 인프라 구성
+## 6. Redis 캐시 아키텍처
 
-### 6.1 Docker Compose 컨테이너 목록
+Redis 7.x는 시스템의 두 가지 독립적인 캐시 레이어를 담당한다.
+
+### 6.1 캐시 레이어 구성
+
+```mermaid
+flowchart TB
+    subgraph Redis["Redis 7.x (kp-redis:6379)"]
+        subgraph SearchCache["검색 결과 캐시"]
+            SC_Key["search_cache:{SHA256}"]
+            SC_TTL["TTL: 3,600초 (1시간)"]
+            SC_Max["최대 1,000 엔트리"]
+        end
+
+        subgraph EmbedCache["임베딩 벡터 캐시"]
+            EC_Key["{prefix}:{model}:{text_hash}"]
+            EC_TTL["TTL: 604,800초 (7일)"]
+            EC_Type["Dense 1024d float 벡터"]
+        end
+    end
+
+    subgraph Clients["캐시 클라이언트"]
+        SearchSvc["SearchService<br/>(cache_service.py)"]
+        EmbedSvc["EmbeddingService<br/>(embedding.py)"]
+    end
+
+    SearchSvc --> SearchCache
+    EmbedSvc --> EmbedCache
+```
+
+### 6.2 검색 결과 캐시 (Search Cache)
+
+Hybrid Search 결과를 캐싱하여 **LLM 비용 절감** 및 **응답 속도 향상**을 제공한다. 동일 쿼리+필터 조합에 대해 DeepSeek API 호출을 생략할 수 있다.
+
+| 항목 | 설정값 | 환경변수 |
+|------|--------|----------|
+| 활성화 | `True` | `SEARCH_CACHE_ENABLED` |
+| TTL | 3,600초 (1시간) | `SEARCH_CACHE_TTL` |
+| 최대 엔트리 | 1,000개 | `SEARCH_CACHE_MAX_SIZE` |
+| 키 접두사 | `search_cache:` | - |
+| 키 생성 | SHA256(query + filters + top_k + search_type + use_graph + use_vector) | - |
+| 백엔드 | Redis (primary) / InMemory LRU (fallback) | - |
+
+**캐시 Hit/Miss 프로세스**:
+
+```mermaid
+flowchart LR
+    Query["사용자 쿼리"] --> KeyGen["SHA256<br/>캐시 키 생성"]
+    KeyGen --> Check{"Redis에<br/>키 존재?"}
+    Check -->|HIT| Return["캐시된 결과<br/>즉시 반환"]
+    Check -->|MISS| Search["4-Way Hybrid<br/>Search 실행"]
+    Search --> LLM["DeepSeek V3.2<br/>답변 합성"]
+    LLM --> Store["Redis에<br/>결과 저장<br/>(TTL 3,600s)"]
+    Store --> Response["결과 반환"]
+```
+
+**폴백 전략**: Redis 연결 실패 시 InMemory LRU 캐시(OrderedDict 기반)로 자동 폴백한다. 서비스 가용성이 Redis 장애에 영향받지 않도록 설계되어 있다.
+
+### 6.3 임베딩 벡터 캐시 (Embedding Cache)
+
+BGE-M3 모델의 Dense 임베딩 결과(1024차원 float 벡터)를 캐싱하여 **동일 텍스트 재임베딩을 방지**한다. 임베딩은 결정적(deterministic) 결과이므로 장기간 캐싱이 가능하다.
+
+| 항목 | 설정값 | 환경변수 |
+|------|--------|----------|
+| TTL | 604,800초 (7일) | `REDIS_EMBEDDING_CACHE_TTL` |
+| 키 생성 | `{prefix}:{model_name}:{SHA256(text)}` | - |
+| 저장 형식 | JSON 직렬화 float 배열 (1024d) | - |
+| 배치 지원 | `mget`/pipeline 기반 배치 조회/저장 | - |
+
+**배치 임베딩 캐시 프로세스**:
+
+```mermaid
+flowchart LR
+    Texts["N개 텍스트"] --> BatchGet["Redis MGET<br/>(N개 키 일괄 조회)"]
+    BatchGet --> Split{"캐시 히트/미스<br/>분리"}
+    Split -->|히트| Cached["캐시된 벡터"]
+    Split -->|미스| Model["BGE-M3 모델<br/>임베딩 실행"]
+    Model --> BatchSet["Redis Pipeline<br/>(미스분만 저장)"]
+    BatchSet --> Merge["히트 + 신규 벡터<br/>병합"]
+    Cached --> Merge
+    Merge --> Result["최종 벡터 배열"]
+```
+
+### 6.4 캐시 관리 API
+
+관리자는 REST API를 통해 캐시를 모니터링하고 관리할 수 있다.
+
+| API | 메서드 | 설명 |
+|-----|:------:|------|
+| `/api/v1/cache/stats` | GET | 캐시 히트/미스율, 크기, 백엔드 정보 |
+| `/api/v1/cache/status` | GET | 캐시 활성화 여부 및 상태 |
+| `/api/v1/cache/clear` | DELETE | 캐시 전체 삭제 |
+| `/api/v1/cache/invalidate?pattern=*` | DELETE | 패턴 기반 캐시 무효화 |
+| `/api/v1/cache/stats/reset` | POST | 통계 카운터 초기화 (데이터 유지) |
+
+### 6.5 캐시 무효화 전략
+
+| 트리거 | 무효화 범위 | 방법 |
+|--------|------------|------|
+| TTL 만료 | 개별 키 | Redis 자동 만료 |
+| 문서 업로드/삭제 | 전체 검색 캐시 | 업로드 API에서 자동 호출 |
+| 관리자 수동 | 전체 또는 패턴 | Admin UI 또는 API 직접 호출 |
+| 임베딩 모델 변경 | 전체 임베딩 캐시 | 수동 (키 접두사에 모델명 포함) |
+
+---
+
+## 7. 인프라 구성
+
+### 7.1 Docker Compose 컨테이너 목록
 
 18개 컨테이너 + 1개 init 컨테이너로 구성된다.
 
@@ -398,7 +505,7 @@ flowchart TB
 | 18 | kp-jaeger | Jaeger | 16686, 14268 | 분산 추적 |
 | init | kp-init-db | Init Container | - | DB 스키마/데이터 초기화 |
 
-### 6.2 네트워크
+### 7.2 네트워크
 
 | 네트워크 | 대상 | 용도 |
 |----------|------|------|
@@ -407,7 +514,7 @@ flowchart TB
 | database | Backend, AI Service, PG, ES, Neo4j, Redis | 데이터 계층 접근 |
 | monitoring | Prometheus, Grafana, Loki, Promtail, Jaeger | 모니터링 스택 |
 
-### 6.3 볼륨
+### 7.3 볼륨
 
 Docker Compose에서 명명된 볼륨을 사용하여 데이터를 영속화한다.
 
@@ -423,7 +530,7 @@ Docker Compose에서 명명된 볼륨을 사용하여 데이터를 영속화한�
 | loki_data | /loki | 로그 저장소 |
 | keycloak_db_data | /var/lib/postgresql/data | Keycloak DB |
 
-### 6.4 Elasticsearch 커스텀 빌드
+### 7.4 Elasticsearch 커스텀 빌드
 
 Nori 한국어 분석기를 포함한 커스텀 Docker 이미지를 사용한다.
 
@@ -436,9 +543,9 @@ RUN elasticsearch-plugin install analysis-nori
 
 ---
 
-## 7. Observability
+## 8. Observability
 
-### 7.1 4 Pillars of Observability
+### 8.1 4 Pillars of Observability
 
 ```mermaid
 flowchart TB
@@ -476,7 +583,7 @@ flowchart TB
     AI -.-> Promtail
 ```
 
-### 7.2 모니터링 대시보드
+### 8.2 모니터링 대시보드
 
 | 도구 | URL | 용도 | 인증 |
 |------|-----|------|------|
@@ -485,7 +592,7 @@ flowchart TB
 | Prometheus | http://localhost:9090 | 메트릭 쿼리, 타겟 상태 | 불필요 |
 | Jaeger | http://localhost:16686 | 분산 추적 조회 | 불필요 |
 
-### 7.3 수집 메트릭
+### 8.3 수집 메트릭
 
 | 카테고리 | 메트릭 | 소스 |
 |----------|--------|------|
@@ -496,9 +603,9 @@ flowchart TB
 
 ---
 
-## 8. 보안
+## 9. 보안
 
-### 8.1 인증 아키텍처
+### 9.1 인증 아키텍처
 
 ```mermaid
 sequenceDiagram
@@ -529,7 +636,7 @@ sequenceDiagram
     end
 ```
 
-### 8.2 보안 구성 요소
+### 9.2 보안 구성 요소
 
 | 요소 | 기술 | 역할 |
 |------|------|------|
@@ -541,7 +648,7 @@ sequenceDiagram
 | **API Key** | 환경변수 (.env) | DeepSeek API 키 관리 (git 제외) |
 | **감사 로그** | audit_logs 테이블 | 모든 사용자 행동 기록 |
 
-### 8.3 API Gateway 라우팅
+### 9.3 API Gateway 라우팅
 
 | 경로 패턴 | 대상 | 인증 |
 |-----------|------|:----:|
@@ -555,4 +662,4 @@ sequenceDiagram
 
 ---
 
-*작성: Claude Code (Opus 4.6) | 2026-02-18*
+*작성: Claude Code (Opus 4.6) | 2026-02-19 (v1.1 - Redis 캐시 아키텍처 섹션 추가)*

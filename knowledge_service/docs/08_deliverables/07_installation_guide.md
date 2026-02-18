@@ -1,8 +1,8 @@
 # 설치 및 배포 가이드
 
 **시스템**: Hybrid RAG Knowledge Platform
-**버전**: 1.0
-**작성일**: 2026-02-18
+**버전**: 1.1
+**작성일**: 2026-02-19
 
 ---
 
@@ -11,11 +11,12 @@
 1. [사전 요구사항](#1-사전-요구사항)
 2. [소스코드 클론](#2-소스코드-클론)
 3. [환경 설정](#3-환경-설정)
-4. [Docker Compose 기동](#4-docker-compose-기동)
-5. [초기 데이터 설정](#5-초기-데이터-설정)
-6. [ETL 초기 실행](#6-etl-초기-실행)
-7. [기동 검증](#7-기동-검증)
-8. [트러블슈팅](#8-트러블슈팅)
+4. [Keycloak 설정](#4-keycloak-설정)
+5. [Docker Compose 기동](#5-docker-compose-기동)
+6. [초기 데이터 설정](#6-초기-데이터-설정)
+7. [ETL 초기 실행](#7-etl-초기-실행)
+8. [기동 검증](#8-기동-검증)
+9. [트러블슈팅](#9-트러블슈팅)
 
 ---
 
@@ -31,14 +32,31 @@
 | **Python** | 3.11+ | `python3 --version` | ETL 스크립트 실행 시 |
 | **WSL2** (Windows) | - | `wsl --status` | Windows에서 필수 |
 
-### 1.2 하드웨어 최소 사양
+### 1.2 하드웨어 및 메모리 요구사항
 
 | 항목 | 최소 | 권장 | 비고 |
 |------|------|------|------|
-| **RAM** | 16 GB | 32 GB | 18개 컨테이너 Memory Reservation 합계 ~15.5GB |
+| **RAM** | 12 GB | 16 GB | 18개 컨테이너 Memory Reservation 합계 ~15.5GB |
 | **Disk** | 50 GB | 100 GB | Docker 이미지 + ES 데이터 + Neo4j 데이터 |
 | **CPU** | 4 Core | 8 Core | CPU Limit 합계 ~19 코어 (실제 동시 사용은 적음) |
 | **GPU** | 없음 | NVIDIA T4+ | Phase 2 임베딩은 Google Colab으로 대체 가능 |
+
+**메모리 상세 내역 (16GB RAM 기준)**:
+
+| 구성 요소 | 예상 메모리 | 비고 |
+|-----------|:----------:|------|
+| BGE-M3 임베딩 모델 로딩 | ~2 GB | ai-service 기동 시 로드 |
+| BGE-Reranker ONNX 모델 | ~1 GB | ai-service 기동 시 로드 |
+| Elasticsearch | 1~2 GB | JVM Heap + 인덱스 캐시 |
+| Neo4j | 1~2 GB | JVM Heap + Page Cache |
+| PostgreSQL | ~0.5 GB | shared_buffers 포함 |
+| Spring Boot (Backend + Gateway) | ~1.5 GB | JVM Heap 각 512MB~1GB |
+| React Frontend + Nginx | ~0.2 GB | 경량 |
+| Observability (Prometheus, Grafana, Loki, Jaeger) | ~1.5 GB | 메모리 부족 시 생략 가능 |
+| OS + Docker 오버헤드 | ~2 GB | |
+| **합계** | **~12 GB** | 16GB에서 여유 ~4GB |
+
+> 12GB RAM에서도 Observability 스택(Prometheus, Grafana, Loki, Promtail, Jaeger)을 제외하면 핵심 서비스 운영이 가능합니다. 16GB RAM에서는 전체 18개 컨테이너를 동시 운영할 수 있습니다.
 
 ### 1.3 WSL2 설정 (Windows)
 
@@ -94,8 +112,10 @@ hybrid-rag-knowledge-ops/
 │   ├── docker-compose.yml      # 메인 Compose 파일
 │   ├── docker-compose.wsl2.yml # WSL2 오버라이드
 │   ├── .env                    # 환경변수
-│   └── nginx/                  # Nginx 설정
+│   ├── nginx/                  # Nginx 설정
+│   └── keycloak/               # Keycloak Realm 설정
 ├── scripts/                    # 공통 유틸 스크립트
+│   └── startup_check.sh        # 기동 후 자동 점검 스크립트
 ├── CLAUDE.md                   # Claude Code 규칙
 ├── PLAN.md                     # 프로젝트 계획
 └── README.md                   # 프로젝트 소개
@@ -131,7 +151,29 @@ cp .env.example .env
 3. API Keys 메뉴에서 키 생성
 4. `.env` 파일의 `DEEPSEEK_API_KEY`에 입력
 
-### 3.2 포트 충돌 확인
+### 3.2 환경변수 필수 항목 체크리스트
+
+아래 변수들이 `.env` 파일에 올바르게 설정되어 있는지 확인합니다.
+
+| 변수 | 필수 여부 | 설명 | 주의사항 |
+|------|:--------:|------|---------|
+| `DEEPSEEK_API_KEY` | **필수** | DeepSeek LLM API 키 | 미설정 시 검색 QA 및 엔티티 추출 불가 |
+| `JWT_SECRET` | **필수** | JWT 토큰 서명 키 | 최소 32자, 프로덕션에서 반드시 변경 |
+| `DB_PASSWORD` | **필수** | PostgreSQL 비밀번호 | |
+| `NEO4J_PASSWORD` | **필수** | Neo4j 비밀번호 | |
+| `KEYCLOAK_ADMIN_PASSWORD` | **필수** | Keycloak 관리자 비밀번호 | |
+| `KEYCLOAK_DB_PASSWORD` | **필수** | Keycloak 전용 DB 비밀번호 | |
+| `MINIO_SECRET_KEY` | **필수** | MinIO 오브젝트 스토리지 비밀번호 | |
+| `GRAFANA_ADMIN_PASSWORD` | 선택 | Grafana 관리자 비밀번호 | 기본값: `test1234` |
+| `REDIS_PASSWORD` | 선택 | Redis 비밀번호 | 개발 환경: 빈 문자열 |
+
+```bash
+# 필수 변수 설정 여부 빠른 확인
+cd infrastructure/docker
+grep -E "^(DEEPSEEK_API_KEY|JWT_SECRET|DB_PASSWORD|NEO4J_PASSWORD|KEYCLOAK_ADMIN_PASSWORD)=" .env
+```
+
+### 3.3 포트 충돌 확인
 
 기본 포트가 다른 서비스와 충돌하는 경우 `.env` 파일에서 변경할 수 있습니다.
 
@@ -149,7 +191,7 @@ ss -tlnp | grep -E ":(80|443|8000|8080|8081|8180|9200|5601|7474|6379|9090|3001|1
 | 5601 | kibana | `KIBANA_PORT` |
 | 3001 | grafana | `GRAFANA_PORT` |
 
-### 3.3 Docker 이미지 사전 Pull (선택)
+### 3.4 Docker 이미지 사전 Pull (선택)
 
 기동 시간을 단축하려면 이미지를 미리 다운로드합니다.
 
@@ -160,9 +202,114 @@ docker compose pull
 
 ---
 
-## 4. Docker Compose 기동
+## 4. Keycloak 설정
 
-### 4.1 전체 기동
+### 4.1 Realm 개요
+
+Keycloak SSO 인증은 `hybrid-rag` Realm으로 구성되어 있습니다.
+
+| 항목 | 값 |
+|------|-----|
+| **Realm** | `hybrid-rag` |
+| **Admin Console** | http://localhost:8180/admin |
+| **Admin 계정** | `admin` / `keycloak_admin_2026!` |
+
+### 4.2 Realm 자동 Import
+
+Docker Compose 기동 시 Keycloak은 `infrastructure/docker/keycloak/realm-export.json` 파일을 자동으로 import합니다. 수동 설정은 불필요합니다.
+
+**Import 파일 경로**: `infrastructure/docker/keycloak/realm-export.json`
+
+이 파일에는 다음이 포함되어 있습니다:
+- Realm 기본 설정 (보안 정책, 세션 타임아웃 등)
+- Client 정의 (frontend, backend, ai-service)
+- Role 정의 (admin, user, viewer)
+- Group 정의 (Administrators, Users, Viewers)
+
+### 4.3 Client 설정
+
+| Client ID | 유형 | 용도 | 비고 |
+|-----------|------|------|------|
+| `frontend` | Public | React SPA 프론트엔드 | PKCE (S256) 적용 |
+| `backend` | Confidential | Spring Boot 백엔드 | Service Account 활성화 |
+| `ai-service` | Confidential | FastAPI AI Service | 벡터/그래프 검색 권한 |
+
+**Frontend Client 상세**:
+
+| 설정 | 값 |
+|------|-----|
+| Client ID | `frontend` |
+| Client Type | Public (publicClient: true) |
+| Standard Flow | 활성화 |
+| Direct Access Grants | 활성화 |
+| PKCE | S256 |
+| Redirect URIs | `http://localhost/*`, `http://localhost:3000/*` |
+| Web Origins | `http://localhost`, `http://localhost:3000` |
+
+### 4.4 사전 생성 계정
+
+| 서비스 | ID | Password | Role | 용도 |
+|--------|-----|----------|------|------|
+| Keycloak SSO | `admin` | `admin123` | admin | 관리자 SSO 로그인 |
+| Keycloak SSO | `test` | `password123` | user | 일반 사용자 테스트 |
+| AI Service | `admin@example.com` | `admin123!` | admin | JWT 직접 로그인 |
+
+### 4.5 수동 Realm 설정 (필요 시)
+
+자동 import가 실패한 경우 수동으로 설정합니다:
+
+```bash
+# 1. Keycloak Admin Console 접속
+# http://localhost:8180/admin (admin / keycloak_admin_2026!)
+
+# 2. 좌측 메뉴 > Realm 생성
+#    Name: hybrid-rag
+
+# 3. Clients > Create client
+#    Client ID: frontend
+#    Client type: OpenID Connect
+#    Public: ON (Client authentication: OFF)
+
+# 4. Realm Settings > Login
+#    Login with email: ON
+
+# 5. realm-export.json을 Realm settings > Action > Partial import로 로드
+```
+
+---
+
+## 5. Docker Compose 기동
+
+### 5.1 사전 점검 (startup_check.sh)
+
+기동 전 환경이 올바르게 준비되었는지 자동으로 점검하는 스크립트가 제공됩니다.
+
+**스크립트 위치**: `scripts/startup_check.sh`
+
+```bash
+# 사용법
+bash scripts/startup_check.sh [--skip-compose] [--verbose]
+```
+
+| 옵션 | 설명 |
+|------|------|
+| (옵션 없음) | docker-compose up -d 실행 후 전체 점검 |
+| `--skip-compose` | docker-compose up 건너뛰기 (이미 기동된 상태에서 점검만) |
+| `--verbose` | 상세 디버그 로그 출력 |
+
+**점검 항목 (5 Phase)**:
+
+| Phase | 점검 내용 |
+|-------|----------|
+| Phase 1 | Docker 데몬, docker-compose.yml, .env 존재 확인. DB 4종 (ES, PG, Neo4j, Redis) 헬스체크 |
+| Phase 2 | ai-service 헬스체크, ES/Neo4j/PG 연결 확인. 실패 시 자동 재시작 1회 시도 |
+| Phase 3 | JWT 로그인 후 Keyword/Hybrid/Semantic 3종 검색 테스트. 실패 시 Redis FLUSHALL + 재시도 |
+| Phase 4 | Nori 한국어 분석기 동작 확인 (`_analyze` API) |
+| Phase 5 | 18개 컨테이너 상태 리포트, PASS/FAIL/WARN 집계 |
+
+**WSL2 자동 감지**: WSL2 환경에서 실행 시 `docker-compose.wsl2.yml` 오버라이드를 자동 적용합니다.
+
+### 5.2 전체 기동
 
 ```bash
 cd infrastructure/docker
@@ -173,7 +320,17 @@ docker compose up -d
 
 첫 실행 시 Docker 이미지 빌드와 Pull이 진행되어 10~20분 소요될 수 있습니다.
 
-### 4.2 기동 확인
+### 5.3 자동 점검 스크립트로 기동 + 검증 (권장)
+
+```bash
+# 기동 + 점검을 한 번에 실행
+bash scripts/startup_check.sh
+
+# 이미 기동된 상태에서 점검만
+bash scripts/startup_check.sh --skip-compose --verbose
+```
+
+### 5.4 기동 확인
 
 ```bash
 # 방법 1: 자동 점검 스크립트 (권장)
@@ -209,7 +366,7 @@ kp-promtail        Up 5 minutes
 
 > `kp-promtail`은 healthcheck가 없으므로 `(healthy)` 표시가 나지 않습니다. 정상입니다.
 
-### 4.3 WSL2 오버라이드 (자동 적용)
+### 5.5 WSL2 오버라이드 (자동 적용)
 
 `startup_check.sh`는 WSL2 환경을 자동 감지하여 `docker-compose.wsl2.yml` 오버라이드를 적용합니다. 수동으로 적용하려면:
 
@@ -217,7 +374,7 @@ kp-promtail        Up 5 minutes
 docker compose -f docker-compose.yml -f docker-compose.wsl2.yml up -d
 ```
 
-### 4.4 메모리 부족 시 선택적 기동
+### 5.6 메모리 부족 시 선택적 기동
 
 16GB 미만 환경에서는 핵심 서비스만 기동합니다.
 
@@ -229,9 +386,9 @@ docker compose up -d postgresql neo4j elasticsearch redis \
 
 ---
 
-## 5. 초기 데이터 설정
+## 6. 초기 데이터 설정
 
-### 5.1 DB 스키마 생성
+### 6.1 DB 스키마 생성
 
 Docker Compose 기동 시 `init-db` 서비스가 자동으로 스키마를 생성합니다. 수동으로 실행하려면:
 
@@ -250,7 +407,7 @@ python src/scripts/init_databases.py
 - Elasticsearch: `knowledge_chunks` 인덱스 (Nori 한국어 분석기 매핑)
 - Neo4j: 제약조건 및 인덱스
 
-### 5.2 ES 인덱스 매핑 확인
+### 6.2 ES 인덱스 매핑 확인
 
 ```bash
 # 인덱스 존재 확인
@@ -268,7 +425,7 @@ curl -s -X POST "http://localhost:9200/knowledge_chunks/_analyze" \
 
 > `knowledge_chunks` 인덱스는 Custom Elasticsearch 이미지에 포함된 `analysis-nori` 플러그인을 사용합니다. Nori 플러그인이 미설치된 상태에서는 한국어 형태소 분석이 작동하지 않습니다.
 
-### 5.3 기본 사용자 계정
+### 6.3 기본 사용자 계정
 
 시스템 기동 시 자동 생성되는 계정:
 
@@ -280,11 +437,11 @@ curl -s -X POST "http://localhost:9200/knowledge_chunks/_analyze" \
 
 ---
 
-## 6. ETL 초기 실행
+## 7. ETL 초기 실행
 
 시스템에 검색할 문서를 넣으려면 3-Phase ETL 파이프라인을 실행해야 합니다.
 
-### 6.1 문서 업로드
+### 7.1 문서 업로드
 
 MinIO Console(http://localhost:9001)에 접속하여 `documents` 버킷에 문서를 업로드합니다.
 
@@ -293,7 +450,7 @@ MinIO Console(http://localhost:9001)에 접속하여 `documents` 버킷에 문�
 
 또는 지정된 디렉토리에 문서 파일을 배치합니다.
 
-### 6.2 3-Phase ETL 실행
+### 7.2 3-Phase ETL 실행
 
 **Phase 1: 파싱 + 청킹 (CPU, ~6시간)**
 
@@ -329,7 +486,7 @@ docker exec kp-ai-service bash -c \
 
 > Phase 3은 DeepSeek API를 호출하므로 비용이 발생합니다 (약 $52/23,074건).
 
-### 6.3 ETL 완료 확인
+### 7.3 ETL 완료 확인
 
 ```bash
 # ES 청크 수
@@ -346,9 +503,9 @@ docker exec kp-neo4j cypher-shell -u neo4j -p 'neo4j_dev_2026!' \
 
 ---
 
-## 7. 기동 검증
+## 8. 기동 검증
 
-### 7.1 자동 점검 (startup_check.sh)
+### 8.1 자동 점검 (startup_check.sh)
 
 가장 확실한 검증 방법입니다.
 
@@ -363,7 +520,7 @@ bash scripts/startup_check.sh --skip-compose --verbose
 - Nori 한국어 분석기 동작 확인
 - 전체 컨테이너 상태 리포트
 
-### 7.2 수동 Health Check
+### 8.2 수동 Health Check
 
 ```bash
 # ai-service 종합 상태
@@ -381,7 +538,7 @@ curl -s http://localhost:8000/api/v1/health | python3 -m json.tool
 # }
 ```
 
-### 7.3 검색 테스트
+### 8.3 검색 테스트
 
 ```bash
 # 1. JWT 로그인 (임시 파일 방식 - bash ! 이스케이프 방지)
@@ -403,9 +560,9 @@ curl -s -X POST http://localhost:8000/api/v1/search/hybrid \
 
 ---
 
-## 8. 트러블슈팅
+## 9. 트러블슈팅
 
-### 8.1 Docker Compose 기동 실패
+### 9.1 Docker Compose 기동 실패
 
 | 증상 | 원인 | 해결 |
 |------|------|------|
@@ -413,7 +570,7 @@ curl -s -X POST http://localhost:8000/api/v1/search/hybrid \
 | `image not found` | 이미지 빌드 실패 | `docker compose build --no-cache <서비스>` |
 | `network not found` | 네트워크 누락 | `docker compose down && docker network prune -f && docker compose up -d` |
 
-### 8.2 ai-service 기동 실패
+### 9.2 ai-service 기동 실패
 
 | 증상 | 원인 | 해결 |
 |------|------|------|
@@ -422,7 +579,7 @@ curl -s -X POST http://localhost:8000/api/v1/search/hybrid \
 | `ModuleNotFoundError` | Python 패키지 누락 | `docker compose build --no-cache ai-service` |
 | 모델 로드 실패 | HuggingFace 캐시 문제 | 컨테이너 재시작 후 모델 재다운로드 대기 (2-3분) |
 
-### 8.3 ES 인덱스 생성 실패
+### 9.3 ES 인덱스 생성 실패
 
 ```bash
 # 인덱스 수동 생성 (init-db가 실패한 경우)
@@ -434,7 +591,7 @@ print('Index created successfully')
 "
 ```
 
-### 8.4 검색 결과 0건
+### 9.4 검색 결과 0건
 
 ```bash
 # 1. ES에 데이터가 있는지 확인
@@ -454,7 +611,7 @@ print(json.dumps(d.get('dependencies',{}),indent=2))
 docker compose restart ai-service
 ```
 
-### 8.5 Nori 분석기 미동작
+### 9.5 Nori 분석기 미동작
 
 ```bash
 # 확인: text 필드의 analyzer가 korean_analyzer인지
@@ -469,7 +626,7 @@ curl -s "http://localhost:9200/knowledge_chunks/_mapping" | \
 # 상세: docs/04_testing/15_user_test_2026-02-18/00_pre_check_report.md
 ```
 
-### 8.6 Windows/WSL2 관련 문제
+### 9.6 Windows/WSL2 관련 문제
 
 | 증상 | 해결 |
 |------|------|
@@ -478,7 +635,7 @@ curl -s "http://localhost:9200/knowledge_chunks/_mapping" | \
 | 네트워크 느림 | `.wslconfig`에서 `networkingMode=mirrored` 설정 |
 | 디스크 부족 | `docker system prune -f`, WSL2 vdisk 축소 (diskpart compact) |
 
-### 8.7 전체 초기화 (최후의 수단)
+### 9.7 전체 초기화 (최후의 수단)
 
 모든 데이터를 삭제하고 처음부터 시작합니다.
 
@@ -501,4 +658,4 @@ docker compose --profile init up init-db
 
 ---
 
-*작성: Claude Code (Opus 4.6) | 2026-02-18*
+*작성: Claude Code (Opus 4.6) | 2026-02-19*

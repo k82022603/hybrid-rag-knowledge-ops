@@ -681,20 +681,22 @@ const DocumentUploadPage: React.FC = () => {
    *   - timeout: server-side 5-minute timeout
    */
   const sseActiveRef = useRef<Set<string>>(new Set());
+  const sseFailedRef = useRef<Set<string>>(new Set());
   const pollCountRef = useRef<Record<string, number>>({});
 
   // Primary: SSE streaming
   useEffect(() => {
     const eventSources: Map<string, EventSource> = new Map();
 
-    // SSE 연결이 필요한 파일들 (업로드 완료 + processing 중 + SSE 미연결)
+    // SSE 연결이 필요한 파일들 (업로드 완료 + processing 중 + SSE 미연결 + SSE 미실패)
     const processingFiles = files.filter(
       (f) =>
         f.status === 'completed' &&
         f.documentId &&
         f.processingStatus &&
         !['completed', 'failed'].includes(f.processingStatus) &&
-        !sseActiveRef.current.has(f.id)
+        !sseActiveRef.current.has(f.id) &&
+        !sseFailedRef.current.has(f.id)
     );
 
     for (const file of processingFiles) {
@@ -750,10 +752,13 @@ const DocumentUploadPage: React.FC = () => {
       });
 
       es.addEventListener('error', () => {
-        // SSE 연결 실패 시 정리 (REST 폴링 fallback이 처리)
+        // SSE 연결 실패 시 정리 → REST 폴링 fallback으로 전환
         es.close();
         eventSources.delete(file.id);
         sseActiveRef.current.delete(file.id);
+        sseFailedRef.current.add(file.id);
+        // 상태 업데이트로 폴링 effect 재평가 트리거
+        setFiles((prev) => [...prev]);
       });
 
       es.addEventListener('timeout', () => {
@@ -874,6 +879,7 @@ const DocumentUploadPage: React.FC = () => {
     // Clean up poll counts and SSE tracking for cleared files
     pollCountRef.current = {};
     sseActiveRef.current.clear();
+    sseFailedRef.current.clear();
   }, []);
 
   const pendingCount = files.filter((f) => f.status === 'pending').length;

@@ -4,8 +4,8 @@
 **Base URL**: `http://localhost:8000/api/v1`
 **인증**: Bearer Token (JWT)
 **API 문서 (Swagger UI)**: `http://localhost:8000/docs`
-**작성일**: 2026-02-18
-**버전**: 1.0
+**작성일**: 2026-02-19
+**버전**: 1.1
 
 ---
 
@@ -16,9 +16,10 @@
 3. [검색 API](#3-검색-api)
 4. [문서 API](#4-문서-api)
 5. [Knowledge Graph API](#5-knowledge-graph-api)
-6. [임베딩/추출 API](#6-임베딩추출-api)
-7. [캐시 API](#7-캐시-api)
-8. [시스템 API](#8-시스템-api)
+6. [임베딩 API](#6-임베딩-api)
+7. [추출 API](#7-추출-api)
+8. [캐시 API](#8-캐시-api)
+9. [시스템 API](#9-시스템-api)
 
 ---
 
@@ -55,9 +56,13 @@ Authorization: Bearer <access_token>
 | 코드 | 설명 |
 |------|------|
 | `200` | 성공 |
+| `201` | 생성 성공 (문서 업로드) |
+| `202` | 수락됨 (비동기 처리 시작) |
 | `400` | 잘못된 요청 (입력 검증 실패) |
 | `401` | 인증 실패 (토큰 없음/만료/무효) |
 | `404` | 리소스를 찾을 수 없음 |
+| `409` | 충돌 (이미 처리 중/완료된 문서) |
+| `413` | 파일 크기 초과 |
 | `422` | 유효성 검증 실패 (Pydantic) |
 | `429` | Rate Limit 초과 |
 | `500` | 서버 내부 오류 |
@@ -73,8 +78,8 @@ Authorization: Bearer <access_token>
   "documents": [...],
   "total": 1437,
   "page": 1,
-  "page_size": 10,
-  "total_pages": 144
+  "page_size": 20,
+  "total_pages": 72
 }
 ```
 
@@ -332,6 +337,9 @@ BGE-M3 벡터 기반 시맨틱 검색을 수행합니다 (Elasticsearch kNN).
 | `top_k` | integer | N | 10 | 반환할 결과 수 (1~100) |
 | `filters` | object | N | null | 필터 조건 |
 
+> **참고**: 시맨틱 검색은 `useGraph`, `useVector` 파라미터를 지원하지 않습니다.
+> 키워드/하이브리드 검색만 이 파라미터를 사용합니다.
+
 **Response** (`200 OK`): `SearchResponse`와 동일 구조. `search_type`은 `semantic`.
 
 **curl 예제**:
@@ -506,6 +514,12 @@ curl -N -X POST http://localhost:8000/api/v1/search/chat/stream \
 | `updatedAt` | string | 마지막 업데이트 시간 |
 | `lastQuery` | string | 마지막 질문 |
 
+**에러**:
+
+| 코드 | 설명 |
+|------|------|
+| `404` | 대화 세션을 찾을 수 없음 |
+
 ### 3.7 DELETE /search/conversations/{conversation_id}
 
 대화 세션을 삭제합니다.
@@ -521,23 +535,30 @@ curl -N -X POST http://localhost:8000/api/v1/search/chat/stream \
 }
 ```
 
+**에러**:
+
+| 코드 | 설명 |
+|------|------|
+| `404` | 대화 세션을 찾을 수 없음 |
+
 ---
 
 ## 4. 문서 API
 
 ### 4.1 GET /documents
 
-문서 목록을 조회합니다.
+문서 목록을 페이지네이션으로 조회합니다.
 
-**인증**: Bearer Token
+**인증**: 불필요 (인증 없이 접근 가능)
 
 **Query Parameters**:
 
 | 필드 | 타입 | 기본값 | 설명 |
 |------|------|:------:|------|
-| `limit` | integer | 10 | 페이지당 문서 수 |
-| `offset` | integer | 0 | 시작 위치 |
-| `status` | string | null | 상태 필터 (completed, processing, failed) |
+| `page` | integer | 1 | 페이지 번호 (1 이상) |
+| `page_size` | integer | 20 | 페이지당 문서 수 (1~100) |
+| `status` | string | null | 상태 필터 (queued, processing, parsing, chunking, embedding, storing, extracting, completed, failed) |
+| `format` | string | null | 형식 필터 (pdf, docx, hwp, pptx, md, txt, log, html, svg, ipynb) |
 
 **Response** (`200 OK`) - `DocumentListResponse`:
 
@@ -563,7 +584,7 @@ curl -N -X POST http://localhost:8000/api/v1/search/chat/stream \
 **curl 예제**:
 
 ```bash
-curl -s "http://localhost:8000/api/v1/documents?limit=5" \
+curl -s "http://localhost:8000/api/v1/documents?page=1&page_size=5" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -590,67 +611,231 @@ curl -s "http://localhost:8000/api/v1/documents?limit=5" \
 
 ### 4.2 POST /documents/upload
 
-문서를 업로드합니다.
+문서를 업로드합니다. 업로드 후 자동으로 처리 파이프라인이 트리거됩니다.
 
-**인증**: 불필요 (파일 업로드)
+**인증**: Bearer Token
 
 **Request**: `multipart/form-data`
 
 | 필드 | 타입 | 필수 | 설명 |
 |------|------|:----:|------|
 | `file` | file | Y | 업로드할 파일 |
-| `source_name` | string | N | 소스 이름 |
-| `doc_type` | string | N | 문서 유형 |
+| `metadata` | string (JSON) | N | 메타데이터 JSON (title, description, tags, project_name) |
 
-**지원 형식**: PDF, DOCX, PPTX, HWP, MD, TXT, HTML, SVG, IPYNB
+**지원 형식 및 최대 크기**:
+
+| 형식 | 확장자 | 최대 크기 |
+|------|--------|----------|
+| PDF | `.pdf` | 100MB |
+| PPTX | `.pptx` | 100MB |
+| DOCX | `.docx` | 50MB |
+| HWP | `.hwp` | 50MB |
+| IPYNB | `.ipynb` | 50MB |
+| Markdown | `.md` | 10MB |
+| TXT | `.txt` | 10MB |
+| LOG | `.log` | 10MB |
+| HTML | `.html`, `.htm` | 10MB |
+| SVG | `.svg` | 10MB |
+
+**Response** (`201 Created`) - `DocumentResponse`:
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `document_id` | string (UUID) | 문서 고유 ID |
+| `filename` | string | 보안 처리된 파일명 |
+| `format` | string | 감지된 문서 형식 |
+| `size_bytes` | integer | 파일 크기 (바이트) |
+| `status` | string | 처리 상태 (`queued`) |
+| `status_url` | string | 상태 조회 URL |
+| `created_at` | string | 업로드 시간 (ISO 8601) |
+| `metadata` | object | 메타데이터 (제공된 경우) |
+
+**에러**:
+
+| 코드 | 설명 |
+|------|------|
+| `400` | 지원하지 않는 파일 형식, 빈 파일, 파일 크기 너무 작음 (<100B), 잘못된 메타데이터 |
+| `413` | 파일 크기 초과 |
 
 **curl 예제**:
 
 ```bash
 curl -s -X POST http://localhost:8000/api/v1/documents/upload \
+  -H "Authorization: Bearer $TOKEN" \
   -F "file=@/path/to/document.pdf" \
-  -F "source_name=업무문서"
+  -F 'metadata={"title":"프로젝트 계획서","tags":["프로젝트","계획"]}'
 ```
 
 ### 4.3 GET /documents/{document_id}/status
 
-특정 문서의 처리 상태를 조회합니다.
+특정 문서의 처리 상태를 조회합니다. PostgreSQL fallback을 지원하여 컨테이너 재시작 후에도 조회 가능합니다.
 
 **인증**: 불필요
 
-**Response** (`200 OK`) - `DocumentStatusResponse`
+**Path Parameter**:
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `document_id` | string (UUID) | 문서 ID |
+
+**Response** (`200 OK`) - `DocumentStatusResponse`:
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `document_id` | string (UUID) | 문서 ID |
+| `status` | string | 처리 상태 (queued, processing, parsing, chunking, embedding, storing, extracting, completed, failed) |
+| `progress_percent` | integer | 진행률 (0~100) |
+| `error_message` | string | 에러 메시지 (실패 시) |
+| `updated_at` | string | 마지막 업데이트 시간 |
+
+**에러**:
+
+| 코드 | 설명 |
+|------|------|
+| `404` | 문서를 찾을 수 없음 |
+
+**curl 예제**:
+
+```bash
+curl -s http://localhost:8000/api/v1/documents/9ef52538-cfd0-4193-b36d-23d47a596d02/status
+```
 
 ### 4.4 POST /documents/{document_id}/process
 
-문서 처리를 트리거합니다 (파싱, 청킹, 임베딩).
+문서 처리를 수동으로 트리거합니다 (파싱, 청킹, 임베딩, 저장). 처리는 비동기로 진행됩니다.
 
-**인증**: 불필요
+**인증**: Bearer Token
+
+**Response** (`202 Accepted`):
+
+```json
+{
+  "document_id": "9ef52538-...",
+  "status": "accepted",
+  "message": "문서 처리가 시작되었습니다",
+  "status_url": "/api/v1/documents/9ef52538-.../status"
+}
+```
+
+**에러**:
+
+| 코드 | 설명 |
+|------|------|
+| `404` | 문서를 찾을 수 없음 |
+| `409` | 이미 처리 중인 문서 |
+
+**curl 예제**:
+
+```bash
+curl -s -X POST http://localhost:8000/api/v1/documents/9ef52538-cfd0-4193-b36d-23d47a596d02/process \
+  -H "Authorization: Bearer $TOKEN"
+```
 
 ### 4.5 POST /documents/{document_id}/retry
 
-실패한 문서를 재처리합니다.
+실패한 문서를 재처리합니다. 상태를 queued로 초기화하고 파이프라인을 다시 실행합니다. `failed` 또는 `completed` 상태의 문서만 재시도 가능합니다.
 
-**인증**: 불필요
+**인증**: Bearer Token
+
+**Response** (`202 Accepted`):
+
+```json
+{
+  "document_id": "9ef52538-...",
+  "status": "accepted",
+  "message": "문서 재처리가 시작되었습니다",
+  "previous_status": "failed",
+  "status_url": "/api/v1/documents/9ef52538-.../status"
+}
+```
+
+**에러**:
+
+| 코드 | 설명 |
+|------|------|
+| `404` | 문서를 찾을 수 없음 |
+| `409` | 재시도할 수 없는 상태 (failed 또는 completed만 가능) |
+
+**curl 예제**:
+
+```bash
+curl -s -X POST http://localhost:8000/api/v1/documents/9ef52538-cfd0-4193-b36d-23d47a596d02/retry \
+  -H "Authorization: Bearer $TOKEN"
+```
 
 ### 4.6 POST /documents/process-pending
 
 대기 중인 모든 문서를 일괄 처리합니다.
 
-**인증**: 불필요
+**인증**: Bearer Token
+
+**Query Parameters**:
+
+| 필드 | 타입 | 기본값 | 설명 |
+|------|------|:------:|------|
+| `batch_size` | integer | 5 | 한 번에 처리할 문서 수 (1~20) |
+
+**Response** (`202 Accepted`):
+
+```json
+{
+  "count": 3,
+  "status": "accepted",
+  "message": "3개 문서 처리가 시작되었습니다",
+  "document_ids": ["uuid-1", "uuid-2", "uuid-3"]
+}
+```
+
+**curl 예제**:
+
+```bash
+curl -s -X POST "http://localhost:8000/api/v1/documents/process-pending?batch_size=10" \
+  -H "Authorization: Bearer $TOKEN"
+```
 
 ### 4.7 GET /documents/{document_id}/download
 
-원본 문서 다운로드 URL을 조회합니다.
+원본 문서 다운로드 URL을 조회합니다. MinIO presigned URL 또는 로컬 파일로 리다이렉트합니다.
 
 **인증**: 불필요
 
+**Response**: `302 Redirect` (MinIO presigned URL) 또는 `FileResponse` (로컬 파일)
+
+**에러**:
+
+| 코드 | 설명 |
+|------|------|
+| `404` | 문서를 찾을 수 없음 또는 파일이 서버에 존재하지 않음 |
+
+**curl 예제**:
+
+```bash
+curl -s -L http://localhost:8000/api/v1/documents/9ef52538-cfd0-4193-b36d-23d47a596d02/download \
+  -o downloaded_document.pdf
+```
+
 ### 4.8 GET /documents/{document_id}/status/stream
 
-문서 처리 상태를 SSE 스트리밍으로 모니터링합니다.
+문서 처리 상태를 SSE 스트리밍으로 모니터링합니다. 1초 간격으로 상태를 전송하며, `completed` 또는 `failed` 시 스트림이 종료됩니다. 최대 5분 타임아웃.
 
 **인증**: 불필요
 
 **Response**: `text/event-stream`
+
+**SSE 이벤트 유형**:
+
+| 이벤트 | 설명 |
+|--------|------|
+| `status` | 상태 업데이트 (document_id, status, progress_percent, error_message, updated_at) |
+| `done` | 처리 완료 (final_status) |
+| `error` | 오류 발생 |
+| `timeout` | 5분 타임아웃 |
+
+**curl 예제**:
+
+```bash
+curl -N http://localhost:8000/api/v1/documents/9ef52538-cfd0-4193-b36d-23d47a596d02/status/stream
+```
 
 ---
 
@@ -678,6 +863,12 @@ curl -s -X POST http://localhost:8000/api/v1/documents/upload \
 | `labels` | string[] | Neo4j 라벨 |
 | `properties` | object | 추가 속성 |
 
+**에러**:
+
+| 코드 | 설명 |
+|------|------|
+| `404` | 엔티티를 찾을 수 없음 |
+
 **curl 예제**:
 
 ```bash
@@ -695,7 +886,7 @@ curl -s "http://localhost:8000/api/v1/graph/entities/Kubernetes" \
 
 | 필드 | 타입 | 필수 | 기본값 | 설명 |
 |------|------|:----:|:------:|------|
-| `entity_name` | string | Y | - | 중심 엔티티 이름 |
+| `entity_name` | string | Y | - | 중심 엔티티 이름 (1~200자) |
 | `depth` | integer | N | 2 | 탐색 깊이 (1~5) |
 | `limit` | integer | N | 50 | 최대 노드 수 (1~200) |
 
@@ -744,10 +935,10 @@ curl -s -X POST http://localhost:8000/api/v1/graph/subgraph \
 | 필드 | 타입 | 설명 |
 |------|------|------|
 | `name` | string | 전문가 이름 |
-| `expertise` | string[] | 전문 분야 목록 |
-| `score` | number | 관련성 점수 |
+| `expertise` | string[] | 전문 분야 목록 (최대 10개) |
+| `score` | number | 관련성 점수 (0~1) |
 | `description` | string | 전문가 설명 |
-| `related_projects` | string[] | 관련 프로젝트 |
+| `related_projects` | string[] | 관련 프로젝트 (최대 5개) |
 
 **curl 예제**:
 
@@ -760,83 +951,322 @@ curl -s -X POST http://localhost:8000/api/v1/graph/experts \
 
 ---
 
-## 6. 임베딩/추출 API
+## 6. 임베딩 API
 
 ### 6.1 POST /embed
 
-단일 텍스트에 대한 임베딩 벡터를 생성합니다.
+단일 텍스트에 대한 임베딩 벡터를 생성합니다 (BGE-M3 모델).
 
-**인증**: 불필요
+**인증**: Bearer Token
 
 **Request Body**:
 
 | 필드 | 타입 | 필수 | 설명 |
 |------|------|:----:|------|
-| `text` | string | Y | 임베딩할 텍스트 |
+| `text` | string | Y | 임베딩할 텍스트 (1~10000자) |
+
+**Response** (`200 OK`) - `EmbedResponse`:
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `embedding` | float[] | Dense 임베딩 벡터 |
+| `dimension` | integer | 벡터 차원 (1024) |
+
+**curl 예제**:
+
+```bash
+curl -s -X POST http://localhost:8000/api/v1/embed \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"text":"프로젝트 관리 방법론"}'
+```
 
 ### 6.2 POST /embed/batch
 
 여러 텍스트에 대한 배치 임베딩을 수행합니다.
 
-**인증**: 불필요
+**인증**: Bearer Token
 
-### 6.3 POST /extract/entities
+**Request Body**:
 
-텍스트에서 엔티티를 추출합니다 (DeepSeek V3.2 기반).
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|:----:|------|
+| `texts` | string[] | Y | 임베딩할 텍스트 목록 (1~100개) |
 
-**인증**: 불필요
+**Response** (`200 OK`) - `EmbedBatchResponse`:
 
-### 6.4 POST /extract/metadata
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `embeddings` | float[][] | 임베딩 벡터 목록 |
+| `dimension` | integer | 벡터 차원 (1024) |
+| `count` | integer | 처리된 텍스트 수 |
 
-텍스트에서 메타데이터를 추출합니다.
+**curl 예제**:
 
-**인증**: 불필요
-
-### 6.5 POST /extract/full
-
-엔티티 + 메타데이터 통합 추출을 수행합니다.
-
-**인증**: 불필요
+```bash
+curl -s -X POST http://localhost:8000/api/v1/embed/batch \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"texts":["프로젝트 관리","품질 보증","테스트 전략"]}'
+```
 
 ---
 
-## 7. 캐시 API
+## 7. 추출 API
 
-### 7.1 GET /cache/status
+### 7.1 POST /extract/entities
 
-캐시 상태를 확인합니다.
+텍스트에서 엔티티 및 관계를 추출합니다 (DeepSeek V3.2 기반, Gleaning 지원).
 
 **인증**: Bearer Token
 
-### 7.2 GET /cache/stats
+**Request Body**:
+
+| 필드 | 타입 | 필수 | 기본값 | 설명 |
+|------|------|:----:|:------:|------|
+| `text` | string | Y | - | 추출 대상 텍스트 (10~50000자) |
+| `enable_gleaning` | boolean | N | true | Gleaning 활성화 여부 |
+| `document_id` | string | N | null | 문서 ID (선택) |
+
+**Response** (`200 OK`) - `ExtractEntitiesResponse`:
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `entities` | Entity[] | 추출된 엔티티 목록 |
+| `relationships` | Relationship[] | 추출된 관계 목록 |
+| `gleaning_passes` | integer | Gleaning 수행 횟수 |
+| `entity_count` | integer | 추출된 엔티티 수 |
+| `relationship_count` | integer | 추출된 관계 수 |
+
+**curl 예제**:
+
+```bash
+curl -s -X POST http://localhost:8000/api/v1/extract/entities \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Kubernetes는 컨테이너 오케스트레이션 플랫폼입니다...","enable_gleaning":true}'
+```
+
+### 7.2 POST /extract/metadata
+
+텍스트에서 메타데이터를 추출합니다 (문서 유형, 카테고리, 요약 등).
+
+**인증**: Bearer Token
+
+**Request Body**:
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|:----:|------|
+| `text` | string | Y | 추출 대상 텍스트 (10~50000자) |
+| `filename` | string | N | 원본 파일명 (힌트용) |
+
+**Response** (`200 OK`) - `ExtractMetadataResponse`:
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `metadata` | DocumentMetadata | 추출된 메타데이터 (문서 유형, 프로젝트명, 유효 기간, 카테고리, 핵심 요약) |
+
+**curl 예제**:
+
+```bash
+curl -s -X POST http://localhost:8000/api/v1/extract/metadata \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"text":"본 문서는 2026년 프로젝트 추진 계획을 기술합니다...","filename":"계획서_v1.0.docx"}'
+```
+
+### 7.3 POST /extract/full
+
+엔티티 + 관계 + 메타데이터를 한 번의 요청으로 통합 추출합니다.
+
+**인증**: Bearer Token
+
+**Request Body**:
+
+| 필드 | 타입 | 필수 | 기본값 | 설명 |
+|------|------|:----:|:------:|------|
+| `text` | string | Y | - | 추출 대상 텍스트 (10~50000자) |
+| `enable_gleaning` | boolean | N | true | Gleaning 활성화 여부 |
+| `filename` | string | N | null | 원본 파일명 |
+| `document_id` | string | N | null | 문서 ID (선택) |
+
+**Response** (`200 OK`) - `FullExtractionResponse`:
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `entities` | Entity[] | 추출된 엔티티 목록 |
+| `relationships` | Relationship[] | 추출된 관계 목록 |
+| `metadata` | DocumentMetadata | 추출된 메타데이터 |
+| `entity_count` | integer | 추출된 엔티티 수 |
+| `relationship_count` | integer | 추출된 관계 수 |
+
+**curl 예제**:
+
+```bash
+curl -s -X POST http://localhost:8000/api/v1/extract/full \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Kubernetes 기반 마이크로서비스 아키텍처...","enable_gleaning":true,"filename":"아키텍처_설계서.pdf"}'
+```
+
+---
+
+## 8. 캐시 API
+
+### 8.1 GET /cache/stats
 
 캐시 통계를 조회합니다 (히트율, 미스율 등).
 
 **인증**: Bearer Token
 
-### 7.3 DELETE /cache/invalidate
+**Response** (`200 OK`) - `CacheStatsResponse`:
 
-특정 패턴의 캐시를 무효화합니다.
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `hits` | integer | 캐시 히트 수 |
+| `misses` | integer | 캐시 미스 수 |
+| `total_requests` | integer | 총 요청 수 |
+| `hit_rate` | number | 캐시 히트율 (0.0~1.0) |
+| `miss_rate` | number | 캐시 미스율 (0.0~1.0) |
+| `size` | integer | 현재 캐시 크기 (-1: 측정 불가) |
+| `max_size` | integer | 최대 캐시 크기 |
+| `backend` | string | 캐시 백엔드 유형 |
+| `last_reset` | string | 마지막 통계 초기화 시간 |
+| `enabled` | boolean | 캐시 활성화 여부 |
+| `ttl_seconds` | integer | 기본 TTL (초) |
+
+**curl 예제**:
+
+```bash
+curl -s http://localhost:8000/api/v1/cache/stats \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**응답 예시**:
+
+```json
+{
+  "hits": 142,
+  "misses": 58,
+  "total_requests": 200,
+  "hit_rate": 0.71,
+  "miss_rate": 0.29,
+  "size": 85,
+  "max_size": 1000,
+  "backend": "redis",
+  "last_reset": "2026-02-19T00:00:00Z",
+  "enabled": true,
+  "ttl_seconds": 3600
+}
+```
+
+### 8.2 GET /cache/status
+
+캐시 서비스 상태를 확인합니다.
 
 **인증**: Bearer Token
 
-### 7.4 DELETE /cache/clear
+**Response** (`200 OK`) - `CacheStatusResponse`:
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `enabled` | boolean | 캐시 활성화 여부 |
+| `backend` | string | 캐시 백엔드 유형 |
+| `status` | string | 상태 (`available`, `disabled`, `error`) |
+| `message` | string | 상태 메시지 |
+
+**curl 예제**:
+
+```bash
+curl -s http://localhost:8000/api/v1/cache/status \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**응답 예시**:
+
+```json
+{
+  "enabled": true,
+  "backend": "redis",
+  "status": "available",
+  "message": "캐시 서비스 정상 작동 중 (redis)"
+}
+```
+
+### 8.3 DELETE /cache/clear
 
 전체 캐시를 삭제합니다.
 
 **인증**: Bearer Token
 
-### 7.5 POST /cache/stats/reset
+**Response** (`200 OK`) - `CacheClearResponse`:
 
-캐시 통계를 초기화합니다.
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `deleted_count` | integer | 삭제된 캐시 엔트리 수 |
+| `message` | string | 결과 메시지 |
+
+**curl 예제**:
+
+```bash
+curl -s -X DELETE http://localhost:8000/api/v1/cache/clear \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### 8.4 DELETE /cache/invalidate
+
+패턴에 매칭되는 캐시 엔트리를 삭제합니다.
 
 **인증**: Bearer Token
 
+**Query Parameters**:
+
+| 필드 | 타입 | 필수 | 설명 |
+|------|------|:----:|------|
+| `pattern` | string | N | 삭제할 키 패턴 (예: `prefix*`). 미지정 시 전체 삭제 |
+
+**Response** (`200 OK`) - `CacheInvalidateResponse`:
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `deleted_count` | integer | 삭제된 캐시 엔트리 수 |
+| `pattern` | string | 적용된 패턴 |
+| `message` | string | 결과 메시지 |
+
+**curl 예제**:
+
+```bash
+curl -s -X DELETE "http://localhost:8000/api/v1/cache/invalidate?pattern=search:*" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+### 8.5 POST /cache/stats/reset
+
+캐시 통계 (히트/미스 카운터)를 초기화합니다. 캐시 데이터는 삭제되지 않습니다.
+
+**인증**: Bearer Token
+
+**Response** (`200 OK`):
+
+```json
+{
+  "success": true,
+  "message": "캐시 통계가 초기화되었습니다"
+}
+```
+
+**curl 예제**:
+
+```bash
+curl -s -X POST http://localhost:8000/api/v1/cache/stats/reset \
+  -H "Authorization: Bearer $TOKEN"
+```
+
 ---
 
-## 8. 시스템 API
+## 9. 시스템 API
 
-### 8.1 GET /health
+### 9.1 GET /health
 
 전체 시스템 Health Check를 수행합니다.
 
@@ -865,7 +1295,7 @@ curl -s http://localhost:8000/api/v1/health
   "status": "healthy",
   "version": "0.1.0",
   "environment": "development",
-  "timestamp": "2026-02-18T06:25:21.586289Z",
+  "timestamp": "2026-02-19T06:25:21.586289Z",
   "dependencies": {
     "deepseek_api": "healthy",
     "elasticsearch": "healthy",
@@ -875,7 +1305,7 @@ curl -s http://localhost:8000/api/v1/health
 }
 ```
 
-### 8.2 GET /health/live
+### 9.2 GET /health/live
 
 Kubernetes Liveness Probe용 엔드포인트입니다.
 
@@ -887,69 +1317,135 @@ Kubernetes Liveness Probe용 엔드포인트입니다.
 {"status": "alive"}
 ```
 
-### 8.3 GET /health/ready
+### 9.3 GET /health/ready
 
 Kubernetes Readiness Probe용 엔드포인트입니다.
-모든 의존성(ES, Neo4j, PG)이 정상인 경우에만 `200`을 반환합니다.
+모든 의존성(ES, Neo4j, PG)이 정상인 경우에만 `ready: true`를 반환합니다.
 
 **인증**: 불필요
 
-### 8.4 GET /health/circuit-breaker
+**Response** (`200 OK`) - `ReadinessResponse`:
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `ready` | boolean | 서비스 준비 상태 |
+| `checks` | object | 개별 체크 결과 (config_loaded, llm_api_key_set, elasticsearch, neo4j, postgresql) |
+
+### 9.4 GET /health/circuit-breaker
 
 모든 Circuit Breaker의 상태를 조회합니다.
 
 **인증**: 불필요
 
-### 8.5 GET /health/circuit-breaker/{name}
+**Response** (`200 OK`) - `CircuitBreakerAllStatusResponse`:
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `circuit_breakers` | object | 모든 Circuit Breaker 메트릭 |
+| `total_count` | integer | 등록된 Circuit Breaker 수 |
+| `healthy_count` | integer | CLOSED 상태인 수 |
+| `degraded_count` | integer | OPEN/HALF_OPEN 상태인 수 |
+
+### 9.5 GET /health/circuit-breaker/{name}
 
 특정 Circuit Breaker의 상태를 조회합니다.
 
 **인증**: 불필요
 
+**Response** (`200 OK`) - `CircuitBreakerStatusResponse`:
+
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| `name` | string | Circuit Breaker 이름 |
+| `state` | string | 현재 상태 (closed, open, half_open) |
+| `failure_count` | integer | 현재 연속 실패 횟수 |
+| `success_count` | integer | HALF_OPEN 상태에서 성공 횟수 |
+| `total_calls` | integer | 총 호출 횟수 |
+| `total_successes` | integer | 총 성공 횟수 |
+| `total_failures` | integer | 총 실패 횟수 |
+| `success_rate` | number | 성공률 (%) |
+| `last_failure_time` | string | 마지막 실패 시간 (ISO 8601) |
+| `last_state_change` | string | 마지막 상태 변경 시간 (ISO 8601) |
+| `open_count` | integer | Circuit이 OPEN된 총 횟수 |
+
+**에러**:
+
+| 코드 | 설명 |
+|------|------|
+| `404` | Circuit Breaker를 찾을 수 없음 |
+
 ---
 
 ## 엔드포인트 전체 목록
 
-| Method | Path | 인증 | 설명 |
-|:------:|------|:----:|------|
-| `POST` | `/auth/login` | - | 로그인 |
-| `POST` | `/auth/logout` | Y | 로그아웃 |
-| `GET` | `/auth/me` | Y | 현재 사용자 정보 |
-| `POST` | `/auth/refresh` | - | 토큰 갱신 |
-| `POST` | `/search/keyword` | Y | 키워드 검색 |
-| `POST` | `/search/semantic` | Y | 시맨틱 검색 |
-| `POST` | `/search/hybrid` | Y | 하이브리드 검색 |
-| `POST` | `/search/chat` | Y | 대화형 검색 |
-| `POST` | `/search/chat/stream` | Y | 스트리밍 대화형 검색 |
-| `GET` | `/search/conversations/{id}` | Y | 대화 세션 조회 |
-| `DELETE` | `/search/conversations/{id}` | Y | 대화 세션 삭제 |
-| `GET` | `/documents` | Y | 문서 목록 조회 |
-| `POST` | `/documents/upload` | - | 문서 업로드 |
-| `GET` | `/documents/{id}/status` | - | 문서 상태 조회 |
-| `GET` | `/documents/{id}/status/stream` | - | 문서 상태 SSE |
-| `POST` | `/documents/{id}/process` | - | 문서 처리 트리거 |
-| `POST` | `/documents/{id}/retry` | - | 실패 문서 재시도 |
-| `POST` | `/documents/process-pending` | - | 대기 문서 일괄 처리 |
-| `GET` | `/documents/{id}/download` | - | 원본 다운로드 URL |
-| `GET` | `/graph/entities/{name}` | Y | 엔티티 조회 |
-| `POST` | `/graph/subgraph` | Y | 서브그래프 탐색 |
-| `POST` | `/graph/experts` | Y | 전문가 검색 |
-| `POST` | `/embed` | - | 단일 임베딩 |
-| `POST` | `/embed/batch` | - | 배치 임베딩 |
-| `POST` | `/extract/entities` | - | 엔티티 추출 |
-| `POST` | `/extract/metadata` | - | 메타데이터 추출 |
-| `POST` | `/extract/full` | - | 통합 추출 |
-| `GET` | `/cache/status` | Y | 캐시 상태 |
-| `GET` | `/cache/stats` | Y | 캐시 통계 |
-| `DELETE` | `/cache/invalidate` | Y | 캐시 무효화 |
-| `DELETE` | `/cache/clear` | Y | 캐시 전체 삭제 |
-| `POST` | `/cache/stats/reset` | Y | 캐시 통계 초기화 |
-| `GET` | `/health` | - | Health Check |
-| `GET` | `/health/live` | - | Liveness Probe |
-| `GET` | `/health/ready` | - | Readiness Probe |
-| `GET` | `/health/circuit-breaker` | - | Circuit Breaker 전체 |
-| `GET` | `/health/circuit-breaker/{name}` | - | Circuit Breaker 개별 |
+| Method | Path | 인증 | 상태 코드 | 설명 |
+|:------:|------|:----:|:---------:|------|
+| `POST` | `/auth/login` | - | 200 | 로그인 |
+| `POST` | `/auth/refresh` | - | 200 | 토큰 갱신 |
+| `POST` | `/auth/logout` | Y | 200 | 로그아웃 |
+| `GET` | `/auth/me` | Y | 200 | 현재 사용자 정보 |
+| `POST` | `/search/keyword` | Y | 200 | 키워드 검색 |
+| `POST` | `/search/semantic` | Y | 200 | 시맨틱 검색 |
+| `POST` | `/search/hybrid` | Y | 200 | 하이브리드 검색 |
+| `POST` | `/search/chat` | Y | 200 | 대화형 검색 |
+| `POST` | `/search/chat/stream` | Y | 200 | 스트리밍 대화형 검색 |
+| `GET` | `/search/conversations/{id}` | Y | 200 | 대화 세션 조회 |
+| `DELETE` | `/search/conversations/{id}` | Y | 200 | 대화 세션 삭제 |
+| `GET` | `/documents` | - | 200 | 문서 목록 조회 |
+| `POST` | `/documents/upload` | Y | 201 | 문서 업로드 |
+| `GET` | `/documents/{id}/status` | - | 200 | 문서 상태 조회 |
+| `GET` | `/documents/{id}/status/stream` | - | 200 | 문서 상태 SSE |
+| `POST` | `/documents/{id}/process` | Y | 202 | 문서 처리 트리거 |
+| `POST` | `/documents/{id}/retry` | Y | 202 | 실패 문서 재시도 |
+| `POST` | `/documents/process-pending` | Y | 202 | 대기 문서 일괄 처리 |
+| `GET` | `/documents/{id}/download` | - | 302 | 원본 다운로드 |
+| `GET` | `/graph/entities/{name}` | Y | 200 | 엔티티 조회 |
+| `POST` | `/graph/subgraph` | Y | 200 | 서브그래프 탐색 |
+| `POST` | `/graph/experts` | Y | 200 | 전문가 검색 |
+| `POST` | `/embed` | Y | 200 | 단일 임베딩 |
+| `POST` | `/embed/batch` | Y | 200 | 배치 임베딩 |
+| `POST` | `/extract/entities` | Y | 200 | 엔티티 추출 |
+| `POST` | `/extract/metadata` | Y | 200 | 메타데이터 추출 |
+| `POST` | `/extract/full` | Y | 200 | 통합 추출 |
+| `GET` | `/cache/stats` | Y | 200 | 캐시 통계 |
+| `GET` | `/cache/status` | Y | 200 | 캐시 상태 |
+| `DELETE` | `/cache/clear` | Y | 200 | 캐시 전체 삭제 |
+| `DELETE` | `/cache/invalidate` | Y | 200 | 캐시 무효화 |
+| `POST` | `/cache/stats/reset` | Y | 200 | 캐시 통계 초기화 |
+| `GET` | `/health` | - | 200 | Health Check |
+| `GET` | `/health/live` | - | 200 | Liveness Probe |
+| `GET` | `/health/ready` | - | 200 | Readiness Probe |
+| `GET` | `/health/circuit-breaker` | - | 200 | Circuit Breaker 전체 |
+| `GET` | `/health/circuit-breaker/{name}` | - | 200 | Circuit Breaker 개별 |
 
 ---
 
-*작성: Claude Code (Opus 4.6) | 2026-02-18*
+## 변경 이력
+
+| 날짜 | 버전 | 변경 내용 |
+|------|------|----------|
+| 2026-02-18 | 1.0 | 최초 작성 |
+| 2026-02-19 | 1.1 | 실제 코드 기반 현행화 - 아래 항목 수정 |
+
+### v1.1 변경 상세 (2026-02-19)
+
+1. **인증 정보 수정**: 실제 코드의 `Depends(get_current_user)` 기반으로 인증 필요 여부 정정
+   - `/documents/upload`: 불필요 -> **Bearer Token**
+   - `/documents/{id}/process`: 불필요 -> **Bearer Token**
+   - `/documents/{id}/retry`: 불필요 -> **Bearer Token**
+   - `/documents/process-pending`: 불필요 -> **Bearer Token**
+   - `/embed`, `/embed/batch`: 불필요 -> **Bearer Token**
+   - `/extract/entities`, `/extract/metadata`, `/extract/full`: 불필요 -> **Bearer Token**
+2. **문서 목록 API 파라미터 수정**: `limit`/`offset` -> `page`/`page_size` (실제 코드 반영), `format` 필터 추가
+3. **문서 업로드 Request 수정**: `source_name`/`doc_type` -> `metadata` (JSON 문자열), 상태 코드 `201 Created`
+4. **문서 처리 상태 코드 수정**: `process`, `retry`, `process-pending` -> `202 Accepted`
+5. **임베딩/추출 API 분리**: 기존 "임베딩/추출 API" 섹션을 "임베딩 API", "추출 API"로 분리하여 상세화
+6. **캐시 API 상세화**: 모든 엔드포인트에 Request/Response 필드 명세 추가, curl 예제 추가
+7. **시맨틱 검색 파라미터 차이 명시**: `useGraph`, `useVector` 미지원 주석 추가
+8. **에러 코드 추가**: `201`, `202`, `409`, `413` 공통 에러 코드 추가
+9. **엔드포인트 전체 목록에 상태 코드 열 추가**
+10. **변경 이력 섹션 추가**
+
+---
+
+*작성: Claude Code (Opus 4.6) | 2026-02-19*

@@ -2,8 +2,8 @@
 
 **프로젝트명**: Hybrid RAG Knowledge Operations
 **기간**: 2026-01-12 ~ 진행 중 (Sprint 12)
-**작성일**: 2026-02-18
-**버전**: 1.0
+**작성일**: 2026-02-19
+**버전**: 1.1
 
 ---
 
@@ -52,7 +52,7 @@
 | **RDBMS** | PostgreSQL | 16 | SSOT, 문서/사용자/감사 메타데이터 |
 | **Search Engine** | Elasticsearch | 8.x | Dense/Sparse 벡터 + BM25(Nori) 검색 |
 | **Graph DB** | Neo4j | 5.x | Knowledge Graph, 관계 기반 검색 |
-| **Cache** | Redis | 7.x | 검색 결과 캐시 |
+| **Cache** | Redis | 7.x | 검색 결과 캐시 (TTL 3,600초, 1,000 엔트리) + 임베딩 캐시 (TTL 604,800초) |
 | **Object Storage** | MinIO | - | 원본 문서 파일 저장 |
 | **SSO** | Keycloak | - | OAuth 2.0 / OIDC 인증 |
 | **Infra** | Docker Compose, Nginx | - | 18개 컨테이너 오케스트레이션 |
@@ -88,18 +88,18 @@
 
 ### 3.2 데이터 현황 (실측)
 
-2026-02-18 시스템 조회 기준.
+2026-02-18 재검증 기준.
 
 | 항목 | 수치 | 비고 |
 |------|-----:|------|
-| **문서** | 1,437건 | PostgreSQL documents 테이블 (전체 completed) |
-| **청크** | 42,462건 | ES knowledge_chunks 인덱스 (528.2MB) |
-| **Dense 임베딩** | 42,462건 | BGE-M3 1024차원, 100% 완료 |
-| **Sparse 임베딩** | 42,462건 | BGE-M3 sparse_vector, 100% 완료 |
-| **Neo4j 노드** | 169,886개 | Entity 92,209 + Chunk 39,297 + Technology 30,648 + Person 6,295 + Document 1,437 |
-| **Neo4j 관계** | 775,366개 | MENTIONS 419,066 + RELATED 317,003 + PART_OF 39,297 |
+| **문서** | 1,441건 | PostgreSQL documents 테이블 (1,437건 + 4건 테스트) |
+| **청크** | 42,462+건 | ES knowledge_chunks 인덱스 (528.2MB) |
+| **Dense 임베딩** | 42,462+건 | BGE-M3 1024차원, 100% 완료 |
+| **Sparse 임베딩** | 42,462+건 | BGE-M3 sparse_vector, 100% 완료 |
+| **Neo4j 노드** | 129,152+개 | Entity 92,209 + Technology 30,648 + Person 6,295 |
+| **Neo4j 관계** | 775,366개 | MENTIONS 419,066 + RELATED_TO 317,003 + PART_OF 39,297 |
 | **ES 인덱스** | 2개 | knowledge_chunks_v2(42,462), rcsv-pdf-documents(12,918) |
-| **Docker 컨테이너** | 18개 | 전체 healthy 상태 |
+| **Docker 컨테이너** | 18개 | 전체 healthy 상태 (Sprint 12 사용자 테스트 검증) |
 | **3-Store 정합성** | 100% | ES = PG = Neo4j 동기화 |
 
 ### 3.3 테스트 커버리지
@@ -118,7 +118,25 @@
 - OWASP Top 10 보안 테스트 35/35
 - Frontend 접근성 WCAG 2.1 AA 59건 통과
 
-### 3.4 비용 효율
+### 3.4 Sprint 12 사용자 테스트 (2026-02-18)
+
+업로드 E2E 테스트 13개 케이스를 수행하여 시스템 전반의 안정성을 검증했다.
+
+| 항목 | 결과 |
+|------|------|
+| **컨테이너 상태** | 18개 전체 healthy |
+| **업로드 E2E** | 13 케이스: 9 PASS, 3 WARN, 1 FAIL |
+| **발견 이슈** | 6건 수정 완료 |
+
+**수정된 주요 이슈**:
+
+| 이슈 | 원인 | 조치 |
+|------|------|------|
+| Neo4j 스키마 불일치 | RELATED_TO/MENTIONS 관계명 혼재 | snake_case로 통일 |
+| 대용량 PDF 타임아웃 | 서비스별 타임아웃 값 불일치 | 전 구간 1,200초 통일 |
+| 대시보드 빠른 검색 버그 | 프론트엔드 이벤트 핸들링 오류 | 검색 핸들러 수정 |
+
+### 3.5 비용 효율
 
 전체 파이프라인(Entity Extraction 23,074건 + RAGAS 평가 11회 + 운영)을 DeepSeek V3.2로 약 **$52(~75,000원)**에 완료했다.
 
@@ -151,6 +169,7 @@ DeepSeek V3.2는 GPT-4o급 품질을 유지하면서 95% 비용 절감을 달성
 | 02-13 | Nori 미적용 사고 발견 및 해결 | 운영 | ES Dockerfile 리빌드 |
 | 02-15 | Phase 3 Entity Extraction Round 1 | 운영 | 16,185건 처리, RAGAS v9 |
 | 02-16 | **Phase 3 Round 2 + Reranker + RAGAS v11 A-** | 운영 | 23,074건, 775K 관계, A- 등급 |
+| 02-18 | **Sprint 12 사용자 테스트** | 운영 | 업로드 E2E 13 케이스, 이슈 6건 수정 완료 |
 
 ---
 
@@ -253,4 +272,4 @@ BGE-Reranker는 코드 변경량 대비 효과가 가장 컸던 개선이다.
 
 ---
 
-*작성: Claude Code (Opus 4.6) | 2026-02-18*
+*작성: Claude Code (Opus 4.6) | 2026-02-19*

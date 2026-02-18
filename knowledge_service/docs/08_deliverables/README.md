@@ -1,24 +1,24 @@
 # 최종 산출물
 
 **프로젝트**: Hybrid RAG Knowledge Operations
-**작성일**: 2026-02-18
-**Sprint**: 12
+**작성일**: 2026-02-19
+**Sprint**: 12 (Final)
 
 ---
 
 ## 산출물 목록
 
-| # | 문서명 | 설명 | 대상 |
-|---|--------|------|------|
-| 01 | [프로젝트 최종 보고서](./01_project_final_report.md) | 프로젝트 성과, 비용, 마일스톤 | 경영진, PM |
-| 02 | [시스템 아키텍처 설명서](./02_system_architecture.md) | 아키텍처, 데이터 흐름, 기술 선택 근거 | 개발자, 아키텍트 |
-| 03 | [운영자 매뉴얼](./03_operator_manual.md) | 시스템 운영, 모니터링, 장애 대응 | 운영자, DevOps |
-| 04 | [사용자 매뉴얼](./04_user_manual.md) | UI 사용법, 검색, 문서 관리, Knowledge Graph | 최종 사용자 |
-| 05 | [API 명세서](./05_api_specification.md) | REST API 엔드포인트, 인증, 요청/응답 스키마 | 개발자 |
-| 06 | [데이터베이스 설계서](./06_database_design.md) | PG/ES/Neo4j 스키마, 인덱스, 데이터 모델 | DBA, 개발자 |
-| 07 | [설치 및 배포 가이드](./07_installation_guide.md) | 설치 절차, 환경 설정, Docker Compose | 운영자, DevOps |
-| 08 | [테스트 결과 보고서](./08_test_report.md) | RAGAS 평가, 단위 테스트 커버리지, 성능 | QA, PM |
-| 09 | [Known Issues & Technical Debt](./09_known_issues.md) | 기술부채 4건, 제한사항 7건, Deferred 20건, 향후 권장사항 | PM, 개발자 |
+| # | 문서명 | 버전 | 설명 | 대상 |
+|---|--------|:----:|------|------|
+| 01 | [프로젝트 최종 보고서](./01_project_final_report.md) | v1.1 | 프로젝트 성과, 비용, 마일스톤, Sprint 12 사용자 테스트 | 경영진, PM |
+| 02 | [시스템 아키텍처 설명서](./02_system_architecture.md) | v1.1 | 아키텍처, 데이터 흐름, Redis 캐시 아키텍처, 기술 선택 근거 | 개발자, 아키텍트 |
+| 03 | [운영자 매뉴얼](./03_operator_manual.md) | v1.1 | 시스템 운영, 타임아웃 가이드, Redis 캐시 API, 장애 대응 | 운영자, DevOps |
+| 04 | [사용자 매뉴얼](./04_user_manual.md) | v1.1 | 대시보드, 검색(Chat/Keyword), 문서 관리, Knowledge Graph | 최종 사용자 |
+| 05 | [API 명세서](./05_api_specification.md) | v1.1 | REST API 35개 엔드포인트, 인증 정정, 요청/응답 스키마 | 개발자 |
+| 06 | [데이터베이스 설계서](./06_database_design.md) | v1.1 | PG/ES/Neo4j/Redis 스키마, 캐시 아키텍처, Neo4j 네이밍 규칙 | DBA, 개발자 |
+| 07 | [설치 및 배포 가이드](./07_installation_guide.md) | v1.1 | 설치 절차, Keycloak 설정, startup_check.sh, 메모리 상세 | 운영자, DevOps |
+| 08 | [테스트 결과 보고서](./08_test_report.md) | v1.1 | RAGAS 평가, Sprint 12 사용자 테스트 13케이스, 성능 | QA, PM |
+| 09 | [Known Issues & Technical Debt](./09_known_issues.md) | v1.0 | 기술부채 4건, 제한사항 8건, 해결 이슈 5건, Deferred 20건 | PM, 개발자 |
 
 ---
 
@@ -27,10 +27,10 @@
 | 항목 | 수치 |
 |------|------|
 | 컨테이너 | 18개 |
-| 문서 | 1,437개 |
-| 청크 | 42,462개 |
-| 엔티티 노드 | 169,886개 |
-| 관계 | 775,366개 |
+| 문서 | 1,441개 |
+| 청크 | 42,462+개 |
+| 엔티티 노드 | 169,886+개 |
+| 관계 | 775,366+개 |
 | RAGAS 등급 | A- (v11) |
 | 테스트 커버리지 | 97% |
 
@@ -96,6 +96,6 @@ Graph Search (Neo4j)           --+
 
 ---
 
-*Hybrid RAG Knowledge Operations | Sprint 12 | 2026-02-18*
+*Hybrid RAG Knowledge Operations | Sprint 12 (Final) | 2026-02-19*
 
-*작성: Claude Code (Opus 4.6) | 2026-02-18*
+*작성: Claude Code (Opus 4.6) | 전체 현행화: 2026-02-19*

@@ -1,8 +1,8 @@
 # 운영자 매뉴얼
 
 **시스템**: Hybrid RAG Knowledge Platform
-**버전**: 1.0
-**작성일**: 2026-02-18
+**버전**: 1.1
+**작성일**: 2026-02-19
 
 ---
 
@@ -17,6 +17,7 @@
 7. [장애 대응](#7-장애-대응)
 8. [백업/복구](#8-백업복구)
 9. [주요 설정 파일](#9-주요-설정-파일)
+10. [타임아웃 설정 가이드](#10-타임아웃-설정-가이드)
 
 ---
 
@@ -89,6 +90,37 @@ Hybrid RAG Knowledge Platform은 기업 내부 문서를 자동 처리(파싱, �
 ```
 postgresql > redis > elasticsearch > neo4j > keycloak > ai-service > backend > api-gateway > nginx
 ```
+
+### 1.6 컨테이너 재시작 순서 (의존성 기준)
+
+컨테이너를 수동으로 개별 재시작해야 하는 경우, 아래 순서를 따릅니다.
+
+```
+1. PostgreSQL      (다른 모든 서비스의 SSOT)
+2. Elasticsearch   (검색 인덱스, ai-service 의존)
+3. Neo4j           (Knowledge Graph, ai-service 의존)
+4. Redis           (캐시, Gateway Rate Limiter 의존)
+5. AI Service      (RAG 파이프라인 핵심, 위 4개에 의존)
+6. Backend         (비즈니스 로직, PostgreSQL/Keycloak 의존)
+7. Gateway         (API 라우팅, Backend/AI Service 의존)
+8. Nginx           (리버스 프록시, Gateway/Frontend 의존)
+9. Frontend        (UI, Nginx 경유 접근)
+```
+
+```bash
+# 전체 수동 순차 재시작 (필요 시)
+docker compose restart postgresql && sleep 10 && \
+docker compose restart elasticsearch && sleep 15 && \
+docker compose restart neo4j && sleep 15 && \
+docker compose restart redis && sleep 5 && \
+docker compose restart ai-service && sleep 60 && \
+docker compose restart backend && sleep 15 && \
+docker compose restart api-gateway && sleep 10 && \
+docker compose restart nginx && sleep 5 && \
+docker compose restart frontend
+```
+
+> `docker compose up -d`는 `depends_on` + `condition: service_healthy` 설정으로 자동 순서 관리를 수행하므로, 전체 시작 시에는 수동 순서를 신경 쓸 필요가 없습니다.
 
 ---
 
@@ -309,6 +341,8 @@ docker compose logs -f ai-service backend api-gateway
 
 ### 4.3 Redis 캐시 관리
 
+#### 4.3.1 CLI 직접 관리
+
 ```bash
 # Redis 접속
 docker exec -it kp-redis redis-cli
@@ -327,6 +361,34 @@ docker exec kp-redis redis-cli FLUSHALL
 ```
 
 > 검색 결과가 이상할 때(stale cache), `FLUSHALL` 후 재검색하면 해결되는 경우가 많습니다.
+
+#### 4.3.2 REST API를 통한 캐시 관리
+
+AI Service에서 제공하는 캐시 관리 API를 활용할 수 있습니다.
+
+**캐시 통계 확인**:
+
+```bash
+# JWT 토큰 획득 후 실행
+curl -s -X GET http://localhost:8000/api/v1/cache/stats \
+  -H "Authorization: Bearer $TOKEN" | python3 -m json.tool
+```
+
+**캐시 초기화**:
+
+```bash
+curl -s -X DELETE http://localhost:8000/api/v1/cache/clear \
+  -H "Authorization: Bearer $TOKEN" | python3 -m json.tool
+```
+
+#### 4.3.3 캐시 TTL 설정
+
+| 캐시 유형 | TTL (초) | TTL (사람 읽기) | 설정 위치 |
+|-----------|:--------:|:---------------:|----------|
+| **검색 결과 캐시** | 3,600 | 1시간 | `config.py` > `search_cache_ttl` |
+| **임베딩 캐시** | 604,800 | 7일 | `config.py` > `redis_embedding_cache_ttl` |
+
+> 검색 캐시 TTL은 데이터 업데이트 빈도에 맞춰 조정하세요. ETL 실행 직후에는 `FLUSHALL` 또는 `/api/v1/cache/clear`로 캐시를 초기화하는 것을 권장합니다.
 
 ### 4.4 일일 점검 체크리스트
 
@@ -747,9 +809,11 @@ docker compose start neo4j
 | `docker-compose.prod.yml` | `infrastructure/docker/` | 프로덕션 오버라이드 |
 | `.env` | `infrastructure/docker/` | 환경변수 (비밀번호, 포트, API 키) |
 | `nginx.conf` | `infrastructure/docker/nginx/` | Nginx 리버스 프록시 설정 |
+| `default.conf` | `infrastructure/docker/nginx/conf.d/` | Nginx 서버 블록 (타임아웃 포함) |
 | `prometheus.yml` | `infrastructure/docker/prometheus/` | Prometheus 스크래핑 설정 |
 | `config.py` | `knowledge_service/src/app/core/` | AI Service 핵심 설정 |
 | `es_storage.py` | `knowledge_service/src/app/services/` | ES 인덱스 매핑 정의 |
+| `application.yml` | `knowledge_service/gateway/src/main/resources/` | Spring Cloud Gateway 설정 |
 
 ### 9.2 .env 파일 주요 항목
 
@@ -771,7 +835,43 @@ docker compose start neo4j
 | kp-database | api-gateway, backend, ai-service, keycloak, keycloak-db, postgresql, neo4j, elasticsearch, kibana, redis, minio |
 | kp-monitoring | prometheus, grafana, loki, promtail, jaeger, kibana |
 
-### 9.4 Quick Reference 명령어
+### 9.4 Admin UI "System Settings"와 실제 설정의 관계
+
+> **주의**: Admin 페이지의 System Settings는 실제 AI Service 동작에 영향을 주지 않습니다.
+
+| 구분 | Admin UI (System Settings) | AI Service (실제 동작) |
+|------|:--------------------------:|:---------------------:|
+| **저장소** | PostgreSQL `system_config` 테이블 | `config.py` + 환경변수 (`.env`) |
+| **관리 주체** | Spring Boot Backend | Python FastAPI |
+| **설정 변경 방법** | Admin UI에서 Save | `.env` 수정 + 컨테이너 재빌드 |
+| **실제 영향** | 없음 (표시용) | 실제 파이프라인에 적용됨 |
+
+**현재 설정값 (config.py 기준)**:
+
+| 항목 | 값 | 설명 |
+|------|:--:|------|
+| `chunk_size` | 600 | 청크 크기 (토큰) |
+| `chunk_overlap` | 100 | 청크 오버랩 (토큰) |
+| `embedding_model` | BAAI/bge-m3 | BGE-M3 임베딩 모델 |
+| `embedding_dimension` | 1024 | 임베딩 벡터 차원 |
+| `elasticsearch_index` | knowledge_chunks | ES 인덱스명 (Nori 적용) |
+| `docling_parse_timeout` | 1200.0 | PDF 파싱 타임아웃 (초) |
+
+**설정 변경이 필요한 경우**:
+
+```bash
+# 1. .env 또는 config.py 수정
+# 2. 컨테이너 재빌드
+cd infrastructure/docker
+docker compose build --no-cache ai-service
+docker compose up -d ai-service
+
+# 3. 60초 대기 후 헬스체크
+sleep 60
+curl -s http://localhost:8000/api/v1/health | python3 -m json.tool
+```
+
+### 9.5 Quick Reference 명령어
 
 ```
 =======================================================================
@@ -796,6 +896,10 @@ docker compose logs -f ai-service           # 실시간 로그
 docker compose restart ai-service           # 서비스 재시작
 docker exec kp-redis redis-cli FLUSHALL     # 캐시 초기화
 
+--- 캐시 관리 (API) ---
+curl -s GET localhost:8000/api/v1/cache/stats -H "Authorization: Bearer $TOKEN"
+curl -s -X DELETE localhost:8000/api/v1/cache/clear -H "Authorization: Bearer $TOKEN"
+
 --- 백업 ---
 docker exec kp-postgresql pg_dump -U knowledge -d knowledge > backup.sql
 
@@ -811,4 +915,69 @@ docker system prune -f                      # 안전한 정리
 
 ---
 
-*작성: Claude Code (Opus 4.6) | 2026-02-18*
+## 10. 타임아웃 설정 가이드
+
+### 10.1 End-to-End 타임아웃 체인
+
+대용량 PDF 파싱이나 임베딩 등 장시간 요청이 정상 처리되려면, 요청 경로상의 모든 레이어에서 타임아웃이 충분히 설정되어 있어야 합니다.
+
+```
+Browser ──> Nginx ──> Spring Cloud Gateway ──> AI Service (FastAPI)
+                                                      |
+                                                  Docling 파싱
+```
+
+### 10.2 현재 타임아웃 설정
+
+| 레이어 | 설정 항목 | 현재 값 | 설정 파일 |
+|--------|----------|:-------:|----------|
+| **Frontend (Vite dev proxy)** | server.proxy timeout | (Vite 기본값) | `frontend/vite.config.ts` |
+| **Nginx** (일반 API) | `proxy_read_timeout` | **1,200초** | `nginx/conf.d/default.conf` |
+| **Nginx** (검색) | `proxy_read_timeout` | 120초 | `nginx/conf.d/default.conf` |
+| **Nginx** (업로드) | `proxy_read_timeout` | **1,200초** | `nginx/conf.d/default.conf` |
+| **Nginx** (WebSocket) | `proxy_read_timeout` | 3,600초 | `nginx/conf.d/default.conf` |
+| **Spring Cloud Gateway** | Resilience4j TimeLimiter (AI) | **60초** | `application.yml` |
+| **Spring Cloud Gateway** | Resilience4j TimeLimiter (Backend) | 30초 | `application.yml` |
+| **AI Service** | `docling_parse_timeout` | **1,200초** | `config.py` |
+| **AI Service** | `llm_timeout` | 60초 | `config.py` |
+
+### 10.3 주의: Spring Cloud Gateway 병목
+
+> Spring Cloud Gateway의 Resilience4j TimeLimiter가 AI Service 경유 요청에 대해 **60초**로 설정되어 있습니다. Nginx(1,200초)와 AI Service(1,200초)에 비해 상대적으로 짧아서, 대용량 PDF 업로드 후 파싱 등 장시간 작업에서 Gateway 타임아웃이 먼저 발생할 수 있습니다.
+
+**영향 범위**: 문서 업로드 후 파싱이 60초를 초과하는 경우, Gateway에서 503 응답 반환.
+
+**임시 대응**: 대용량 문서 처리 시 AI Service API(`localhost:8000`)를 직접 호출하여 Gateway를 우회할 수 있습니다.
+
+**영구 해결 (권장)**: `application.yml`에서 AI Service용 TimeLimiter 타임아웃을 증가시킵니다.
+
+```yaml
+# application.yml - resilience4j.timelimiter.instances
+ai-service-circuit-breaker:
+  timeout-duration: 1200s   # 현재 60s -> 1200s 증가 권장
+```
+
+### 10.4 타임아웃 수정 방법
+
+```bash
+# Nginx 타임아웃 변경
+# 1. infrastructure/docker/nginx/conf.d/default.conf 수정
+# 2. Nginx 재시작
+docker compose restart nginx
+
+# AI Service 타임아웃 변경
+# 1. knowledge_service/src/app/core/config.py 수정
+# 2. 컨테이너 재빌드
+docker compose build --no-cache ai-service
+docker compose up -d ai-service
+
+# Gateway 타임아웃 변경
+# 1. knowledge_service/gateway/src/main/resources/application.yml 수정
+# 2. 컨테이너 재빌드
+docker compose build --no-cache api-gateway
+docker compose up -d api-gateway
+```
+
+---
+
+*작성: Claude Code (Opus 4.6) | 2026-02-19*

@@ -4,7 +4,7 @@
  * Uses synchronous POST /search/chat instead of SSE streaming.
  * Returns answer + sources in a single JSON response.
  */
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { searchService } from '@/services/searchService';
 import type { Message, Source } from '../types';
 
@@ -14,7 +14,7 @@ export interface UseChatSearchReturn {
   messages: Message[];
   isLoading: boolean;
   error: string | null;
-  sendMessage: () => void;
+  sendMessage: (queryOverride?: string) => void;
   clearMessages: () => void;
   dismissError: () => void;
 }
@@ -40,15 +40,16 @@ function mapSources(rawSources: Array<Record<string, unknown>>): Source[] {
   }));
 }
 
-export const useChatSearch = (): UseChatSearchReturn => {
+export const useChatSearch = (initialQuery?: string): UseChatSearchReturn => {
   const [query, setQuery] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const conversationIdRef = useRef<string | undefined>(undefined);
+  const initialQueryHandledRef = useRef(false);
 
-  const sendMessage = useCallback(async () => {
-    const trimmed = query.trim();
+  const sendMessage = useCallback(async (queryOverride?: string) => {
+    const trimmed = (queryOverride ?? query).trim();
     if (!trimmed || isLoading) return;
 
     // Add user message
@@ -94,6 +95,14 @@ export const useChatSearch = (): UseChatSearchReturn => {
       setIsLoading(false);
     }
   }, [query, isLoading]);
+
+  // Auto-send initial query from URL params (dashboard quick search)
+  useEffect(() => {
+    if (initialQuery && !initialQueryHandledRef.current) {
+      initialQueryHandledRef.current = true;
+      sendMessage(initialQuery);
+    }
+  }, [initialQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const clearMessages = useCallback(() => {
     setMessages([]);
