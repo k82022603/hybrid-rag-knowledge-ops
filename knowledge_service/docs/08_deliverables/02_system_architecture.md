@@ -268,7 +268,7 @@ flowchart LR
 
     subgraph Phase3["Phase 3 (CPU + LLM)"]
         Entity["엔티티 추출<br/>(DeepSeek V3.2)"]
-        KG["Neo4j 저장<br/>(HAS_ENTITY,<br/>RELATED_TO)"]
+        KG["Neo4j 저장<br/>(MENTIONS,<br/>RELATED_TO)"]
         PGSync["PG 보정<br/>(entity_count)"]
     end
 
@@ -365,7 +365,7 @@ flowchart TB
 | **Neo4j** | Person 노드 | 6,295개 | - |
 | **Neo4j** | Document 노드 | 1,437개 | - |
 | **Neo4j** | MENTIONS 관계 | 419,066개 | - |
-| **Neo4j** | RELATED 관계 | 317,003개 | - |
+| **Neo4j** | RELATED_TO 관계 | 317,003개 | - |
 | **Neo4j** | PART_OF 관계 | 39,297개 | - |
 
 ---

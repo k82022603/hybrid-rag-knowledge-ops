@@ -36,6 +36,7 @@ Sprint 12 완료 후 UI 기반 사용자 테스트 수행 기록
 |------|------|
 | [00_pre_check_report.md](./00_pre_check_report.md) | 사전점검 보고서 (Infra+DevOps+QA) |
 | [01_upload_test_report.md](./01_upload_test_report.md) | 문서 업로드 E2E 테스트 + 이슈 수정 보고서 |
+| [02_neo4j_schema_migration_report.md](./02_neo4j_schema_migration_report.md) | Neo4j 스키마 통일 마이그레이션 보고서 |
 
 ---
 

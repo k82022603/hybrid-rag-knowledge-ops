@@ -28,7 +28,12 @@
 - **핵심 차단 요소**: Neo4j 스키마 불일치 — Online은 `(Knowledge)-[:CONTAINS]->(Chunk)`, Batch는 `(Chunk)-[:PART_OF]->(Document)` 구조 사용
 - **통합 시 필요**: 기존 169K+ 엔티티의 그래프 마이그레이션 수반
 - **리스크 판정**: **HIGH** — 마지막 스프린트에서 진행 시 서비스 장애 위험
-- **결정**: 리팩토링 대신 문서화로 대체 (Sprint 12 TechLead 검토 결과)
+- **초기 결정**: 리팩토링 대신 문서화로 대체 (Sprint 12 TechLead 검토 결과)
+- **최종 조치 (Sprint 12 마감일)**: 사용자 직접 지시로 스키마 통일 실행
+  - 코드 5개 파일 수정: `HAS_ENTITY` → `MENTIONS`, `RELATED` → `RELATED_TO`, `Chunk.chunk_id` → `Chunk.id`
+  - DB 마이그레이션 실행: 298K RELATED→RELATED_TO, 13 HAS_ENTITY→MENTIONS, 11 Chunk.id 보정
+  - 서비스 중단 없이 25.7초 완료
+  - **상태**: ~~문서화로 대체~~ → **해결 완료** (커밋 ebf822b)
 
 ### TD-002: Pipeline Class Duplication
 

@@ -55,7 +55,7 @@ Sprint 12 완료 후 UI 기반 사용자 테스트의 일환으로 문서 업로
 |-------|:---------:|:---------:|:------:|:----:|
 | PostgreSQL | OK | chunk_count 갱신 | entity_count 갱신 | PASS |
 | Elasticsearch | OK | 청크 + 임베딩 | - | PASS |
-| Neo4j | OK | Knowledge+Chunk+CONTAINS | Entity+HAS_ENTITY+RELATED_TO | PASS |
+| Neo4j | OK | Knowledge+Chunk+CONTAINS | Entity+MENTIONS+RELATED_TO | PASS |
 
 ## 3. 발견된 이슈 및 조치
 
@@ -101,12 +101,12 @@ Sprint 12 완료 후 UI 기반 사용자 테스트의 일환으로 문서 업로
 - **사용자 요구**: "배치는 배치, 온라인은 온라인. 엔티티 추출도 함께 해주세요"
 - **조치**:
   - `document_processing_pipeline.py` Step 6b: 엔티티 추출 항상 실행되도록 수정
-  - `neo4j_storage.py`: save_chunk_entities() 메서드 추가 (Chunk→Entity HAS_ENTITY 관계 생성)
+  - `neo4j_storage.py`: save_chunk_entities() 메서드 추가 (Chunk→Entity MENTIONS 관계 생성)
   - Entity 노드에 `:Entity` 이중 라벨 적용 (Person/Technology 등 + Entity)
 - **검증 결과**:
-  - 테스트 문서(844B) 업로드 → entity_count=39, HAS_ENTITY 39개, RELATED_TO 25개
+  - 테스트 문서(844B) 업로드 → entity_count=39, MENTIONS 39개, RELATED_TO 25개
   - PG: entity_count 갱신 확인
-  - Neo4j: Entity 노드 + HAS_ENTITY + RELATED_TO + MENTIONED_IN 관계 모두 생성 확인
+  - Neo4j: Entity 노드 + MENTIONS + RELATED_TO + MENTIONED_IN 관계 모두 생성 확인
 
 ## 4. 수정 파일 목록
 
@@ -156,7 +156,7 @@ Neo4j 기본 노드 (Knowledge + Chunk + CONTAINS)
     ↓
 엔티티 추출 (DeepSeek V3.2)
     ↓
-Neo4j 엔티티 (Entity + HAS_ENTITY + RELATED_TO + MENTIONED_IN)
+Neo4j 엔티티 (Entity + MENTIONS + RELATED_TO + MENTIONED_IN)
     ↓
 PG 메타데이터 갱신 (chunk_count, entity_count, es_synced, neo4j_synced)
     ↓

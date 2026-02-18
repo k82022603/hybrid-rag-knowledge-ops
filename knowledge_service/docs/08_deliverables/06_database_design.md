@@ -504,7 +504,7 @@ erDiagram
 | 라벨 | 수량 | 설명 | 주요 속성 |
 |------|-----:|------|----------|
 | **Entity** | 92,209 | 추출된 엔티티 (일반) | name, type, description |
-| **Chunk** | 39,297 | 문서 청크 | chunk_id, text (요약), document_id |
+| **Chunk** | 39,297 | 문서 청크 | id, text (요약), document_id |
 | **Technology** | 30,648 | 기술/도구 엔티티 | name, description |
 | **Person** | 6,295 | 인물 엔티티 | name, department, role |
 | **Document** | 1,437 | 문서 | document_id, title, document_type |
@@ -515,7 +515,7 @@ erDiagram
 | 관계 | 수량 | 시작 노드 | 끝 노드 | 설명 |
 |------|-----:|----------|---------|------|
 | **MENTIONS** | 419,066 | Chunk | Entity/Technology/Person | 청크가 엔티티를 언급 |
-| **RELATED** | 317,003 | Entity | Entity | 엔티티 간 관련성 |
+| **RELATED_TO** | 317,003 | Entity | Entity | 엔티티 간 관련성 |
 | **PART_OF** | 39,297 | Chunk | Document | 청크가 문서에 소속 |
 | **합계** | **775,366** | | | |
 
@@ -533,7 +533,7 @@ graph TB
     Chunk -->|"MENTIONS<br/>(419,066)"| Entity
     Chunk -->|"MENTIONS"| Technology
     Chunk -->|"MENTIONS"| Person
-    Entity -->|"RELATED<br/>(317,003)"| Entity
+    Entity -->|"RELATED_TO<br/>(317,003)"| Entity
 ```
 
 ### 4.5 주요 Cypher 쿼리 패턴
@@ -542,13 +542,13 @@ graph TB
 ```cypher
 MATCH (c:Chunk)-[:MENTIONS]->(e:Entity)
 WHERE e.name CONTAINS $query_term
-RETURN c.chunk_id, c.text, e.name, e.type
+RETURN c.id, c.text, e.name, e.type
 LIMIT 20
 ```
 
 **2-hop 관계 탐색** (Multi-hop):
 ```cypher
-MATCH (e1:Entity)-[:RELATED]-(e2:Entity)-[:RELATED]-(e3:Entity)
+MATCH (e1:Entity)-[:RELATED_TO]-(e2:Entity)-[:RELATED_TO]-(e3:Entity)
 WHERE e1.name = $entity_name
 RETURN e1.name, e2.name, e3.name,
        type(r1) as rel1, type(r2) as rel2
@@ -558,8 +558,8 @@ LIMIT 50
 **Post-RRF 엔티티 보강** (chunk_id 기반):
 ```cypher
 MATCH (c:Chunk)-[:MENTIONS]->(e:Entity)
-WHERE c.chunk_id IN $chunk_ids
-RETURN c.chunk_id, collect(e.name) as entities
+WHERE c.id IN $chunk_ids
+RETURN c.id, collect(e.name) as entities
 ```
 
 ### 4.6 Slim Graph 전략
@@ -571,7 +571,7 @@ RETURN c.chunk_id, collect(e.name) as entities
 | 최소 속성 | 노드에 name, type, description만 저장 |
 | 텍스트 외부화 | 청크 전문은 ES에 저장, Neo4j에는 요약만 |
 | 배치 쿼리 | chunk_id 목록으로 일괄 조회 |
-| 인덱스 최적화 | name, chunk_id, document_id에 인덱스 생성 |
+| 인덱스 최적화 | name, id, document_id에 인덱스 생성 |
 
 ---
 
@@ -628,7 +628,7 @@ sequenceDiagram
 
     Note over ETL,Neo: Phase 3: 엔티티 추출
     ETL->>Neo: CREATE Entity/Technology/Person nodes
-    ETL->>Neo: CREATE MENTIONS, RELATED relationships
+    ETL->>Neo: CREATE MENTIONS, RELATED_TO relationships
     ETL->>PG: UPDATE entity_count
 ```
 
@@ -637,7 +637,7 @@ sequenceDiagram
 | 방법 | 설명 |
 |------|------|
 | **document_id 기준** | PG의 UUID를 ES, Neo4j에 동일하게 저장 |
-| **chunk_id 기준** | ES chunk_id와 Neo4j Chunk.chunk_id 일치 |
+| **chunk_id 기준** | ES chunk_id와 Neo4j Chunk.id 일치 |
 | **동기화 플래그** | PG의 es_synced, neo4j_synced로 동기화 상태 추적 |
 | **삭제 동기화** | 쓰레기 청크 삭제 시 ES + Neo4j + PG 3-Store 동시 삭제 |
 | **ES Aggregation 보정** | ES aggregation으로 실제 청크 수 확인 후 PG chunk_count 보정 |
