@@ -5,11 +5,11 @@
 
 ### Recent Commits
 ```
+c0da463 사용자 프로젝트 회고
 c4df49b retrospective
 cc9922d [DOCS] 2026-02-18 일일 마무리 — 사용자 테스트 + 산출물 v1.1 + 모델 티어링 실증
 bcedb33 [FEAT] Sprint 12 사용자 테스트 + 산출물 현행화 + 버그 수정
 d7b4945 [DOCS] Neo4j 스키마 통일 문서 반영 — 테스트/산출물 6종 업데이트
-ebf822b [REFACTOR] Neo4j 스키마 통일 — RELATED_TO + MENTIONS + Chunk.id 표준화
 ```
 
 ## Work Log Status
