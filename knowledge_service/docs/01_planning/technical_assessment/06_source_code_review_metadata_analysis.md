@@ -1,5 +1,11 @@
 # 소스코드 검토 보고서: 메타데이터 자동 생성 및 활용 분석 [#](https://claude.ai/public/artifacts/c83d50aa-945c-4d71-86f7-f9df5400e739)
 
+> **현행화 정보**
+> - **최종 현행화**: 2026-02-20
+> - **프로젝트 상태**: 종료 (2026-02-18)
+> - **구현 상태**: 구현완료 (개선안 대부분 반영)
+> - **주요 변경사항**: 검토 당시 "개선 필요"로 지적된 사항들이 실제 구현에서 대부분 해결됨. BGE-M3 Dense+Sparse 임베딩 구현됨. 3개 DB 동기화 구현됨(PostgreSQL SSOT + ES + Neo4j). 시계열 메타데이터(valid_start_date/end_date) 구현됨. 단, pdf_processor.py/embed_pdfs.py 등 초기 레거시 파일은 Docling 기반 새 파이프라인으로 전면 교체됨.
+
 ## 문서 정보
 
 | 항목 | 내용 |
@@ -171,6 +177,8 @@ output = model.encode(texts, return_dense=True, return_sparse=True)
 # sparse_vector: {token: weight, ...}
 ```
 
+> ⚠️ **실제 구현**: BGE-M3 Dense+Sparse가 `embedding.py`에 구현됨. FlagEmbedding 대신 SentenceTransformer 기반으로 구현됨(CPU 16GB RAM 환경 최적화). OpenAI Embeddings 미사용, DeepSeek LLM만 메타데이터 추출에 사용.
+
 ### 3.2 🟡 Medium: 메타데이터 프롬프트 개선
 
 #### 현재 프롬프트의 문제점
@@ -245,6 +253,8 @@ async def save_to_all_stores(chunks, metadata):
         save_to_neo4j(metadata)            # 관계
     )
 ```
+
+> ⚠️ **실제 구현**: 3개 DB 동기화 구현 완료. ETL 3-Phase 파이프라인으로 분리 실행됨(Phase1: 파싱+청킹→ES/PG/Neo4j, Phase2: GPU 임베딩, Phase3: 엔티티 추출→Neo4j). storage.py에서 PostgreSQL SSOT 관리, ES에 dense/sparse 벡터 저장, Neo4j에 HAS_ENTITY/RELATED_TO 관계 저장.
 
 ### 3.4 🟢 Minor: 문서 타입 확장성
 
@@ -582,5 +592,11 @@ def _get_default_metadata(self):
 
 ---
 
-**문서 작성일**: 2026-01-12  
+**문서 작성일**: 2026-01-12
 **검토자**: AI Architecture Review
+
+---
+## 현행화 이력
+| 일자 | 작성자 | 내용 |
+|------|--------|------|
+| 2026-02-20 | Claude (doc-agent) | 프로젝트 종료 후 현행화 — 검토 시 "개선 필요" 사항 구현 결과 반영 (BGE-M3 SentenceTransformer 적용, 3개 DB 동기화 ETL 3-Phase로 구현, 레거시 pdf_processor.py→Docling 파이프라인 전면 교체) |

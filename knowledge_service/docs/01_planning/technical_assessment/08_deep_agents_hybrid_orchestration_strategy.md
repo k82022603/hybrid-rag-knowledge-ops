@@ -1,5 +1,11 @@
 # Deep Agents 기반 하이브리드 오케스트레이션 전략 기술 검토
 
+> **현행화 정보**
+> - **최종 현행화**: 2026-02-20
+> - **프로젝트 상태**: 종료 (2026-02-18)
+> - **구현 상태**: 부분구현 (LangGraph ReAct 패턴 구현, Deep Agents 전체 기능 미적용)
+> - **주요 변경사항**: LangGraph 기반 VIP 3단계 에이전트(`vip_agent.py`)는 구현됨. 그러나 `deepagents` 라이브러리는 사용하지 않음. `write_todos` 도구, 파일 시스템 캐싱, 배치 처리 등 Deep Agents 특화 기능은 미구현. 실제 구현은 단순 ReAct 패턴(LangGraph StateGraph + ToolNode) 수준이며, 동적 작업 분해 기능은 미포함.
+
 ## 1. 개요
 
 ### 1.1 검토 대상
@@ -21,6 +27,8 @@ LangChain Deep Agents를 기존 VIP 3단계 아키텍처와 결합하여 복잡�
 | **비용 영향** | ✅ 낮음 | 복잡한 쿼리에만 선택적 활성화 |
 | **구현 복잡도** | ⚠️ 중간 | LangGraph 1.0+ 기반으로 학습 곡선 존재 |
 | **프로덕션 준비도** | ✅ 준비됨 | LangChain 1.1+ (2025년 12월 출시) |
+
+> ⚠️ **실제 구현**: `deepagents` 라이브러리 미사용. LangGraph StateGraph 기반 VIP ReAct 에이전트(`vip_agent.py`)만 구현됨. `write_todos` 도구, 파일 시스템 캐싱, 동적 작업 분해 기능은 미구현. LangSmith/LangGraph Store 미연동.
 
 ---
 
@@ -1019,3 +1027,9 @@ graph TD
 ---
 
 **다음 단계**: 개발팀 검토 후 Phase 1 구현 착수
+
+---
+## 현행화 이력
+| 일자 | 작성자 | 내용 |
+|------|--------|------|
+| 2026-02-20 | Claude (doc-agent) | 프로젝트 종료 후 현행화 — deepagents 라이브러리 미사용 확인, 실제 구현(LangGraph ReAct VIP 에이전트만 구현, 동적 작업 분해/파일 캐싱 미구현) 반영 |

@@ -1,5 +1,11 @@
 # 사내 지식 검색 시스템 기술 설계서 [#](https://claude.ai/public/artifacts/f96d2965-0fde-49fb-b6cd-f77f37131aba)
 
+> **현행화 정보**
+> - **최종 현행화**: 2026-02-20
+> - **프로젝트 상태**: 종료 (2026-02-18)
+> - **구현 상태**: 구현완료 (핵심 기능)
+> - **주요 변경사항**: BGE-M3 임베딩 모델이 계획대로 적용됨. RRF 융합은 ranx 대신 자체 구현체(rrf_fusion.py) 사용. LangGraph 기반 VIP 3단계 에이전트 구현됨. Nori 한국어 분석기는 2026-02-13 이후 적용 완료. "전문가 찾기" 기능은 미구현(Person 노드 미구축).
+
 ## Enterprise Knowledge Search System - Technical Design Document
 
 | 항목 | 내용 |
@@ -857,6 +863,9 @@ Decision: No reliable results found
 | DeepSeek-V3.2 | API | 메타데이터 추출 | 외부 API |
 | LangGraph | 0.6+ | 에이전트 오케스트레이션 | ~500MB |
 
+> ⚠️ **실제 구현**: ranx 라이브러리 대신 자체 RRF 구현체(`rrf_fusion.py`)로 구현됨. BGE-M3는 `BAAI/bge-m3` 기본값 유지, CPU 환경에서 SentenceTransformer 방식으로 실행. 에이전트는 LangGraph 기반 VIP 3단계(Verify-Infer-Present) ReAct 패턴으로 구현됨.
+> ℹ️ **미구현**: "전문가 찾기" 기능(Person 노드/관계 미구축). 관계 기반 추천은 HAS_ENTITY/RELATED_TO 관계만 구현됨(CREATED, REVIEWED 관계 미구현).
+
 ### 6.2 API 엔드포인트
 
 ```yaml
@@ -914,3 +923,9 @@ GET /api/v1/related/{document_id}
 | 작성일 | 버전 | 변경사항 |
 |--------|------|----------|
 | 2026-01-12 | 1.0 | 초안 작성 |
+
+---
+## 현행화 이력
+| 일자 | 작성자 | 내용 |
+|------|--------|------|
+| 2026-02-20 | Claude (doc-agent) | 프로젝트 종료 후 현행화 — 구현 상태 반영 (BGE-M3 CPU 적용, ranx 대신 자체 RRF, VIP ReAct 에이전트, 전문가 찾기 미구현) |

@@ -1,5 +1,11 @@
 # GraphRAG와 Neo4j 통합 Hybrid RAG 시스템 설계 가이드
 
+> **현행화 정보**
+> - **최종 현행화**: 2026-02-20
+> - **프로젝트 상태**: 종료 (2026-02-18)
+> - **구현 상태**: 부분구현
+> - **주요 변경사항**: Microsoft GraphRAG(Parquet 기반 커뮤니티 탐지)는 미적용. 대신 DeepSeek LLM 기반 엔티티/관계 추출을 직접 구현함. Neo4j 그래프 모델은 Document→HAS_ENTITY→Entity, Entity←RELATED_TO→Entity 구조로 단순화됨. 커뮤니티 탐지(Community Detection) 미구현. Person 노드 및 전문가 탐색 기능 미구현. K8s/대규모 운영 환경 설계는 Docker Compose로 축소 구현됨.
+
 ## 문서 정보
 - **작성일**: 2026-01-12
 - **버전**: 1.0
@@ -150,6 +156,8 @@ graph TB
 
 #### 2.2.2 GraphRAG 처리 파이프라인
 Microsoft GraphRAG를 사용하여 문서에서 지식 그래프를 자동으로 추출합니다. 이 과정에서 LLM이 문서를 분석하여 엔티티와 관계를 식별하고, 커뮤니티 구조를 생성합니다.
+
+> ℹ️ **미구현**: Microsoft GraphRAG 라이브러리는 프로젝트에 적용되지 않음. Parquet 파일 기반 커뮤니티 탐지 파이프라인 미구현. 대신 DeepSeek V3.2를 통한 직접 엔티티/관계 추출 방식으로 구현됨 (`entity_extraction.py`).
 
 #### 2.2.3 이중 저장 전략
 - **Neo4j**: 그래프 구조와 관계 데이터를 저장하여 그래프 탐색 및 관계 기반 검색 지원
@@ -5715,13 +5723,15 @@ Microsoft GraphRAG와 Neo4j의 통합은 단순한 기술 조합을 넘어, 조�
 
 **작성 일자: 2026-01-12**
 
-**문서 버전**: 1.0 
+**문서 버전**: 1.0
 
 **저자**: Claude (Anthropic)
 
 **라이선스**: 본 가이드는 교육 및 실무 목적으로 자유롭게 사용 가능합니다.
 
-
---------------
 ---
+## 현행화 이력
+| 일자 | 작성자 | 내용 |
+|------|--------|------|
+| 2026-02-20 | Claude (doc-agent) | 프로젝트 종료 후 현행화 — Microsoft GraphRAG 미적용 확인, 실제 구현(DeepSeek 직접 엔티티 추출, Document→HAS_ENTITY→Entity 구조, RELATED_TO 관계) 반영 |
 
