@@ -103,6 +103,7 @@ test-results/
 
 # Binary documents
 *.pptx
+!knowledge_service/docs/08_deliverables/*.pptx
 
 # Backup files
 /backup/

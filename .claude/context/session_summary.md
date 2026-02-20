@@ -1,4 +1,4 @@
-# Session Summary - 2026-02-19 22:27
+# Session Summary - 2026-02-20 21:56
 
 ## Commits This Session
 ```
@@ -7,16 +7,16 @@
 
 ## Files Modified
 ```
+.claude/agents/project-manager.md
+.claude/commands/daily/README.md
+.claude/commands/daily/daily-close.md
+.claude/commands/daily/daily-log.md
+.claude/commands/daily/session-log.md
+.claude/commands/daily/standup.md
+.claude/commands/daily/vibe-log.md
 .claude/context/session_context.md
 .claude/context/session_summary.md
-.claude/skills/enterprise-ppt-generator/README.md
-.claude/skills/enterprise-ppt-generator/SKILL.md
-.claude/skills/enterprise-ppt-generator/template.py
-PLAN.md
-README.md
-infrastructure/docker/nginx/conf.d/default.conf
-knowledge_service/docs/04_testing/15_user_test_2026-02-18/01_upload_test_report.md
-knowledge_service/docs/04_testing/15_user_test_2026-02-18/02_neo4j_schema_migration_report.md
+.claude/hooks/session-context.sh
 ```
 
 ---
