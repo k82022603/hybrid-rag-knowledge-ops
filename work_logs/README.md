@@ -6,31 +6,43 @@
 
 ```
 work_logs/
-├── daily_logs/          # 📋 일일 작업 일지
+├── 01_daily_logs/       # 📋 일일 작업 일지
 │   ├── 2026/
 │   │   └── 01-January/
 │   │       ├── 2026-01-12.md
 │   │       └── ...
 │   └── README.md        # 작업 일지 가이드
 │
-├── vibe_logs/           # 💡 바이브 코딩 일지 (영감/아이디어)
+├── 02_session_logs/     # 💻 Claude Code 세션 로그
+│   ├── 2026/
+│   │   └── 01-January/
+│   │       └── ...
+│   └── README.md        # 세션 로그 가이드
+│
+├── 03_standups/         # 🌅 스탠드업 미팅 기록
+│   ├── 2026/
+│   │   └── 01-January/
+│   │       └── 2026-01-21_16-20.md   # 하루에 여러 번 가능
+│   └── README.md        # 스탠드업 가이드
+│
+├── 04_meetings/         # 📋 회의록 (스프린트 리뷰, 기술 검토 등)
+│   ├── 2026/
+│   │   └── 01-January/
+│   │       └── 2026-01-28_sprint03_completion_review.md
+│   └── README.md        # 회의록 가이드
+│
+├── 05_vibe_logs/        # 💡 바이브 코딩 일지 (영감/아이디어)
 │   ├── 2026/
 │   │   └── 01-January/
 │   │       ├── 2026-01-14-vibe.md
 │   │       └── ...
 │   └── README.md        # 바이브 로그 가이드
 │
-├── standups/            # 🌅 스탠드업 미팅 기록
-│   ├── 2026/
-│   │   └── 01-January/
-│   │       └── 2026-01-21_16-20.md   # 하루에 여러 번 가능
-│   └── README.md        # 스탠드업 가이드
+├── 06_insights/         # 🔍 프로젝트 인사이트
+│   └── ...
 │
-├── meetings/            # 📋 회의록 (스프린트 리뷰, 기술 검토 등)
-│   ├── 2026/
-│   │   └── 01-January/
-│   │       └── 2026-01-28_sprint03_completion_review.md
-│   └── README.md        # 회의록 가이드
+├── 07_retrospectives/   # 🔄 프로젝트 회고
+│   └── ...
 │
 └── README.md            # 이 파일
 ```
@@ -46,7 +58,7 @@ work_logs/
 - 다음 단계 계획
 - 시간 추적
 
-📖 가이드: [daily_logs/README.md](./daily_logs/README.md)
+📖 가이드: [01_daily_logs/README.md](./01_daily_logs/README.md)
 
 ### 💡 Vibe Logs (바이브 로그)
 **목적**: 왜 그렇게 했는가를 이해
@@ -57,7 +69,7 @@ work_logs/
 - 미래 아이디어
 - 개인적 관점
 
-📖 가이드: [vibe_logs/README.md](./vibe_logs/README.md)
+📖 가이드: [05_vibe_logs/README.md](./05_vibe_logs/README.md)
 
 ### 🌅 Standups (스탠드업 미팅 기록)
 **목적**: 팀 상태 공유 및 진행 추적
@@ -69,7 +81,7 @@ work_logs/
 - 액션 아이템 정리
 - 리스크 모니터링
 
-📖 가이드: [standups/README.md](./standups/README.md)
+📖 가이드: [03_standups/README.md](./03_standups/README.md)
 
 ### 📋 Meetings (회의록)
 **목적**: 공식 회의 기록 보관
@@ -81,7 +93,7 @@ work_logs/
 - 회고 (Retrospective)
 - 기술 검토
 
-📖 가이드: [meetings/README.md](./meetings/README.md)
+📖 가이드: [04_meetings/README.md](./04_meetings/README.md)
 
 ## 🚀 빠른 시작
 

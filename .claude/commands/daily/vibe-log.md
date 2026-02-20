@@ -10,7 +10,7 @@ allowed-tools: Bash(git:*), Bash(ls:*), Read, Write, Edit, Glob
 
 ## 파일 경로
 ```
-work_logs/vibe_logs/{{YYYY}}/{{MM}}-{{Month}}/{{YYYY-MM-DD}}-vibe.md
+work_logs/05_vibe_logs/{{YYYY}}/{{MM}}-{{Month}}/{{YYYY-MM-DD}}-vibe.md
 ```
 
 ## 작성 톤
@@ -183,7 +183,7 @@ A: 답변
 
 ### 3. 커밋 (선택)
 ```bash
-git add work_logs/vibe_logs/
+git add work_logs/05_vibe_logs/
 git commit -m "[DOCS] YYYY-MM-DD 바이브 코딩 일지 작성/업데이트"
 ```
 
@@ -203,4 +203,4 @@ date +"%Y-%m-%d %H:%M KST"
 
 **사용법**: `/project:daily:vibe-log`
 **모드**: 업데이트 (기존 파일 보존 + 새 인사이트 추가)
-**결과물**: `work_logs/vibe_logs/YYYY/MM-Month/YYYY-MM-DD-vibe.md`
+**결과물**: `work_logs/05_vibe_logs/YYYY/MM-Month/YYYY-MM-DD-vibe.md`

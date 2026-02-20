@@ -18,7 +18,7 @@ MONTH=$(date +%m-%B)
 TIME=$(date +%H:%M)
 
 # 작업일지 경로
-WORKLOG_DIR="$PROJECT_ROOT/work_logs/daily_logs/$YEAR/$MONTH"
+WORKLOG_DIR="$PROJECT_ROOT/work_logs/01_daily_logs/$YEAR/$MONTH"
 WORKLOG_FILE="$WORKLOG_DIR/$TODAY.md"
 SESSION_LOG="$PROJECT_ROOT/.claude/context/session_summary.md"
 

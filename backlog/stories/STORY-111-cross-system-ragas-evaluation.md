@@ -6,7 +6,7 @@
 |------|-----|
 | **Jira ID** | SCRUM-99 |
 | **Epic** | EPIC-005 |
-| **Status** | Deferred (Sprint 12 project closure) |
+| **Status** | Closed - Project Completed (2026-02-18) |
 | **Priority** | High |
 | **Story Points** | 8 |
 | **Assignee** | MLRag |

@@ -11,7 +11,7 @@
 | **Points** | 2 |
 | **Priority** | P3 - Low |
 | **Assignee** | RAG/Infra |
-| **Status** | Deferred (Sprint 12 project closure) |
+| **Status** | Closed - Project Completed (2026-02-18) |
 
 ---
 

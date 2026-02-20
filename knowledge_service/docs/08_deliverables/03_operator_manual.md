@@ -1,8 +1,9 @@
 # 운영자 매뉴얼
 
 **시스템**: Hybrid RAG Knowledge Platform
-**버전**: 1.1
+**버전**: 1.2
 **작성일**: 2026-02-19
+**최종 수정**: 2026-02-20 — ETL 섹션 전면 보강 (6.1~6.7)
 
 ---
 
@@ -518,92 +519,606 @@ curl -s http://localhost:16686/api/services | python3 -m json.tool
 
 ## 6. ETL 파이프라인 운영
 
-### 6.1 3-Phase 개요
+### 6.1 3-Phase 파이프라인 개요
 
+```mermaid
+flowchart LR
+    subgraph Phase1["Phase 1 (CPU — Docker)"]
+        P["파싱<br/>Docling"] --> C["청킹<br/>chunk_size=1000<br/>overlap=200"]
+        C --> ES1["ES 저장<br/>embedding_status=pending"]
+        C --> PG1["PG 저장<br/>documents / chunk_count"]
+        C --> N1["Neo4j 저장<br/>Document / Chunk 노드"]
+    end
+    subgraph Phase2["Phase 2 (GPU — Colab T4)"]
+        EX["ES Export<br/>pending 청크 추출"] --> GPU["BGE-M3 임베딩<br/>batch_size=64<br/>max_length=1000"]
+        GPU --> IMP["ES Import<br/>dense_vector(1024)<br/>sparse_vector_json"]
+    end
+    subgraph Phase3["Phase 3 (CPU — Docker)"]
+        ENT["엔티티 추출<br/>DeepSeek V3.2<br/>Gleaning 2-pass"] --> NEO["Neo4j<br/>MENTIONS / RELATED_TO"]
+        ENT --> PG2["PG<br/>entity_count 업데이트"]
+    end
+    Phase1 --> Phase2 --> Phase3
 ```
-Phase 1 (CPU) ──> Phase 2 (GPU) ──> Phase 3 (CPU)
- 파싱+청킹           임베딩          엔티티 추출
- ES/PG/Neo4j      Dense+Sparse     Neo4j 관계 구축
-```
 
-| Phase | 환경 | 소요시간 | 핵심 작업 | 비용 |
-|-------|------|---------|----------|------|
-| Phase 1 | CPU (Docker) | ~6시간/1,786파일 | 파싱(Docling) + 청킹(1000/200) -> ES/PG/Neo4j | 0원 |
-| Phase 2 | GPU (Colab T4) | 13.5분/53,414청크 | BGE-M3 Dense+Sparse 임베딩 | 0원 (Colab 무료) |
-| Phase 3 | CPU (Docker) | ~43시간(3워커) | DeepSeek V3.2 엔티티 추출 -> Neo4j | ~$52 |
+**Phase별 실적 요약 (실측값)**:
 
-### 6.2 Phase 1 실행 (파싱+청킹)
+| Phase | 환경 | 소요 시간 | 처리량 | 비용 |
+|-------|------|---------|--------|------|
+| Phase 1 | CPU (Docker) | ~6시간 / 1,786파일 | 파싱(Docling) + 청킹 -> ES/PG/Neo4j | 0원 |
+| Phase 2 | GPU (Colab T4) | 13.5분 / 53,414청크 | BGE-M3 Dense+Sparse 임베딩, 65.6 c/s | 0원 (Colab 무료) |
+| Phase 3 | CPU (Docker) | ~43시간 (3워커) / ~128시간 (1워커) | DeepSeek V3.2 엔티티 추출 -> Neo4j | ~$52 |
+
+**Phase 전환 원칙**: Phase 1이 완전히 완료된 후 Phase 2를 시작하고, Phase 2 완료 후 Phase 3를 시작합니다. Phase 순서를 바꾸면 안 됩니다.
+
+---
+
+### 6.2 Phase 1: 파싱 + 청킹
+
+#### 6.2.1 실행 전 준비
 
 ```bash
-# 1. ai-service 컨테이너 최신 빌드 (코드 변경 시 필수)
+# 컨테이너 최신 빌드 (코드 변경이 있었을 때 필수)
 cd infrastructure/docker
 docker compose build ai-service
 docker compose up -d ai-service
 
-# 2. Phase 1 실행 (nohup 필수 - 세션 종료 후에도 계속 실행)
-docker exec kp-ai-service bash -c \
-  "nohup python3 /app/scripts/run_etl_phase1_chunks.py > /tmp/etl_phase1.log 2>&1 &"
-
-# 3. 진행 확인
-docker exec kp-ai-service tail -20 /tmp/etl_phase1.log
-
-# 4. 완료 확인
-docker exec kp-ai-service grep "Phase 1 Completed" /tmp/etl_phase1.log
+# ai-service 헬스체크 (약 60초 대기)
+sleep 60
+curl -s http://localhost:8000/api/v1/health | python3 -m json.tool
 ```
 
-**핵심 파라미터**:
-- `chunk_size=1000` (토큰)
-- `chunk_overlap=200`
-- `batch_size=4` (CPU 최적값, 8은 역효과)
-- `enable_embeddings=False` (Phase 2에서 처리)
-- `enable_entity_extraction=False` (Phase 3에서 처리)
+#### 6.2.2 Phase 1 실행
 
-### 6.3 Phase 2 실행 (GPU 임베딩)
+```bash
+# nohup 필수 — docker exec -d는 셸이 끊기면 프로세스도 종료됨
+docker exec kp-ai-service bash -c \
+  "nohup python3 /app/scripts/run_etl_phase1_chunks.py > /tmp/etl_phase1.log 2>&1 &"
+```
+
+> **중요**: `docker exec -d`가 아니라 컨테이너 내부에서 `nohup ... &` 조합으로 실행해야 합니다. `docker exec -d`는 외부 셸이 끊기면 프로세스가 함께 종료됩니다.
+
+#### 6.2.3 핵심 파라미터 (run_etl_phase1_chunks.py 실측 확정값)
+
+| 파라미터 | 값 | 비고 |
+|---------|:--:|------|
+| `chunk_size` | 1000 | 토큰 단위 |
+| `chunk_overlap` | 200 | 오버랩 토큰 수 |
+| `batch_size` | **4** | CPU 환경 최적값. 8은 역효과 (55초 vs 7초) |
+| `max_retries` | 2 | 파일 처리 실패 시 재시도 |
+| `continue_on_error` | True | 단일 파일 실패 시 나머지 계속 처리 |
+| `enable_embeddings` | False | Phase 2에서 처리 (이 단계에서 OFF 필수) |
+| `enable_entity_extraction` | False | Phase 3에서 처리 |
+
+**파일 크기별 처리 정책**:
+- 30MB 초과: 자동 스킵 (OOM 방지)
+- 5-30MB: OCR 비활성화 모드로 처리
+- 5MB 미만: 전체 기능 (OCR + 테이블)
+
+**처리 순서**: MD/TXT -> HTML -> IPYNB -> DOCX -> PPTX -> PDF (경량 파일 우선)
+
+#### 6.2.4 진행 상황 확인
+
+```bash
+# 실시간 로그 확인
+docker exec kp-ai-service tail -20 /tmp/etl_phase1.log
+
+# 진행 상황 JSON 파일 (자동 생성)
+docker exec kp-ai-service cat /app/knowledge_data/etl_phase1_progress.json
+
+# ES 청크 수 실시간 확인
+curl -s http://localhost:9200/knowledge_chunks/_count | \
+  python3 -c "import sys,json; print('ES chunks:', json.load(sys.stdin)['count'])"
+
+# PG 문서 수 확인
+docker exec kp-postgresql psql -U knowledge -d knowledge -t -c \
+  "SELECT count(*), sum(chunk_count) FROM documents;"
+```
+
+#### 6.2.5 완료 확인
+
+```bash
+# 완료 문자열 확인 (이 줄이 있으면 Phase 1 정상 완료)
+docker exec kp-ai-service grep "Phase 1 Completed" /tmp/etl_phase1.log
+
+# 최종 통계 확인
+docker exec kp-ai-service tail -30 /tmp/etl_phase1.log
+```
+
+#### 6.2.6 Phase 1 모니터링 스크립트
+
+```bash
+# 모니터 시작 (15분 간격, Slack dev 채널 자동 보고)
+# 위치: knowledge_service/scripts/etl_phase1_monitor.sh
+nohup bash knowledge_service/scripts/etl_phase1_monitor.sh \
+  > /tmp/etl_phase1_monitor.log 2>&1 &
+
+# 모니터 PID 확인
+ps aux | grep "etl_phase1_monitor" | grep -v grep
+
+# 모니터 종료
+kill <PID>
+```
+
+**etl_phase1_monitor.sh 보고 항목**:
+- 진행률 바 (0-100%)
+- 성공/스킵/실패 파일 수
+- ES 청크 수 및 15분 증분
+- PG 문서 수
+- 컨테이너 CPU/메모리
+- 현재 처리 중인 파일명
+- 예상 완료 시각 (ETA)
+- ETL 프로세스 사망 감지 (3회 연속 변화 없으면 alerts 채널 경보)
+
+---
+
+### 6.3 Phase 2: GPU 임베딩 (Google Colab)
 
 GPU가 없는 환경에서는 Google Colab 무료 T4 GPU를 활용합니다.
 
+#### 6.3.1 Phase 2 준비 — pending 청크 수 확인
+
 ```bash
-# 1. ES에서 pending 청크 추출 (호스트에서)
-python3 knowledge_service/scripts/export_chunks_for_gpu.py
-
-# 2. Colab에서 BGE-M3 임베딩 실행
-# -> Dense(1024차원) + Sparse 벡터 생성
-
-# 3. 임베딩 결과 ES로 임포트
-python3 knowledge_service/scripts/import_embeddings.py
+# embedding_status=pending인 청크 수 확인 (Phase 1 완료 후)
+curl -s 'http://localhost:9200/knowledge_chunks/_count' \
+  -H 'Content-Type: application/json' \
+  -d '{"query":{"term":{"embedding_status":"pending"}}}' | \
+  python3 -c "import sys,json; print('Pending chunks:', json.load(sys.stdin)['count'])"
 ```
 
-### 6.4 Phase 3 실행 (엔티티 추출)
+#### 6.3.2 Colab용 청크 파일 확인
+
+Phase 1 실행 결과 `knowledge_service/scripts/all_chunks_for_gpu.jsonl` 파일이 생성됩니다. Colab에서 이 파일을 사용합니다.
 
 ```bash
-# 1. Phase 3 실행 (nohup 필수)
+# 파일 크기 확인
+ls -lh knowledge_service/scripts/all_chunks_for_gpu.jsonl
+
+# 라인 수 (청크 수)
+wc -l knowledge_service/scripts/all_chunks_for_gpu.jsonl
+```
+
+#### 6.3.3 Colab BGE-M3 임베딩 파라미터 (확정값)
+
+```python
+# Google Colab T4 GPU 환경 — gpu_embedding_colab.ipynb 참고
+from FlagEmbedding import BGEM3FlagModel
+
+model = BGEM3FlagModel("BAAI/bge-m3", use_fp16=True)  # T4 GPU
+
+embeddings = model.encode(
+    texts,
+    batch_size=64,         # GPU 최적값 (CPU는 4)
+    max_length=1000,       # 1500은 OOM 발생 (7.3GB+)
+    return_dense=True,     # Dense vector (1024차원)
+    return_sparse=True,    # Sparse vector 동시 생성
+)
+```
+
+**주의**: Sparse vector를 ES object로 저장하면 동적 매핑 폭발이 발생합니다. 반드시 JSON 문자열(`sparse_vector_json` 필드)로 저장해야 합니다.
+
+#### 6.3.4 임베딩 결과 ES 임포트
+
+Colab에서 생성된 임베딩 JSONL 파일을 호스트로 가져온 후 임포트합니다.
+
+```bash
+# 임베딩 결과 파일을 컨테이너로 복사
+docker cp embeddings_result.jsonl kp-ai-service:/tmp/
+
+# 임포트 실행 (컨테이너 내부에서)
+docker exec kp-ai-service python3 /app/scripts/import_embeddings.py \
+  /tmp/embeddings_result.jsonl
+
+# 이어서 처리 (이미 completed인 항목은 건너뜀)
+docker exec kp-ai-service python3 /app/scripts/import_embeddings.py \
+  /tmp/embeddings_result.jsonl --skip-completed
+```
+
+**import_embeddings.py 위치**: `knowledge_service/scripts/import_embeddings.py`
+
+#### 6.3.5 임베딩 완료 확인
+
+```bash
+# embedding_status 분포 확인
+curl -s 'http://localhost:9200/knowledge_chunks/_search' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "size": 0,
+    "aggs": {
+      "status": {
+        "terms": {"field": "embedding_status.keyword", "size": 10}
+      }
+    }
+  }' | python3 -m json.tool
+
+# completed 건수만 확인
+curl -s 'http://localhost:9200/knowledge_chunks/_count' \
+  -H 'Content-Type: application/json' \
+  -d '{"query":{"term":{"embedding_status":"completed"}}}' | \
+  python3 -c "import sys,json; print('Completed:', json.load(sys.stdin)['count'])"
+```
+
+#### 6.3.6 임베딩 모니터링 스크립트
+
+```bash
+# 임베딩 전용 모니터 (10분 간격, Slack dev 채널 보고)
+# 위치: knowledge_service/scripts/embedding_monitor.sh
+nohup bash knowledge_service/scripts/embedding_monitor.sh \
+  > /tmp/embedding_monitor.log 2>&1 &
+
+# 커스텀 간격 (5분)
+INTERVAL=300 nohup bash knowledge_service/scripts/embedding_monitor.sh \
+  > /tmp/embedding_monitor.log 2>&1 &
+
+# 전체 청크 수 오버라이드 (기본값 13430, 실제 청크 수로 지정)
+TOTAL_CHUNKS=42462 nohup bash knowledge_service/scripts/embedding_monitor.sh \
+  > /tmp/embedding_monitor.log 2>&1 &
+
+# PID 확인 및 종료
+ps aux | grep "embedding_monitor" | grep -v grep
+kill <PID>
+```
+
+---
+
+### 6.4 Phase 3: 엔티티 추출
+
+#### 6.4.1 단일 워커 실행
+
+가장 간단한 방법입니다. API Key가 1개일 때 사용합니다.
+
+```bash
+# 단일 워커 실행 (nohup 필수)
 docker exec kp-ai-service bash -c \
-  "nohup python3 /app/scripts/run_etl_phase3_entities.py > /tmp/etl_phase3.log 2>&1 &"
+  'nohup bash -c "ENTITY_MIN_TOKENS=50 ENTITY_CONCURRENCY=3 \
+  python3 /app/scripts/batch_entity_extraction.py" \
+  > /tmp/entity_extraction.log 2>&1 &'
 
-# 2. 진행 확인
-docker exec kp-ai-service tail -20 /tmp/etl_phase3.log
+# 로그 확인
+docker exec kp-ai-service tail -20 /tmp/entity_extraction.log
+```
 
-# 3. Neo4j에서 엔티티 확인
+#### 6.4.2 3-워커 병렬 실행 (권장, ~3배 속도)
+
+DeepSeek API Key 3개가 필요합니다. 파티셔닝으로 각 워커가 겹치지 않게 처리합니다.
+
+```bash
+# Step 1: 체크포인트 시딩 (기존 완료 ID를 워커별 체크포인트로 복사)
+docker exec kp-ai-service python3 -c "
+import json, shutil
+try:
+    cp = json.load(open('/tmp/entity_checkpoint.json'))
+    ids = cp.get('processed_ids', [])
+except FileNotFoundError:
+    ids = []
+for w in range(3):
+    d = {
+        'processed_ids': ids,
+        'stats': {
+            'total_entities': 0, 'total_relationships': 0,
+            'total_chunks_processed': 0, 'total_errors': 0,
+            'start_time': None, 'last_save_time': None
+        }
+    }
+    json.dump(d, open('/tmp/entity_checkpoint_w%d.json' % w, 'w'))
+print('Checkpoint seeded for 3 workers, base IDs:', len(ids))
+"
+
+# Step 2: 워커 0 실행 (파티션 0/3 — 3개 중 첫째)
+docker exec kp-ai-service bash -c \
+  'nohup bash -c "ENTITY_MIN_TOKENS=50 ENTITY_CONCURRENCY=3 ENTITY_PARTITION=0/3 \
+  ENTITY_CHECKPOINT_FILE=/tmp/entity_checkpoint_w0.json \
+  DEEPSEEK_API_KEY=<API_KEY_1> \
+  python3 /app/scripts/batch_entity_extraction.py" \
+  > /tmp/entity_w0.log 2>&1 &'
+
+# Step 3: 워커 1 실행 (파티션 1/3)
+docker exec kp-ai-service bash -c \
+  'nohup bash -c "ENTITY_MIN_TOKENS=50 ENTITY_CONCURRENCY=3 ENTITY_PARTITION=1/3 \
+  ENTITY_CHECKPOINT_FILE=/tmp/entity_checkpoint_w1.json \
+  DEEPSEEK_API_KEY=<API_KEY_2> \
+  python3 /app/scripts/batch_entity_extraction.py" \
+  > /tmp/entity_w1.log 2>&1 &'
+
+# Step 4: 워커 2 실행 (파티션 2/3)
+docker exec kp-ai-service bash -c \
+  'nohup bash -c "ENTITY_MIN_TOKENS=50 ENTITY_CONCURRENCY=3 ENTITY_PARTITION=2/3 \
+  ENTITY_CHECKPOINT_FILE=/tmp/entity_checkpoint_w2.json \
+  DEEPSEEK_API_KEY=<API_KEY_3> \
+  python3 /app/scripts/batch_entity_extraction.py" \
+  > /tmp/entity_w2.log 2>&1 &'
+```
+
+#### 6.4.3 핵심 파라미터 (batch_entity_extraction.py)
+
+| 파라미터 | 환경변수 | 기본값 | 권장값 | 설명 |
+|---------|---------|-------|:------:|------|
+| 최소 토큰 | `ENTITY_MIN_TOKENS` | 150 | **50** | 처리 대상 최소 token_count. 50 미만은 쓰레기 데이터(테이블 셀 조각 등) |
+| 동시 처리 | `ENTITY_CONCURRENCY` | 3 | 3 | 워커당 동시 LLM 호출 수 |
+| 배치 크기 | `ENTITY_BATCH_SIZE` | 50 | 50 | 체크포인트 저장 간격 |
+| 파티셔닝 | `ENTITY_PARTITION` | "" | "0/3" | "ID/TOTAL" — 3워커 중 0번째 |
+| 체크포인트 | `ENTITY_CHECKPOINT_FILE` | /tmp/entity_checkpoint.json | 워커별 분리 | 중단/재개 지원 |
+| Gleaning | `ENTITY_MAX_GLEANINGS` | 1 | 1 | 2-pass 추출 (1차 + 누락 보완) |
+| API Key | `DEEPSEEK_API_KEY` | 컨테이너 env | 워커별 다른 키 | 멀티워커 병렬 처리 시 |
+
+**비용**: DeepSeek V3.2 API 호출 약 $52 (23,074건 기준, 3워커 43시간)
+
+#### 6.4.4 중단 후 재개 (체크포인트 기반)
+
+```bash
+# 워커 재시작 (체크포인트 파일이 있으면 자동으로 이어서 처리)
+docker exec kp-ai-service bash -c \
+  'nohup bash -c "ENTITY_MIN_TOKENS=50 ENTITY_CONCURRENCY=3 ENTITY_PARTITION=0/3 \
+  ENTITY_CHECKPOINT_FILE=/tmp/entity_checkpoint_w0.json \
+  DEEPSEEK_API_KEY=<API_KEY_1> \
+  python3 /app/scripts/batch_entity_extraction.py" \
+  > /tmp/entity_w0.log 2>&1 &'
+```
+
+체크포인트 파일이 존재하면 이미 처리한 chunk_id를 건너뛰고 나머지만 처리합니다.
+
+#### 6.4.5 진행 상황 확인
+
+```bash
+# 각 워커 로그 확인
+docker exec kp-ai-service tail -5 /tmp/entity_w0.log
+docker exec kp-ai-service tail -5 /tmp/entity_w1.log
+docker exec kp-ai-service tail -5 /tmp/entity_w2.log
+
+# 각 워커 체크포인트 처리 완료 수 (시드 제외)
+SEED=16171  # Phase 1 이전에 이미 처리된 ID 수
+docker exec kp-ai-service bash -c "
+for w in 0 1 2; do
+  COUNT=\$(python3 -c \"
+import json
+d = json.load(open('/tmp/entity_checkpoint_w\${w}.json'))
+print(len(d.get('processed_ids', [])) - ${SEED})
+\" 2>/dev/null || echo 0)
+  echo \"Worker \${w}: \${COUNT}건\"
+done
+"
+
+# Neo4j MENTIONS 관계 수 확인
+docker exec kp-ai-service python3 -c "
+from neo4j import GraphDatabase
+d = GraphDatabase.driver('bolt://neo4j:7687', auth=('neo4j', 'neo4j_dev_2026!'))
+with d.session() as s:
+    r = s.run('MATCH ()-[m:MENTIONS]->() RETURN count(m) as cnt')
+    print('MENTIONS:', r.single()['cnt'])
+d.close()
+"
+
+# Neo4j 전체 노드 수 확인
 docker exec kp-neo4j cypher-shell -u neo4j -p 'neo4j_dev_2026!' \
   "MATCH (n) RETURN labels(n) AS label, count(n) AS cnt ORDER BY cnt DESC;"
 ```
 
-**비용**: DeepSeek V3.2 API 호출 약 $52 (23,074건 기준)
-
-### 6.5 모니터링 스크립트
+#### 6.4.6 Phase 3 모니터링 스크립트
 
 ```bash
-# Phase 1 모니터 (15분 간격, Slack dev 채널 보고)
-nohup bash knowledge_service/scripts/etl_phase1_monitor.sh > /tmp/etl_phase1_monitor.log 2>&1 &
+# Phase 3 전용 모니터 (15분 간격, Slack dev 채널 보고)
+# 위치: knowledge_service/scripts/phase3_monitor_slack.sh
+nohup bash knowledge_service/scripts/phase3_monitor_slack.sh \
+  > /tmp/phase3_slack_monitor.log 2>&1 &
 
-# 임베딩 전용 모니터
-nohup bash knowledge_service/scripts/embedding_monitor.sh > /tmp/embedding_monitor.log 2>&1 &
+# 또는 entity_monitor_slack.sh 사용 (scripts/에 위치)
+nohup bash scripts/entity_monitor_slack.sh \
+  > /tmp/entity_monitor.log 2>&1 &
 
-# 모니터 프로세스 확인
-ps aux | grep "etl.*monitor\|embedding.*monitor" | grep -v grep
-
-# 모니터 종료
+# PID 확인 및 종료
+ps aux | grep "phase3_monitor\|entity_monitor" | grep -v grep
 kill <PID>
+```
+
+**phase3_monitor_slack.sh 보고 항목**:
+- 전체 진행률 (W0 + W1 + W2 합산)
+- 워커별 처리 수
+- 처리 속도 (건/분)
+- 활성 워커 수
+- 잔여 건수 및 예상 완료 시각 (ETA)
+
+---
+
+### 6.5 모니터링 스크립트 종합 관리
+
+#### 6.5.1 스크립트 목록
+
+| 스크립트 | 경로 | 간격 | 용도 |
+|---------|------|:----:|------|
+| `etl_phase1_monitor.sh` | `knowledge_service/scripts/` | 15분 | Phase 1 진행 모니터링 |
+| `etl_v2_monitor.sh` | `knowledge_service/scripts/` | 15분 | ETL 전체 v2 모니터링 (로그: `/tmp/etl_full_v2.log`) |
+| `embedding_monitor.sh` | `knowledge_service/scripts/` | 10분 | Phase 2 임베딩 완료 모니터링 |
+| `phase3_monitor_slack.sh` | `knowledge_service/scripts/` | 15분 | Phase 3 엔티티 추출 모니터링 |
+| `entity_monitor_slack.sh` | `scripts/` | - | 엔티티 추출 Slack 알림 |
+
+#### 6.5.2 세션 전환 시 모니터 관리
+
+```bash
+# 1. 실행 중인 모니터 전부 확인
+ps aux | grep -E "etl.*monitor|embedding.*monitor|phase3.*monitor|entity.*monitor" | grep -v grep
+
+# 2. 이전 세션의 낡은 모니터 종료 (PID로)
+kill <OLD_PID>
+
+# 3. 새 모니터 시작
+nohup bash knowledge_service/scripts/etl_phase1_monitor.sh \
+  > /tmp/etl_phase1_monitor.log 2>&1 &
+echo "Monitor PID: $!"
+```
+
+> **주의**: 세션 전환 시 이전 모니터 프로세스가 계속 실행되어 낡은 데이터를 Slack에 보내는 경우가 있습니다. 새 세션 시작 시 반드시 기존 모니터를 확인하고 정리하세요.
+
+#### 6.5.3 로그 파일 위치
+
+| 로그 파일 | 설명 |
+|---------|------|
+| `/tmp/etl_phase1.log` | Phase 1 ETL 실행 로그 (컨테이너 내부) |
+| `/tmp/etl_phase1_monitor.log` | Phase 1 모니터 로그 (호스트) |
+| `/tmp/etl_full_v2.log` | ETL v2 전체 실행 로그 (컨테이너 내부) |
+| `/tmp/etl_v2_monitor.log` | ETL v2 모니터 로그 (호스트) |
+| `/tmp/embedding_monitor.log` | 임베딩 모니터 로그 (호스트) |
+| `/tmp/entity_extraction.log` | Phase 3 단일 워커 로그 (컨테이너 내부) |
+| `/tmp/entity_w0.log`, `_w1.log`, `_w2.log` | Phase 3 워커별 로그 (컨테이너 내부) |
+| `/tmp/phase3_slack_monitor.log` | Phase 3 모니터 로그 (호스트) |
+| `/app/knowledge_data/etl_phase1_progress.json` | Phase 1 진행 상황 JSON (컨테이너 내부) |
+| `/tmp/entity_checkpoint_w{0,1,2}.json` | Phase 3 워커별 체크포인트 (컨테이너 내부) |
+
+---
+
+### 6.6 ETL 장애 대응
+
+#### 6.6.1 OOM (메모리 부족) 발생 시
+
+```bash
+# OOM 여부 확인
+docker inspect --format='{{.State.OOMKilled}}' kp-ai-service
+
+# 메모리 사용량 확인
+docker stats --no-stream --format "table {{.Name}}\t{{.MemUsage}}\t{{.MemPerc}}" | grep kp-
+
+# 대응: batch_size 축소 후 재실행
+# run_etl_phase1_chunks.py에서 batch_size=4 -> batch_size=2로 조정
+# max_text_length도 1000 -> 800으로 축소 고려
+```
+
+#### 6.6.2 ETL 프로세스 갑자기 종료 시
+
+```bash
+# 1. 프로세스 생존 확인
+docker exec kp-ai-service bash -c \
+  'cat /proc/*/cmdline 2>/dev/null | tr "\0" " " | grep -c "run_etl_phase1" || echo "0"'
+
+# 2. 로그 마지막 100줄로 원인 파악
+docker exec kp-ai-service tail -100 /tmp/etl_phase1.log | grep -E "ERROR|Exception|Traceback"
+
+# 3. 체크포인트 기반 재시작
+# Phase 1: 이미 PG에 저장된 문서는 SHA-256 해시 중복 검사로 자동 스킵됨
+docker exec kp-ai-service bash -c \
+  "nohup python3 /app/scripts/run_etl_phase1_chunks.py > /tmp/etl_phase1.log 2>&1 &"
+
+# Phase 3: 체크포인트 파일 기반 자동 재개
+# (체크포인트 파일이 있으면 이미 처리한 청크 스킵)
+```
+
+#### 6.6.3 PG chunk_count 수동 보정
+
+Phase 1 코드 버그 등으로 PG의 chunk_count가 실제 ES 청크 수와 불일치할 경우:
+
+```bash
+# 1. ES aggregation으로 문서별 실제 청크 수 추출
+curl -s 'http://localhost:9200/knowledge_chunks/_search' \
+  -H 'Content-Type: application/json' \
+  -d '{"size":0,"aggs":{"by_doc":{"terms":{"field":"document_id","size":3000}}}}' \
+  > /tmp/es_agg.json
+
+# 2. Python으로 UPDATE SQL 생성
+python3 -c "
+import json
+with open('/tmp/es_agg.json') as f:
+    data = json.load(f)
+buckets = data['aggregations']['by_doc']['buckets']
+with open('/tmp/fix_chunk_count.sql', 'w') as f:
+    f.write('BEGIN;\n')
+    for b in buckets:
+        f.write(f\"UPDATE documents SET chunk_count = {b['doc_count']} WHERE id = '{b['key']}'::uuid;\n\")
+    f.write('COMMIT;\n')
+print(f'{len(buckets)} UPDATE statements generated')
+"
+
+# 3. SQL 실행
+docker cp /tmp/fix_chunk_count.sql kp-postgresql:/tmp/fix_chunk_count.sql
+docker exec kp-postgresql psql -U knowledge -d knowledge -f /tmp/fix_chunk_count.sql
+
+# 4. 결과 검증
+docker exec kp-postgresql psql -U knowledge -d knowledge -t -c \
+  "SELECT count(*), sum(chunk_count) FROM documents;"
+```
+
+#### 6.6.4 nohup 실행 필수 이유
+
+```bash
+# ❌ 잘못된 방법 — 외부 셸이 끊기면 프로세스도 종료됨
+docker exec -d kp-ai-service python3 /app/scripts/run_etl_phase1_chunks.py
+
+# ✅ 올바른 방법 — 셸이 끊겨도 계속 실행됨
+docker exec kp-ai-service bash -c \
+  "nohup python3 /app/scripts/run_etl_phase1_chunks.py > /tmp/etl_phase1.log 2>&1 &"
+```
+
+`docker exec -d`는 데몬처럼 보이지만, 실제로는 외부 셸 세션에 종속됩니다. 터미널이 닫히거나 SSH 세션이 끊기면 프로세스가 함께 종료됩니다. 반드시 컨테이너 내부에서 `nohup ... &` 조합을 사용해야 합니다.
+
+---
+
+### 6.7 데이터 검증
+
+#### 6.7.1 3-Store 정합성 검증
+
+```bash
+# PG vs ES vs Neo4j 전체 정합성 검증 (자동 스크립트)
+docker exec kp-ai-service python3 /app/scripts/verify_3store_consistency.py
+
+# orphan(고아) 데이터 자동 정리 포함
+docker exec kp-ai-service python3 /app/scripts/verify_3store_consistency.py --fix
+```
+
+**verify_3store_consistency.py 위치**: `knowledge_service/scripts/verify_3store_consistency.py`
+
+#### 6.7.2 수동 검증 쿼리
+
+```bash
+# ES 전체 청크 수
+curl -s http://localhost:9200/knowledge_chunks/_count | \
+  python3 -c "import sys,json; print('ES total chunks:', json.load(sys.stdin)['count'])"
+
+# ES 임베딩 상태 분포
+curl -s 'http://localhost:9200/knowledge_chunks/_search' \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "size": 0,
+    "aggs": {"status": {"terms": {"field": "embedding_status.keyword", "size": 5}}}
+  }' | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+for b in d['aggregations']['status']['buckets']:
+    print(f'  {b[\"key\"]}: {b[\"doc_count\"]}')
+"
+
+# PG 문서 및 청크 수 요약
+docker exec kp-postgresql psql -U knowledge -d knowledge -t -c \
+  "SELECT count(*) AS docs, sum(chunk_count) AS chunks, sum(entity_count) AS entities FROM documents;"
+
+# Neo4j 노드 및 관계 수
+docker exec kp-neo4j cypher-shell -u neo4j -p 'neo4j_dev_2026!' \
+  "MATCH (n) RETURN labels(n) AS label, count(n) AS cnt ORDER BY cnt DESC;"
+docker exec kp-neo4j cypher-shell -u neo4j -p 'neo4j_dev_2026!' \
+  "MATCH ()-[r]->() RETURN type(r) AS rel, count(r) AS cnt ORDER BY cnt DESC;"
+
+# Nori 분석기 동작 확인 (ETL 후 반드시 검증)
+curl -s -X POST "http://localhost:9200/knowledge_chunks/_analyze" \
+  -H "Content-Type: application/json" \
+  -d '{"field":"text","text":"프로젝트관리시스템구축"}' | \
+  python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+tokens = [t['token'] for t in d['tokens']]
+print('Tokens:', tokens)
+print('Count:', len(tokens), '(expected 4)')
+"
+# 기대: ['프로젝트', '관리', '시스템', '구축'] — 1토큰이면 Nori 미적용
+```
+
+#### 6.7.3 curl 명령에서 특수문자 주의
+
+```bash
+# ❌ 잘못된 방법 — ! 문자가 bash 히스토리 확장으로 변환됨
+curl -d '{"password":"admin123!"}'
+
+# ✅ 올바른 방법 — 임시 파일 사용
+cat > /tmp/req.json << 'ENDJSON'
+{"email":"admin@example.com","password":"admin123!"}
+ENDJSON
+curl -s -X POST http://localhost:8000/api/v1/auth/login \
+  -H 'Content-Type: application/json' \
+  -d @/tmp/req.json
 ```
 
 ---

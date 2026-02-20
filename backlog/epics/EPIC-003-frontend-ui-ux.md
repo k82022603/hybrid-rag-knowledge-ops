@@ -5,7 +5,7 @@
 | 항목 | 값 |
 |------|-----|
 | **Jira ID** | SCRUM-40 |
-| **Status** | ready |
+| **Status** | Closed - Project Completed (2026-02-18) |
 | **Priority** | High |
 | **Owner** | TBD |
 | **Target Sprint** | Sprint 3 |

@@ -2,6 +2,12 @@
 
 **Version**: 1.1 | **Updated**: 2026-01-26
 
+> **현행화 정보**
+> - **최종 현행화**: 2026-02-20
+> - **프로젝트 상태**: 종료 (2026-02-18)
+> - **문서 상태**: 현행
+> - **주요 변경사항**: CI 워크플로우 파일 목록은 실제 구현과 일치함. `pr-build.yml`, `code-quality.yml`, `e2e-test.yml`, `docker-compose-validate.yml`, `cd.yml` 모두 존재 확인.
+
 ## 개요
 
 GitHub Branch Protection Rules를 설정하여 코드 품질과 배포 안정성을 보장하기 위한 가이드입니다.
@@ -154,3 +160,11 @@ Repository → Settings → Branches → Add branch protection rule
 - [Branch Protection 상세 가이드 v1.0](../knowledge_service/docs/06_deployment/01_branch_protection_guide.md) — gh CLI, CODEOWNERS, Bypass 절차 포함
 - [GitHub Actions CI/CD 운영 가이드 v2.0](../knowledge_service/docs/07_maintenance/03_github_actions_cicd_guide.md)
 - [GitHub Branch Protection Rules](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches)
+
+---
+
+## 현행화 이력
+
+| 일자 | 작성자 | 내용 |
+|------|--------|------|
+| 2026-02-20 | Claude (doc-agent) | 프로젝트 종료 후 현행화 — 워크플로우 파일 실제 존재 여부 확인 (모두 구현됨), 문서 상태 현행으로 판정 |

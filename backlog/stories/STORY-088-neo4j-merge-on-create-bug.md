@@ -11,7 +11,7 @@
 | **Points** | 2 |
 | **Priority** | P2 - Medium |
 | **Assignee** | RAG |
-| **Status** | Deferred (Sprint 12 project closure) |
+| **Status** | Closed - Project Completed (2026-02-18) |
 
 ---
 

@@ -6,7 +6,7 @@
 |------|-----|
 | **Jira ID** | SCRUM-42 |
 | **Epic** | EPIC-002 |
-| **Status** | In Review |
+| **Status** | Closed - Project Completed (2026-02-18) |
 | **Priority** | Critical |
 | **Story Points** | 2 |
 | **Assignee** | RAG |

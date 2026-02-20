@@ -6,7 +6,7 @@
 |------|-----|
 | **Jira ID** | - (Jira 이슈 한도 초과) |
 | **Epic** | - |
-| **Status** | Deferred (Sprint 12 project closure) |
+| **Status** | Closed - Project Completed (2026-02-18) |
 | **Priority** | High |
 | **Story Points** | 3 |
 | **Assignee** | QA |

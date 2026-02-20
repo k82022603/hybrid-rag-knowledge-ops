@@ -1,5 +1,11 @@
 # Elasticsearch 라이선스 정책 검증 보고서 [#](https://claude.ai/public/artifacts/3a794184-d5d8-4463-891f-900a4722ae2a)
 
+> **현행화 정보**
+> - **최종 현행화**: 2026-02-20
+> - **프로젝트 상태**: 종료 (2026-02-18)
+> - **구현 상태**: 구현완료
+> - **주요 변경사항**: 이 문서의 전략(BGE-M3 외부 임베딩 + Python RRF)은 실제로 구현됨. ES 8.15 Basic 라이선스 사용. RRF는 Python 자체 구현 (`src/app/services/rrf_fusion.py`). ELSER 미사용. 추가: Nori 한국어 분석기 플러그인은 커스텀 Dockerfile로 설치 필수 (2026-02-13 사고 교훈).
+
 ## 검증 결과 요약
 
 | 항목 | 원본 주장 | 검증 결과 |
@@ -103,15 +109,27 @@ final_score = alpha * bm25_score + (1 - alpha) * vector_score
 | **한국어 성능** | 영어 최적화 | 한국어 우수 |
 | **인프라** | ES 리소스 점유 | 별도 추론 필요 |
 
+> ⚠️ **실제 구현**: ELSER 미사용 (계획대로). 외부 임베딩 모델은 BGE-M3 대신 `jhgan/ko-sroberta-multitask` 채택. RRF는 `ranx` 라이브러리 대신 Python 자체 구현 (`src/app/services/rrf_fusion.py`). ES 8.15 Basic 라이선스 사용 확인.
+
 ---
 
 ## 결론
 
-원본 내용의 핵심 전략은 올바릅니다. BGE-M3로 외부에서 벡터를 생성하여 Elasticsearch Basic에 저장하는 방식은 무료로 가능합니다. 
+원본 내용의 핵심 전략은 올바릅니다. BGE-M3로 외부에서 벡터를 생성하여 Elasticsearch Basic에 저장하는 방식은 무료로 가능합니다.
 
 **단, RRF는 Platinum 기능이므로**, 무료 환경에서는 Python의 `ranx` 라이브러리나 직접 구현한 RRF 로직을 사용해야 합니다. 이 방식도 동일한 결과를 얻을 수 있으며, 오히려 가중치 조절 등 더 세밀한 제어가 가능합니다.
 
+> ⚠️ **실제 구현**: 이 전략대로 구현 완료. Nori 플러그인은 커스텀 Dockerfile에서 `bin/elasticsearch-plugin install analysis-nori`로 설치. **주의**: 2026-02-13 사고 — Nori 플러그인이 Dockerfile 누락으로 32일간 미설치 상태였음. 커스텀 ES 이미지 빌드 필수 (`infrastructure/elasticsearch/Dockerfile`).
+
 ---
 
-**검증일**: 2026-01-12  
+**검증일**: 2026-01-12
 **참조**: Elastic 공식 문서, Elastic Labs 블로그, Elastic Subscription 페이지
+
+---
+
+## 현행화 이력
+
+| 일자 | 작성자 | 내용 |
+|------|--------|------|
+| 2026-02-20 | Claude (doc-agent) | 프로젝트 종료 후 현행화 — 실제 구현 반영 (ES 8.15 Basic 사용, Python RRF 자체 구현, Nori 플러그인 커스텀 Dockerfile 설치 필수, 2026-02-13 사고 교훈 추가) |

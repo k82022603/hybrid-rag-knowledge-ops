@@ -4,6 +4,14 @@
 
 ---
 
+> **현행화 정보**
+> - **최종 현행화**: 2026-02-20
+> - **프로젝트 상태**: 종료 (2026-02-18)
+> - **문서 상태**: 현행 (모드 동작 방식 자체는 변경 없음)
+> - **주요 변경사항**: 본문 내용은 현재 Claude Code 동작과 일치. Agent Teams 도입(v2.0+) 이후에도 인터랙션 모드는 동일하게 적용됨. 5.1절 프로젝트 현황 일부 업데이트 필요.
+
+---
+
 ## 1. 개요
 
 Claude Code는 **Shift+Tab** 키로 전환 가능한 3가지 인터랙션 모드를 제공합니다.
@@ -150,6 +158,8 @@ Shift+Tab 순환:
 | 주요 작업 | 설계/구현/문서/CI/CD |
 | allowlist | 다수의 Bash 명령 사전 허용 (settings.local.json) |
 
+> ⚠️ **현행화 메모**: 2026-02-08 이후 Agent Teams v2.0 도입으로 "1인 + Claude Code" 방식에서 "1인 + Claude Lead + Agent Teammates(최대 13명)" 방식으로 전환됨. 인터랙션 모드 자체는 동일하게 적용되며, Agent Teams 환경에서는 각 팀원(Teammate)이 독립 세션으로 실행되므로 팀원별로 모드를 독립적으로 설정해야 함.
+
 ### 5.2 상황별 권장 모드 전환
 
 ```
@@ -216,3 +226,12 @@ Shift+Tab    모드 순환 (Default → Auto-Accept → Plan → Default)
 - [Claude Code Common Workflows](https://docs.anthropic.com/en/docs/claude-code/common-workflows)
 - [Claude Code Best Practices](https://www.anthropic.com/engineering/claude-code-best-practices)
 - [GitHub Branch Protection 설정 가이드](./04_github_branch_protection_guide.md)
+- [Agent Teams 활용 가이드 v3.1](./12_Agent_Teams_활용_가이드.md) - Agent Teams 환경에서의 인터랙션 모드 적용 참고
+
+---
+
+## 현행화 이력
+
+| 일자 | 작성자 | 내용 |
+|------|--------|------|
+| 2026-02-20 | Claude (doc-agent) | 프로젝트 종료 후 현행화 — Agent Teams 도입 관련 메모 추가, 현행화 박스 추가 |

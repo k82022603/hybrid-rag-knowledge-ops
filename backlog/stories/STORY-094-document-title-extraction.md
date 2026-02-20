@@ -7,7 +7,7 @@
 | **ID** | STORY-094 |
 | **Jira ID** | - |
 | **Epic** | EPIC-003 Document Processing |
-| **Status** | Deferred (Sprint 12 project closure) |
+| **Status** | Closed - Project Completed (2026-02-18) |
 | **Priority** | Medium |
 | **Story Points** | 3 |
 | **Assignee** | ETL/RAG |

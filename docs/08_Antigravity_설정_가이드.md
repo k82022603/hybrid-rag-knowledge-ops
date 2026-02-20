@@ -4,6 +4,12 @@
 **작성일**: 2026-01-25
 **목적**: 개인 실험/학습 용도로 Antigravity를 Claude Code와 연동하는 방법 안내
 
+> **현행화 정보**
+> - **최종 현행화**: 2026-02-20
+> - **프로젝트 상태**: 종료 (2026-02-18)
+> - **문서 상태**: 일부 outdated
+> - **주요 변경사항**: (1) 모델 ID가 구버전(`claude-opus-4-5-thinking` 등) — 실제 운영 모델은 Sonnet 4.6(`claude-sonnet-4-6`), Opus 4.6(`claude-opus-4-6`)으로 전환됨. (2) Antigravity는 실험적 사용에 그쳤으며 프로젝트 종료 시점에 공식 Anthropic API로 복귀.
+
 ---
 
 > **중요 고지사항**
@@ -171,6 +177,8 @@ claude --model claude-opus-4-5-thinking
 | `gemini-3-pro-high` | Gemini 3 Pro | 고성능 |
 | `gemini-3-flash` | Gemini 3 Flash | 빠른 응답 |
 | `gemini-2.5-flash-lite[1m]` | Gemini 2.5 Flash Lite | Haiku 대체 |
+
+> ⚠️ **현행화 메모**: 위 모델 ID는 2026-01-25 기준. 실제 프로젝트 종료 시점(2026-02-18) 운영 모델은 `claude-opus-4-6`(tech-lead, software-architect), `claude-sonnet-4-6`(나머지 11개 에이전트)로 전환됨. Antigravity Proxy를 통한 Claude 4.6 모델 지원 여부는 미확인.
 
 ### 4.4 모니터링
 
@@ -373,3 +381,11 @@ unset ANTHROPIC_AUTH_TOKEN
 
 **문서 버전**: 1.0
 **최종 수정**: 2026-01-25
+
+---
+
+## 현행화 이력
+
+| 일자 | 작성자 | 내용 |
+|------|--------|------|
+| 2026-02-20 | Claude (doc-agent) | 프로젝트 종료 후 현행화 — 모델 ID outdated 표시(Claude 4.6으로 전환), Antigravity 실험적 사용으로 종료됨 반영 |

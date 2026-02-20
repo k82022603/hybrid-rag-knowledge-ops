@@ -10,7 +10,7 @@ allowed-tools: Bash(git:*), Bash(ls:*), Read, Write, Edit, Glob
 
 ## 파일 경로
 ```
-work_logs/daily_logs/{{YYYY}}/{{MM}}-{{Month}}/{{YYYY-MM-DD}}.md
+work_logs/01_daily_logs/{{YYYY}}/{{MM}}-{{Month}}/{{YYYY-MM-DD}}.md
 ```
 
 ## 실행 로직
@@ -101,7 +101,7 @@ work_logs/daily_logs/{{YYYY}}/{{MM}}-{{Month}}/{{YYYY-MM-DD}}.md
 
 ### 3. 커밋 (선택)
 ```bash
-git add work_logs/daily_logs/
+git add work_logs/01_daily_logs/
 git commit -m "[DOCS] YYYY-MM-DD 작업일지 작성/업데이트"
 ```
 
@@ -121,4 +121,4 @@ date +"%Y-%m-%d %H:%M KST"
 
 **사용법**: `/project:daily:daily-log`
 **모드**: 업데이트 (기존 파일 보존 + 추가 내용 반영)
-**결과물**: `work_logs/daily_logs/YYYY/MM-Month/YYYY-MM-DD.md`
+**결과물**: `work_logs/01_daily_logs/YYYY/MM-Month/YYYY-MM-DD.md`

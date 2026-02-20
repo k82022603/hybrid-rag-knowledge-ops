@@ -18,7 +18,7 @@ git status
 - 이미 모두 커밋되어 있으면 다음 단계로
 
 ### 2. 작업일지 작성/업데이트
-**파일 경로**: `work_logs/daily_logs/{{YYYY}}/{{MM}}-{{Month}}/{{YYYY-MM-DD}}.md`
+**파일 경로**: `work_logs/01_daily_logs/{{YYYY}}/{{MM}}-{{Month}}/{{YYYY-MM-DD}}.md`
 
 **처리 로직**:
 1. 해당 날짜 파일이 이미 존재하는지 확인
@@ -36,7 +36,7 @@ git status
 - Next Steps 갱신
 
 ### 3. 바이브 코딩 일지 작성/업데이트
-**파일 경로**: `work_logs/vibe_logs/{{YYYY}}/{{MM}}-{{Month}}/{{YYYY-MM-DD}}-vibe.md`
+**파일 경로**: `work_logs/05_vibe_logs/{{YYYY}}/{{MM}}-{{Month}}/{{YYYY-MM-DD}}-vibe.md`
 
 **처리 로직**:
 1. 해당 날짜 파일이 이미 존재하는지 확인

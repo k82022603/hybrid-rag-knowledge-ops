@@ -73,7 +73,7 @@
 
 ### 작업일지
 ```
-work_logs/daily_logs/
+work_logs/01_daily_logs/
 └── YYYY/
     └── MM-Month/
         └── YYYY-MM-DD.md
@@ -81,7 +81,7 @@ work_logs/daily_logs/
 
 ### 바이브 일지
 ```
-work_logs/vibe_logs/
+work_logs/05_vibe_logs/
 └── YYYY/
     └── MM-Month/
         └── YYYY-MM-DD-vibe.md
@@ -89,7 +89,7 @@ work_logs/vibe_logs/
 
 ### 스탠드업 기록
 ```
-work_logs/standups/
+work_logs/03_standups/
 └── YYYY/
     └── MM-Month/
         └── YYYY-MM-DD_HH-MM.md
@@ -97,7 +97,7 @@ work_logs/standups/
 
 ### 세션 로그
 ```
-work_logs/session_logs/
+work_logs/02_session_logs/
 └── YYYY-MM-DD_description.md
 ```
 

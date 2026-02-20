@@ -7,6 +7,14 @@
 
 ---
 
+> **현행화 정보**
+> - **최종 현행화**: 2026-02-20
+> - **프로젝트 상태**: 종료 (2026-02-18)
+> - **문서 상태**: 일부 outdated
+> - **주요 변경사항**: 모델명 outdated (Opus 4.5 → 현재 Opus 4.6/Sonnet 4.6 사용). Antigravity + Stitch MCP 연동은 실험적 상태로 사용되었으며, 프로젝트 기간 중 WebDesigner 에이전트와의 협업 패턴으로 통합됨.
+
+---
+
 > **중요 고지사항**
 >
 > 이 워크플로우는 **개인 실험/학습 용도**로만 사용하세요.
@@ -83,6 +91,8 @@ flowchart LR
 }
 ```
 
+> ⚠️ **현행화 메모**: `ANTHROPIC_MODEL` 값이 `claude-opus-4-5-20251101`로 기재되어 있으나, 현재 프로젝트에서는 `claude-opus-4-6` 및 `claude-sonnet-4-6`이 사용됨. Stitch MCP를 새로 설정한다면 최신 모델 ID로 교체 필요.
+
 > **⚠️ 용어 혼동 주의: Stitch MCP vs Antigravity**
 >
 > | 항목 | Stitch MCP | Antigravity |
@@ -106,6 +116,8 @@ flowchart LR
 | `claude-opus-4-5-20251101` | 최신 Opus 4.5 | 복잡한 UI, 높은 품질 |
 | `claude-sonnet-4-20250514` | Sonnet 4 | 일반 UI, 빠른 응답 |
 | `claude-haiku-3-5-20241022` | Haiku 3.5 | 단순 UI, 비용 절감 |
+
+> ⚠️ **현행화 메모**: 위 모델 목록은 2026-01-25 기준임. 현재(2026-02-20) 프로젝트에서 실제 사용 중인 모델은 `claude-opus-4-6` (Tier 1: tech-lead, software-architect), `claude-sonnet-4-6` (Tier 2: 나머지 11개 에이전트)임. Stitch MCP 설정 시 이 모델들을 우선 검토할 것.
 
 ### 2.3 설정 확인
 
@@ -521,3 +533,11 @@ Stitch MCP가 동작하지 않을 경우, Claude Code에 직접 요청:
 - v1.2 (2026-01-25): 실행 결과 예시 섹션 추가 (5.4) - 실제 테스트 결과 문서화
 - v1.1 (2026-01-25): Stitch MCP vs Antigravity 용어 혼동 주의 섹션 추가
 - v1.0 (2026-01-25): 최초 작성
+
+---
+
+## 현행화 이력
+
+| 일자 | 작성자 | 내용 |
+|------|--------|------|
+| 2026-02-20 | Claude (doc-agent) | 프로젝트 종료 후 현행화 — 모델명 outdated 표시 (Opus 4.5 → Opus 4.6/Sonnet 4.6), 현행화 박스 추가 |

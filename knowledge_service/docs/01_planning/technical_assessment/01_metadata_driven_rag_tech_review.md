@@ -1,5 +1,11 @@
 # 메타데이터 지능형 RAG 시스템 기술 검토 보고서 [#](https://claude.ai/public/artifacts/faecf4ff-3ddb-4600-b37d-231d71b3a10f)
 
+> **현행화 정보**
+> - **최종 현행화**: 2026-02-20
+> - **프로젝트 상태**: 종료 (2026-02-18)
+> - **구현 상태**: 부분구현
+> - **주요 변경사항**: LlamaIndex/LangGraph 미채택 → LangGraph + FastAPI 직접 구현. LlamaParse/Docling 병행 → Docling 단독 채택. RouterQueryEngine 미사용 → 자체 하이브리드 검색 파이프라인. LLM은 GPT 계열 대신 DeepSeek V3.2 채택 (95% 비용 절감).
+
 ## 1. 개요
 
 ### 1.1 검토 대상
@@ -19,6 +25,8 @@ PDF 문서를 자동으로 분류하고, RDB와 Vector Store에 역할을 분리
 | **LangGraph + LlamaIndex 결합** | ✅ 가능 | 복잡한 워크플로우 필요 시 권장 |
 | **LlamaParse PDF 테이블 추출** | ✅ 우수 | 2025년 기준 업계 선도 솔루션 |
 | **프로덕션 준비도** | ⚠️ 주의 필요 | 버전 업데이트 시 API 변경 가능성 |
+
+> ⚠️ **실제 구현**: LlamaIndex는 채택되지 않음. LangGraph는 에이전트 워크플로우 오케스트레이션에만 활용 (`src/app/agents/rag_workflow.py`). RouterQueryEngine 대신 자체 하이브리드 검색 파이프라인 구현 (`src/app/services/rag_pipeline.py`).
 
 ---
 
@@ -52,6 +60,8 @@ PDF 문서를 자동으로 분류하고, RDB와 Vector Store에 역할을 분리
 
 **PyPI 월간 다운로드**: LangGraph ~710만 회 (2025년 기준)
 
+> ⚠️ **실제 구현**: LlamaIndex 프레임워크 미채택. 대신 FastAPI + LangGraph 기반 자체 파이프라인 구현. 에이전트 워크플로우는 LangGraph로 구성.
+
 ### 2.3 LlamaParse
 
 **현재 상태**: LlamaCloud 플랫폼의 일부로 활발히 운영 중
@@ -65,6 +75,8 @@ PDF 문서를 자동으로 분류하고, RDB와 Vector Store에 역할을 분리
 **가격 정책**:
 - 무료: 일 1,000페이지
 - 유료: 주 7,000페이지 무료 + 추가 페이지당 $0.003
+
+> ℹ️ **미구현**: LlamaParse는 클라우드 SaaS로 보안/비용 이슈로 미채택. 대신 Docling 오픈소스 로컬 파서 단독 채택 (`src/app/etl/parser.py`, `src/app/etl/docling_adapter.py`).
 
 **경쟁력 분석 (2025년 벤치마크 기준)**:
 
@@ -128,6 +140,8 @@ classification_prompt = """
 # ... (RDB 및 Vector Store 저장)
 ```
 
+> ⚠️ **실제 구현**: LlamaParse 미사용. Docling 기반 파서가 구현됨. LLM 분류에는 GPT-4o-mini 대신 DeepSeek V3.2 사용 (`src/app/services/llm_service.py`). Vector Store로 Pinecone/Milvus 미채택, Elasticsearch 8.15 단독 사용.
+
 ### 3.2 검색 분기 파이프라인 (Retrieval Stage)
 
 **제안된 흐름**:
@@ -136,6 +150,8 @@ classification_prompt = """
 ```
 
 **구현 가능성**: ✅ **완전 구현 가능**
+
+> ⚠️ **실제 구현**: RouterQueryEngine/NLSQLTableQueryEngine 미사용. 자체 하이브리드 검색 구현 (Dense kNN + Sparse + BM25 + Graph, Python RRF 융합). 관련 파일: `src/app/services/search.py`, `src/app/services/rrf_fusion.py`, `src/app/rag/retriever.py`.
 
 **핵심 컴포넌트 분석**:
 
@@ -305,6 +321,15 @@ workflow.add_node("retrieve", retrieve_node)
 | RDB | PostgreSQL | MySQL |
 | LLM | GPT-4o-mini / DeepSeek-V3 | Claude 3.5 Sonnet |
 
+> ⚠️ **실제 구현 기술 스택** (계획과 다른 점):
+> | 컴포넌트 | 계획 | 실제 구현 |
+> |----------|------|----------|
+> | PDF 파싱 | LlamaParse (1순위) | **Docling** (오픈소스, 보안) |
+> | RAG 프레임워크 | LlamaIndex | **LangGraph** (에이전트만) + 자체 구현 |
+> | Vector DB | Pinecone/Milvus | **Elasticsearch 8.15** (통합) |
+> | LLM | GPT-4o-mini | **DeepSeek V3.2** (비용 95% 절감) |
+> | 임베딩 | 별도 언급 없음 | **`jhgan/ko-sroberta-multitask`** (CPU) |
+
 ### 7.2 핵심 권고 사항
 
 1. **LlamaIndex 단독 시작 권장**: 제안된 아키텍처는 LlamaIndex의 RouterQueryEngine만으로 충분히 구현 가능. LangGraph는 요구사항이 복잡해질 때 점진적 도입.
@@ -327,6 +352,14 @@ workflow.add_node("retrieve", retrieve_node)
 
 ---
 
-**문서 작성일**: 2025-01-12  
-**검토자**: Claude (Anthropic AI)  
+**문서 작성일**: 2025-01-12
+**검토자**: Claude (Anthropic AI)
 **버전**: 1.0
+
+---
+
+## 현행화 이력
+
+| 일자 | 작성자 | 내용 |
+|------|--------|------|
+| 2026-02-20 | Claude (doc-agent) | 프로젝트 종료 후 현행화 — 실제 기술 스택 반영 (Docling 채택, LlamaIndex 미채택, DeepSeek V3.2, ES 8.15, ko-sroberta 임베딩) |

@@ -2,6 +2,14 @@
 
 ---
 
+> **현행화 정보**
+> - **최종 현행화**: 2026-02-20
+> - **프로젝트 상태**: 종료 (2026-02-18)
+> - **문서 상태**: 현행 (v3.1이 최신 — 모델 티어링, 협업 프로세스 완전 반영)
+> - **주요 변경사항**: 없음. 이 문서는 프로젝트 마지막 작업일(2026-02-18)에 최종 업데이트되었으며, 13개 에이전트(Opus 4.6: 2개, Sonnet 4.6: 11개) 및 세션 표준 프로세스(5 Phases)가 정확히 반영되어 있음.
+
+---
+
 ## 문서 정보
 
 | 항목 | 내용 |
@@ -203,7 +211,7 @@ Lead: Slack 알림, 최종 보고
 | 단계 | 상태 | 설명 |
 |------|------|------|
 | Agent Teams 환경변수 설정 | ✅ 완료 | `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` |
-| 에이전트 정의 파일 (12개) | ✅ 완료 | `.claude/agents/*.md` |
+| 에이전트 정의 파일 (13개) | ✅ 완료 | `.claude/agents/*.md` |
 | TeamCreate 실행 | ✅ 완료 | `hrkp-sprint-08` 팀 생성 (2026-02-08) |
 | 공유 TaskList 활성화 | ✅ 완료 | 태스크 5건 생성, 의존성 설정 |
 | 팀원 소환 (Task + team_name) | 🔄 필요시 | 작업 시 필요한 팀원만 소환 |
@@ -478,7 +486,7 @@ sequenceDiagram
 | **팀 설정 파일** | `~/.claude/teams/hrkp-sprint-08/config.json` |
 | **태스크 디렉토리** | `~/.claude/tasks/hrkp-sprint-08/` |
 
-### 5.2 팀원 구성 (12명)
+### 5.2 팀원 구성 (13명)
 
 | # | 에이전트명 | 약어 | subagent_type | 역할 | 소환 시점 |
 |---|----------|------|---------------|------|----------|
@@ -493,7 +501,8 @@ sequenceDiagram
 | 9 | DevOps | devops | `devops-engineer` | CI/CD, Observability | 배포/모니터링 시 |
 | 10 | QA | qa | `qa-engineer` | 테스트, RAGAS 평가, 품질 검증 | 검증 시 |
 | 11 | WebDesigner | web | `web-designer` | UI/UX 설계, 디자인 시스템 | 디자인 작업 시 |
-| 12 | Doc | doc | `code-documenter` | API/코드/아키텍처 문서화 | 문서 작업 시 |
+| 12 | Architect | arch | `software-architect` | 시스템/기능 상세 설계, 기술 의사결정 | 설계 작업 시 |
+| 13 | Doc | doc | `code-documenter` | API/코드/아키텍처 문서화 | 문서 작업 시 |
 
 ### 5.3 소환 방법
 
@@ -512,7 +521,7 @@ Task(
 
 ### 5.4 소환 전략: 작업별 최적 팀 구성
 
-모든 팀원을 항상 소환하면 비용이 12배입니다. 작업 유형에 따라 필요한 팀원만 소환합니다:
+모든 팀원을 항상 소환하면 비용이 13배입니다. 작업 유형에 따라 필요한 팀원만 소환합니다:
 
 | 작업 유형 | 소환 팀원 | 예상 인원 |
 |----------|----------|----------|
@@ -873,7 +882,7 @@ git diff  # 변경 사항 확인
 | [PLAN.md](../PLAN.md) | 프로젝트 계획 및 현재 상태 |
 | [developer_agent_guide.md](../knowledge_service/docs/05_development/01_developer_agent_guide.md) | 에이전트 도구 사용법 |
 | [developer_integration_guide.md](../knowledge_service/docs/05_development/02_developer_integration_guide.md) | MCP/Agent/Skills 설정 |
-| [.claude/agents/](../.claude/agents/) | 12개 에이전트 정의 파일 |
+| [.claude/agents/](../.claude/agents/) | 13개 에이전트 정의 파일 |
 | [.claude/settings.json](../.claude/settings.json) | Agent Teams 활성화 설정 |
 | [Claude Code 공식 문서](https://code.claude.com/docs/en/agent-teams) | Agent Teams 공식 가이드 |
 
@@ -907,7 +916,7 @@ TeamDelete()
 ### A.2 체크리스트
 
 - [x] `.claude/settings.json`에 `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS: "1"` 설정
-- [x] 12개 에이전트 정의 파일 확인 (`.claude/agents/*.md`)
+- [x] 13개 에이전트 정의 파일 확인 (`.claude/agents/*.md`)
 - [x] `TeamCreate("hrkp-sprint-08")` 실행 (2026-02-08)
 - [x] 공유 TaskList에 태스크 등록
 - [ ] 첫 실전 작업에서 팀원 소환 및 SendMessage 테스트
@@ -932,7 +941,7 @@ TeamDelete()
 
 ### B.2 v1.0에서 배운 것
 
-1. **역할 정의는 잘 되어 있다**: 12개 에이전트의 역할 분담이 명확
+1. **역할 정의는 잘 되어 있다**: 13개 에이전트의 역할 분담이 명확
 2. **Slack 자동화는 효과적**: MCP + Shell 혼합 방식이 잘 작동
 3. **서브에이전트 분석은 유용**: Task(Explore)로 병렬 코드 분석이 시간 절약
 4. **하지만 1인 다역의 한계**: 복잡한 Full Stack 작업에서 순차 처리 병목
@@ -1327,3 +1336,11 @@ sequenceDiagram
 ---
 
 *문서 끝 | Agent Teams 활용 가이드 v3.1 | 2026-02-18*
+
+---
+
+## 현행화 이력
+
+| 일자 | 작성자 | 내용 |
+|------|--------|------|
+| 2026-02-20 | Claude (doc-agent) | 프로젝트 종료 후 현행화 — v3.1 내용이 현행과 일치 확인, 현행화 박스 추가 |

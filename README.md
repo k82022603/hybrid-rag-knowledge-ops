@@ -1,6 +1,6 @@
 # Hybrid RAG Knowledge Operations
 
-> Graph RAG 기반 지능형 지식 검색 시스템 — 4-Way Hybrid Search + Knowledge Graph + 13 AI Agents
+> **[프로젝트 종료]** 2026-01-12 ~ 2026-02-18 (38일, 12 스프린트) | Graph RAG 기반 지능형 지식 검색 시스템 — 4-Way Hybrid Search + Knowledge Graph + 13 AI Agents
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white)](#) [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi&logoColor=white)](#) [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](#) [![Docker](https://img.shields.io/badge/Docker_Compose-18_containers-2496ED?logo=docker&logoColor=white)](#) [![RAGAS](https://img.shields.io/badge/RAGAS-A--grade-brightgreen)](#) [![Coverage](https://img.shields.io/badge/Coverage-97%25-success)](#)
 
@@ -21,7 +21,7 @@
 <details>
 <summary><b>English</b></summary>
 
-> Intelligent knowledge search system powered by Graph RAG — 4-Way Hybrid Search + Knowledge Graph + 13 AI Agents
+> **[Project Completed]** 2026-01-12 ~ 2026-02-18 (38 days, 12 sprints) | Intelligent knowledge search system powered by Graph RAG — 4-Way Hybrid Search + Knowledge Graph + 13 AI Agents
 
 An enterprise knowledge platform that automatically processes internal documents through a **3-Phase ETL** pipeline (parsing → chunking → embedding → entity extraction) and delivers optimal search results via **4-Way Hybrid Search** (Dense + Sparse + BM25 + Graph) unified with RRF. The Knowledge Graph visualizes hidden relationships between documents and supports relationship-based queries.
 
@@ -40,9 +40,9 @@ An enterprise knowledge platform that automatically processes internal documents
 
 | 항목 | 내용 |
 |------|------|
-| **Version** | 5.2 |
-| **Updated** | 2026-02-18 |
-| **Status** | Sprint 12 Final - 사용자 테스트 완료, 산출물 9종 v1.1, RAGAS v11 A- 등급 |
+| **Version** | 5.2 (Final) |
+| **프로젝트 기간** | 2026-01-12 ~ 2026-02-18 (38일, 12 스프린트) |
+| **Status** | **종료** — 사용자 테스트 완료, 산출물 9종 v1.1, RAGAS v11 A- 등급 |
 | **Test Coverage** | 97% avg across 5 core modules (Docker mode) |
 | **CI/CD** | 8 GitHub Actions workflows |
 | **AI Model** | Claude Opus 4.6 / Sonnet 4.6 + Agent Teams (13 agents, tiered) |
@@ -56,12 +56,21 @@ An enterprise knowledge platform that automatically processes internal documents
 ├── knowledge_service/             # Python AI Service (핵심)
 │   ├── src/app/                   # 소스코드 (services, api, models)
 │   ├── scripts/                   # ETL/배치 스크립트
-│   ├── docs/                      # 프로젝트 문서 (01~07)
+│   ├── docs/                      # 프로젝트 문서 (01~08)
 │   └── frontend/                  # React 18 프론트엔드
 │
+├── docs/                          # 프로젝트 산출물 (01~14)
 ├── infrastructure/docker/         # Docker Compose + Nginx
 ├── scripts/                       # 공통 유틸 (send_slack.sh 등)
-├── work_logs/                     # 작업 일지 / 세션 로그
+├── work_logs/                     # 작업 일지 (01~07 번호 체계)
+│   ├── 01_daily_logs/             # 일일 작업 일지
+│   ├── 02_session_logs/           # 세션 로그
+│   ├── 03_standups/               # 스탠드업 미팅
+│   ├── 04_meetings/               # 회의록
+│   ├── 05_vibe_logs/              # 바이브 코딩 일지
+│   ├── 06_insights/               # 인사이트
+│   └── 07_retrospectives/         # 회고
+│
 ├── CLAUDE.md                      # Claude Code 규칙 (v2.29)
 ├── PLAN.md                        # 프로젝트 계획
 └── README.md                      # 이 파일
@@ -113,9 +122,9 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 | Entity Extraction | 100% 완료 (23,074건 처리) |
 | 3-Store 정합성 | ES = PG = Neo4j 100% |
 
-## 📅 현재 진행 상황
+## 📅 최종 완료 현황
 
-### Sprint 12 (2026-02-16)
+### Sprint 12 — Final (2026-02-16 ~ 02-18)
 
 | 상태 | 작업 | 설명 |
 |:----:|------|------|
@@ -138,7 +147,8 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 | 02-05 | Phase 5 배포, 테스트 97%, Opus 4.6 전환 |
 | 02-10 | ETL Phase 1+2 완료 (56,063건 100%) |
 | 02-15 | Phase 3 Entity Extraction Round 1 + RAGAS v9 |
-| 02-16 | **Phase 3 Round 2 + Reranker + RAGAS v11 A- 달성** |
+| 02-16 | Phase 3 Round 2 + Reranker + RAGAS v11 A- 달성 |
+| 02-18 | **프로젝트 종료 — 사용자 테스트 완료, 산출물 v1.1, 문서 현행화** |
 
 ## 📈 프로젝트 성과
 
@@ -204,10 +214,14 @@ DeepSeek V3.2의 비용 효율은 "실험적으로 재미있는 수준"이 아�
 | [플랫폼 상세 설계서](./knowledge_service/docs/02_design/01_hybrid_rag_platform_detailed_design.md) | Gleaning 포함 핵심 설계 |
 | [ETL 배치 설계서](./knowledge_service/docs/03_implementation/etl_batch_pipeline_design.md) | 3-Phase 분리 전략 |
 | [ETL 운영 가이드](./knowledge_service/docs/07_maintenance/22_etl_3phase_operations_guide.md) | 3-Phase 실행/모니터링 |
-| [RAGAS v10 종합 보고서](./knowledge_service/docs/04_testing/13_etl_v2_reprocessing/05_ragas_v10_post_entity_evaluation.md) | B+ 등급 달성 + 총평 + LLM 비용 비교 |
+| [RAGAS v10/v11 종합 보고서](./knowledge_service/docs/04_testing/13_etl_v2_reprocessing/05_ragas_v10_post_entity_evaluation.md) | v10 B+ → v11 A- 달성 + 총평 + LLM 비용 비교 |
 | [Entity Extraction 보고서](./knowledge_service/docs/results/entity_extraction_report_2026-02-15.md) | 실측 비용 + 타 LLM 비교 |
+| [운영 매뉴얼](./knowledge_service/docs/08_deliverables/03_operator_manual.md) | 시스템 운영/ETL/모니터링 가이드 |
+| [프로젝트 완료 보고서 (PPT)](./knowledge_service/docs/08_deliverables/00_project_completion_report.pptx) | 13슬라이드, Tech Innovation 테마 |
 | [개발자 에이전트 가이드](./knowledge_service/docs/05_development/01_developer_agent_guide.md) | AI 에이전트 도구 사용법 |
 | [Agent Teams 가이드 v3.1](./docs/12_Agent_Teams_활용_가이드.md) | 멀티-에이전트 협업 + 모델 티어링 |
+| [프로젝트 사업 방법론](./docs/13_프로젝트_사업_방법론.md) | Claude Code 기반 AI 가상팀 사업 수행 방법론 |
+| [프로젝트 개발 방법론](./docs/14_프로젝트_개발_방법론.md) | Claude Code 기반 AI 가상팀 개발 방법론 |
 
 ## 🔐 보안
 

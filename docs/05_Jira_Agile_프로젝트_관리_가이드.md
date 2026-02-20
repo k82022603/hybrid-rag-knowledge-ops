@@ -1,5 +1,11 @@
 # Jira & Agile 프로젝트 관리 가이드
 
+> **[현행화 정보]**
+> - **최종 현행화**: 2026-02-20
+> - **프로젝트 상태**: 종료 (2026-02-18)
+> - **문서 상태**: 현행 (가이드 문서로서 유효, 일부 프로젝트별 정보 outdated)
+> - **주요 변경사항**: Jira 프로젝트 키 `HRKP` → `SCRUM`으로 운영됨. 스프린트 6개 계획 → 실제 12개 스프린트 운영. 로컬 백로그(`backlog/`) 병행 관리. 20개 스토리 미완료(deferred) 상태로 프로젝트 종료.
+
 Jira를 활용한 애자일 프로젝트 관리 종합 가이드
 
 **Version**: 1.0 | **Updated**: 2026-01-18
@@ -211,6 +217,8 @@ Jira → Projects → Create project → Scrum 선택
 - Project lead: [팀 리드]
 ```
 
+> **[현행화 메모]**: 실제 운영된 Jira 프로젝트 키는 `SCRUM`입니다 (이슈 키 예: SCRUM-001). `HRKP`는 계획 단계에서의 예상 키였으나 실제 설정과 다릅니다.
+
 ### 4.2 프로젝트 설정 항목
 
 | 설정 | 위치 | 설명 |
@@ -334,6 +342,8 @@ Backlog → Create Sprint
 - End date: 2026-01-31
 - Sprint goal: "문서 처리 파이프라인 1단계 완성"
 ```
+
+> **[현행화 메모]**: 실제 프로젝트에서는 총 12개 스프린트가 운영됨 (2026-01-12 ~ 02-18). 스프린트 주기는 고정 2주가 아닌 유동적으로 운영됨 (일부 스프린트는 3~4일). 로컬 백로그 파일(`backlog/sprints/sprint-XX.md`)과 Jira를 병행 관리함.
 
 ### 6.2 스프린트 계획 (Sprint Planning)
 
@@ -731,6 +741,8 @@ jira create \
   --description "$(cat backlog/stories/STORY-001-document-upload-api.md)"
 ```
 
+> **[현행화 메모]**: 실제로는 MCP를 통한 Jira 연동(`mcp__jira__*` 함수 호출)과 `scripts/backlog-sync.sh` 스크립트를 주로 사용함. CLI 방식은 미사용. 프로젝트 키는 `SCRUM` 사용.
+
 ### 11.5 Claude Agent 활용
 
 ```bash
@@ -814,3 +826,27 @@ HRKP 프로젝트에 Story 이슈 생성해줘"
 - [Sprint 01 계획서](../../backlog/sprints/sprint-01.md)
 - [외부솔루션 연동 설정 가이드](../04_외부솔루션_연동_설정_가이드.md)
 - [개발자 통합 가이드](../../knowledge_service/docs/05_development/02_developer_integration_guide.md)
+
+---
+
+## 프로젝트 종료 시점 Jira 운영 현황 (2026-02-18)
+
+> **[현행화 메모]**: 프로젝트 종료 시점의 Jira 운영 실적 요약
+
+| 항목 | 내용 |
+|------|------|
+| Jira 프로젝트 키 | SCRUM |
+| 총 스프린트 수 | 12개 (Sprint 01 ~ 12) |
+| 총 스토리 수 | 전체 스토리 중 20개 deferred 상태로 종료 |
+| 로컬 백로그 경로 | `backlog/sprints/`, `backlog/stories/`, `backlog/epics/` |
+| MCP Jira 연동 | `mcp__jira__*` 함수 사용 |
+| Jira 동기화 스크립트 | `scripts/backlog-sync.sh`, `scripts/jira-sync.sh` |
+| 기술 부채 | 4건 문서화 + 1건 Known Issue (KI) |
+
+---
+
+## 현행화 이력
+
+| 일자 | 작성자 | 내용 |
+|------|--------|------|
+| 2026-02-20 | Claude (doc-agent) | 프로젝트 종료 후 현행화 — 실제 Jira 운영 현황 반영 (SCRUM 프로젝트 키, 12스프린트, 20개 deferred, MCP 연동 방식) |

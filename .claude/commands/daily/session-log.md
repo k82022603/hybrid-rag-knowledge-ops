@@ -10,7 +10,7 @@ Claude Code 세션의 작업 기록을 저장하여 컨텍스트를 보존하고
 ## 저장 위치
 
 ```
-work_logs/session_logs/YYYY-MM-DD_description.md
+work_logs/02_session_logs/YYYY-MM-DD_description.md
 ```
 
 **예시**:
@@ -135,7 +135,7 @@ work_logs/session_logs/YYYY-MM-DD_description.md
 
 ```bash
 # 오늘 날짜의 세션 로그 파일 확인
-ls work_logs/session_logs/$(date +%Y-%m-%d)_*.md 2>/dev/null
+ls work_logs/02_session_logs/$(date +%Y-%m-%d)_*.md 2>/dev/null
 
 # 없으면 새 파일 생성
 ```
@@ -197,6 +197,6 @@ date +"%Y-%m-%d %H:%M KST"
 
 ## 관련 문서
 
-- [작업 일지](../../../work_logs/daily_logs/README.md) - 일일 작업 일지 (무엇을 했는가)
-- [바이브 로그](../../../work_logs/vibe_logs/README.md) - 바이브 코딩 일지 (왜 그렇게 했는가)
-- [스탠드업 기록](../../../work_logs/standups/README.md) - 스탠드업 미팅 기록 (팀 상태 공유)
+- [작업 일지](../../../work_logs/01_daily_logs/README.md) - 일일 작업 일지 (무엇을 했는가)
+- [바이브 로그](../../../work_logs/05_vibe_logs/README.md) - 바이브 코딩 일지 (왜 그렇게 했는가)
+- [스탠드업 기록](../../../work_logs/03_standups/README.md) - 스탠드업 미팅 기록 (팀 상태 공유)

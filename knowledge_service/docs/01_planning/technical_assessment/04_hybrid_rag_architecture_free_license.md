@@ -1,5 +1,11 @@
 # Elasticsearch Basic 라이선스 기반 하이브리드 RAG 아키텍처 [#](https://claude.ai/public/artifacts/01a08f49-fcd4-4056-84db-d9f6609030b7)
 
+> **현행화 정보**
+> - **최종 현행화**: 2026-02-20
+> - **프로젝트 상태**: 종료 (2026-02-18)
+> - **구현 상태**: 구현완료 (주요 변경사항 있음)
+> - **주요 변경사항**: 전체 3-DB 아키텍처(PG+Neo4j+ES)와 하이브리드 검색 전략은 구현됨. 임베딩 모델 변경: BGE-M3(1024차원) → `jhgan/ko-sroberta-multitask`(768차원). RRF 구현: ranx 라이브러리 → 자체 구현(`src/app/services/rrf_fusion.py`). Docling 파서 적용. ETL은 3-Phase 분리 전략으로 진화. Nori 플러그인 커스텀 Dockerfile 설치 필수 (2026-02-13 사고 교훈). Neo4j APOC 활용한 그래프 연결 구현. ES 인덱스명: `knowledge_chunks`.
+
 ## 검토 결과 요약
 
 제안하신 아키텍처의 핵심 설계는 우수합니다. 다만 **무료 라이선스 제약**을 반영하여 다음 사항을 수정했습니다.
@@ -9,6 +15,8 @@
 | RRF 사용 | ES 내장 RRF | Python ranx 라이브러리 | RRF는 Platinum 전용 |
 | Sparse 검색 | ES 내부 처리 | BGE-M3 외부 생성 + ES 저장 | ELSER 불필요, Basic에서 가능 |
 | 하이브리드 쿼리 | 단일 ES 쿼리 | 2회 쿼리 + Python 융합 | RRF 제약 우회 |
+
+> ⚠️ **실제 구현**: RRF는 `ranx`가 아닌 Python 자체 구현(`src/app/services/rrf_fusion.py`). 임베딩은 BGE-M3 대신 `jhgan/ko-sroberta-multitask` (768차원). 검색은 Dense + Sparse + BM25 + Graph 4중 융합으로 확장됨. `src/app/services/search.py`, `src/app/rag/retriever.py` 참조.
 
 ---
 
@@ -58,6 +66,8 @@
 ### 핵심 개념: 하나의 문서에 모든 검색 요소 통합
 
 Elasticsearch의 각 청크 문서는 **Dense Vector + Sparse Vector + BM25 텍스트 + 메타데이터**를 모두 포함합니다. 이를 통해 단일 인덱스에서 다양한 검색 방식을 조합할 수 있습니다.
+
+> ⚠️ **실제 구현**: ES 인덱스명 `knowledge_chunks` 동일하게 사용됨 (alias 아님, v2 아님). 실제 필드 구조는 `dense_vector`, `sparse_vector`, `text`(chunk_text 대신), `heading` 등 일부 필드명 차이 있음. `entities` 필드는 ETL Phase 3 이후 채워짐.
 
 ```json
 {
@@ -111,6 +121,8 @@ Elasticsearch의 각 청크 문서는 **Dense Vector + Sparse Vector + BM25 텍�
 | `entities.*` | keyword | terms 필터 | 엔티티 기반 필터링 |
 
 ### 인덱스 매핑 (Basic 라이선스 호환)
+
+> ⚠️ **실제 구현**: 매핑에서 `analyzer: "korean_analyzer"` → `nori_tokenizer` 기반 한국어 분석기 사용. `dense_vector` 차원: 계획 1024차원 → 실제 768차원(ko-sroberta). Nori 플러그인은 커스텀 Dockerfile로 설치 필수. 2026-02-13 이전 32일간 Nori 미설치 상태로 운영된 사고가 있었음.
 
 ```json
 {
@@ -180,6 +192,8 @@ Elasticsearch의 각 청크 문서는 **Dense Vector + Sparse Vector + BM25 텍�
 PostgreSQL은 **문서 마스터 정보**와 **시계열 데이터**를 관리합니다. Elasticsearch의 메타데이터가 손상되더라도 PostgreSQL에서 복구할 수 있습니다.
 
 ### 테이블 스키마
+
+> ⚠️ **실제 구현**: DB명은 `knowledge` (NOT `knowledge_platform`). 접속: `psql -U knowledge -d knowledge`. 실제 주요 테이블은 설계와 유사하나 일부 차이 있음. `asyncpg` 대신 SQLAlchemy ORM도 혼용됨.
 
 ```sql
 -- 1. 문서 마스터 테이블 (SSOT)
@@ -412,6 +426,8 @@ class PostgreSQLStorage:
 ### 역할: 지식 간 관계 및 컨텍스트 관리
 
 Neo4j는 **엔티티 간의 관계**를 저장하여 연관 지식 추천, 전문가 찾기, 관계망 탐색을 지원합니다.
+
+> ⚠️ **실제 구현**: Neo4j 그래프 저장은 구현됨(`src/app/storage/neo4j_storage.py`). ETL 3-Phase 중 Phase 3(엔티티 추출)에서 채워짐. APOC 플러그인 활용. 접속: `-u neo4j -p 'neo4j_dev_2026!'`. 2026-02-18 기준 Entity 노드 1,460개, HAS_ENTITY/RELATED_TO 관계 생성 완료.
 
 ### 그래프 스키마
 
@@ -932,6 +948,8 @@ class ElasticsearchStorage:
 
 RRF가 Platinum 전용이므로, **Python ranx 라이브러리**로 융합합니다.
 
+> ⚠️ **실제 구현**: ranx 라이브러리 대신 Python 자체 구현 RRF 사용(`src/app/services/rrf_fusion.py`). 4중 융합(Dense + Sparse + BM25 + Graph)으로 확장. BGE-M3 대신 `jhgan/ko-sroberta-multitask` 768차원 벡터 사용.
+
 ```python
 from elasticsearch import Elasticsearch
 from ranx import Run, fuse
@@ -1220,7 +1238,11 @@ docker exec -it elasticsearch \
   bin/elasticsearch-plugin install analysis-nori
 ```
 
+> ⚠️ **실제 구현**: `FlagEmbedding` (BGE-M3) 미사용. `sentence-transformers`로 `jhgan/ko-sroberta-multitask` 사용. `ranx` 미사용 (자체 RRF 구현). **Nori 플러그인은 runtime 설치가 아닌 커스텀 Dockerfile에서 빌드 시 설치 필수** (runtime 설치 방식은 컨테이너 재시작 시 초기화됨).
+
 ### Docker Compose
+
+> ⚠️ **실제 구현**: ES 이미지는 공식 이미지 직접 사용이 아닌 **커스텀 빌드** 필수 (Nori 플러그인 포함). `docker-compose.yml`에서 `build: ./infrastructure/elasticsearch` 방식. 최종 컨테이너 수: 18개.
 
 ```yaml
 version: '3.8'
@@ -1292,6 +1314,14 @@ volumes:
 
 ---
 
-**문서 작성일**: 2026-01-12  
-**버전**: 2.0  
+**문서 작성일**: 2026-01-12
+**버전**: 2.0
 **참조**: Elastic 공식 문서, BGE-M3 문서, Neo4j Cypher Manual, PostgreSQL 문서
+
+---
+
+## 현행화 이력
+
+| 일자 | 작성자 | 내용 |
+|------|--------|------|
+| 2026-02-20 | Claude (doc-agent) | 프로젝트 종료 후 현행화 — 실제 구현 반영 (ko-sroberta-multitask 768차원, Python 자체 RRF, 4중 융합 검색, Nori Dockerfile 설치, 3-Phase ETL, Neo4j 엔티티 완료, ES 인덱스명 확인) |

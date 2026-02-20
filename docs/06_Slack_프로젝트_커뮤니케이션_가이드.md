@@ -4,6 +4,12 @@ Slack을 활용한 프로젝트 커뮤니케이션 관리 종합 가이드
 
 **Version**: 1.0 | **Updated**: 2026-01-19
 
+> **현행화 정보**
+> - **최종 현행화**: 2026-02-20
+> - **프로젝트 상태**: 종료 (2026-02-18)
+> - **문서 상태**: 일부 outdated
+> - **주요 변경사항**: 실제 운영 채널에서 `#proj-hrkp-review` 채널은 개발 알림 채널로 대체되어 `#proj-hrkp-dev`로 통합 운영됨. 실제 채널 ID: dev=C0A9WGCD733, standup=C0A9B7HDEUB, alerts=C0A9WGEVB97, general=C0AABTM716U.
+
 ---
 
 ## 목차
@@ -218,6 +224,8 @@ flowchart TB
         Release["#proj-hrkp-release<br/>배포, 릴리스 관리"]
     end
 ```
+
+> ⚠️ **현행화 메모**: 실제 운영 채널은 4개 — general(C0AABTM716U), dev(C0A9WGCD733), standup(C0A9B7HDEUB), alerts(C0A9WGEVB97). `#proj-hrkp-review`와 `#proj-hrkp-release`는 실제 운영되지 않으며 dev 채널로 통합됨. 에이전트 알림, PR 리뷰, 배포 공지 모두 `#proj-hrkp-dev`에서 처리.
 
 ### 4.3 채널 설명 템플릿
 
@@ -801,3 +809,11 @@ flowchart TB
 - [스탠드업 템플릿](#62-스탠드업-템플릿)
 - [장애 알림 템플릿](#82-장애-발생-알림-템플릿)
 - [PR 알림 템플릿](#72-pr-알림-메시지-형식)
+
+---
+
+## 현행화 이력
+
+| 일자 | 작성자 | 내용 |
+|------|--------|------|
+| 2026-02-20 | Claude (doc-agent) | 프로젝트 종료 후 현행화 — 실제 운영 채널 4개 확인(general/dev/standup/alerts), review/release 채널 미운영 사실 반영, 채널 ID 확인 |

@@ -1,10 +1,18 @@
 # 문서 파싱 및 임베딩 기술 심층 비교 분석 보고서 [#](https://claude.ai/public/artifacts/0a1a6d87-ec64-47ea-a966-10ca683f6f8a)
 
+> **현행화 정보**
+> - **최종 현행화**: 2026-02-20
+> - **프로젝트 상태**: 종료 (2026-02-18)
+> - **구현 상태**: 부분구현
+> - **주요 변경사항**: Docling 단독 채택 (LlamaParse 미채택). 임베딩 모델은 BGE-M3 대신 `jhgan/ko-sroberta-multitask` 채택 (한국어 특화, 768차원). Sparse 임베딩은 BGE-M3 방식 대신 TF-IDF 기반 자체 구현. batch_size=4, workers=1 최종 확정 (CPU 환경).
+
 ## 서론
 
 엔터프라이즈 지식 검색 시스템을 구축할 때 가장 중요한 두 가지 기술적 결정은 문서에서 정보를 어떻게 추출할 것인가와 추출된 텍스트를 어떻게 벡터화할 것인가입니다. 본 보고서에서는 LlamaParse, Docling, BGE-M3라는 세 가지 기술을 심층적으로 분석합니다. 다만, 이 기술들을 단순 비교하기에 앞서 반드시 이해해야 할 핵심 개념이 있습니다. LlamaParse와 Docling은 문서 파싱 도구로서 PDF나 워드 파일에서 텍스트와 테이블을 추출하는 역할을 수행하는 반면, BGE-M3는 임베딩 모델로서 추출된 텍스트를 벡터로 변환하는 역할을 담당합니다. 즉, 이들은 RAG 파이프라인에서 서로 다른 단계를 담당하는 상호 보완적인 기술입니다.
 
 현재 계획하신 아키텍처에서 PostgreSQL은 시계열 마스터 레코드로서 단일 진실 공급원 역할을 수행하고, Neo4j는 지식 조각 간의 관계를 연결하는 슬림 지식 그래프로 작동하며, Elasticsearch는 BGE-M3 임베딩과 전문 검색 및 메타데이터를 통합 저장하는 구조입니다. 이 아키텍처에서 문서 파싱 도구와 임베딩 모델이 각각 어떤 위치에서 어떤 역할을 수행하는지 명확히 이해하는 것이 시스템 설계의 핵심입니다.
+
+> ⚠️ **실제 구현**: 전체 3-DB 아키텍처 방향(PostgreSQL SSOT + Neo4j 그래프 + ES 검색)은 계획대로 구현됨. 임베딩 모델은 BGE-M3(568M params, 1024차원)가 아닌 `jhgan/ko-sroberta-multitask`(한국어 특화, 768차원) 채택. 파서는 Docling 단독 사용 (`src/app/etl/docling_adapter.py`).
 
 ---
 
@@ -28,6 +36,8 @@ RAG 시스템의 데이터 흐름은 크게 네 단계로 구분됩니다. 첫 �
 
 ### 2.1 LlamaParse 상세 분석
 
+> ℹ️ **미구현**: LlamaParse는 클라우드 SaaS 모델로 보안/비용 이슈로 미채택. 프로젝트에서는 Docling 오픈소스 로컬 파서 단독 채택.
+
 LlamaParse는 LlamaIndex 팀이 개발한 GenAI 기반 문서 파싱 서비스로, LlamaCloud 플랫폼의 핵심 구성 요소입니다. 2024년 초에 공개된 이후 빠르게 발전하여 2025년 현재 업계 선도적인 PDF 파싱 솔루션으로 자리잡았습니다.
 
 LlamaParse의 기술적 특징을 살펴보면, 가장 핵심적인 강점은 GenAI 네이티브 파싱입니다. 전통적인 규칙 기반 파서와 달리 LlamaParse는 대규모 언어 모델을 활용하여 문서의 의미적 구조를 이해합니다. 이를 통해 복잡한 레이아웃, 다중 컬럼, 머지된 셀이 있는 테이블 등 기존 도구들이 어려워하던 문서 유형을 정확하게 처리할 수 있습니다. 2025년 5월 업데이트에서는 OpenAI의 GPT 4.1과 Google의 Gemini 2.5 Pro를 지원하여 파싱 정확도가 더욱 향상되었습니다.
@@ -43,6 +53,8 @@ LlamaParse의 가격 정책은 사용량 기반입니다. 무료 플랜에서는
 LlamaParse의 제한사항도 고려해야 합니다. 클라우드 서비스로만 제공되므로 문서가 외부 서버로 전송됩니다. 보안이 중요한 기업 환경에서는 데이터 보안 정책을 검토해야 합니다. 또한 복잡한 손글씨나 양식 필드 추출에서는 아직 제한이 있으며, 매우 큰 PDF 파일이나 고도로 비정형화된 문서에서 성능 저하가 발생할 수 있습니다.
 
 ### 2.2 Docling 상세 분석
+
+> ⚠️ **실제 구현**: Docling 채택 확정. `src/app/etl/parser.py`의 `DocumentParser` 클래스와 `src/app/etl/docling_adapter.py`에서 PDF, DOCX, PPTX, HWP(pyhwpx 폴백) 파싱 지원. HybridChunker 대신 자체 청커(`src/app/etl/chunker.py`) 사용.
 
 Docling은 IBM Research에서 개발되어 2025년 4월 LF AI & Data Foundation에 인큐베이션 단계 프로젝트로 기증된 오픈소스 문서 파싱 프레임워크입니다. GitHub에서 42,000개 이상의 스타를 받았으며, 2,400개 이상의 GitHub 조직에서 사용되고, PyPI에서 월 150만 회 이상 다운로드되는 등 빠른 커뮤니티 채택을 보이고 있습니다.
 
@@ -70,6 +82,8 @@ Docling의 제한사항으로는 손글씨 인식과 양식 필드 추출 기능
 
 ### 3.1 BGE-M3의 혁신적 아키텍처
 
+> ⚠️ **실제 구현**: BGE-M3(BAAI/bge-m3, 568M params, 1024차원) 미채택. 대신 `jhgan/ko-sroberta-multitask` (한국어 특화, ~110M params, 768차원) 채택. 이유: 한국어 문서 위주 환경에서 BGE-M3 대비 메모리 효율 우수, CPU 환경에 적합. Dense 벡터(768차원) + Sparse 벡터(TF-IDF 기반 자체 구현). `src/app/services/embedding.py` 참조.
+
 BGE-M3는 Beijing Academy of Artificial Intelligence(BAAI)에서 개발한 임베딩 모델로, M3라는 이름은 Multi-Linguality, Multi-Functionality, Multi-Granularity의 세 가지 핵심 특성을 나타냅니다. 2024년 2월에 처음 발표되었으며, MIRACL, MKQA 등의 다국어 및 교차언어 벤치마크에서 새로운 최고 성능을 달성했습니다.
 
 Multi-Linguality 측면에서 BGE-M3는 100개 이상의 언어를 지원하며, 170개 이상의 언어 데이터로 학습되었습니다. 한국어는 특히 강점을 보이는 언어 중 하나로, MTEB Korean 벤치마크에서 기존 다국어 임베딩 모델 대비 최상위 성능을 달성했습니다. 검색 및 분류 태스크에서 특히 두드러진 성과를 보였으며, 한국어 단일 언어 모델과 비교해도 경쟁력 있는 결과를 보이면서 다국어 지원이라는 추가 이점을 제공합니다.
@@ -91,6 +105,8 @@ BGE-M3는 XLM-RoBERTa 아키텍처를 기반으로 하며, 568백만 개의 파�
 현재 계획하신 하드웨어 환경은 16GB RAM, i7 CPU, GPU 없음이라는 제약 조건이 있습니다. 이 환경에서 BGE-M3를 효과적으로 운용하기 위한 전략을 상세히 설명합니다.
 
 제안하신 코드에서 batch_size를 기본값 32에서 4로 감소시킨 것은 메모리 제약을 고려한 적절한 선택입니다. 그러나 몇 가지 추가 최적화를 고려할 수 있습니다.
+
+> ⚠️ **실제 구현**: batch_size=4, workers=1 최종 확정 (2026-02-10 실측). batch_size=8은 CPU에서 역효과(55초/8건 vs 7초/4건). 2워커는 CPU 경합으로 성능 동일. max_text_length=1000 확정(1500은 OOM 위험). ONNX Runtime은 미채택.
 
 ONNX Runtime 가속은 CPU 환경에서 추론 속도를 크게 향상시킬 수 있습니다. BGE-M3 모델을 ONNX 형식으로 변환하고 ONNX Runtime을 사용하면 순수 PyTorch 대비 2~3배의 속도 향상을 기대할 수 있습니다. 다만 이를 위해서는 모델 변환 과정이 필요하며, HuggingFace Optimum 라이브러리를 활용하면 비교적 쉽게 구현할 수 있습니다.
 
@@ -216,6 +232,14 @@ MTEB Korean 벤치마크에서 검색 및 분류 태스크에서 최상위 성�
 
 ---
 
-**문서 작성일**: 2025-01-12  
-**검토자**: Claude (Anthropic AI)  
+**문서 작성일**: 2025-01-12
+**검토자**: Claude (Anthropic AI)
 **버전**: 1.0
+
+---
+
+## 현행화 이력
+
+| 일자 | 작성자 | 내용 |
+|------|--------|------|
+| 2026-02-20 | Claude (doc-agent) | 프로젝트 종료 후 현행화 — 실제 구현 반영 (Docling 단독 채택, BGE-M3 미채택→ko-sroberta-multitask, batch_size/workers 최적값 확정) |

@@ -5,6 +5,12 @@ Jira/Slack 계정 생성부터 Claude Code 연동, Sprint 자동화까지 종합
 **Version**: 2.2 | **Updated**: 2026-01-22
 **통합**: 초기설정 퀵스타트 가이드 + 실전 매뉴얼
 
+> **현행화 정보**
+> - **최종 현행화**: 2026-02-20
+> - **프로젝트 상태**: 종료 (2026-02-18)
+> - **문서 상태**: 일부 outdated
+> - **주요 변경사항**: (1) Jira 프로젝트 키가 `SCRUM` → `HRKP`로 실제 운영됨. (2) 채널 ID 목록에서 `#proj-hrkp-review` 채널(C0AABTQBS3A)은 실제 미사용, dev 채널로 통합. (3) 에이전트 목록이 8개 → 13개로 확장됨. (4) Agent Teams v3.1 도입으로 워크플로우가 고도화됨. (5) 모델이 Sonnet 4.6 + Opus 4.6 티어링으로 전환.
+
 ---
 
 ## 목차
@@ -931,6 +937,8 @@ Claude Code 에이전트(가상 팀원)가 Slack에 메시지를 자동으로 �
 └─────────────────────────────────────────────────────┘
 ```
 
+> ⚠️ **현행화 메모**: 실제 에이전트는 8개 → 13개로 확장됨. 추가된 에이전트: `etl-engineer`(ETL 파이프라인), `database-designer`(DB 스키마), `software-architect`(상세 설계), `code-documenter`(문서화), `web-designer`(UI/UX 설계). Agent Teams v3.1 기준 상세 내용: `docs/12_Agent_Teams_활용_가이드.md` 참조.
+
 **핵심**: 모든 가상 팀원은 하나의 Claude Code 세션에서 실행되며, 동일한 API 토큰을 사용합니다.
 
 ### 10.2 Slack Bot Token 발급
@@ -1025,6 +1033,8 @@ MCP Slack은 채널 이름이 아닌 **채널 ID**를 사용합니다:
 | #proj-hrkp-general | C0AABTM716U |
 | #proj-hrkp-review | C0AABTQBS3A |
 
+> ⚠️ **현행화 메모**: `#proj-hrkp-review`(C0AABTQBS3A)는 채널이 생성되었으나 실제 에이전트 알림은 모두 `#proj-hrkp-dev`(C0A9WGCD733)로 통합 운영됨. CLAUDE.md 기준 운영 채널: dev/standup/alerts/general 4개.
+
 > **Tip**: `mcp__slack__slack_list_channels` 도구로 채널 ID를 조회할 수 있습니다.
 
 #### 사용 예시 (Claude Code 내부)
@@ -1078,6 +1088,8 @@ Claude Code의 한글 이름은 **"클로드"**입니다. 팀원 에이전트(PM
 | Data | `*[Data]*` | etl/, graph/ |
 | QA | `*[QA]*` | tests/ |
 | DevOps | `*[DevOps]*` | infrastructure/ |
+
+> ⚠️ **현행화 메모**: 실제 에이전트 Slack 메시지 형식은 위와 동일하나 추가 에이전트(ETL, DB, Arch, Doc, Web)가 존재함. 메인 클로드는 `*[클로드]*` 형식 사용. 에이전트 정의 파일: `.claude/agents/` 폴더 내 13개 파일.
 
 ### 10.6 협업 워크플로우
 
@@ -1615,3 +1627,11 @@ echo "=== Check Complete ==="
 **통합 원본**:
 - 07_Jira_Slack_초기설정_퀵스타트_가이드.md (v1.1)
 - 08_Jira_Slack_Claude_Code_실전_매뉴얼.md (v1.6)
+
+---
+
+## 현행화 이력
+
+| 일자 | 작성자 | 내용 |
+|------|--------|------|
+| 2026-02-20 | Claude (doc-agent) | 프로젝트 종료 후 현행화 — Jira 프로젝트 키(HRKP) 확인, 채널 ID 목록 현행화(review 채널 미운영), 에이전트 확장(8→13개) 반영, Agent Teams v3.1 참조 추가 |

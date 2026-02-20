@@ -1,5 +1,11 @@
 # API 아키텍처 설계 방향 검토
 
+> **현행화 정보**
+> - **최종 현행화**: 2026-02-20
+> - **프로젝트 상태**: 종료 (2026-02-18)
+> - **구현 상태**: 부분구현
+> - **주요 변경사항**: Spring Cloud Gateway 기본 라우팅만 구현 (Keycloak 통합 미완성, Resilience4j Circuit Breaker 설계 대비 축소 적용). AI Service는 FastAPI로 독립 운영. 내부 통신은 HTTP (mTLS 미적용).
+
 ---
 
 ## 문서 정보
@@ -329,6 +335,8 @@ resilience4j:
    - 모든 AI 요청은 Backend 경유
 ```
 
+> ⚠️ **실제 구현**: 개발 환경에서는 HTTPS 미적용 (HTTP only). TLS 1.3은 운영 배포 시 적용 예정이었으나 프로젝트 종료로 미구현. Keycloak OAuth 2.0 통합은 기본 구조만 구성되고 완전한 TokenRelay 미적용. Backend → AI Service 통신은 mTLS 없이 HTTP로 구현됨.
+
 ### 4.3 서비스 디스커버리
 
 ```yaml
@@ -448,3 +456,11 @@ AI Service                    AI Service (다중 인스턴스)
 ---
 
 **문서 끝**
+
+---
+
+## 현행화 이력
+
+| 일자 | 작성자 | 내용 |
+|------|--------|------|
+| 2026-02-20 | Claude (doc-agent) | 프로젝트 종료 후 현행화 — Spring Cloud Gateway 부분구현, TLS 미적용, Keycloak 미완성 상태 반영 |

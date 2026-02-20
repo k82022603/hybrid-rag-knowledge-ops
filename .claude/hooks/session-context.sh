@@ -28,7 +28,7 @@ CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || echo "unknown")
 # 오늘 작업일지 존재 여부
 YEAR=$(date +%Y)
 MONTH=$(date +%m-%B)
-WORKLOG_PATH="work_logs/daily_logs/$YEAR/$MONTH/$TODAY.md"
+WORKLOG_PATH="work_logs/01_daily_logs/$YEAR/$MONTH/$TODAY.md"
 if [ -f "$PROJECT_ROOT/$WORKLOG_PATH" ]; then
     WORKLOG_STATUS="exists"
 else

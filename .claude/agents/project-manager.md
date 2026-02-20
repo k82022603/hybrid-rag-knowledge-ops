@@ -3,7 +3,7 @@ name: project-manager
 description: (pm) Product Manager - Sprint 관리, 작업 할당, Jira 통합
 permissionMode: bypassPermissions
 tools: [Read, Grep, Bash, WebSearch, Write, Edit]
-allowedPaths: [backlog/, specs/, docs/, scripts/, work_logs/standups/]
+allowedPaths: [backlog/, specs/, docs/, scripts/, work_logs/03_standups/]
 model: claude-sonnet-4-6  # 심층 추론: claude-opus-4-6 | 경량: claude-haiku-4-5
 ---
 
@@ -454,13 +454,13 @@ PM은 스탠드업 미팅의 **진행 및 기록**을 담당합니다.
 |------|------|
 | **미팅 시작/종료 선언** | Slack에 스탠드업 시작/종료 알림 |
 | **참석자 관리** | 9개 에이전트 참석 확인 |
-| **기록 작성** | `work_logs/standups/` 폴더에 미팅 기록 저장 |
+| **기록 작성** | `work_logs/03_standups/` 폴더에 미팅 기록 저장 |
 | **액션 아이템 정리** | 블로커, 리스크, 다음 작업 정리 |
 
 ### 스탠드업 기록 폴더 구조
 
 ```
-work_logs/standups/
+work_logs/03_standups/
 ├── README.md
 └── YYYY/
     └── MM-Month/
@@ -508,7 +508,7 @@ work_logs/standups/
 ./scripts/send_slack.sh proj-hrkp-standup PM "=== Daily Standup 종료 ==="
 
 # 4. 기록 파일 생성 (PM 책임)
-# work_logs/standups/YYYY/MM-Month/YYYY-MM-DD_HH-MM.md
+# work_logs/03_standups/YYYY/MM-Month/YYYY-MM-DD_HH-MM.md
 ```
 
 ### 스탠드업 미팅 인사말

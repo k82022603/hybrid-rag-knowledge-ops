@@ -6,7 +6,7 @@
 |------|-----|
 | **Jira ID** | SCRUM-40 |
 | **Epic** | EPIC-003 |
-| **Status** | Review |
+| **Status** | Closed - Project Completed (2026-02-18) |
 | **Priority** | Critical |
 | **Story Points** | 5 |
 | **Assignee** | Frontend |

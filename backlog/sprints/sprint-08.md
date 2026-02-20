@@ -62,8 +62,8 @@ Key Objectives:
 
 | Priority | ID | Jira | Title | Points | Assignee | Status |
 |----------|-----|------|-------|--------|----------|--------|
-| P2 | STORY-088 | SCRUM-84 | BUG: Neo4j MERGE ON CREATE Syntax Compatibility | 2 | RAG | **Deferred** |
-| P2 | STORY-089 | SCRUM-85 | BUG: PG-AI Service Document Sync Not Implemented | 3 | Backend/RAG | **Deferred** |
+| P2 | STORY-088 | SCRUM-84 | BUG: Neo4j MERGE ON CREATE Syntax Compatibility | 2 | RAG | **Closed** |
+| P2 | STORY-089 | SCRUM-85 | BUG: PG-AI Service Document Sync Not Implemented | 3 | Backend/RAG | **Closed** |
 
 **Subtotal**: 5 pts (2 Stories)
 
@@ -71,7 +71,7 @@ Key Objectives:
 
 | Priority | ID | Jira | Title | Points | Assignee | Status |
 |----------|-----|------|-------|--------|----------|--------|
-| P3 | STORY-090 | SCRUM-86 | PERF: Hybrid Search 984ms > 500ms Target (CPU BGE-M3 Bottleneck) | 2 | RAG/Infra | **Deferred** |
+| P3 | STORY-090 | SCRUM-86 | PERF: Hybrid Search 984ms > 500ms Target (CPU BGE-M3 Bottleneck) | 2 | RAG/Infra | **Closed** |
 
 **Subtotal**: 2 pts (1 Story)
 
@@ -81,11 +81,11 @@ Key Objectives:
 |----------|-----|------|-------|--------|----------|--------|
 | P1 | STORY-091 | - | BUG: RRF Fusion search_source 메타데이터 유실 (수정 완료) | 2 | RAG/Frontend | **Done** |
 | P1 | STORY-092 | - | FEAT: 검색 결과 원본 문서 다운로드 링크 | 5 | Backend/Frontend | **Done** |
-| P1 | STORY-096 | - | FEAT: RRF Metadata 병합 + 검색어 하이라이팅 | 5 | RAG/Frontend | **Deferred** |
-| P2 | STORY-093 | - | FEAT: 청크 전문 조회 Content Viewer 모달 | 3 | Frontend/RAG | **Deferred** |
-| P2 | STORY-094 | - | BUG: 문서 제목이 파일명으로만 표시 | 3 | ETL/RAG | **Deferred** |
-| P2 | STORY-095 | - | BUG: camelCase/snake_case 불일치 잔여 4건 | 3 | Backend/Frontend | **Deferred** |
-| P2 | STORY-097 | - | TEST: Graph RAG 효과성 A/B 비교 평가 | 5 | QA/RAG | **Deferred** |
+| P1 | STORY-096 | - | FEAT: RRF Metadata 병합 + 검색어 하이라이팅 | 5 | RAG/Frontend | **Closed** |
+| P2 | STORY-093 | - | FEAT: 청크 전문 조회 Content Viewer 모달 | 3 | Frontend/RAG | **Closed** |
+| P2 | STORY-094 | - | BUG: 문서 제목이 파일명으로만 표시 | 3 | ETL/RAG | **Closed** |
+| P2 | STORY-095 | - | BUG: camelCase/snake_case 불일치 잔여 4건 | 3 | Backend/Frontend | **Closed** |
+| P2 | STORY-097 | - | TEST: Graph RAG 효과성 A/B 비교 평가 | 5 | QA/RAG | **Closed** |
 
 **Subtotal**: 26 pts (7 Stories, 1 Done)
 
@@ -94,8 +94,8 @@ Key Objectives:
 | Priority | ID | Jira | Title | Points | Assignee | Status |
 |----------|-----|------|-------|--------|----------|--------|
 | P0 | STORY-100 | SCRUM-93 | FEAT: ES 벡터 후속 임베딩 배치 스크립트 (10,094 chunks) | 5 | MLRag/Data | **Done** |
-| P1 | STORY-101 | SCRUM-94 | FEAT: 파일 유형 자동 분류 + 메모리 예산 할당 | 5 | MLRag/ETL | **Deferred** |
-| P2 | STORY-102 | SCRUM-95 | FEAT: WSL 메모리 동적 추정 가이드/도구 | 3 | Infra/DevOps | **Deferred** |
+| P1 | STORY-101 | SCRUM-94 | FEAT: 파일 유형 자동 분류 + 메모리 예산 할당 | 5 | MLRag/ETL | **Closed** |
+| P2 | STORY-102 | SCRUM-95 | FEAT: WSL 메모리 동적 추정 가이드/도구 | 3 | Infra/DevOps | **Closed** |
 
 **Subtotal**: 13 pts (3 Stories, Sprint 08: 1, Sprint 09: 2)
 
@@ -103,14 +103,14 @@ Key Objectives:
 
 | Priority | ID | Jira | Title | Points | Assignee | Status |
 |----------|-----|------|-------|--------|----------|--------|
-| High | STORY-103 | SCRUM-96 | FEAT: 검색 API 응답에 임베딩 유무 플래그 반영 | 2 | Backend | **Deferred** |
-| Medium | STORY-104 | SCRUM-97 | FEAT: 검색 결과에 임베딩 상태 표시 UX | 2 | Frontend | **Deferred** |
-| High | STORY-105 | SCRUM-98 | DOCS: RAGAS 평가 기준 문서 확정 | 3 | MLRag | **Deferred** |
-| High | STORY-106 | - | TEST: 임베딩 유무별 검색 품질 비교 테스트 | 3 | QA | **Deferred** |
-| Medium | STORY-107 | - | FEAT: 배치 작업용 Health Check + 자동 재시작 CI/CD | 3 | DevOps | **Deferred** |
+| High | STORY-103 | SCRUM-96 | FEAT: 검색 API 응답에 임베딩 유무 플래그 반영 | 2 | Backend | **Closed** |
+| Medium | STORY-104 | SCRUM-97 | FEAT: 검색 결과에 임베딩 상태 표시 UX | 2 | Frontend | **Closed** |
+| High | STORY-105 | SCRUM-98 | DOCS: RAGAS 평가 기준 문서 확정 | 3 | MLRag | **Closed** |
+| High | STORY-106 | - | TEST: 임베딩 유무별 검색 품질 비교 테스트 | 3 | QA | **Closed** |
+| Medium | STORY-107 | - | FEAT: 배치 작업용 Health Check + 자동 재시작 CI/CD | 3 | DevOps | **Closed** |
 | High | STORY-108 | - | FEAT: InitialDataLoader 중복 방지 (file_hash 기반) | 3 | Data | Done |
-| Medium | STORY-109 | - | CHORE: docker-compose.yml ai-service 메모리 설정 현행화 | 1 | Infra | **Deferred** |
-| Low | STORY-110 | - | DOCS: git push credential helper 수정 완료 문서화 | 1 | DevOps | **Deferred** |
+| Medium | STORY-109 | - | CHORE: docker-compose.yml ai-service 메모리 설정 현행화 | 1 | Infra | **Closed** |
+| Low | STORY-110 | - | DOCS: git push credential helper 수정 완료 문서화 | 1 | DevOps | **Closed** |
 
 **Subtotal**: 18 pts (8 Tasks, Sprint 08: 6, Sprint 09: 2)
 

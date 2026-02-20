@@ -109,7 +109,7 @@ send "*[PM]* === Standup 종료 === 오늘도 화이팅!"
 ### 기록 폴더 구조
 
 ```
-work_logs/standups/
+work_logs/03_standups/
 ├── README.md
 └── YYYY/
     └── MM-Month/
@@ -159,7 +159,7 @@ work_logs/standups/
 # 스탠드업 기록 폴더 생성
 YEAR=$(date +%Y)
 MONTH=$(date +%m-%B)
-STANDUP_DIR="work_logs/standups/${YEAR}/${MONTH}"
+STANDUP_DIR="work_logs/03_standups/${YEAR}/${MONTH}"
 mkdir -p "$STANDUP_DIR"
 
 # 파일명 생성 (하루에 여러 번 가능)
@@ -181,13 +181,13 @@ echo "스탠드업 기록 파일: $FILENAME"
 스탠드업 미팅 후 PM Agent는 다음 작업을 수행해야 합니다:
 
 1. ✅ Slack 메시지 전송 완료 확인
-2. ✅ `work_logs/standups/YYYY/MM-Month/YYYY-MM-DD_HH-MM.md` 기록 파일 생성
+2. ✅ `work_logs/03_standups/YYYY/MM-Month/YYYY-MM-DD_HH-MM.md` 기록 파일 생성
 3. ✅ Sprint 현황, 팀 상태, 액션 아이템, 리스크 정리
 4. ✅ Slack에 기록 완료 알림 (proj-hrkp-dev)
 
 ```bash
 # PM이 기록 완료 후 알림
-./scripts/send_slack.sh proj-hrkp-dev PM "작업 완료: 스탠드업 미팅 기록 - work_logs/standups/..."
+./scripts/send_slack.sh proj-hrkp-dev PM "작업 완료: 스탠드업 미팅 기록 - work_logs/03_standups/..."
 ```
 
 ## 참고

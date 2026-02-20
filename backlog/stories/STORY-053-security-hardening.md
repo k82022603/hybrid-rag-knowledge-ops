@@ -6,7 +6,7 @@
 |------|-----|
 | **Jira ID** | SCRUM-43 |
 | **Epic** | EPIC-001 |
-| **Status** | Review |
+| **Status** | Closed - Project Completed (2026-02-18) |
 | **Priority** | Critical |
 | **Story Points** | 3 |
 | **Assignee** | Backend |

@@ -1,5 +1,11 @@
 # 인프라 상세 설계서
 
+> **현행화 정보**
+> - **최종 현행화**: 2026-02-20
+> - **프로젝트 상태**: 종료 (2026-02-18)
+> - **구현 상태**: 부분구현 (Docker Compose 단일 노드만 구현, K8s 미적용)
+> - **주요 변경사항**: 본 문서는 Kubernetes 기반 운영 환경을 목표로 작성된 참조 설계서임. 실제 구현은 Docker Compose 기반 단일 노드 18개 컨테이너로 운영하다 종료. K8s 배포, Helm Chart, ArgoCD, HashiCorp Vault, MinIO, Redis Cluster 등 본 문서 내용 대부분은 미구현. 모니터링 스택(Prometheus/Grafana/Kibana/Jaeger)은 Docker Compose로 부분 구현됨.
+
 **프로젝트**: Hybrid RAG Knowledge Operations Platform
 **버전**: 1.0
 **작성일**: 2026-01-16
@@ -53,6 +59,8 @@
 | 배포 환경 | 온프레미스 (Kubernetes) |
 | 대상 시스템 | Frontend, Backend, AI Service, Databases |
 | 운영 환경 | Development, Staging, Production |
+
+> ⚠️ **실제 구현**: 배포 환경은 온프레미스 Kubernetes 대신 **Docker Compose 단일 노드**로 구현됨. Staging/Production 환경 없이 Development 환경 단일 운영으로 종료.
 
 ### 1.3 설계 원칙
 
@@ -965,6 +973,8 @@ registry:
 ---
 
 ## 4. Kubernetes 배포
+
+> ℹ️ **미구현**: 이하 섹션 4 (Kubernetes 배포) 전체는 참조 설계로만 문서화됨. 실제 배포는 Docker Compose로만 진행되었으며 K8s 배포는 미진행으로 프로젝트 종료.
 
 ### 4.1 네임스페이스 구조
 
@@ -2007,6 +2017,8 @@ spec:
 
 ## 9. CI/CD 파이프라인
 
+> ℹ️ **미구현**: CI/CD 파이프라인 (GitLab CI, ArgoCD) 은 미구현으로 종료. 수동 docker-compose up/down 방식으로만 운영됨.
+
 ### 9.1 GitLab CI/CD
 
 ```yaml
@@ -2242,6 +2254,8 @@ spec:
 ---
 
 ## 10. 보안 인프라
+
+> ℹ️ **미구현**: HashiCorp Vault, Pod Security Policy 등 보안 인프라는 미구현. 시크릿 관리는 Docker Compose .env 파일 방식으로 운영됨.
 
 ### 10.1 HashiCorp Vault
 
@@ -2532,3 +2546,11 @@ VITE_AUTH_URL: https://auth.knowledge.company.com
 **작성 완료**: 2026-01-16
 **검토 필요**: 네트워크팀, 보안팀, DBA팀
 **다음 단계**: 인프라 구축 POC
+
+---
+
+## 현행화 이력
+
+| 일자 | 작성자 | 내용 |
+|------|--------|------|
+| 2026-02-20 | Claude (doc-agent) | 프로젝트 종료 후 현행화 — K8s 참조 설계 미구현, Docker Compose 18개 컨테이너 단일 노드로 운영 종료 반영 |

@@ -7,7 +7,7 @@
 | **ID** | STORY-095 |
 | **Jira ID** | - |
 | **Epic** | EPIC-006 API Quality & Consistency |
-| **Status** | Deferred (Sprint 12 project closure) |
+| **Status** | Closed - Project Completed (2026-02-18) |
 | **Priority** | Medium |
 | **Story Points** | 3 |
 | **Assignee** | Backend/Frontend |

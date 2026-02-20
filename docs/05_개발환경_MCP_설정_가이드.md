@@ -4,6 +4,12 @@
 **Updated**: 2026-01-25
 **Author**: 클로드
 
+> **현행화 정보**
+> - **최종 현행화**: 2026-02-20
+> - **프로젝트 상태**: 종료 (2026-02-18)
+> - **문서 상태**: 일부 outdated
+> - **주요 변경사항**: 실제 `.claude/settings.json`은 jira, github, stitch MCP 서버를 직접 정의함. `.mcp.json`은 현재 미사용. Slack MCP는 `.mcp.json`이 아닌 별도 설정(`.claude/settings.local.json`)으로 활성화됨. stitch 모델이 `claude-opus-4-5-20251101` → 삭제됨.
+
 ---
 
 ## 1. 개요
@@ -95,6 +101,8 @@ project-root/
         "ANTHROPIC_MODEL": "claude-opus-4-5-20251101"
       }
     }
+
+> ⚠️ **현행화 메모**: 실제 `.claude/settings.json`에서 stitch의 `ANTHROPIC_MODEL` 환경변수 설정은 제거됨. 또한 slack MCP 서버는 현재 `.claude/settings.json`에 포함되지 않고 별도 설정으로 활성화됨.
   }
 }
 ```
@@ -261,6 +269,8 @@ export JIRA_API_TOKEN="your-secret-token"
 | `.claude/settings.local.json` | ✅ | permissions, hooks, enabledMcpjsonServers |
 | `.mcp.json` | ✅ | jira, github, slack |
 
+> ⚠️ **현행화 메모**: 2026-02-20 기준 실제 `.claude/settings.json`에는 jira, github, stitch 3개 서버가 직접 정의되어 있음. slack MCP는 `.mcp.json` 또는 `.claude/settings.local.json`의 `enabledMcpjsonServers`로 활성화됨. `.mcp.json` 경고가 발생하지만 `enabledMcpjsonServers` 설정으로 여전히 동작 중.
+
 ### 6.2 현재 MCP 서버 출처
 
 ```
@@ -269,6 +279,8 @@ github → .mcp.json (enabledMcpjsonServers로 활성화)
 slack  → .mcp.json (enabledMcpjsonServers로 활성화)
 stitch → .claude/settings.json (직접 정의, 현재 비활성)
 ```
+
+> ⚠️ **현행화 메모**: 2026-02-20 기준 실제 설정은 jira/github/stitch가 `.claude/settings.json`에 직접 정의되어 있으며, slack은 별도 경로로 활성화됨. `.mcp.json`의 설정과 위 표가 일부 다를 수 있음.
 
 ### 6.3 경고 발생 이유
 
@@ -329,3 +341,11 @@ stitch → .claude/settings.json (직접 정의, 현재 비활성)
 
 - [Claude Code Documentation](https://docs.anthropic.com/claude-code)
 - [MCP Server Configuration](https://modelcontextprotocol.io/)
+
+---
+
+## 현행화 이력
+
+| 일자 | 작성자 | 내용 |
+|------|--------|------|
+| 2026-02-20 | Claude (doc-agent) | 프로젝트 종료 후 현행화 — 실제 `.claude/settings.json` 구성 반영 (jira/github/stitch 직접 정의, slack 별도 경로), stitch의 ANTHROPIC_MODEL 제거 사실 반영 |

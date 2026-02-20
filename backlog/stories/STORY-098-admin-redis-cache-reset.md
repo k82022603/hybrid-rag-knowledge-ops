@@ -6,7 +6,7 @@
 |------|-----|
 | **ID** | STORY-098 |
 | **Epic** | EPIC-006 Administration |
-| **Status** | Deferred (Sprint 12 project closure) |
+| **Status** | Closed - Project Completed (2026-02-18) |
 | **Priority** | Medium |
 | **Story Points** | 3 |
 | **Assignee** | Backend/Frontend |

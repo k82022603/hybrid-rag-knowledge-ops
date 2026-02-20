@@ -1,5 +1,11 @@
 # Neo4j Subgraph 쿼리 최적화 - CONTAINS vs Full-Text Index
 
+> **현행화 정보**
+> - **최종 현행화**: 2026-02-20
+> - **프로젝트 상태**: 종료 (2026-02-18)
+> - **구현 상태**: 부분구현 (CONTAINS 방식 적용, Full-Text Index 전환 미완료)
+> - **주요 변경사항**: Phase 1 CONTAINS 방식이 최종 적용 상태로 종료. Full-Text Index 전환(Phase 2) 및 한글 형태소 분석(Phase 3)은 미진행. 현재 73개 노드 규모에서 CONTAINS 성능 문제 없어 전환 필요성이 낮았고, 프로젝트 종료로 최종 미완료. 파일 위치: `knowledge_service/src/app/storage/neo4j_storage.py`.
+
 **작성일**: 2026-02-08
 **작성자**: Claude Code (TechLead 위임)
 **상태**: CONTAINS 적용 → Full-Text Index 전환 예정
@@ -147,7 +153,11 @@ flowchart LR
 - 73개 노드에서 성능 문제 없음
 - exact match 우선 (`ORDER BY CASE`)으로 정확도 보장
 
+> ⚠️ **실제 구현**: CONTAINS 방식이 프로젝트 종료 시점까지 최종 적용 상태로 유지됨. 73개 노드 규모에서 성능 이슈 없어 전환 우선순위 낮았음.
+
 ### Phase 2: Full-Text Index 전환
+
+> ℹ️ **미구현**: Full-Text Index 전환 계획은 미진행으로 프로젝트 종료.
 
 #### Step 1. 인덱스 생성
 
@@ -218,6 +228,8 @@ async def query_subgraph(self, entity_name, depth=2, limit=50):
 
 ### Phase 3: 한글 형태소 분석 (선택)
 
+> ℹ️ **미구현**: 한글 형태소 분석 적용 미진행으로 프로젝트 종료.
+
 Neo4j 기본 `standard` analyzer는 공백/구두점 기반 토크나이저입니다. 한글 형태소 분석이 필요하면:
 
 1. **Custom Analyzer 플러그인**: `lucene-analysis-nori` (한국어) 설치
@@ -254,3 +266,13 @@ Full-Text Index 전환 후 확인할 지표:
 - [Neo4j Full-Text Indexes](https://neo4j.com/docs/cypher-manual/current/indexes/semantic-indexes/full-text-indexes/)
 - 현재 프로젝트 Neo4j 노드: 73개 (Technology 26, Topic 24, Person 8, Chunk 7, Knowledge 5, Keyword 3)
 - 수정 대상 파일: `knowledge_service/src/app/storage/neo4j_storage.py` → `query_subgraph()`
+
+> ⚠️ **실제 구현**: 프로젝트 종료 시점 기준 `neo4j_storage.py`의 `query_subgraph()`는 CONTAINS 방식 유지. Full-Text Index 미생성 상태로 종료.
+
+---
+
+## 현행화 이력
+
+| 일자 | 작성자 | 내용 |
+|------|--------|------|
+| 2026-02-20 | Claude (doc-agent) | 프로젝트 종료 후 현행화 — CONTAINS 방식 최종 적용 상태, Full-Text Index 전환 미완료 반영 |

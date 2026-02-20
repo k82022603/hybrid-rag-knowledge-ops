@@ -6,7 +6,7 @@
 |------|-----|
 | **Jira ID** | SCRUM-96 |
 | **Epic** | - |
-| **Status** | Deferred (Sprint 12 project closure) |
+| **Status** | Closed - Project Completed (2026-02-18) |
 | **Priority** | High |
 | **Story Points** | 2 |
 | **Assignee** | Backend |
