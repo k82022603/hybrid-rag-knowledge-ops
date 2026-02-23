@@ -1,7 +1,7 @@
 plugins {
     id 'java'
     id 'org.springframework.boot' version '3.2.2'
-    id 'io.spring.dependency-management' version '1.1.4'
+    id 'io.spring.dependency-management' version '1.1.7'
 }
 
 group = 'com.knowledge'
@@ -34,8 +34,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
 
     // Resilience4j
-    implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.2.0'
-    implementation 'io.github.resilience4j:resilience4j-reactor:2.2.0'
+    implementation 'io.github.resilience4j:resilience4j-spring-boot3:2.3.0'
+    implementation 'io.github.resilience4j:resilience4j-reactor:2.3.0'
 
     // Database
     runtimeOnly 'org.postgresql:postgresql'
@@ -45,7 +45,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive'
 
     // MinIO S3 Client
-    implementation 'io.minio:minio:8.5.7'
+    implementation 'io.minio:minio:8.6.0'
 
     // Lombok
     compileOnly 'org.projectlombok:lombok'
@@ -59,13 +59,13 @@ dependencies {
     implementation 'io.opentelemetry:opentelemetry-exporter-otlp'
 
     // MapStruct for DTO mapping
-    implementation 'org.mapstruct:mapstruct:1.5.5.Final'
-    annotationProcessor 'org.mapstruct:mapstruct-processor:1.5.5.Final'
+    implementation 'org.mapstruct:mapstruct:1.6.3'
+    annotationProcessor 'org.mapstruct:mapstruct-processor:1.6.3'
 
     // JWT
-    implementation 'io.jsonwebtoken:jjwt-api:0.12.5'
-    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.12.5'
-    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.12.5'
+    implementation 'io.jsonwebtoken:jjwt-api:0.13.0'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.13.0'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.13.0'
 
     // Rate Limiting
     implementation 'com.bucket4j:bucket4j-core:8.10.1'
