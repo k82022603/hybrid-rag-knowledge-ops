@@ -66,7 +66,7 @@ R-004(Neo4j memory pressure)는 이 메모리 전쟁의 한 에피소드다. Neo
 
 WSL2 환경에서의 또 다른 고통은 **파일 시스템 성능**이었다. WSL2에서 Windows 파일 시스템(/mnt/d/ 등)에 접근할 때 I/O 성능이 극도로 느리다. Docker 볼륨을 사용하면 괜찮지만, bind mount를 사용하면 성능이 50배 이상 느려질 수 있다. 이 때문에 초기에 Nginx 설정 파일을 bind mount로 마운트하는 대신, Dockerfile에서 COPY하는 방식으로 전환했다(`docker-compose.yml` 주석에 "WSL2 Fix: bind mount -> build image" 라고 적혀 있다).
 
-메모리 문제는 완전히 해결할 수 없었다. 18개 컨테이너를 동시에 올리면 총 메모리 사용량이 15~18GB에 달했다. Windows 호스트의 다른 프로세스(VS Code, Chrome, Docker Desktop 자체)까지 합치면 20GB를 넘기도 했다. 이럴 때는 OOM Killer가 가장 메모리를 많이 쓰는 컨테이너를 강제 종료시켰다. 대부분 AI Service가 당했다. BGE-M3 모델을 다시 로딩하는 데 2~3분이 걸리기 때문에, OOM이 발생하면 서비스 복구에 상당한 시간이 소요되었다.
+메모리 문제는 완전히 해결할 수 없었다. 18개 컨테이너를 동시에 올리면 총 메모리 사용량이 15 ~ 18GB에 달했다. Windows 호스트의 다른 프로세스(VS Code, Chrome, Docker Desktop 자체)까지 합치면 20GB를 넘기도 했다. 이럴 때는 OOM Killer가 가장 메모리를 많이 쓰는 컨테이너를 강제 종료시켰다. 대부분 AI Service가 당했다. BGE-M3 모델을 다시 로딩하는 데 2~3분이 걸리기 때문에, OOM이 발생하면 서비스 복구에 상당한 시간이 소요되었다.
 
 STORY-102(WSL 메모리 추정 도구)와 STORY-109(docker-compose 메모리 설정)가 Deferred로 남은 것이 이 맥락이다. 체계적인 메모리 관리 도구를 만들고 싶었지만, Sprint 12 마감에 밀렸다. `docker stats` 명령으로 수동 모니터링하는 것이 현실이었다.
 
