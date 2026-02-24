@@ -1,4 +1,4 @@
-# Hybrid RAG Knowledge Operations
+# Hybrid RAG Knowledge Platform
 
 > **[프로젝트 종료]** 2026-01-12 ~ 2026-02-18 (38일, 12 스프린트) | Graph RAG 기반 지능형 지식 검색 시스템 — 4-Way Hybrid Search + Knowledge Graph + 13 AI Agents
 
@@ -236,3 +236,4 @@ DeepSeek V3.2의 비용 효율은 "실험적으로 재미있는 수준"이 아�
 ---
 
 **Made with Claude Code (Opus 4.6 + Sonnet 4.6) & DeepSeek V3.2**
+
