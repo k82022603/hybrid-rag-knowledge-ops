@@ -1,8 +1,9 @@
 # Docker 디스크 관리 및 인프라 유지보수 가이드
 
 **시스템**: Hybrid RAG Knowledge Platform
-**버전**: 1.0
+**버전**: 1.1
 **작성일**: 2026-02-25
+**최종 수정**: 2026-02-25 (vhdx 축소 실측값 반영)
 
 ---
 
@@ -26,13 +27,14 @@ Docker Desktop은 WSL2 환경에서 가상 디스크 파일(`docker_data.vhdx`)�
 
 ### 1.2 이 프로젝트의 디스크 현황 (2026-02-25 기준)
 
-| 항목 | 크기 | 비고 |
-|------|-----:|------|
-| `docker_data.vhdx` 파일 | **113 GB** | D:\Docker\DockerDesktopWSL\disk\ |
-| Docker 이미지 (21개) | ~21 GB | ai-service 12.4GB가 최대 |
-| 빌드 캐시 | **26 GB** | 안전하게 삭제 가능 |
-| 볼륨 (DB 데이터 등) | ~3.7 GB | ES 1.5GB, Neo4j 1.6GB 등 |
-| vhdx 오버헤드 (빈 공간) | ~62 GB | 축소 필요 |
+| 항목 | 정리 전 | 정리 후 | 비고 |
+|------|--------:|--------:|------|
+| `docker_data.vhdx` 파일 | **113.7 GB** | **52.3 GB** | D:\Docker\DockerDesktopWSL\disk\ |
+| Docker 이미지 (21개) | ~21 GB | ~21 GB | ai-service 12.4GB가 최대 |
+| 빌드 캐시 | **26 GB** | **0 GB** | `docker builder prune -a`로 삭제 |
+| 볼륨 (DB 데이터 등) | ~3.7 GB | ~3.7 GB | ES 1.5GB, Neo4j 1.6GB 등 |
+| vhdx 오버헤드 (빈 공간) | ~62 GB | ~27 GB | `Optimize-VHD`로 축소 |
+| **절감량** | - | **61.4 GB (54%)** | 빌드 캐시 삭제 + vhdx 축소 |
 
 ---
 
@@ -44,14 +46,14 @@ Docker의 데이터는 4가지 계층으로 나뉘며, 각각 독립적으로 �
 
 ```mermaid
 flowchart TB
-    subgraph VHDX["docker_data.vhdx (113GB)"]
+    subgraph VHDX["docker_data.vhdx (52.3GB, 축소 후)"]
         subgraph Images["이미지 레이어 (~21GB)"]
             IMG1["ai-service:latest<br/>12.4GB (BGE-M3 모델 포함)"]
             IMG2["elasticsearch:8.11.0-nori<br/>2.2GB"]
             IMG3["기타 19개 이미지<br/>~6.4GB"]
         end
-        subgraph Cache["빌드 캐시 (~26GB)"]
-            BC["docker build 중간 레이어<br/>재빌드 시 속도 향상용"]
+        subgraph Cache["빌드 캐시 (0GB, 정리 완료)"]
+            BC["docker builder prune -a<br/>26GB 회수 완료"]
         end
         subgraph Volumes["볼륨 (~3.7GB)"]
             V1["kp-elasticsearch-data (1.5GB)"]
@@ -59,8 +61,8 @@ flowchart TB
             V3["kp-postgresql-data (70MB)"]
             V4["기타 볼륨"]
         end
-        subgraph Free["빈 공간 (~62GB)"]
-            FR["삭제된 데이터의 잔여 공간<br/>vhdx 축소 필요"]
+        subgraph Free["빈 공간 (~27GB)"]
+            FR["Optimize-VHD로 축소 완료<br/>62GB → 27GB"]
         end
     end
 ```
@@ -231,13 +233,15 @@ docker rmi knowledge-platform/ai-service:latest   # BGE-M3 모델 소실!
 
 ### 4.3 예상 정리 결과
 
-| 단계 | 작업 | 회수량 | 누적 |
-|:----:|------|-------:|-----:|
-| 1 | 빌드 캐시 정리 | 26 GB | 26 GB |
-| 2 | dangling 이미지 | 0.05 GB | 26 GB |
-| 3 | 미사용 이미지 | 0.26 GB | 26.3 GB |
-| 4 | 미사용 볼륨 | 0.002 GB | 26.3 GB |
-| **5** | **vhdx 축소 (Section 5)** | **20~40 GB** | **46~66 GB** |
+| 단계 | 작업 | 회수량 | 누적 | 실측 |
+|:----:|------|-------:|-----:|:----:|
+| 1 | 빌드 캐시 정리 | 26 GB | 26 GB | ✅ 완료 |
+| 2 | dangling 이미지 | 0.05 GB | 26 GB | ✅ 완료 |
+| 3 | 미사용 이미지 | 0.26 GB | 26.3 GB | 선택 |
+| 4 | 미사용 볼륨 | 0.002 GB | 26.3 GB | 선택 |
+| **5** | **vhdx 축소 (Section 5)** | **61.4 GB** | **~61.4 GB** | ✅ **실측** |
+
+> **실측 결과 (2026-02-25)**: Step 1~2 + Step 5 실행으로 vhdx 파일 **113.7GB → 52.3GB** (61.4GB 회수, 54% 감소)
 
 ---
 
@@ -247,7 +251,7 @@ docker rmi knowledge-platform/ai-service:latest   # BGE-M3 모델 소실!
 
 Docker 내부에서 데이터를 삭제해도 `docker_data.vhdx` 파일 크기는 줄어들지 않는다. 빈 공간을 실제로 회수하려면 vhdx 파일을 **별도로 축소**해야 한다.
 
-예: 빌드 캐시 26GB를 삭제해도 vhdx 파일은 113GB 그대로 → 축소 후 70~80GB로 감소
+예: 빌드 캐시 26GB를 삭제해도 vhdx 파일은 113GB 그대로 → 축소 후 52.3GB로 감소 (실측)
 
 ### 5.2 사전 조건
 
@@ -316,7 +320,7 @@ Docker Desktop을 실행하면 WSL도 자동으로 다시 올라오고 정상 �
 | **WSL 세션 종료** | `wsl --shutdown` 시 모든 WSL 인스턴스 (Ubuntu, Claude Code 등) 즉시 종료 |
 | **Docker Desktop** | 실행 중이면 축소 실패 또는 데이터 손상 가능. 반드시 먼저 종료 |
 | **소요 시간** | 파일 크기에 따라 1~5분 |
-| **예상 결과** | 빌드 캐시 26GB 삭제 후 축소 시 113GB → 70~80GB |
+| **실측 결과** | 빌드 캐시 26GB 삭제 후 축소 시 113.7GB → **52.3GB** (54% 감소) |
 
 ---
 
@@ -446,3 +450,4 @@ wsl --shutdown
 | 날짜 | 버전 | 내용 |
 |------|------|------|
 | 2026-02-25 | 1.0 | 초기 작성 — Docker 디스크 구조, 안전한 정리 절차, vhdx 축소, Dependabot 관리, 시연 체크리스트 |
+| 2026-02-25 | 1.1 | vhdx 축소 실측값 반영 — 113.7GB→52.3GB (54% 감소, 61.4GB 회수) |
