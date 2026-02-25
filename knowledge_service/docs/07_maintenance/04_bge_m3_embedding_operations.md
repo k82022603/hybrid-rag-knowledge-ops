@@ -1,6 +1,6 @@
 # BGE-M3 임베딩 모델 운영 매뉴얼
 
-**Version**: 1.1 | **Updated**: 2026-01-27
+**Version**: 1.2 | **Updated**: 2026-02-25
 
 ---
 
@@ -12,9 +12,10 @@
 4. [서비스 기동 및 상태 확인](#4-서비스-기동-및-상태-확인)
 5. [캐시 운영 (Redis)](#5-캐시-운영-redis)
 6. [성능 모니터링](#6-성능-모니터링)
-7. [트러블슈팅](#7-트러블슈팅)
-8. [백업 및 복구](#8-백업-및-복구)
-9. [운영 체크리스트](#9-운영-체크리스트)
+7. [GPU 대량 임베딩 (Colab T4)](#7-gpu-대량-임베딩-colab-t4)
+8. [트러블슈팅](#8-트러블슈팅)
+9. [백업 및 복구](#9-백업-및-복구)
+10. [운영 체크리스트](#10-운영-체크리스트)
 
 ---
 
@@ -54,7 +55,7 @@
 1차 시도: FlagEmbedding (BGEM3FlagModel)
  ├─ Dense + Sparse 벡터 동시 지원
  ├─ BGE-M3에 최적화된 라이브러리
- ├─ 필수 조건: transformers < 5.0.0 (Section 7.3 참조)
+ ├─ 필수 조건: transformers < 5.0.0 (Section 8.3 참조)
  └─ 실패 시 → 2차 시도
 
 2차 시도: sentence-transformers (SentenceTransformer)
@@ -497,9 +498,85 @@ export EMBEDDING_MAX_LENGTH=8192
 
 ---
 
-## 7. 트러블슈팅
+## 7. GPU 대량 임베딩 (Colab T4)
 
-### 7.1 모델 로드 실패
+50,000건 이상의 대량 임베딩은 CPU로 비현실적(~21시간)이므로 Google Colab T4 GPU를 활용한다. ETL 3-Phase 파이프라인의 Phase 2에 해당한다.
+
+### 7.1 CPU vs GPU 성능 비교 (실측)
+
+| 지표 | CPU (Docker, WSL2) | GPU (Colab T4) | 배율 |
+|------|:-----------------:|:---------------:|:----:|
+| **처리 속도** | 0.7 chunks/s | **65.6 chunks/s** | **94x** |
+| **53,414건 소요** | ~21시간 | **13.5분** | - |
+| **메모리** | 2.9 GB (RAM) | 8.2 GB (VRAM) | - |
+| **batch_size** | 4 (최적) | 64 (최적) | 16x |
+| **정밀도** | FP32 | FP16 | 메모리 절반 |
+| **벡터 출력** | Dense + Sparse | Dense + Sparse | 동일 |
+| **Dense norm** | 1.0000 | 0.9995~1.0000 | 동일 품질 |
+| **비용** | 전기세 | **$0** (Colab Free) | - |
+
+### 7.2 GPU 사용 기준
+
+| 데이터 규모 | CPU | GPU | 판단 |
+|------------|:---:|:---:|:----:|
+| 10,000건 이하 | 4시간 (수용) | 2.5분 | CPU 가능 |
+| 10,000~50,000건 | 20시간 (야간) | 8분 | GPU 권장 |
+| **50,000건 이상** | **21시간+** | **13분** | **GPU 필수** |
+
+### 7.3 실행 자료
+
+| 자료 | 경로 | 설명 |
+|------|------|------|
+| **Colab 노트북** | `docs/07_maintenance/gpu_embedding_colab.ipynb` | 실행 가능한 노트북 (8셀, 실행 결과 포함) |
+| **상세 매뉴얼** | `docs/07_maintenance/30_gpu_embedding_colab_manual.md` | gcloud 인증, Drive 업/다운, ES Import, 트러블슈팅 |
+| **운영 가이드** | `docs/07_maintenance/22_etl_3phase_operations_guide.md` | Phase 2 전체 흐름 |
+
+### 7.4 GPU 임베딩 핵심 파라미터
+
+```python
+# gpu_embedding_colab.ipynb (Cell 6)
+from FlagEmbedding import BGEM3FlagModel
+
+model = BGEM3FlagModel('BAAI/bge-m3', use_fp16=True)
+
+result = model.encode(
+    texts,
+    batch_size=64,          # T4 GPU 최적값
+    max_length=1000,        # CPU 환경과 동일 (일관성)
+    return_dense=True,      # 1024차원 Dense 벡터
+    return_sparse=True,     # 토큰별 Sparse 가중치
+    return_colbert_vecs=False  # 미사용 (메모리 절약)
+)
+```
+
+**필수 패키지 버전 (Colab)**:
+
+| 패키지 | 버전 | 비고 |
+|--------|------|------|
+| FlagEmbedding | **1.3.4** | 1.3.5도 가능하나 1.3.4 권장 |
+| transformers | **4.44.2** | **5.0.0 미만 필수** (Section 8.3 참조) |
+| torch | 2.9.0+cu128 | Colab 기본 제공 |
+
+### 7.5 Phase 2 실행 결과 (2026-02-15)
+
+| 항목 | 값 |
+|------|-----|
+| 대상 | 53,414건 (전체 56,063건 중 pending) |
+| GPU 임베딩 | 65.6 c/s, **814.8초 (13.5분)** |
+| Dense 벡터 | 1024차원, L2 norm 0.9995~1.0000 |
+| Sparse 벡터 | 평균 82개 토큰/청크 |
+| ES Import | 434 docs/s, 123초 |
+| CPU 보충 | 2,649건, 1.2 c/s, 38.3분 |
+| **최종 결과** | **56,063건 (100%) 완료, 3-Store 정합성 통과** |
+| 비용 | **$0** (Colab Free Tier) |
+
+> **Sparse 저장 주의**: ES에 저장 시 반드시 `sparse_vector_json` (JSON 문자열)으로 저장해야 한다. object로 저장 시 동적 매핑 폭발 → ES 크래시 발생. 상세: [GPU 임베딩 Colab 매뉴얼 Section 9.7](./30_gpu_embedding_colab_manual.md)
+
+---
+
+## 8. 트러블슈팅
+
+### 8.1 모델 로드 실패
 
 **증상**: `EmbeddingModelLoadError: Failed to load model`
 
@@ -513,7 +590,7 @@ export EMBEDDING_MAX_LENGTH=8192
 | 디스크 공간 부족 | `df -h ~/.cache` | 캐시 정리 또는 디스크 확장 |
 | 메모리 부족 | `free -h` | 다른 프로세스 종료 또는 RAM 증설 |
 
-### 7.2 libtorch_global_deps.so 로딩 실패 (WSL2)
+### 8.2 libtorch_global_deps.so 로딩 실패 (WSL2)
 
 **증상**:
 ```
@@ -542,7 +619,7 @@ python -c "import torch; print(f'PyTorch {torch.__version__} OK')"
 
 > 참고: 상세 내용은 `docs/03_implementation/embedding_model_setup_guide.md` Section 2 참조
 
-### 7.3 FlagEmbedding 폴백 발생
+### 8.3 FlagEmbedding 폴백 발생
 
 **증상**: 로그에 `FlagEmbedding not available, trying sentence-transformers` 출력
 
@@ -599,7 +676,7 @@ sentence-transformers==5.2.1
 Sparse 임베딩이 필수가 아니라면 sentence-transformers만으로 운영 가능합니다.
 하이브리드 검색(Dense + Sparse)이 필요한 경우 FlagEmbedding + transformers 4.x 조합을 사용하세요.
 
-### 7.4 OOM (Out of Memory)
+### 8.4 OOM (Out of Memory)
 
 **증상**:
 ```
@@ -619,7 +696,7 @@ export EMBEDDING_MAX_LENGTH=2048
 # 5. 불가피한 경우 서비스 재시작
 ```
 
-### 7.5 모델 다운로드 실패
+### 8.5 모델 다운로드 실패
 
 **증상**: `ConnectionError: Cannot reach huggingface.co`
 
@@ -636,7 +713,7 @@ export HF_HUB_OFFLINE=1
 export EMBEDDING_MODEL=/opt/models/bge-m3
 ```
 
-### 7.6 캐시 관련 문제
+### 8.6 캐시 관련 문제
 
 | 증상 | 원인 | 해결 |
 |------|------|------|
@@ -645,7 +722,7 @@ export EMBEDDING_MODEL=/opt/models/bge-m3
 | Redis 메모리 과다 | 캐시 무한 증가 | `maxmemory` + `maxmemory-policy` 설정 |
 | 응답 지연 | Redis 타임아웃 | Redis 서버 상태 점검, 네트워크 확인 |
 
-### 7.7 벡터 품질 이상
+### 8.7 벡터 품질 이상
 
 정규화 또는 유사도가 비정상인 경우:
 
@@ -669,9 +746,9 @@ print(f"한국어↔영어 유사도: {dot:.4f}")  # 0.7+ 기대
 
 ---
 
-## 8. 백업 및 복구
+## 9. 백업 및 복구
 
-### 8.1 백업 대상
+### 9.1 백업 대상
 
 | 대상 | 경로 | 중요도 | 복구 방법 |
 |------|------|--------|-----------|
@@ -680,7 +757,7 @@ print(f"한국어↔영어 유사도: {dot:.4f}")  # 0.7+ 기대
 | 서비스 코드 | `src/app/services/embedding.py` | 상 | Git 저장소에서 복원 |
 | 환경 설정 | `.env` 파일 | 상 | 설정 문서 참조하여 재설정 |
 
-### 8.2 모델 백업
+### 9.2 모델 백업
 
 ```bash
 # 모델 캐시 백업 (오프라인 복구용)
@@ -690,7 +767,7 @@ tar -czf bge-m3-backup.tar.gz -C ~/.cache/huggingface/hub models--BAAI--bge-m3
 tar -xzf bge-m3-backup.tar.gz -C ~/.cache/huggingface/hub/
 ```
 
-### 8.3 Redis 캐시 백업
+### 9.3 Redis 캐시 백업
 
 ```bash
 # RDB 스냅샷 (Redis 설정에 따라 자동 저장)
@@ -704,17 +781,17 @@ cp /backup/redis-embedding-YYYYMMDD.rdb /var/lib/redis/dump.rdb
 systemctl restart redis
 ```
 
-### 8.4 장애 복구 절차
+### 9.4 장애 복구 절차
 
 ```
 1. 서비스 중단 확인
    └─ 로그 확인: ERROR 레벨 메시지 검색
 
 2. 원인 파악
-   ├─ 모델 로드 실패? → Section 7.1
-   ├─ 메모리 부족? → Section 7.4
-   ├─ 네트워크 문제? → Section 7.5
-   └─ Redis 장애? → Section 7.6
+   ├─ 모델 로드 실패? → Section 8.1
+   ├─ 메모리 부족? → Section 8.4
+   ├─ 네트워크 문제? → Section 8.5
+   └─ Redis 장애? → Section 8.6
 
 3. 복구 조치
    ├─ 싱글턴 리셋: reset_embedding_service()
@@ -730,29 +807,29 @@ systemctl restart redis
 
 ---
 
-## 9. 운영 체크리스트
+## 10. 운영 체크리스트
 
-### 9.1 일일 점검
+### 10.1 일일 점검
 
 - [ ] 서비스 로그에 ERROR 메시지 없음
 - [ ] `health_check()` 정상 반환
 - [ ] Redis 연결 상태 확인 (`redis-cli PING`)
 
-### 9.2 주간 점검
+### 10.2 주간 점검
 
 - [ ] Redis 메모리 사용량 확인 (`INFO memory`)
 - [ ] 캐시 히트율 확인 (`INFO stats`)
 - [ ] 디스크 사용량 확인 (`df -h`)
 - [ ] 모델 캐시 디렉토리 상태 확인
 
-### 9.3 월간 점검
+### 10.3 월간 점검
 
 - [ ] HuggingFace 모델 업데이트 확인
 - [ ] PyTorch / sentence-transformers 보안 패치 확인
 - [ ] Redis maxmemory 설정 적정성 검토
 - [ ] 임베딩 품질 검증 (유사도 테스트 재실행)
 
-### 9.4 배포 전 점검
+### 10.4 배포 전 점검
 
 - [ ] 모델 파일 존재 확인 (오프라인 환경 시)
 - [ ] 환경 변수 설정 확인
@@ -781,5 +858,6 @@ systemctl restart redis
 
 | 날짜 | 버전 | 내용 |
 |------|------|------|
+| 2026-02-25 | 1.2 | Section 7 GPU 대량 임베딩 (Colab T4) 추가 — CPU vs GPU 비교, 실행 결과, 노트북 참조 |
 | 2026-01-27 | 1.1 | FlagEmbedding ImportError 원인 분석 (transformers 5.x), 전략 비교표 추가, 의존성 버전 조합 |
 | 2026-01-27 | 1.0 | 초기 작성 - 환경 설정, 모델 관리, 캐시 운영, 트러블슈팅, 체크리스트 |

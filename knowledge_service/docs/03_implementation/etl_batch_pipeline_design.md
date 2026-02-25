@@ -1,9 +1,18 @@
 # ETL 배치 파이프라인 상세 설계서
 
-**Version**: 1.2
-**작성일**: 2026-02-13 (v1.1: 2026-02-14 Sparse+엔티티 활성화 / v1.2: 2026-02-16 Phase 3 실행 결과 반영)
+**Version**: 1.3
+**작성일**: 2026-02-13 (v1.1: 2026-02-14 / v1.2: 2026-02-16 / v1.3: 2026-02-25 문서 성격 명시)
 **작성자**: Claude Code (Opus 4.6)
-**상태**: Phase 3 재실행 중 (3-워커 병렬)
+**상태**: 완료 (Phase 1~3 설계 확정)
+
+> **문서 성격**: 이 문서는 **Windows 노트북(WSL2) + Docker CPU 환경**에서 일괄 ETL을 수행하는 **설계서**입니다.
+> 임베딩은 CPU에서 실행하는 것을 전제로 설계되었으며, GPU(Colab) 가속은 별도 운영 문서를 참조하세요.
+>
+> | 자료 | 경로 | 설명 |
+> |------|------|------|
+> | GPU 임베딩 운영 | `docs/07_maintenance/22_etl_3phase_operations_guide.md` | GPU 포함 3-Phase 운영 가이드 |
+> | Colab 노트북 | `docs/07_maintenance/gpu_embedding_colab.ipynb` | GPU 임베딩 실행 노트북 |
+> | Colab 상세 매뉴얼 | `docs/07_maintenance/30_gpu_embedding_colab_manual.md` | gcloud 인증, ES Import 등 |
 
 ---
 

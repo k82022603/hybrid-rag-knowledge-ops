@@ -19,6 +19,7 @@
 | 07 | [설치 및 배포 가이드](./07_installation_guide.md) | v1.1 | 설치 절차, Keycloak 설정, startup_check.sh, 메모리 상세 | 운영자, DevOps |
 | 08 | [테스트 결과 보고서](./08_test_report.md) | v1.1 | RAGAS 평가, Sprint 12 사용자 테스트 13케이스, 성능 | QA, PM |
 | 09 | [Known Issues & Technical Debt](./09_known_issues.md) | v1.0 | 기술부채 4건, 제한사항 8건, 해결 이슈 5건, Deferred 20건 | PM, 개발자 |
+| 10 | [Docker 디스크 관리 가이드](./10_docker_disk_maintenance_guide.md) | v1.0 | Docker 디스크 구조, 빌드 캐시 정리, vhdx 축소, Dependabot, 시연 유지보수 | 운영자, DevOps |
 
 ---
 

@@ -1,6 +1,6 @@
 # ETL 3-Phase 파이프라인 운영 가이드
 
-**Version**: 1.1 | **Updated**: 2026-02-15
+**Version**: 1.2 | **Updated**: 2026-02-25
 
 ---
 
@@ -108,7 +108,50 @@ docker exec kp-postgresql psql -U knowledge -d knowledge -t -c "SELECT count(*),
 
 ## 3. Phase 2: GPU 임베딩 (Colab)
 
-### 3.1 준비
+### 3.1 전체 워크플로우
+
+Phase 2는 Phase 1에서 생성된 청크에 Dense(1024d) + Sparse 벡터를 GPU로 고속 생성하는 단계이다. Google Colab T4 GPU를 활용하며, CPU 대비 **약 94배** 빠르다.
+
+```mermaid
+flowchart TB
+    subgraph Export["1. 데이터 추출 (WSL2 → Docker)"]
+        E1["ES에서 pending 청크 수 확인"] --> E2["컨테이너에서 JSONL 추출<br/>chunk_id + document_id + text"]
+        E2 --> E3["docker cp → 호스트<br/>chunks_for_gpu.jsonl"]
+    end
+
+    subgraph Upload["2. Google Drive 업로드"]
+        U1["gcloud auth login<br/>--enable-gdrive-access"] --> U2["Drive API 업로드<br/>curl multipart (53MB)"]
+    end
+
+    subgraph Colab["3. Colab GPU 임베딩"]
+        C1["런타임: T4 GPU 선택<br/>VRAM 14.6GB"] --> C2["패키지 설치<br/>FlagEmbedding==1.3.4<br/>transformers==4.44.2"]
+        C2 --> C3["Drive 마운트 + JSONL 로드"]
+        C3 --> C4["BGE-M3 모델 로드<br/>FP16 모드 (~43초)"]
+        C4 --> C5["GPU 배치 임베딩<br/>batch=64, max_len=1000<br/>Dense + Sparse 동시 생성"]
+        C5 --> C6["결과 JSONL → Drive 저장<br/>chunk_id + dense_vector + sparse_vector"]
+    end
+
+    subgraph Import["4. ES Import (WSL2 → Docker)"]
+        I1["Drive API로 결과 다운로드"] --> I2["docker cp → 컨테이너"]
+        I2 --> I3["import_embeddings.py<br/>ES Bulk Update (100건/배치)"]
+        I3 --> I4["embedding_status → completed<br/>sparse_vector_json (JSON 문자열)"]
+    end
+
+    subgraph Verify["5. 검증"]
+        V1["3-Store 정합성 검증<br/>PG = ES = Neo4j"]
+    end
+
+    Export --> Upload --> Colab --> Import --> Verify
+```
+
+### 3.2 Colab 노트북 및 상세 매뉴얼
+
+| 자료 | 경로 | 설명 |
+|------|------|------|
+| **실행 노트북** | `docs/07_maintenance/gpu_embedding_colab.ipynb` | Colab에서 직접 실행 가능 (8셀, 실행 결과 포함) |
+| **상세 매뉴얼** | `docs/07_maintenance/30_gpu_embedding_colab_manual.md` | gcloud 인증, Drive 업/다운, ES Import, 트러블슈팅 |
+
+### 3.3 준비
 
 Phase 1 완료 후, embedding_status=pending인 청크를 Colab로 전송:
 
@@ -118,24 +161,24 @@ curl -s 'http://localhost:9200/knowledge_chunks/_count' -H 'Content-Type: applic
   -d '{"query":{"term":{"embedding_status":"pending"}}}' | python3 -c "import sys,json; print(json.load(sys.stdin)['count'])"
 ```
 
-### 3.2 Colab 노트북 설정
+### 3.4 Colab 노트북 핵심 설정
 
 ```python
-# BGE-M3 GPU 임베딩 파라미터
+# BGE-M3 GPU 임베딩 (gpu_embedding_colab.ipynb Cell 6)
 from FlagEmbedding import BGEM3FlagModel
 model = BGEM3FlagModel("BAAI/bge-m3", use_fp16=True)  # T4 GPU
 
-# 배치 임베딩
-embeddings = model.encode(
+result = model.encode(
     texts,
-    batch_size=64,       # GPU 최적값
-    max_length=1000,     # 텍스트 절단 길이
-    return_dense=True,
-    return_sparse=True,  # sparse 벡터 동시 생성
+    batch_size=64,       # GPU 최적값 (CPU에서는 4)
+    max_length=1000,     # 기존 데이터 일관성 유지
+    return_dense=True,   # 1024차원 Dense 벡터
+    return_sparse=True,  # 토큰별 Sparse 가중치
+    return_colbert_vecs=False  # 미사용 (메모리 절약)
 )
 ```
 
-### 3.3 최적 파라미터 (확정, 2026-02-10)
+### 3.5 최적 파라미터 (확정, 2026-02-10)
 
 | 파라미터 | CPU 값 | GPU 값 | 비고 |
 |---------|--------|--------|------|
@@ -144,15 +187,16 @@ embeddings = model.encode(
 | workers | 1 | - | CPU 2워커는 경합 |
 | use_fp16 | False | True | GPU에서만 fp16 사용 |
 
-### 3.4 Phase 2 실행 결과 (2026-02-15)
+### 3.6 Phase 2 실행 결과 (2026-02-15)
 
 | 항목 | 값 |
 |------|-----|
-| GPU 임베딩 | 53,414건, **65.6 c/s**, 814.8초 |
-| CPU 보충 임베딩 | 2,649건, 1.5 c/s, ~30분 |
+| GPU 임베딩 | 53,414건, **65.6 c/s**, 814.8초 (13.5분) |
+| CPU 보충 임베딩 | 2,649건, 1.2 c/s, 38.3분 |
 | ES Import | 53,414건, **434 docs/s**, 123초 |
-| 최종 완료 | 56,063건 (100%) |
+| 최종 완료 | **56,063건 (100%)** |
 | Sparse 저장 형식 | `sparse_vector_json` (JSON 문자열) |
+| 비용 | **$0** (Colab Free Tier) |
 
 > **주의**: Sparse vector를 ES object로 저장하면 동적 매핑 폭발이 발생한다. 반드시 JSON 문자열(`sparse_vector_json`)로 저장해야 한다. 상세: [GPU 임베딩 Colab 매뉴얼 Section 9.7](./30_gpu_embedding_colab_manual.md)
 
@@ -329,14 +373,17 @@ curl -d @/tmp/req.json
 
 ## 6. 스크립트 목록
 
-| 스크립트 | 위치 | 용도 |
-|---------|------|------|
-| `run_etl_phase1_chunks.py` | `knowledge_service/scripts/` | Phase 1 ETL 실행 |
-| `etl_phase1_monitor.sh` | `knowledge_service/scripts/` | Phase 1 모니터 (15분) |
-| `etl_v2_monitor.sh` | `knowledge_service/scripts/` | 전체 ETL v2 모니터 |
-| `embedding_monitor.sh` | `knowledge_service/scripts/` | 임베딩 전용 모니터 |
-| `batch_entity_extraction.py` | `knowledge_service/scripts/` | Phase 3 엔티티 추출 (멀티워커) |
-| `send_slack.sh` | `scripts/` | Slack 메시지 전송 |
+| 스크립트/파일 | 위치 | Phase | 용도 |
+|-------------|------|:-----:|------|
+| `run_etl_phase1_chunks.py` | `knowledge_service/scripts/` | 1 | Phase 1 ETL 실행 |
+| `etl_phase1_monitor.sh` | `knowledge_service/scripts/` | 1 | Phase 1 모니터 (15분) |
+| **`gpu_embedding_colab.ipynb`** | `knowledge_service/docs/07_maintenance/` | **2** | **Colab GPU 임베딩 노트북** |
+| `import_embeddings.py` | `knowledge_service/scripts/` | 2 | ES Bulk Import (GPU 결과) |
+| `verify_3store_consistency.py` | `knowledge_service/scripts/` | 2 | 3-Store 정합성 검증 |
+| `batch_entity_extraction.py` | `knowledge_service/scripts/` | 3 | 엔티티 추출 (멀티워커) |
+| `etl_v2_monitor.sh` | `knowledge_service/scripts/` | - | 전체 ETL v2 모니터 |
+| `embedding_monitor.sh` | `knowledge_service/scripts/` | - | 임베딩 전용 모니터 |
+| `send_slack.sh` | `scripts/` | - | Slack 메시지 전송 |
 
 자세한 목록: [scripts/README.md](../../../scripts/README.md)
 
