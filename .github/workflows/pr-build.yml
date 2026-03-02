@@ -81,7 +81,7 @@ jobs:
 
       - name: Cache Poetry dependencies
         id: cached-poetry
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: knowledge_service/.venv
           key: venv-${{ runner.os }}-${{ hashFiles('knowledge_service/poetry.lock') }}
