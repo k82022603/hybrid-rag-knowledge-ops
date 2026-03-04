@@ -1,5 +1,8 @@
 package com.knowledge.gateway.exception;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.web.reactive.error.ErrorWebExceptionHandler;
 import org.springframework.core.annotation.Order;
@@ -20,12 +23,15 @@ import java.time.Instant;
  * Global Exception Handler for API Gateway
  *
  * <p>Handles authentication, authorization, and routing errors
- * with standardized JSON error responses.
+ * with standardized JSON error responses serialized via Jackson ObjectMapper.
  */
 @Component
 @Order(-2)
 @Slf4j
+@RequiredArgsConstructor
 public class GlobalExceptionHandler implements ErrorWebExceptionHandler {
+
+    private final ObjectMapper objectMapper;
 
     @Override
     public Mono<Void> handle(ServerWebExchange exchange, Throwable ex) {
@@ -72,7 +78,10 @@ public class GlobalExceptionHandler implements ErrorWebExceptionHandler {
     }
 
     /**
-     * Write standardized JSON error response
+     * Write standardized JSON error response using Jackson ObjectMapper.
+     *
+     * <p>Uses {@link GatewayErrorResponse} record + ObjectMapper to prevent
+     * JSON injection that manual {@code String.format} assembly would allow.
      */
     private Mono<Void> writeErrorResponse(
             ServerWebExchange exchange,
@@ -83,18 +92,25 @@ public class GlobalExceptionHandler implements ErrorWebExceptionHandler {
         exchange.getResponse().setStatusCode(status);
         exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
 
-        String body = String.format(
-            "{\"error\":\"%s\",\"message\":\"%s\",\"status\":%d,\"path\":\"%s\",\"timestamp\":\"%s\"}",
+        GatewayErrorResponse errorResponse = new GatewayErrorResponse(
             error,
             message,
             status.value(),
-            exchange.getRequest().getPath(),
+            exchange.getRequest().getPath().value(),
             Instant.now().toString()
         );
 
+        byte[] bytes;
+        try {
+            bytes = objectMapper.writeValueAsBytes(errorResponse);
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize error response", e);
+            bytes = "{\"error\":\"Internal server error\"}".getBytes(StandardCharsets.UTF_8);
+        }
+
         DataBuffer buffer = exchange.getResponse()
             .bufferFactory()
-            .wrap(body.getBytes(StandardCharsets.UTF_8));
+            .wrap(bytes);
 
         return exchange.getResponse().writeWith(Mono.just(buffer));
     }

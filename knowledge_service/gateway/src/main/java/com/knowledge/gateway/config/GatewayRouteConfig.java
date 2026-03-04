@@ -1,6 +1,5 @@
 package com.knowledge.gateway.config;
 
-import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.timelimiter.TimeLimiterConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.circuitbreaker.resilience4j.ReactiveResilience4JCircuitBreakerFactory;
@@ -14,98 +13,33 @@ import java.time.Duration;
 /**
  * Gateway Route Configuration
  *
- * <p>Provides programmatic circuit breaker customization for each service.
- * Routes are defined in application.yml for easier configuration management.
+ * <p>Registers a default circuit breaker customizer for Spring Cloud Gateway.
+ * Per-service circuit breaker behavior (sliding window, failure rate, timeouts) is
+ * fully controlled by {@code resilience4j.circuitbreaker} and
+ * {@code resilience4j.timelimiter} sections in application.yml — no duplication here.
+ *
+ * <p>Routes are defined in application.yml for easier configuration management.
  */
 @Configuration
 @Slf4j
 public class GatewayRouteConfig {
 
     /**
-     * Customizes ReactiveResilience4JCircuitBreakerFactory with service-specific configurations
+     * Registers a default ReactiveResilience4JCircuitBreakerFactory customizer.
+     *
+     * <p>Individual service configurations (auth, backend, knowledge, user, ai-service)
+     * are driven by application.yml {@code resilience4j} properties via Spring Boot
+     * auto-configuration — no Java-side per-service overrides needed.
      */
     @Bean
     public Customizer<ReactiveResilience4JCircuitBreakerFactory> defaultCustomizer() {
         return factory -> {
-            // Default configuration for all circuit breakers
             factory.configureDefault(id -> new Resilience4JConfigBuilder(id)
-                .circuitBreakerConfig(CircuitBreakerConfig.custom()
-                    .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
-                    .slidingWindowSize(10)
-                    .minimumNumberOfCalls(5)
-                    .failureRateThreshold(50)
-                    .waitDurationInOpenState(Duration.ofSeconds(5))
-                    .permittedNumberOfCallsInHalfOpenState(3)
-                    .automaticTransitionFromOpenToHalfOpenEnabled(true)
-                    .build())
                 .timeLimiterConfig(TimeLimiterConfig.custom()
                     .timeoutDuration(Duration.ofSeconds(30))
                     .build())
                 .build());
-
-            // Backend service circuit breaker
-            factory.configure(builder -> builder
-                .circuitBreakerConfig(CircuitBreakerConfig.custom()
-                    .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
-                    .slidingWindowSize(10)
-                    .minimumNumberOfCalls(5)
-                    .failureRateThreshold(50)
-                    .waitDurationInOpenState(Duration.ofSeconds(5))
-                    .permittedNumberOfCallsInHalfOpenState(3)
-                    .build())
-                .timeLimiterConfig(TimeLimiterConfig.custom()
-                    .timeoutDuration(Duration.ofSeconds(30))
-                    .build()),
-                "backend-circuit-breaker");
-
-            // Knowledge service circuit breaker
-            factory.configure(builder -> builder
-                .circuitBreakerConfig(CircuitBreakerConfig.custom()
-                    .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
-                    .slidingWindowSize(10)
-                    .minimumNumberOfCalls(5)
-                    .failureRateThreshold(50)
-                    .waitDurationInOpenState(Duration.ofSeconds(5))
-                    .permittedNumberOfCallsInHalfOpenState(3)
-                    .build())
-                .timeLimiterConfig(TimeLimiterConfig.custom()
-                    .timeoutDuration(Duration.ofSeconds(30))
-                    .build()),
-                "knowledge-circuit-breaker");
-
-            // User service circuit breaker
-            factory.configure(builder -> builder
-                .circuitBreakerConfig(CircuitBreakerConfig.custom()
-                    .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
-                    .slidingWindowSize(10)
-                    .minimumNumberOfCalls(5)
-                    .failureRateThreshold(50)
-                    .waitDurationInOpenState(Duration.ofSeconds(5))
-                    .permittedNumberOfCallsInHalfOpenState(3)
-                    .build())
-                .timeLimiterConfig(TimeLimiterConfig.custom()
-                    .timeoutDuration(Duration.ofSeconds(15))
-                    .build()),
-                "user-circuit-breaker");
-
-            // AI service circuit breaker - longer timeout for AI processing
-            factory.configure(builder -> builder
-                .circuitBreakerConfig(CircuitBreakerConfig.custom()
-                    .slidingWindowType(CircuitBreakerConfig.SlidingWindowType.COUNT_BASED)
-                    .slidingWindowSize(5)
-                    .minimumNumberOfCalls(3)
-                    .failureRateThreshold(50)
-                    .waitDurationInOpenState(Duration.ofSeconds(10))
-                    .permittedNumberOfCallsInHalfOpenState(2)
-                    .slowCallDurationThreshold(Duration.ofSeconds(5))
-                    .slowCallRateThreshold(80)
-                    .build())
-                .timeLimiterConfig(TimeLimiterConfig.custom()
-                    .timeoutDuration(Duration.ofSeconds(60))
-                    .build()),
-                "ai-service-circuit-breaker");
-
-            log.info("Circuit breaker configurations initialized for all services");
+            log.info("Circuit breaker default customizer initialized (per-service config via application.yml)");
         };
     }
 }

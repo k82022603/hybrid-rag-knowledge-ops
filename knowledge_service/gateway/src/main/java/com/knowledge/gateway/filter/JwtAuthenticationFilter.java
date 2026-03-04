@@ -6,6 +6,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.knowledge.gateway.exception.GatewayErrorResponse;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -57,6 +60,7 @@ import reactor.core.publisher.Mono;
 public class JwtAuthenticationFilter implements WebFilter {
 
     private final JwtTokenValidator jwtTokenValidator;
+    private final ObjectMapper objectMapper;
 
     private static final String BEARER_PREFIX = "Bearer ";
 
@@ -143,6 +147,9 @@ public class JwtAuthenticationFilter implements WebFilter {
     /**
      * Write a standardized 401 Unauthorized JSON error response.
      *
+     * <p>Uses {@link GatewayErrorResponse} record + Jackson ObjectMapper to safely
+     * serialize the response, preventing JSON injection from path or message values.
+     *
      * @param exchange the server web exchange
      * @param message  the error description
      * @return Mono signaling response write completion
@@ -152,36 +159,23 @@ public class JwtAuthenticationFilter implements WebFilter {
         response.setStatusCode(HttpStatus.UNAUTHORIZED);
         response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
 
-        String path = exchange.getRequest().getPath().value();
-        String timestamp = Instant.now().toString();
-
-        String body = String.format(
-            "{\"error\":\"UNAUTHORIZED\",\"message\":\"%s\",\"timestamp\":\"%s\",\"path\":\"%s\"}",
-            escapeJson(message),
-            timestamp,
-            escapeJson(path)
+        GatewayErrorResponse errorResponse = new GatewayErrorResponse(
+            "UNAUTHORIZED",
+            message,
+            HttpStatus.UNAUTHORIZED.value(),
+            exchange.getRequest().getPath().value(),
+            Instant.now().toString()
         );
 
-        DataBuffer buffer = response.bufferFactory()
-            .wrap(body.getBytes(StandardCharsets.UTF_8));
-        return response.writeWith(Mono.just(buffer));
-    }
-
-    /**
-     * Basic JSON string escaping to prevent injection in error responses.
-     *
-     * @param value the string to escape
-     * @return escaped string safe for JSON value inclusion
-     */
-    private String escapeJson(String value) {
-        if (value == null) {
-            return "";
+        byte[] bytes;
+        try {
+            bytes = objectMapper.writeValueAsBytes(errorResponse);
+        } catch (JsonProcessingException e) {
+            log.error("Failed to serialize unauthorized error response", e);
+            bytes = "{\"error\":\"UNAUTHORIZED\"}".getBytes(StandardCharsets.UTF_8);
         }
-        return value
-            .replace("\\", "\\\\")
-            .replace("\"", "\\\"")
-            .replace("\n", "\\n")
-            .replace("\r", "\\r")
-            .replace("\t", "\\t");
+
+        DataBuffer buffer = response.bufferFactory().wrap(bytes);
+        return response.writeWith(Mono.just(buffer));
     }
 }

@@ -3,6 +3,7 @@ package com.knowledge.gateway.config;
 import java.util.Arrays;
 import java.util.List;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -51,6 +52,7 @@ public class SecurityConfig {
 
     private final KeycloakJwtAuthenticationConverter keycloakJwtAuthenticationConverter;
     private final JwtTokenValidator jwtTokenValidator;
+    private final ObjectMapper objectMapper;
 
     @Value("${cors.allowed-origins:http://localhost:3000,http://localhost:5173,http://localhost}")
     private String allowedOrigins;
@@ -92,7 +94,7 @@ public class SecurityConfig {
             )
             // Register HS256 JWT filter for logout token validation
             .addFilterBefore(
-                new JwtAuthenticationFilter(jwtTokenValidator),
+                new JwtAuthenticationFilter(jwtTokenValidator, objectMapper),
                 SecurityWebFiltersOrder.AUTHENTICATION
             )
             .build();
@@ -158,7 +160,7 @@ public class SecurityConfig {
             // Note: JwtAuthenticationFilter is NOT a @Component to prevent automatic
             // global WebFilter registration (which would apply it to all security chains).
             .addFilterBefore(
-                new JwtAuthenticationFilter(jwtTokenValidator),
+                new JwtAuthenticationFilter(jwtTokenValidator, objectMapper),
                 SecurityWebFiltersOrder.AUTHENTICATION
             )
             // OAuth2 Resource Server handles RS256 Keycloak tokens (unchanged)
