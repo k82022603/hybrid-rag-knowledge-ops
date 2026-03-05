@@ -215,7 +215,7 @@ DeepSeek V3.2의 비용 효율은 "실험적으로 재미있는 수준"이 아�
 | [ETL 배치 설계서](./knowledge_service/docs/03_implementation/etl_batch_pipeline_design.md) | 3-Phase 분리 전략 |
 | [ETL 운영 가이드](./knowledge_service/docs/07_maintenance/22_etl_3phase_operations_guide.md) | 3-Phase 실행/모니터링 |
 | [RAGAS v10/v11 종합 보고서](./knowledge_service/docs/04_testing/13_etl_v2_reprocessing/05_ragas_v10_post_entity_evaluation.md) | v10 B+ → v11 A- 달성 + 총평 + LLM 비용 비교 |
-| [Entity Extraction 보고서](./knowledge_service/docs/results/entity_extraction_report_2026-02-15.md) | 실측 비용 + 타 LLM 비교 |
+| [Entity Extraction 보고서](./knowledge_service/docs/04_testing/13_etl_v2_reprocessing/06_entity_extraction_report_2026-02-15.md) | 실측 비용 + 타 LLM 비교 |
 | [운영 매뉴얼](./knowledge_service/docs/08_deliverables/03_operator_manual.md) | 시스템 운영/ETL/모니터링 가이드 |
 | [프로젝트 완료 보고서 (PPT)](./knowledge_service/docs/08_deliverables/00_project_completion_report.pptx) | 13슬라이드, Tech Innovation 테마 |
 | [개발자 에이전트 가이드](./knowledge_service/docs/05_development/01_developer_agent_guide.md) | AI 에이전트 도구 사용법 |

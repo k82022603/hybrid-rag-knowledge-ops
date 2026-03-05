@@ -1,4 +1,4 @@
-# Session Summary - 2026-02-20 21:56
+# Session Summary - 2026-03-05 13:28
 
 ## Commits This Session
 ```
@@ -7,16 +7,16 @@
 
 ## Files Modified
 ```
-.claude/agents/project-manager.md
-.claude/commands/daily/README.md
-.claude/commands/daily/daily-close.md
-.claude/commands/daily/daily-log.md
-.claude/commands/daily/session-log.md
-.claude/commands/daily/standup.md
-.claude/commands/daily/vibe-log.md
 .claude/context/session_context.md
 .claude/context/session_summary.md
-.claude/hooks/session-context.sh
+.claude/settings.local.json
+PLAN.md
+README.md
+backlog/sprints/sprint-09.md
+backlog/stories/STORY-112-phase3-entity-extraction-batch.md
+backlog/stories/STORY-113-nori-auto-validation.md
+backlog/stories/STORY-114-initdb-service-healthy.md
+backlog/stories/STORY-115-bge-reranker-v2-upgrade.md
 ```
 
 ---

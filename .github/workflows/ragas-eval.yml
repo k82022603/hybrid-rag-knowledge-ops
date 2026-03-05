@@ -27,7 +27,7 @@ concurrency:
 env:
   COMPOSE_PROJECT_NAME: knowledge-platform
   AI_SERVICE_CONTAINER: kp-ai-service
-  RESULTS_DIR: knowledge_service/docs/results
+  RESULTS_DIR: knowledge_service/docs/04_testing/11_ragas/results
 
 jobs:
   # =============================================================================

@@ -345,8 +345,8 @@ Graph 채널이 Dead Channel인 상태로 배포되었다면:
 
 | 문서 | 위치 |
 |------|------|
-| Entity Extraction 보고서 | `docs/results/entity_extraction_report_2026-02-15.md` |
-| RAGAS Cross-System 평가 | `docs/results/ragas_cross_system_2026-02-15.md` |
+| Entity Extraction 보고서 | `docs/04_testing/13_etl_v2_reprocessing/06_entity_extraction_report_2026-02-15.md` |
+| RAGAS Cross-System 평가 | `docs/04_testing/11_ragas/results/12_ragas_cross_system_2026-02-15.md` |
 | search.py (Graph 검색) | `src/app/services/search.py` (_graph_search 메서드) |
 | ETL Phase 1 보고서 | `docs/07_maintenance/28_etl_phase1_final_report.md` |
 
