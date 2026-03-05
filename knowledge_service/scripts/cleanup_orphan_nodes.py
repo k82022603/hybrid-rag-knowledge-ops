@@ -1,3 +1,4 @@
+# DEPRECATED: etl_cli.py cleanup 으로 대체 (STORY-125). Sprint 10에서 삭제 예정.
 """
 Neo4j 고아 Entity 노드 정리 스크립트 (STORY-120)
 

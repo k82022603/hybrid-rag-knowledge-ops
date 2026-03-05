@@ -2,6 +2,7 @@ package com.knowledge.gateway.exception;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.knowledge.gateway.dto.ErrorResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.web.reactive.error.ErrorWebExceptionHandler;
@@ -16,14 +17,15 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import java.net.ConnectException;
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Global Exception Handler for API Gateway
  *
- * <p>Handles authentication, authorization, and routing errors
- * with standardized JSON error responses serialized via Jackson ObjectMapper.
+ * <p>Handles authentication, authorization, routing, and upstream errors
+ * with a unified {@link ErrorResponse} JSON format including traceId for correlation.
  */
 @Component
 @Order(-2)
@@ -66,6 +68,16 @@ public class GlobalExceptionHandler implements ErrorWebExceptionHandler {
                 message = responseStatusEx.getReason() != null ?
                     responseStatusEx.getReason() : "An error occurred processing your request.";
             }
+        } else if (ex instanceof TimeoutException) {
+            status = HttpStatus.GATEWAY_TIMEOUT;
+            error = "Gateway timeout";
+            message = "The upstream service did not respond in time.";
+            log.warn("Timeout for path {}: {}", exchange.getRequest().getPath(), ex.getMessage());
+        } else if (ex instanceof ConnectException) {
+            status = HttpStatus.BAD_GATEWAY;
+            error = "Bad gateway";
+            message = "Unable to connect to the upstream service.";
+            log.warn("Connection failed for path {}: {}", exchange.getRequest().getPath(), ex.getMessage());
         } else {
             status = HttpStatus.INTERNAL_SERVER_ERROR;
             error = "Internal server error";
@@ -78,10 +90,9 @@ public class GlobalExceptionHandler implements ErrorWebExceptionHandler {
     }
 
     /**
-     * Write standardized JSON error response using Jackson ObjectMapper.
+     * Write unified JSON error response using {@link ErrorResponse} DTO.
      *
-     * <p>Uses {@link GatewayErrorResponse} record + ObjectMapper to prevent
-     * JSON injection that manual {@code String.format} assembly would allow.
+     * <p>Extracts traceId from the exchange request ID for distributed tracing correlation.
      */
     private Mono<Void> writeErrorResponse(
             ServerWebExchange exchange,
@@ -92,12 +103,11 @@ public class GlobalExceptionHandler implements ErrorWebExceptionHandler {
         exchange.getResponse().setStatusCode(status);
         exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
 
-        GatewayErrorResponse errorResponse = new GatewayErrorResponse(
-            error,
-            message,
-            status.value(),
-            exchange.getRequest().getPath().value(),
-            Instant.now().toString()
+        String traceId = exchange.getRequest().getId();
+        String path = exchange.getRequest().getPath().value();
+
+        ErrorResponse errorResponse = ErrorResponse.of(
+            status.value(), error, message, path, traceId
         );
 
         byte[] bytes;

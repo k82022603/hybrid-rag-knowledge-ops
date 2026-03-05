@@ -1,235 +1,271 @@
+// ============================================================================
 // Neo4j Graph Schema for Hybrid RAG Knowledge Operations
-// Version: 2.6
-// Created: 2026-01-12
-// Purpose: Knowledge graph relationships and entity connections
+// Version: 3.0 (unified with init-db/03_neo4j_constraints.cypher)
+// Updated: 2026-03-05
+// Purpose: Authoritative schema reference — aligned with actual codebase
+//
+// Source of truth: This file and init-db/03_neo4j_constraints.cypher are
+// kept in sync. Any schema change must update BOTH files.
+//
+// History:
+//   v1.0 (2026-01-20): init-db — Entity/Document/TextUnit/Community
+//   v2.6 (2026-01-12): schema.cypher — User/Knowledge/Chunk/Entity subtypes
+//   v3.0 (2026-03-05): Unified — codebase audit, removed unused labels,
+//                       consolidated relationships
+// ============================================================================
 
 // ============================================================================
-// 1. CREATE NODES
+// 1. NODE LABELS & PROPERTIES
 // ============================================================================
 
-// Create User nodes
-CREATE CONSTRAINT user_id_unique IF NOT EXISTS FOR (u:User) REQUIRE u.user_id IS UNIQUE;
-CREATE INDEX user_username_idx IF NOT EXISTS FOR (u:User) ON (u.username);
-CREATE INDEX user_department_idx IF NOT EXISTS FOR (u:User) ON (u.department);
+// Knowledge Node (neo4j_storage.py — primary document representation)
+// Properties:
+//   - knowledge_id: string (UUID) — UNIQUE, maps to PG document ID
+//   - title: string — document title
+//   - document_type: string — e.g. "tech_doc", "meeting", "report"
+//   - valid_start_date: string/date
+//   - valid_end_date: string/date
+//   - chunk_count: integer
+//   - pg_id: string — PostgreSQL reference
+//   - created_at: datetime
+//   - updated_at: datetime
 
-// Create Project nodes
-CREATE CONSTRAINT project_id_unique IF NOT EXISTS FOR (p:Project) REQUIRE p.project_id IS UNIQUE;
-CREATE INDEX project_name_idx IF NOT EXISTS FOR (p:Project) ON (p.project_name);
-CREATE INDEX project_code_idx IF NOT EXISTS FOR (p:Project) ON (p.project_code);
+// Document Node (initial_data_loader.py, run_etl_fast.py — ETL path)
+// Properties:
+//   - id: string (UUID) — UNIQUE, maps to PG document ID
+//   - title: string
+//   - file_path: string
+//   - doc_type: string
+//   - created_at: datetime
 
-// Create Knowledge nodes (documents/chunks)
-CREATE CONSTRAINT knowledge_id_unique IF NOT EXISTS FOR (k:Knowledge) REQUIRE k.knowledge_id IS UNIQUE;
+// Chunk Node
+// Properties:
+//   - id: string (chunk_id) — UNIQUE
+//   - knowledge_id: string — parent knowledge/document ID
+//   - content: string (truncated to 500 chars in Neo4j)
+//   - chunk_index: integer — position within document
+//   - heading: string — section heading
+//   - token_count: integer
+//   - created_at: datetime
+
+// Entity Node (base label — all entities also have :Entity label)
+// Properties:
+//   - id: string (UUID)
+//   - name: string — REQUIRED
+//   - type: string — Person, Technology, Topic, Keyword, etc.
+//   - description: string
+//   - canonical_name: string — normalized for deduplication
+//   - confidence: float
+//   - created_at: datetime
+//   - updated_at: datetime
+
+// Person Node (sub-label, always also :Entity)
+// Properties:
+//   - person_id: string — UNIQUE
+//   - name: string
+//   - department: string
+//   - position: string
+
+// Technology Node (sub-label, always also :Entity)
+// Properties:
+//   - name: string — UNIQUE
+//   - category: string — "Programming Language", "Database", "Framework", etc.
+//   - version: string
+
+// Topic Node (sub-label, always also :Entity)
+// Properties:
+//   - name: string — UNIQUE
+//   - slug: string
+
+// Keyword Node (sub-label, always also :Entity)
+// Properties:
+//   - value: string — UNIQUE (merge key)
+//   - name: string
+
+// Project Node
+// Properties:
+//   - id: string (UUID) — UNIQUE
+//   - name: string
+//   - project_name: string
+//   - status: string
+
+// ============================================================================
+// 2. CONSTRAINTS
+// ============================================================================
+
+CREATE CONSTRAINT knowledge_id_unique IF NOT EXISTS
+FOR (k:Knowledge) REQUIRE k.knowledge_id IS UNIQUE;
+
+CREATE CONSTRAINT document_id_unique IF NOT EXISTS
+FOR (d:Document) REQUIRE d.id IS UNIQUE;
+
+CREATE CONSTRAINT chunk_id_unique IF NOT EXISTS
+FOR (c:Chunk) REQUIRE c.id IS UNIQUE;
+
+CREATE CONSTRAINT entity_id_unique IF NOT EXISTS
+FOR (e:Entity) REQUIRE e.id IS UNIQUE;
+
+CREATE CONSTRAINT person_id_unique IF NOT EXISTS
+FOR (p:Person) REQUIRE p.person_id IS UNIQUE;
+
+CREATE CONSTRAINT technology_name_unique IF NOT EXISTS
+FOR (t:Technology) REQUIRE t.name IS UNIQUE;
+
+CREATE CONSTRAINT topic_name_unique IF NOT EXISTS
+FOR (t:Topic) REQUIRE t.name IS UNIQUE;
+
+CREATE CONSTRAINT keyword_value_unique IF NOT EXISTS
+FOR (k:Keyword) REQUIRE k.value IS UNIQUE;
+
+CREATE CONSTRAINT project_id_unique IF NOT EXISTS
+FOR (p:Project) REQUIRE p.id IS UNIQUE;
+
+// ============================================================================
+// 3. INDEXES
+// ============================================================================
+
+// Knowledge
 CREATE INDEX knowledge_title_idx IF NOT EXISTS FOR (k:Knowledge) ON (k.title);
-CREATE INDEX knowledge_type_idx IF NOT EXISTS FOR (k:Knowledge) ON (k.knowledge_type);
+CREATE INDEX knowledge_type_idx IF NOT EXISTS FOR (k:Knowledge) ON (k.document_type);
 
-// Create Chunk nodes
-CREATE CONSTRAINT chunk_id_unique IF NOT EXISTS FOR (c:Chunk) REQUIRE c.chunk_id IS UNIQUE;
+// Document
+CREATE INDEX document_type_idx IF NOT EXISTS FOR (d:Document) ON (d.doc_type);
+CREATE INDEX document_title_idx IF NOT EXISTS FOR (d:Document) ON (d.title);
+
+// Chunk
 CREATE INDEX chunk_knowledge_idx IF NOT EXISTS FOR (c:Chunk) ON (c.knowledge_id);
+CREATE INDEX chunk_index_idx IF NOT EXISTS FOR (c:Chunk) ON (c.chunk_index);
 
-// Create Entity nodes (Person, Technology, Topic, Keyword)
-CREATE CONSTRAINT person_id_unique IF NOT EXISTS FOR (p:Person) REQUIRE p.person_id IS UNIQUE;
+// Entity
+CREATE INDEX entity_type_idx IF NOT EXISTS FOR (e:Entity) ON (e.type);
+CREATE INDEX entity_name_idx IF NOT EXISTS FOR (e:Entity) ON (e.name);
+CREATE INDEX entity_canonical_name_idx IF NOT EXISTS FOR (e:Entity) ON (e.canonical_name);
+
+// Sub-type indexes
 CREATE INDEX person_name_idx IF NOT EXISTS FOR (p:Person) ON (p.name);
-
-CREATE CONSTRAINT technology_name_unique IF NOT EXISTS FOR (t:Technology) REQUIRE t.name IS UNIQUE;
 CREATE INDEX technology_name_idx IF NOT EXISTS FOR (t:Technology) ON (t.name);
-
-CREATE CONSTRAINT topic_name_unique IF NOT EXISTS FOR (t:Topic) REQUIRE t.name IS UNIQUE;
 CREATE INDEX topic_name_idx IF NOT EXISTS FOR (t:Topic) ON (t.name);
-
-CREATE CONSTRAINT keyword_value_unique IF NOT EXISTS FOR (k:Keyword) REQUIRE k.value IS UNIQUE;
 CREATE INDEX keyword_value_idx IF NOT EXISTS FOR (k:Keyword) ON (k.value);
 
-// ============================================================================
-// 2. RELATIONSHIP TYPES & INDEXES
-// ============================================================================
+// Project
+CREATE INDEX project_name_idx IF NOT EXISTS FOR (p:Project) ON (p.name);
 
-// User -> Knowledge: CREATED, CONTRIBUTED_TO, REVIEWED
-// Knowledge -> Project: BELONGS_TO, OUTPUT_OF
-// Knowledge -> Chunk: CONTAINS
-// Knowledge -> Topic: CATEGORIZED_BY
-// Knowledge -> Keyword: TAGGED_WITH
-// Person -> Knowledge: MENTIONED_IN, CREATED, AUTHORED
-// Technology -> Knowledge: USED_IN, REFERENCED_IN
-// Person -> Person: COLLABORATED_WITH
-// Knowledge -> Knowledge: REFERENCES, DEPENDS_ON, RELATED_TO
+// Full-text search
+CREATE FULLTEXT INDEX entity_fulltext_idx IF NOT EXISTS
+FOR (n:Person|Technology|Topic|Keyword|Entity) ON EACH [n.name, n.description];
 
-// Create relationship indexes for common queries
-CREATE INDEX created_rel_idx IF NOT EXISTS FOR ()-[r:CREATED]-() ON (r.timestamp);
+CREATE FULLTEXT INDEX document_fulltext_idx IF NOT EXISTS
+FOR (d:Document) ON EACH [d.title];
+
+// Relationship indexes
 CREATE INDEX contains_rel_idx IF NOT EXISTS FOR ()-[r:CONTAINS]-() ON (r.chunk_index);
 CREATE INDEX belongs_rel_idx IF NOT EXISTS FOR ()-[r:BELONGS_TO]-() ON (r.created_at);
 
 // ============================================================================
-// 3. SAMPLE DATA & INITIALIZATION
+// 4. RELATIONSHIP TYPES
 // ============================================================================
 
-// Create initial Users
-MERGE (u1:User {user_id: 1, username: "admin", full_name: "Administrator", department: "IT"})
-SET u1.created_at = datetime(),
-    u1.is_active = true;
+// ┌─────────────────────────────────────────────────────────────────┐
+// │  Core Knowledge Graph Relationships                            │
+// │                                                                │
+// │  Knowledge ──CONTAINS──> Chunk ──MENTIONS──> Entity            │
+// │      │                     │                   │               │
+// │      │                     │               RELATED_TO          │
+// │      │                     │                   │               │
+// │      │                     v                   v               │
+// │      │                  Document <──HAS_ENTITY── Entity        │
+// │      │                     ^                                   │
+// │      │                     │                                   │
+// │      └── MENTIONED_IN <────┘                                   │
+// │           (Entity → Knowledge)                                 │
+// └─────────────────────────────────────────────────────────────────┘
 
-// Create initial Topics
-MERGE (t1:Topic {name: "Architecture", slug: "architecture"})
-SET t1.created_at = datetime();
+// (Knowledge)-[:CONTAINS]->(Chunk)
+//   Created by: neo4j_storage.py save_chunks()
+//   Properties: chunk_index (integer)
 
-MERGE (t2:Topic {name: "Security", slug: "security"})
-SET t2.created_at = datetime();
+// (Chunk)-[:PART_OF]->(Document)
+//   Created by: initial_data_loader.py, run_etl_fast.py
+//   Properties: none
 
-MERGE (t3:Topic {name: "Development", slug: "development"})
-SET t3.created_at = datetime();
+// (Chunk)-[:MENTIONS]->(Entity)
+//   Created by: neo4j_storage.py save_chunk_entity_mentions(),
+//               batch_entity_extraction.py
+//   Properties: confidence (float)
 
-MERGE (t4:Topic {name: "Operations", slug: "operations"})
-SET t4.created_at = datetime();
+// (Entity)-[:MENTIONED_IN]->(Knowledge)
+//   Created by: neo4j_storage.py _create_mentioned_in_relation()
+//   Properties: relevance (float), mention_count (integer)
 
-MERGE (t5:Topic {name: "Database", slug: "database"})
-SET t5.created_at = datetime();
+// (Document)-[:HAS_ENTITY]->(Entity)
+//   Created by: initial_data_loader.py
+//   Properties: none
 
-// Create initial Technologies
-MERGE (tech1:Technology {name: "Python", version: "*"})
-SET tech1.created_at = datetime(),
-    tech1.category = "Programming Language";
+// (Entity)-[:RELATED_TO {type}]->(Entity)
+//   Created by: neo4j_storage.py save_relationships(),
+//               batch_entity_extraction.py,
+//               initial_data_loader.py
+//   Properties: type (string: CREATED, PARTICIPATED, USES, BELONGS_TO,
+//                     RELATED_TO, MANAGES, DEPENDS_ON),
+//               weight (float), description (string),
+//               source_doc (string)
 
-MERGE (tech2:Technology {name: "PostgreSQL", version: "16+"})
-SET tech2.created_at = datetime(),
-    tech2.category = "Database";
-
-MERGE (tech3:Technology {name: "Neo4j", version: "5.x"})
-SET tech3.created_at = datetime(),
-    tech3.category = "Database";
-
-MERGE (tech4:Technology {name: "Elasticsearch", version: "8.x"})
-SET tech4.created_at = datetime(),
-    tech4.category = "Search Engine";
-
-MERGE (tech5:Technology {name: "LangGraph", version: "0.2.x"})
-SET tech5.created_at = datetime(),
-    tech5.category = "AI Framework";
-
-// ============================================================================
-// 4. UTILITY FUNCTIONS & PATTERNS
-// ============================================================================
-
-// Pattern 1: Create or update Knowledge node
-// MERGE creates if doesn't exist, updates if does
-// Used when processing documents via DeepSeek extraction
-
-// Example: Create Knowledge with metadata
-// MERGE (k:Knowledge {knowledge_id: $knowledge_id})
-// SET k.title = $title,
-//     k.document_type = $document_type,
-//     k.valid_start_date = $valid_start_date,
-//     k.valid_end_date = $valid_end_date,
-//     k.created_at = datetime()
-
-// Pattern 2: Link Knowledge to Project
-// MATCH (k:Knowledge {knowledge_id: $knowledge_id})
-// MATCH (p:Project {project_id: $project_id})
-// MERGE (k)-[r:BELONGS_TO]->(p)
-// SET r.created_at = datetime()
-
-// Pattern 3: Extract and link entities
-// MATCH (k:Knowledge {knowledge_id: $knowledge_id})
-// MERGE (person:Person {name: $person_name})
-// MERGE (person)-[r:MENTIONED_IN]->(k)
-// SET r.confidence = $confidence,
-//     r.created_at = datetime()
-
-// Pattern 4: Link person to knowledge as creator
-// MATCH (u:User {user_id: $user_id})
-// MATCH (k:Knowledge {knowledge_id: $knowledge_id})
-// MERGE (u)-[r:CREATED]->(k)
-// SET r.created_at = datetime()
-
-// Pattern 5: Tag knowledge with topics
-// MATCH (k:Knowledge {knowledge_id: $knowledge_id})
-// MATCH (t:Topic {name: $topic_name})
-// MERGE (k)-[r:CATEGORIZED_BY]->(t)
-// SET r.created_at = datetime()
-
-// Pattern 6: Mark technologies used in knowledge
-// MATCH (k:Knowledge {knowledge_id: $knowledge_id})
-// MATCH (tech:Technology {name: $tech_name})
-// MERGE (tech)-[r:USED_IN]->(k)
-// SET r.created_at = datetime(),
-//     r.context = $context
+// Extended:
+// (Person:Entity)-[:RELATED_TO]->(Project)    -- graph.py topic_experts()
+// (Document)-[:BELONGS_TO_PROJECT]->(Project) -- future extension
 
 // ============================================================================
-// 5. QUERY EXAMPLES (for development reference)
+// 5. ENTITY TYPE → LABEL MAPPING (neo4j_storage.py)
 // ============================================================================
 
-// Q1: Find all knowledge related to a project
-// MATCH (p:Project {project_name: "ProjectA"})
-//       <-[r:BELONGS_TO]-(k:Knowledge)
-//       -[c:CONTAINS]->(chunk:Chunk)
-// RETURN k, chunk
-// ORDER BY k.created_at DESC
-
-// Q2: Find experts (people) in a topic
-// MATCH (t:Topic {name: "Security"})
-//       <-[r:CATEGORIZED_BY]-(k:Knowledge)
-//       <-[m:MENTIONED_IN]-(p:Person)
-// RETURN p.name, COUNT(k) as expertise_count
-// ORDER BY expertise_count DESC
-// LIMIT 10
-
-// Q3: Find related knowledge (transitive)
-// MATCH (k1:Knowledge {knowledge_id: 123})
-//       -[:REFERENCES|:RELATED_TO]->(k2:Knowledge)
-// RETURN k2
-// ORDER BY k2.relevance_score DESC
-
-// Q4: Find collaboration networks
-// MATCH (p1:Person)-[:COLLABORATED_WITH]->(p2:Person)
-// RETURN p1, p2
-// LIMIT 50
-
-// Q5: Find knowledge by technology stack
-// MATCH (k:Knowledge)
-//       <-[used:USED_IN]-(tech:Technology)
-// WHERE tech.name IN ["Python", "PostgreSQL"]
-// RETURN k, COLLECT(tech.name) as technologies
-// GROUP BY k
+// Entity type string → Neo4j label (dual-label: always also :Entity)
+//   Person       → :Person:Entity
+//   Organization → :Person:Entity  (shares label with Person)
+//   Technology   → :Technology:Entity
+//   Project      → :Topic:Entity   (mapped to Topic)
+//   Concept      → :Topic:Entity   (mapped to Topic)
+//   Date         → :Keyword:Entity
+//   Location     → :Keyword:Entity
 
 // ============================================================================
-// 6. GRAPH STATISTICS VIEW
+// 6. QUERY PATTERNS (development reference)
 // ============================================================================
 
-// Run periodically to update graph stats
-// CALL apoc.periodic.iterate(
-//   "MATCH (n) WHERE NOT (n:_Synthetic) RETURN n",
-//   "SET n:Indexed",
-//   {batchSize:1000, parallel:true}
-// )
+// Q1: Find entities mentioned in a chunk (post-RRF enrichment)
+// MATCH (c:Chunk {id: $chunk_id})-[:MENTIONS]->(e:Entity)
+// WHERE size(e.name) >= 2
+// RETURN e.name, e.type, e.description
 
-// Get graph statistics
-// MATCH (n) RETURN labels(n) as label, count(n) as count
-// ORDER BY count DESC
+// Q2: Get subgraph around an entity (1-hop expansion)
+// MATCH (e:Entity) WHERE toLower(e.name) CONTAINS toLower($query)
+// OPTIONAL MATCH (e)-[:RELATED_TO]-(related:Entity)
+// RETURN e, related
+
+// Q3: Find topic experts via graph traversal
+// MATCH (topic:Entity)
+// WHERE toLower(topic.name) CONTAINS toLower($topic_keyword)
+// MATCH (person:Person:Entity)-[r:RELATED_TO]-(topic)
+// RETURN person.name, count(r) as connections ORDER BY connections DESC
+
+// Q4: Delete document and associated chunks
+// MATCH (k:Knowledge {knowledge_id: $doc_id})-[:CONTAINS]->(c:Chunk)
+// DETACH DELETE c
+// WITH k DETACH DELETE k
+
+// Q5: Count graph statistics
+// MATCH (e:Entity) RETURN count(e) as entities
+// MATCH ()-[r:RELATED_TO]->() RETURN count(r) as relations
+// MATCH ()-[r:MENTIONS]->() RETURN count(r) as mentions
 
 // ============================================================================
-// 7. CLEANUP & MAINTENANCE
+// 7. VERIFICATION
 // ============================================================================
 
-// Delete all nodes and relationships (careful!)
-// MATCH (n) DETACH DELETE n
-
-// Delete specific pattern
-// MATCH (k:Knowledge {knowledge_id: $knowledge_id})
-// DETACH DELETE k
-
-// Archive old knowledge (set timestamp)
-// MATCH (k:Knowledge)
-// WHERE k.created_at < datetime() - duration('P1Y')
-// SET k:Archived, k.archived_at = datetime()
+// SHOW CONSTRAINTS;
+// SHOW INDEXES;
+// MATCH (n) RETURN labels(n) AS label, count(*) AS count ORDER BY count DESC;
+// MATCH ()-[r]->() RETURN type(r) AS rel, count(*) AS count ORDER BY count DESC;
 
 // ============================================================================
-// Schema Initialization Complete
+// Schema v3.0 — Unified & Complete
 // ============================================================================
-
-// Final verification queries:
-// SHOW CONSTRAINTS
-// SHOW INDEXES
-// CALL apoc.schema.visualization()
-
-// For Neo4j Browser visualization, run:
-// CALL db.labels() YIELD label
-// CALL db.relationshipTypes() YIELD relationshipType
-// RETURN label, relationshipType

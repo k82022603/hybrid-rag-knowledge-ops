@@ -59,8 +59,8 @@ Key Objectives:
 | P1 | STORY-115 | bge-reranker-v2-m3 ONNX 업그레이드 | 2 | RAG | **Done** | - |
 | P1 | STORY-116 | ES 메모리 512MB → 1GB (docker-compose.yml) | 1 | Infra | **Done** | - |
 | P1 | STORY-117 | Prometheus Exporter 활성화 (postgres + redis + nginx) | 3 | DevOps/Infra | **Done** | - |
-| P1 | STORY-118 | RAGAS 베이스라인 측정 + CI/CD 통합 | 3 | QA/DevOps | To Do | - |
-| P1 | STORY-119 | RAGAS 종합 리포트 작성 (v1~v10 트렌드) | 3 | Documenter | To Do | - |
+| P1 | STORY-118 | RAGAS 베이스라인 측정 + CI/CD 통합 | 3 | QA/DevOps | **Done** | - |
+| P1 | STORY-119 | RAGAS 종합 리포트 작성 (v1~v10 트렌드) | 3 | Documenter | **Done** | - |
 | P1 | STORY-120 | ETL 실패 재시도 + 고아 노드 자동 정리 | 3 | ETL | **Done** | STORY-112 |
 
 **P1 소계**: 9건, 25 SP (Deferred 2건 제외 시: 7건, 17 SP)
@@ -71,13 +71,13 @@ Key Objectives:
 
 | Priority | ID | Title | Points | Assignee | Status | Depends On |
 |----------|-----|-------|--------|----------|--------|------------|
-| P2 | STORY-121 | KG 시각화 UI — Neo4j 실데이터 연동 (react-force-graph-2d) | 5 | Frontend/WebDesigner | To Do | STORY-112, STORY-088 |
-| P2 | STORY-122 | 동적 검색 전략 선택 (rag_workflow.py:682 TODO 해소) | 5 | RAG | To Do | - |
-| P2 | STORY-123 | Alertmanager 채널 분기 (팀별 라우팅) | 2 | DevOps | To Do | STORY-117 |
-| P2 | STORY-124 | Neo4j 스키마 통합 (v1.0/v2.6 불일치 해소) | 3 | DB/RAG | To Do | STORY-112 |
-| P2 | STORY-125 | TD-003 ETL CLI 통합 (7개 스크립트 → etl_cli.py) | 5 | ETL | To Do | STORY-089 |
-| P2 | STORY-126 | ETL 파이프라인 전용 Grafana 대시보드 | 3 | DevOps | To Do | STORY-117 |
-| P2 | STORY-127 | Gateway 구조 개선 (현재 65점 → 목표 75+) | 5 | Backend/TechLead | To Do | - |
+| P2 | STORY-121 | KG 시각화 UI — Neo4j 실데이터 연동 (react-force-graph-2d) | 5 | Frontend/WebDesigner | **Done** | STORY-112, STORY-088 |
+| P2 | STORY-122 | 동적 검색 전략 선택 (rag_workflow.py:682 TODO 해소) | 5 | RAG | **Done** | - |
+| P2 | STORY-123 | Alertmanager 채널 분기 (팀별 라우팅) | 2 | DevOps | **Done** | STORY-117 |
+| P2 | STORY-124 | Neo4j 스키마 통합 (v1.0/v2.6 불일치 해소) | 3 | DB/RAG | **Done** | STORY-112 |
+| P2 | STORY-125 | TD-003 ETL CLI 통합 (7개 스크립트 → etl_cli.py) | 5 | ETL | **Done** | STORY-089 |
+| P2 | STORY-126 | ETL 파이프라인 전용 Grafana 대시보드 | 3 | DevOps | **Done** | STORY-117 |
+| P2 | STORY-127 | Gateway 구조 개선 (현재 65점 → 목표 75+) | 5 | Backend/TechLead | **Done** | - |
 
 **P2 소계**: 7건, 28 SP
 

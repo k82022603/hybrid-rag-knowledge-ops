@@ -2,12 +2,13 @@
  * KnowledgePage - 지식 관리 페이지
  *
  * 문서 목록 표시/검색/필터링, 처리 상태 모니터링, 문서 다운로드
+ * 그래프 탐색 뷰 (STORY-121)
  * Tailwind CSS + React Query 기반
  *
  * Backend API: GET /api/v1/documents (AI Service)
  * Response: { documents: DocumentListItem[], total, page, page_size, total_pages }
  */
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -24,6 +25,7 @@ import {
   FolderOpenIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
+  ShareIcon,
 } from '@heroicons/react/24/outline';
 import {
   knowledgeService,
@@ -31,6 +33,13 @@ import {
   type DocumentStatus,
   type DocumentFormat,
 } from '@/services/knowledgeService';
+
+const GraphExplorerView = lazy(
+  () => import('@/components/knowledge/GraphExplorerView')
+);
+
+/** View mode for the knowledge page */
+type KnowledgeViewMode = 'documents' | 'graph';
 
 /**
  * Format filter options matching backend DocumentFormat enum
@@ -113,6 +122,9 @@ const StatusBadge: React.FC<{ status: string }> = ({ status }) => {
  */
 const KnowledgePage: React.FC = () => {
   const navigate = useNavigate();
+
+  // View mode state
+  const [viewMode, setViewMode] = useState<KnowledgeViewMode>('documents');
 
   // State
   const [searchQuery, setSearchQuery] = useState('');
@@ -210,6 +222,64 @@ const KnowledgePage: React.FC = () => {
         </button>
       </div>
 
+      {/* View Mode Tabs */}
+      <div className="border-b border-gray-200 dark:border-gray-700" role="tablist" aria-label="Knowledge management views">
+        <nav className="flex gap-6 -mb-px">
+          <button
+            role="tab"
+            aria-selected={viewMode === 'documents'}
+            aria-controls="documents-panel"
+            onClick={() => setViewMode('documents')}
+            className={`flex items-center gap-2 px-1 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+              viewMode === 'documents'
+                ? 'border-primary-600 text-primary-600 dark:border-primary-400 dark:text-primary-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200'
+            }`}
+          >
+            <DocumentTextIcon className="h-4 w-4" />
+            문서 관리
+          </button>
+          <button
+            role="tab"
+            aria-selected={viewMode === 'graph'}
+            aria-controls="graph-panel"
+            onClick={() => setViewMode('graph')}
+            className={`flex items-center gap-2 px-1 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+              viewMode === 'graph'
+                ? 'border-primary-600 text-primary-600 dark:border-primary-400 dark:text-primary-400'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200'
+            }`}
+          >
+            <ShareIcon className="h-4 w-4" />
+            그래프 탐색
+          </button>
+        </nav>
+      </div>
+
+      {/* Graph Explorer View */}
+      {viewMode === 'graph' && (
+        <div
+          id="graph-panel"
+          role="tabpanel"
+          aria-label="Graph explorer"
+          className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden shadow-sm"
+          style={{ height: 'calc(100vh - 260px)', minHeight: '500px' }}
+        >
+          <Suspense
+            fallback={
+              <div className="flex items-center justify-center h-full">
+                <ArrowPathIcon className="h-8 w-8 text-primary-500 animate-spin" />
+              </div>
+            }
+          >
+            <GraphExplorerView />
+          </Suspense>
+        </div>
+      )}
+
+      {/* Document Management View */}
+      {viewMode === 'documents' && (
+        <>
       {/* Processing Status Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="card card-hover group cursor-default">
@@ -538,6 +608,8 @@ const KnowledgePage: React.FC = () => {
             </div>
           )}
         </div>
+      )}
+        </>
       )}
     </div>
   );

@@ -1,4 +1,5 @@
 #!/bin/bash
+# DEPRECATED: etl_cli.py status 로 대체 (STORY-125). Sprint 10에서 삭제 예정.
 # ETL Phase 1 v2 모니터링 + Slack 보고 (15분 간격)
 # 사용법: nohup bash knowledge_service/scripts/etl_phase1_monitor.sh > /tmp/etl_phase1_monitor.log 2>&1 &
 

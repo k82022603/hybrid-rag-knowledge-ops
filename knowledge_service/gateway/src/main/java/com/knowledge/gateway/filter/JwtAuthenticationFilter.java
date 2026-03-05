@@ -1,14 +1,13 @@
 package com.knowledge.gateway.filter;
 
 import java.nio.charset.StandardCharsets;
-import java.time.Instant;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.knowledge.gateway.exception.GatewayErrorResponse;
+import com.knowledge.gateway.dto.ErrorResponse;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -147,7 +146,7 @@ public class JwtAuthenticationFilter implements WebFilter {
     /**
      * Write a standardized 401 Unauthorized JSON error response.
      *
-     * <p>Uses {@link GatewayErrorResponse} record + Jackson ObjectMapper to safely
+     * <p>Uses {@link ErrorResponse} DTO + Jackson ObjectMapper to safely
      * serialize the response, preventing JSON injection from path or message values.
      *
      * @param exchange the server web exchange
@@ -159,12 +158,13 @@ public class JwtAuthenticationFilter implements WebFilter {
         response.setStatusCode(HttpStatus.UNAUTHORIZED);
         response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
 
-        GatewayErrorResponse errorResponse = new GatewayErrorResponse(
+        String traceId = exchange.getRequest().getId();
+        ErrorResponse errorResponse = ErrorResponse.of(
+            HttpStatus.UNAUTHORIZED.value(),
             "UNAUTHORIZED",
             message,
-            HttpStatus.UNAUTHORIZED.value(),
             exchange.getRequest().getPath().value(),
-            Instant.now().toString()
+            traceId
         );
 
         byte[] bytes;

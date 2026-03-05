@@ -664,12 +664,118 @@ class RAGWorkflow:
     # Pipeline Stages
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def classify_query_type(query: str) -> str:
+        """
+        질의 유형을 규칙 기반으로 분류
+
+        Args:
+            query: 사용자 질의
+
+        Returns:
+            질의 유형 ("factual", "relational", "keyword", "complex")
+        """
+        stripped = query.strip()
+
+        # 빈 질의 → complex (hybrid 폴백)
+        if not stripped:
+            return "complex"
+
+        words = stripped.split()
+
+        # --- 관계형 질문 패턴 (relational → graph 우선) ---
+        relational_patterns = [
+            r'과.{0,20}관계',
+            r'와.{0,20}관계',
+            r'에\s*연결된',
+            r'와\s*관련된',
+            r'과\s*관련된',
+            r'간의?\s*관계',
+            r'사이의?\s*관계',
+            r'어떤\s*관계',
+            r'연관[된성]',
+            r'관련\s*있는',
+            r'연결[된고]',
+            r'의존[하성]',
+            r'영향을?\s*[주미받]',
+            r'상호작용',
+            r'에\s*속[하한]',
+        ]
+        for pattern in relational_patterns:
+            if re.search(pattern, stripped):
+                return "relational"
+
+        # --- 사실적 질문 패턴 (factual → vector 우선) ---
+        # 긴 질의(8단어 초과)는 복합 질문일 가능성이 높으므로 hybrid로 폴백
+        if len(words) <= 8:
+            factual_patterns = [
+                r'[은는이가]\s*무엇',
+                r'[은는이가]\s*뭐',
+                r'[은는이가]\s*뭔',
+                r'의\s*정의',
+                r'[이]?란\s*[무뭐]',
+                r'[이]?란$',
+                r'[이]?란\?',
+                r'무슨\s*뜻',
+                r'의미[가는]?\s*[무뭐]',
+                r'어떤\s*것[인이]',
+                r'개념[이을]',
+                r'원리[가를는]',
+                r'어떻게\s*동작',
+                r'어떻게\s*작동',
+                r'어떻게\s*[되동작]',
+                r'방법[이을은는]?\s*[무뭐]',
+                r'차이[가점는]?\s*[무뭐]',
+            ]
+            for pattern in factual_patterns:
+                if re.search(pattern, stripped):
+                    return "factual"
+
+            # "설명/알려" 패턴은 짧은 질의에서만 factual로 분류
+            if len(words) <= 5 and re.search(r'[을를]\s*(설명|알려)', stripped):
+                return "factual"
+
+        # --- 키워드 검색 패턴 (keyword → BM25 우선) ---
+        # 조건: 단순 키워드 1-2개, 질문 형태가 아님
+        has_question_marker = bool(re.search(r'[?？]', stripped))
+
+        if len(words) <= 2 and not has_question_marker:
+            # 1-2 단어이면서 물음표 없음 → 키워드 검색
+            return "keyword"
+
+        # --- 그 외 → complex (hybrid 유지) ---
+        return "complex"
+
+    @staticmethod
+    def select_search_strategy(query_type: str) -> str:
+        """
+        질의 유형에 따라 검색 전략 선택
+
+        Args:
+            query_type: 질의 유형 ("factual", "relational", "keyword", "complex")
+
+        Returns:
+            검색 전략 ("vector", "graph", "keyword", "hybrid")
+        """
+        strategy_map = {
+            "factual": "vector",
+            "relational": "graph",
+            "keyword": "keyword",
+            "complex": "hybrid",
+        }
+        return strategy_map.get(query_type, "hybrid")
+
     def _plan(self, query: str) -> str:
         """
         Stage 1: 검색 전략 결정
 
-        현재는 항상 hybrid 전략을 사용합니다.
-        향후 질의 분석 기반 동적 전략 선택을 구현합니다.
+        질의 유형을 규칙 기반으로 분류하고, 유형에 맞는 검색 전략을 선택합니다.
+
+        분류 규칙:
+            - factual (사실적 질문): "~는 무엇인가", "~의 정의" → vector 우선
+            - relational (관계형 질문): "~와 ~의 관계", "~에 연결된" → graph 우선
+            - keyword (키워드 검색): 단순 키워드 1-2개 → keyword (BM25) 우선
+            - complex (복합 질문): 그 외 → hybrid (기존 동작 유지)
 
         Args:
             query: 사용자 질의
@@ -677,10 +783,15 @@ class RAGWorkflow:
         Returns:
             검색 전략 ("hybrid", "vector", "keyword", "graph")
         """
-        # TODO: 질의 분석 기반 동적 전략 선택
-        # 현재는 항상 hybrid
-        logger.debug("Plan stage - Strategy: hybrid (default)")
-        return "hybrid"
+        query_type = self.classify_query_type(query)
+        strategy = self.select_search_strategy(query_type)
+
+        logger.info(
+            "Plan stage - Query type: %s, Strategy: %s, Query: '%s'",
+            query_type, strategy, query[:80],
+        )
+
+        return strategy
 
     async def _retrieve(
         self,

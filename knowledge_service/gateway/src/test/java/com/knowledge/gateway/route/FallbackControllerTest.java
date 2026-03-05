@@ -11,7 +11,7 @@ import org.springframework.test.web.reactive.server.WebTestClient;
 /**
  * Unit tests for FallbackController
  *
- * <p>Tests fallback responses for all services when circuit breaker is open
+ * <p>Tests fallback responses using unified ErrorResponse DTO format
  */
 @WebFluxTest(FallbackController.class)
 @ActiveProfiles("test")
@@ -21,8 +21,8 @@ class FallbackControllerTest {
     private WebTestClient webTestClient;
 
     @Test
-    @DisplayName("Backend fallback returns 503 with proper error message")
-    void backendFallback_Returns503WithErrorMessage() {
+    @DisplayName("Backend fallback returns 503 with unified ErrorResponse format")
+    void backendFallback_Returns503WithErrorResponse() {
         webTestClient.get()
             .uri("/fallback/backend")
             .accept(MediaType.APPLICATION_JSON)
@@ -30,14 +30,15 @@ class FallbackControllerTest {
             .expectStatus().isEqualTo(503)
             .expectBody()
             .jsonPath("$.error").isEqualTo("Backend service is temporarily unavailable")
-            .jsonPath("$.service").isEqualTo("backend")
             .jsonPath("$.status").isEqualTo(503)
-            .jsonPath("$.timestamp").exists();
+            .jsonPath("$.timestamp").exists()
+            .jsonPath("$.path").exists()
+            .jsonPath("$.traceId").exists();
     }
 
     @Test
-    @DisplayName("Knowledge fallback returns 503 with proper error message")
-    void knowledgeFallback_Returns503WithErrorMessage() {
+    @DisplayName("Knowledge fallback returns 503 with unified ErrorResponse format")
+    void knowledgeFallback_Returns503WithErrorResponse() {
         webTestClient.get()
             .uri("/fallback/knowledge")
             .accept(MediaType.APPLICATION_JSON)
@@ -45,13 +46,14 @@ class FallbackControllerTest {
             .expectStatus().isEqualTo(503)
             .expectBody()
             .jsonPath("$.error").isEqualTo("Knowledge service is temporarily unavailable")
-            .jsonPath("$.service").isEqualTo("knowledge")
-            .jsonPath("$.status").isEqualTo(503);
+            .jsonPath("$.status").isEqualTo(503)
+            .jsonPath("$.path").exists()
+            .jsonPath("$.traceId").exists();
     }
 
     @Test
-    @DisplayName("User fallback returns 503 with proper error message")
-    void userFallback_Returns503WithErrorMessage() {
+    @DisplayName("User fallback returns 503 with unified ErrorResponse format")
+    void userFallback_Returns503WithErrorResponse() {
         webTestClient.get()
             .uri("/fallback/user")
             .accept(MediaType.APPLICATION_JSON)
@@ -59,13 +61,13 @@ class FallbackControllerTest {
             .expectStatus().isEqualTo(503)
             .expectBody()
             .jsonPath("$.error").isEqualTo("User service is temporarily unavailable")
-            .jsonPath("$.service").isEqualTo("user")
-            .jsonPath("$.status").isEqualTo(503);
+            .jsonPath("$.status").isEqualTo(503)
+            .jsonPath("$.traceId").exists();
     }
 
     @Test
-    @DisplayName("AI service fallback returns 503 with proper error message")
-    void aiServiceFallback_Returns503WithErrorMessage() {
+    @DisplayName("AI service fallback returns 503 with unified ErrorResponse format")
+    void aiServiceFallback_Returns503WithErrorResponse() {
         webTestClient.get()
             .uri("/fallback/ai-service")
             .accept(MediaType.APPLICATION_JSON)
@@ -73,13 +75,13 @@ class FallbackControllerTest {
             .expectStatus().isEqualTo(503)
             .expectBody()
             .jsonPath("$.error").isEqualTo("AI service is temporarily unavailable")
-            .jsonPath("$.service").isEqualTo("ai-service")
-            .jsonPath("$.status").isEqualTo(503);
+            .jsonPath("$.status").isEqualTo(503)
+            .jsonPath("$.traceId").exists();
     }
 
     @Test
-    @DisplayName("Search fallback returns 503 with proper error message")
-    void searchFallback_Returns503WithErrorMessage() {
+    @DisplayName("Search fallback returns 503 with unified ErrorResponse format")
+    void searchFallback_Returns503WithErrorResponse() {
         webTestClient.get()
             .uri("/fallback/search")
             .accept(MediaType.APPLICATION_JSON)
@@ -87,8 +89,8 @@ class FallbackControllerTest {
             .expectStatus().isEqualTo(503)
             .expectBody()
             .jsonPath("$.error").isEqualTo("Search service is temporarily unavailable")
-            .jsonPath("$.service").isEqualTo("search")
-            .jsonPath("$.status").isEqualTo(503);
+            .jsonPath("$.status").isEqualTo(503)
+            .jsonPath("$.traceId").exists();
     }
 
     @Test
@@ -114,7 +116,8 @@ class FallbackControllerTest {
             .exchange()
             .expectStatus().isEqualTo(503)
             .expectBody()
-            .jsonPath("$.service").isEqualTo("backend");
+            .jsonPath("$.error").isEqualTo("Backend service is temporarily unavailable")
+            .jsonPath("$.traceId").exists();
     }
 
     @Test
@@ -126,12 +129,13 @@ class FallbackControllerTest {
             .exchange()
             .expectStatus().isEqualTo(503)
             .expectBody()
-            .jsonPath("$.service").isEqualTo("knowledge");
+            .jsonPath("$.error").isEqualTo("Knowledge service is temporarily unavailable")
+            .jsonPath("$.traceId").exists();
     }
 
     @Test
-    @DisplayName("Unknown fallback path returns generic 503")
-    void unknownFallbackPath_Returns503() {
+    @DisplayName("Unknown fallback path returns generic 503 with unified format")
+    void unknownFallbackPath_Returns503WithUnifiedFormat() {
         webTestClient.get()
             .uri("/fallback/unknown-service")
             .accept(MediaType.APPLICATION_JSON)
@@ -139,6 +143,23 @@ class FallbackControllerTest {
             .expectStatus().isEqualTo(503)
             .expectBody()
             .jsonPath("$.error").isEqualTo("Service is temporarily unavailable")
-            .jsonPath("$.service").isEqualTo("unknown");
+            .jsonPath("$.status").isEqualTo(503)
+            .jsonPath("$.timestamp").exists()
+            .jsonPath("$.path").exists()
+            .jsonPath("$.traceId").exists();
+    }
+
+    @Test
+    @DisplayName("Auth fallback returns 503 with unified ErrorResponse format")
+    void authFallback_Returns503WithErrorResponse() {
+        webTestClient.get()
+            .uri("/fallback/auth")
+            .accept(MediaType.APPLICATION_JSON)
+            .exchange()
+            .expectStatus().isEqualTo(503)
+            .expectBody()
+            .jsonPath("$.error").isEqualTo("Authentication service is temporarily unavailable")
+            .jsonPath("$.status").isEqualTo(503)
+            .jsonPath("$.traceId").exists();
     }
 }

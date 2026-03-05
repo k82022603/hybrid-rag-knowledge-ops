@@ -20,6 +20,8 @@ spring:
   # Cloud Gateway Configuration
   cloud:
     gateway:
+      # Metadata-based per-route response timeout support
+      # Routes can override via exchange attribute "response-timeout"
       # ==============================================
       # HttpClient Configuration (Connection Pool & Timeouts)
       # SCRUM-62: Netty Channel Error 대응
@@ -152,22 +154,9 @@ spring:
 
         # ==============================================
         # Search Service Routes (/api/v1/search/**)
-        # Streaming search to AI Service
+        # NOTE: SSE streaming route (/api/v1/search/stream/**) is defined in
+        # GatewayRouteConfig.java with 300s extended timeout for LLM streaming.
         # ==============================================
-        - id: search-service-stream
-          uri: ${AI_SERVICE_URL:http://localhost:8000}
-          predicates:
-            - Path=/api/v1/search/stream/**
-          filters:
-            - TokenRelay=
-            - name: CircuitBreaker
-              args:
-                name: ai-service-circuit-breaker
-            - name: RequestRateLimiter
-              args:
-                redis-rate-limiter.replenishRate: 20
-                redis-rate-limiter.burstCapacity: 40
-                redis-rate-limiter.requestedTokens: 2
 
         # Regular search to AI Service
         - id: search-service
@@ -381,10 +370,23 @@ management:
       prometheus:
         enabled: true
 
-# Resilience4j Configuration
+# ==============================================
+# Gateway Timeout Configuration
+# SSE endpoints use extended timeouts for LLM streaming responses
+# ==============================================
+gateway:
+  timeout:
+    default: 30     # Standard routes: 30s
+    sse: 300        # SSE streaming routes: 300s (LLM streaming)
+
+# ==============================================
+# Resilience4j Configuration (per-service tuning)
+# STORY-127: Service-specific circuit breaker settings
+# ==============================================
 resilience4j:
   circuitbreaker:
     configs:
+      # Default config for general backend services
       default:
         register-health-indicator: true
         sliding-window-size: 10
@@ -393,31 +395,45 @@ resilience4j:
         failure-rate-threshold: 50
         slow-call-duration-threshold: 2s
         slow-call-rate-threshold: 50
-      ai-config:
+
+      # AI Service config (slow LLM responses allowed)
+      ai-service-config:
         register-health-indicator: true
         sliding-window-size: 10
         permitted-number-of-calls-in-half-open-state: 3
-        wait-duration-in-open-state: 10s
+        wait-duration-in-open-state: 30s  # Longer recovery for AI service
         failure-rate-threshold: 50
-        slow-call-duration-threshold: 45s  # CPU Reranking 38s 허용
+        slow-call-duration-threshold: 45s  # CPU Reranking 38s allowed
         slow-call-rate-threshold: 90
+
+      # Knowledge Service config (fast response expected)
+      knowledge-service-config:
+        register-health-indicator: true
+        sliding-window-size: 20   # Larger window for better statistics
+        permitted-number-of-calls-in-half-open-state: 5
+        wait-duration-in-open-state: 15s  # Quick recovery expected
+        failure-rate-threshold: 30  # Stricter: failures are unexpected
+        slow-call-duration-threshold: 2s
+        slow-call-rate-threshold: 50
+
     instances:
       auth-circuit-breaker:
         base-config: default
       backend-circuit-breaker:
         base-config: default
       knowledge-circuit-breaker:
-        base-config: default
+        base-config: knowledge-service-config
       user-circuit-breaker:
         base-config: default
       ai-service-circuit-breaker:
-        base-config: ai-config
+        base-config: ai-service-config
+
   timelimiter:
     configs:
       default:
         timeout-duration: 30s
       ai-timeout:
-        timeout-duration: 120s  # Cold start: 임베딩 로드(46s) + Reranking(9s) + LLM(35s) = 91s
+        timeout-duration: 120s  # Cold start: embedding(46s) + reranking(9s) + LLM(35s) = 91s
     instances:
       auth-circuit-breaker:
         timeout-duration: 15s
@@ -428,7 +444,7 @@ resilience4j:
       user-circuit-breaker:
         timeout-duration: 15s
       ai-service-circuit-breaker:
-        timeout-duration: 120s  # Cold start: 임베딩 로드(46s) + Reranking(9s) + LLM(35s) = 91s
+        timeout-duration: 120s  # Cold start: embedding(46s) + reranking(9s) + LLM(35s) = 91s
 
 # ============================================================
 # Logging Configuration

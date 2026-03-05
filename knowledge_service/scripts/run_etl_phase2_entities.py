@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# DEPRECATED: etl_cli.py phase3 으로 대체 (STORY-125). Sprint 10에서 삭제 예정.
 """
 ETL Phase 2: 엔티티 추출 후처리
 

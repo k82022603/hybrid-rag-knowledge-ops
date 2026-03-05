@@ -17,6 +17,11 @@ jwt:
   secret: test-secret-key-minimum-32-characters-for-hs256-algorithm
   issuer: test-issuer
 
+gateway:
+  timeout:
+    default: 30
+    sse: 300
+
 resilience4j:
   circuitbreaker:
     configs:

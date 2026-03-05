@@ -6,7 +6,7 @@
 |------|-----|
 | **Jira ID** | - |
 | **Epic** | ETL 안정화 |
-| **Status** | To Do |
+| **Status** | Done |
 | **Priority** | P2 |
 | **Story Points** | 5 |
 | **Assignee** | ETL |
@@ -42,22 +42,22 @@ ETL Engineer 발견: 현재 스크립트 7개가 산재 (TD-003 기술 부채).
 
 ## Acceptance Criteria
 
-- [ ] `etl_cli.py` 단일 진입점 (Click 기반 CLI)
-- [ ] 서브커맨드: `phase1`, `phase2`, `phase3`, `all`, `status`, `cleanup`
-- [ ] 실행 전 전제조건 체크 (Docker 상태, DB 연결)
-- [ ] 진행률 표시 (tqdm 또는 rich.progress)
-- [ ] 로그 통합 (`/tmp/etl_cli_{phase}_{timestamp}.log`)
-- [ ] `--dry-run` 옵션 지원
+- [x] `etl_cli.py` 단일 진입점 (Click 기반 CLI)
+- [x] 서브커맨드: `phase1`, `phase2`, `phase3`, `all`, `status`, `cleanup`
+- [x] 실행 전 전제조건 체크 (Docker 상태, DB 연결)
+- [x] 진행률 표시 (실시간 stdout 스트리밍)
+- [x] 로그 통합 (`/tmp/etl_cli_{phase}_{timestamp}.log`)
+- [x] `--dry-run` 옵션 지원
 
 ---
 
 ## Tasks
 
-- [ ] Click 기반 CLI 뼈대 구현 (`knowledge_service/scripts/etl_cli.py`)
-- [ ] 기존 7개 스크립트 로직 CLI 서브커맨드로 통합
-- [ ] 전제조건 체크 함수 구현 (DB ping, Docker 상태)
-- [ ] `etl_cli.py all --phase 1 2 3` 순차 실행 지원
-- [ ] 기존 스크립트 deprecated 주석 추가 (삭제는 Sprint 10)
+- [x] Click 기반 CLI 뼈대 구현 (`knowledge_service/scripts/etl_cli.py`)
+- [x] 기존 7개 스크립트 로직 CLI 서브커맨드로 통합
+- [x] 전제조건 체크 함수 구현 (DB ping, Docker 상태)
+- [x] `etl_cli.py all` 순차 실행 지원
+- [x] 기존 스크립트 deprecated 주석 추가 (삭제는 Sprint 10)
 
 ---
 

@@ -1,25 +1,17 @@
 # =============================================================================
 # AlertManager Configuration - Knowledge Platform
 # =============================================================================
-# Version: 1.0.0
-# Created: 2026-02-04
-# Description: Alert routing and notification configuration with Slack integration
+# Version: 2.0.0
+# Updated: 2026-03-05
+# Description: Alert routing with team-based Slack channel separation
+#   - proj-hrkp-alerts: DB, AI, Security, Infra, Critical alerts
+#   - proj-hrkp-dev: Default/info/warning alerts
 # =============================================================================
 
 global:
-  # Time to wait before sending notification that alert is resolved
   resolve_timeout: 5m
-
-  # Slack webhook URL (set via environment variable)
   slack_api_url: '${SLACK_WEBHOOK_URL}'
 
-  # SMTP configuration for email alerts (optional)
-  # smtp_smarthost: 'smtp.gmail.com:587'
-  # smtp_from: 'alertmanager@knowledge-platform.com'
-  # smtp_auth_username: '${SMTP_USERNAME}'
-  # smtp_auth_password: '${SMTP_PASSWORD}'
-
-# Templates for notification messages
 templates:
   - '/etc/alertmanager/templates/*.tmpl'
 
@@ -27,86 +19,103 @@ templates:
 # ROUTING CONFIGURATION
 # =============================================================================
 route:
-  # Default grouping
   group_by: ['alertname', 'severity', 'category']
-
-  # Wait time before first notification
   group_wait: 30s
-
-  # Wait time before sending new notification for same group
   group_interval: 5m
-
-  # Wait time before resending notification
   repeat_interval: 4h
-
-  # Default receiver
   receiver: 'default-slack'
 
-  # Route hierarchy
   routes:
-    # ---------------------------------------------------------------------------
-    # Critical alerts -> Page + Slack (immediate)
-    # ---------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
+    # Critical severity -> proj-hrkp-alerts (immediate)
+    # -------------------------------------------------------------------------
     - match:
         severity: critical
-      receiver: 'critical-pager'
+      receiver: 'critical-slack'
       group_wait: 10s
       group_interval: 1m
       repeat_interval: 1h
-      continue: true  # Also send to other matching routes
+      continue: true
 
-    - match:
-        page: "true"
-      receiver: 'critical-pager'
-      group_wait: 0s
-      repeat_interval: 30m
+    # -------------------------------------------------------------------------
+    # Database alerts (by job) -> proj-hrkp-alerts
+    # -------------------------------------------------------------------------
+    - match_re:
+        job: 'postgresql|neo4j|elasticsearch'
+      receiver: 'database-slack'
+      group_by: ['alertname', 'job']
 
-    # ---------------------------------------------------------------------------
-    # Database alerts -> Database team Slack channel
-    # ---------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
+    # Database alerts (by category) -> proj-hrkp-alerts
+    # -------------------------------------------------------------------------
     - match:
         category: database
       receiver: 'database-slack'
       group_by: ['alertname', 'job']
 
-    # ---------------------------------------------------------------------------
-    # AI Service alerts -> AI team Slack channel
-    # ---------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
+    # AI Service alerts (by job) -> proj-hrkp-alerts
+    # -------------------------------------------------------------------------
+    - match:
+        job: ai-service
+      receiver: 'ai-service-slack'
+      group_by: ['alertname']
+
+    # -------------------------------------------------------------------------
+    # AI Service alerts (by category) -> proj-hrkp-alerts
+    # -------------------------------------------------------------------------
     - match:
         category: ai
       receiver: 'ai-service-slack'
       group_by: ['alertname']
 
-    # ---------------------------------------------------------------------------
-    # Security alerts -> Security team + alerts channel
-    # ---------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
+    # Security alerts (by alertname regex) -> proj-hrkp-alerts
+    # -------------------------------------------------------------------------
+    - match_re:
+        alertname: 'Security.*'
+      receiver: 'security-slack'
+      group_wait: 0s
+      repeat_interval: 30m
+
+    # -------------------------------------------------------------------------
+    # Security alerts (by category) -> proj-hrkp-alerts
+    # -------------------------------------------------------------------------
     - match:
         category: security
       receiver: 'security-slack'
       group_wait: 0s
       repeat_interval: 30m
 
-    # ---------------------------------------------------------------------------
-    # SLA alerts -> Leadership + DevOps
-    # ---------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
+    # Infrastructure alerts -> proj-hrkp-alerts
+    # -------------------------------------------------------------------------
+    - match:
+        category: infra
+      receiver: 'infra-slack'
+      group_by: ['alertname', 'job']
+
+    # -------------------------------------------------------------------------
+    # SLA alerts -> proj-hrkp-alerts
+    # -------------------------------------------------------------------------
     - match:
         category: sla
       receiver: 'sla-slack'
       group_by: ['alertname']
       repeat_interval: 2h
 
-    # ---------------------------------------------------------------------------
-    # Warning alerts -> Standard Slack channel
-    # ---------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
+    # Warning alerts -> proj-hrkp-dev
+    # -------------------------------------------------------------------------
     - match:
         severity: warning
       receiver: 'warning-slack'
       group_interval: 10m
       repeat_interval: 6h
 
-    # ---------------------------------------------------------------------------
-    # Info alerts -> Low priority channel
-    # ---------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
+    # Info alerts -> proj-hrkp-dev (low priority)
+    # -------------------------------------------------------------------------
     - match:
         severity: info
       receiver: 'info-slack'
@@ -118,11 +127,11 @@ route:
 # =============================================================================
 receivers:
   # ---------------------------------------------------------------------------
-  # Default Slack receiver
+  # Default -> proj-hrkp-dev
   # ---------------------------------------------------------------------------
   - name: 'default-slack'
     slack_configs:
-      - channel: '#proj-hrkp-alerts'
+      - channel: '#proj-hrkp-dev'
         username: 'AlertManager'
         icon_emoji: ':bell:'
         send_resolved: true
@@ -138,9 +147,9 @@ receivers:
         color: '{{ if eq .Status "firing" }}{{ if eq .CommonLabels.severity "critical" }}danger{{ else if eq .CommonLabels.severity "warning" }}warning{{ else }}#439FE0{{ end }}{{ else }}good{{ end }}'
 
   # ---------------------------------------------------------------------------
-  # Critical alerts with paging
+  # Critical -> proj-hrkp-alerts
   # ---------------------------------------------------------------------------
-  - name: 'critical-pager'
+  - name: 'critical-slack'
     slack_configs:
       - channel: '#proj-hrkp-alerts'
         username: 'CRITICAL ALERT'
@@ -157,16 +166,9 @@ receivers:
           {{ if .Annotations.runbook_url }}*Runbook:* {{ .Annotations.runbook_url }}{{ end }}
           {{ end }}
         color: 'danger'
-    # PagerDuty integration (optional)
-    # pagerduty_configs:
-    #   - service_key: '${PAGERDUTY_SERVICE_KEY}'
-    #     severity: critical
-    #     description: '{{ .GroupLabels.alertname }}: {{ .CommonAnnotations.summary }}'
-    #     details:
-    #       firing: '{{ template "pagerduty.default.instances" .Alerts.Firing }}'
 
   # ---------------------------------------------------------------------------
-  # Database team alerts
+  # Database -> proj-hrkp-alerts
   # ---------------------------------------------------------------------------
   - name: 'database-slack'
     slack_configs:
@@ -184,7 +186,7 @@ receivers:
         color: '{{ if eq .Status "firing" }}{{ if eq .CommonLabels.severity "critical" }}danger{{ else }}warning{{ end }}{{ else }}good{{ end }}'
 
   # ---------------------------------------------------------------------------
-  # AI Service team alerts
+  # AI Service -> proj-hrkp-alerts
   # ---------------------------------------------------------------------------
   - name: 'ai-service-slack'
     slack_configs:
@@ -202,7 +204,7 @@ receivers:
         color: '{{ if eq .Status "firing" }}{{ if eq .CommonLabels.severity "critical" }}danger{{ else }}warning{{ end }}{{ else }}good{{ end }}'
 
   # ---------------------------------------------------------------------------
-  # Security alerts
+  # Security -> proj-hrkp-alerts
   # ---------------------------------------------------------------------------
   - name: 'security-slack'
     slack_configs:
@@ -223,7 +225,26 @@ receivers:
         color: 'danger'
 
   # ---------------------------------------------------------------------------
-  # SLA alerts
+  # Infrastructure -> proj-hrkp-alerts
+  # ---------------------------------------------------------------------------
+  - name: 'infra-slack'
+    slack_configs:
+      - channel: '#proj-hrkp-alerts'
+        username: 'Infra Monitor'
+        icon_emoji: ':gear:'
+        send_resolved: true
+        title: ':gear: Infra Alert: {{ .GroupLabels.alertname }}'
+        text: >-
+          {{ range .Alerts }}
+          *Alert:* {{ .Annotations.summary }}
+          *Service:* {{ .Labels.job }}
+          *Description:* {{ .Annotations.description }}
+          *Severity:* {{ .Labels.severity }}
+          {{ end }}
+        color: '{{ if eq .Status "firing" }}{{ if eq .CommonLabels.severity "critical" }}danger{{ else }}warning{{ end }}{{ else }}good{{ end }}'
+
+  # ---------------------------------------------------------------------------
+  # SLA -> proj-hrkp-alerts
   # ---------------------------------------------------------------------------
   - name: 'sla-slack'
     slack_configs:
@@ -242,11 +263,11 @@ receivers:
         color: '{{ if eq .Status "firing" }}danger{{ else }}good{{ end }}'
 
   # ---------------------------------------------------------------------------
-  # Warning level alerts
+  # Warning -> proj-hrkp-dev
   # ---------------------------------------------------------------------------
   - name: 'warning-slack'
     slack_configs:
-      - channel: '#proj-hrkp-alerts'
+      - channel: '#proj-hrkp-dev'
         username: 'Warning Monitor'
         icon_emoji: ':warning:'
         send_resolved: true
@@ -259,7 +280,7 @@ receivers:
         color: 'warning'
 
   # ---------------------------------------------------------------------------
-  # Info level alerts (low priority)
+  # Info -> proj-hrkp-dev (low priority)
   # ---------------------------------------------------------------------------
   - name: 'info-slack'
     slack_configs:
@@ -278,39 +299,31 @@ receivers:
 # =============================================================================
 # INHIBITION RULES
 # =============================================================================
-# Prevent notification storm by suppressing lower severity alerts
-# when higher severity alerts are firing
-
 inhibit_rules:
-  # If Critical fires, suppress Warning for same alertname/job
   - source_match:
       severity: 'critical'
     target_match:
       severity: 'warning'
     equal: ['alertname', 'job']
 
-  # If Critical fires, suppress Info for same alertname/job
   - source_match:
       severity: 'critical'
     target_match:
       severity: 'info'
     equal: ['alertname', 'job']
 
-  # If Warning fires, suppress Info for same alertname/job
   - source_match:
       severity: 'warning'
     target_match:
       severity: 'info'
     equal: ['alertname', 'job']
 
-  # If container is down, suppress resource alerts for that container
   - source_match:
       alertname: 'ContainerDown'
     target_match_re:
       alertname: 'High.*Usage'
     equal: ['job']
 
-  # If database is down, suppress database performance alerts
   - source_match_re:
       alertname: '.*Down$'
     target_match_re:
