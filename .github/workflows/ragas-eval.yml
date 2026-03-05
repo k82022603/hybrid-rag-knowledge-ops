@@ -1,0 +1,324 @@
+# =============================================================================
+# RAGAS Weekly Evaluation Workflow
+# =============================================================================
+# Trigger: Schedule (every Sunday midnight KST) + Manual dispatch
+# Purpose: Run RAGAS evaluation on self-hosted runner with Docker containers
+# =============================================================================
+
+name: RAGAS Weekly Evaluation
+
+on:
+  schedule:
+    # Every Sunday midnight KST = Saturday 15:00 UTC
+    - cron: '0 15 * * 6'
+
+  workflow_dispatch:
+    inputs:
+      skip_rebuild:
+        description: 'Skip AI Service rebuild (use current container)'
+        required: false
+        default: 'false'
+        type: boolean
+
+concurrency:
+  group: ragas-eval
+  cancel-in-progress: false
+
+env:
+  COMPOSE_PROJECT_NAME: knowledge-platform
+  AI_SERVICE_CONTAINER: kp-ai-service
+  RESULTS_DIR: knowledge_service/docs/results
+
+jobs:
+  # =============================================================================
+  # RAGAS Evaluation on Self-Hosted Runner
+  # =============================================================================
+  ragas-eval:
+    name: RAGAS Evaluation
+    runs-on: self-hosted
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # -----------------------------------------------------------------------
+      # Step 1: Verify Docker Containers
+      # -----------------------------------------------------------------------
+      - name: Check Docker Container Status
+        id: container-check
+        run: |
+          echo "## Container Status Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          REQUIRED_CONTAINERS=("kp-ai-service" "kp-elasticsearch" "kp-neo4j" "kp-postgresql")
+          ALL_OK=true
+
+          for container in "${REQUIRED_CONTAINERS[@]}"; do
+            STATUS=$(docker inspect -f '{{.State.Status}}' "$container" 2>/dev/null || echo "not_found")
+            if [ "$STATUS" = "running" ]; then
+              echo "| $container | running |" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "| $container | $STATUS |" >> $GITHUB_STEP_SUMMARY
+              ALL_OK=false
+            fi
+          done
+
+          if [ "$ALL_OK" = "false" ]; then
+            echo ""
+            echo "::error::Required containers are not all running."
+            echo "Starting containers with docker-compose..."
+            docker-compose up -d postgresql elasticsearch neo4j ai-service
+            echo "Waiting 30s for containers to initialize..."
+            sleep 30
+
+            # Re-check
+            for container in "${REQUIRED_CONTAINERS[@]}"; do
+              STATUS=$(docker inspect -f '{{.State.Status}}' "$container" 2>/dev/null || echo "not_found")
+              if [ "$STATUS" != "running" ]; then
+                echo "::error::Container $container still not running after startup attempt."
+                exit 1
+              fi
+            done
+          fi
+
+          echo "all_ok=true" >> $GITHUB_OUTPUT
+
+      # -----------------------------------------------------------------------
+      # Step 2: Rebuild AI Service (latest code)
+      # -----------------------------------------------------------------------
+      - name: Rebuild AI Service
+        if: inputs.skip_rebuild != 'true'
+        run: |
+          echo "Rebuilding AI Service with latest code..."
+          docker-compose build ai-service
+          docker-compose up -d ai-service
+
+          echo "Waiting 20s for AI Service to start..."
+          sleep 20
+
+          # Health check
+          MAX_RETRIES=6
+          RETRY=0
+          while [ $RETRY -lt $MAX_RETRIES ]; do
+            if docker exec ${{ env.AI_SERVICE_CONTAINER }} curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+              echo "AI Service is healthy."
+              break
+            fi
+            RETRY=$((RETRY + 1))
+            echo "Health check retry $RETRY/$MAX_RETRIES..."
+            sleep 10
+          done
+
+          if [ $RETRY -eq $MAX_RETRIES ]; then
+            echo "::warning::AI Service health check timed out. Proceeding anyway..."
+          fi
+
+      # -----------------------------------------------------------------------
+      # Step 3: Run RAGAS Evaluation
+      # -----------------------------------------------------------------------
+      - name: Run RAGAS Evaluation
+        id: ragas-run
+        run: |
+          echo "Running RAGAS v10 evaluation..."
+          EVAL_DATE=$(date +%Y%m%d)
+          echo "eval_date=$EVAL_DATE" >> $GITHUB_OUTPUT
+
+          docker exec ${{ env.AI_SERVICE_CONTAINER }} \
+            python3 /app/scripts/ragas_v10_post_entity_eval.py \
+            2>&1 | tee /tmp/ragas_eval_output.log
+
+          EVAL_EXIT=$?
+          echo "eval_exit=$EVAL_EXIT" >> $GITHUB_OUTPUT
+
+          if [ $EVAL_EXIT -ne 0 ]; then
+            echo "::warning::RAGAS evaluation script exited with code $EVAL_EXIT"
+          fi
+
+      # -----------------------------------------------------------------------
+      # Step 4: Extract Results
+      # -----------------------------------------------------------------------
+      - name: Extract Result Files
+        id: extract
+        run: |
+          EVAL_DATE=${{ steps.ragas-run.outputs.eval_date }}
+          RESULT_JSON="${{ env.RESULTS_DIR }}/ragas_weekly_${EVAL_DATE}.json"
+
+          # Copy result from container
+          docker cp ${{ env.AI_SERVICE_CONTAINER }}:/tmp/ragas_v10_post_entity_result.json \
+            "$RESULT_JSON" 2>/dev/null || true
+
+          if [ ! -f "$RESULT_JSON" ]; then
+            echo "::error::Result JSON not found. RAGAS evaluation may have failed."
+            echo "result_found=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          echo "result_json=$RESULT_JSON" >> $GITHUB_OUTPUT
+          echo "result_found=true" >> $GITHUB_OUTPUT
+          echo "Result file: $RESULT_JSON"
+
+      # -----------------------------------------------------------------------
+      # Step 5: Quality Gate
+      # -----------------------------------------------------------------------
+      - name: Quality Gate Check
+        id: quality-gate
+        if: steps.extract.outputs.result_found == 'true'
+        run: |
+          RESULT_JSON="${{ steps.extract.outputs.result_json }}"
+
+          # Extract metrics using python3
+          SCORES=$(python3 -c "
+          import json, sys
+          with open('$RESULT_JSON') as f:
+              data = json.load(f)
+          m = data.get('metrics', {})
+          faith = m.get('faithfulness', 0)
+          relev = m.get('answer_relevancy', 0)
+          mean = (faith + relev) / 2
+          print(f'{faith:.4f}')
+          print(f'{relev:.4f}')
+          print(f'{mean:.4f}')
+          ")
+
+          FAITHFULNESS=$(echo "$SCORES" | sed -n '1p')
+          RELEVANCY=$(echo "$SCORES" | sed -n '2p')
+          MEAN=$(echo "$SCORES" | sed -n '3p')
+
+          echo "faithfulness=$FAITHFULNESS" >> $GITHUB_OUTPUT
+          echo "relevancy=$RELEVANCY" >> $GITHUB_OUTPUT
+          echo "mean=$MEAN" >> $GITHUB_OUTPUT
+
+          # Thresholds
+          FAITH_THRESHOLD=0.85
+          RELEV_THRESHOLD=0.60
+          MEAN_THRESHOLD=0.65
+
+          GATE_PASS=true
+
+          # Compare using python (avoid bash float comparison issues)
+          GATE_PASS=$(python3 -c "
+          faith = $FAITHFULNESS
+          relev = $RELEVANCY
+          mean = $MEAN
+          passed = faith >= $FAITH_THRESHOLD and relev >= $RELEV_THRESHOLD and mean >= $MEAN_THRESHOLD
+          print('true' if passed else 'false')
+          ")
+
+          echo "gate_pass=$GATE_PASS" >> $GITHUB_OUTPUT
+
+          # Summary
+          echo "## RAGAS Quality Gate" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Score | Threshold | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          if python3 -c "exit(0 if $FAITHFULNESS >= $FAITH_THRESHOLD else 1)"; then
+            echo "| Faithfulness | $FAITHFULNESS | >= $FAITH_THRESHOLD | PASS |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Faithfulness | $FAITHFULNESS | >= $FAITH_THRESHOLD | **FAIL** |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if python3 -c "exit(0 if $RELEVANCY >= $RELEV_THRESHOLD else 1)"; then
+            echo "| Answer Relevancy | $RELEVANCY | >= $RELEV_THRESHOLD | PASS |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Answer Relevancy | $RELEVANCY | >= $RELEV_THRESHOLD | **FAIL** |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if python3 -c "exit(0 if $MEAN >= $MEAN_THRESHOLD else 1)"; then
+            echo "| Mean | $MEAN | >= $MEAN_THRESHOLD | PASS |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| Mean | $MEAN | >= $MEAN_THRESHOLD | **FAIL** |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "$GATE_PASS" = "true" ]; then
+            echo "**Result: PASS**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Result: FAIL**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      # -----------------------------------------------------------------------
+      # Step 6: Slack Notification (on failure)
+      # -----------------------------------------------------------------------
+      - name: Slack Alert (Quality Gate Failed)
+        if: steps.quality-gate.outputs.gate_pass == 'false'
+        run: |
+          FAITHFULNESS="${{ steps.quality-gate.outputs.faithfulness }}"
+          RELEVANCY="${{ steps.quality-gate.outputs.relevancy }}"
+          MEAN="${{ steps.quality-gate.outputs.mean }}"
+          EVAL_DATE="${{ steps.ragas-run.outputs.eval_date }}"
+
+          ./scripts/send_slack.sh alerts QA \
+            "RAGAS QUALITY GATE FAILED ($EVAL_DATE) - Faithfulness: $FAITHFULNESS, Relevancy: $RELEVANCY, Mean: $MEAN (thresholds: 0.85/0.60/0.65)"
+
+      - name: Slack Notification (Success)
+        if: steps.quality-gate.outputs.gate_pass == 'true'
+        run: |
+          FAITHFULNESS="${{ steps.quality-gate.outputs.faithfulness }}"
+          RELEVANCY="${{ steps.quality-gate.outputs.relevancy }}"
+          MEAN="${{ steps.quality-gate.outputs.mean }}"
+          EVAL_DATE="${{ steps.ragas-run.outputs.eval_date }}"
+
+          ./scripts/send_slack.sh dev QA \
+            "RAGAS Weekly Eval PASS ($EVAL_DATE) - Faithfulness: $FAITHFULNESS, Relevancy: $RELEVANCY, Mean: $MEAN"
+
+      # -----------------------------------------------------------------------
+      # Step 7: Commit Results
+      # -----------------------------------------------------------------------
+      - name: Commit Result Files
+        if: steps.extract.outputs.result_found == 'true'
+        run: |
+          RESULT_JSON="${{ steps.extract.outputs.result_json }}"
+          EVAL_DATE="${{ steps.ragas-run.outputs.eval_date }}"
+          GATE_RESULT="${{ steps.quality-gate.outputs.gate_pass }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add "$RESULT_JSON"
+
+          # Check if there are staged changes
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            GATE_LABEL="PASS"
+            if [ "$GATE_RESULT" = "false" ]; then
+              GATE_LABEL="FAIL"
+            fi
+            git commit -m "[TEST] RAGAS weekly evaluation $EVAL_DATE ($GATE_LABEL)
+
+            - Faithfulness: ${{ steps.quality-gate.outputs.faithfulness }}
+            - Answer Relevancy: ${{ steps.quality-gate.outputs.relevancy }}
+            - Mean: ${{ steps.quality-gate.outputs.mean }}"
+
+            git push
+          fi
+
+      # -----------------------------------------------------------------------
+      # Step 8: Upload Artifacts
+      # -----------------------------------------------------------------------
+      - name: Upload Evaluation Log
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ragas-eval-log-${{ steps.ragas-run.outputs.eval_date }}
+          path: /tmp/ragas_eval_output.log
+          retention-days: 30
+
+      - name: Upload Result JSON
+        uses: actions/upload-artifact@v4
+        if: steps.extract.outputs.result_found == 'true'
+        with:
+          name: ragas-result-${{ steps.ragas-run.outputs.eval_date }}
+          path: ${{ steps.extract.outputs.result_json }}
+          retention-days: 90
+
+      # -----------------------------------------------------------------------
+      # Final: Fail if Quality Gate Failed
+      # -----------------------------------------------------------------------
+      - name: Fail on Quality Gate
+        if: steps.quality-gate.outputs.gate_pass == 'false'
+        run: |
+          echo "::error::RAGAS quality gate failed. Check metrics and investigate."
+          exit 1
