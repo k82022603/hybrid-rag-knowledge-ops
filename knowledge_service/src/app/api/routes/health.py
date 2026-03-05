@@ -106,6 +106,11 @@ async def readiness() -> ReadinessResponse:
     checks["neo4j"] = await _check_neo4j()
     checks["postgresql"] = await _check_postgresql()
 
+    # SearchService 실제 클라이언트 상태 체크
+    # (DB가 healthy여도 SearchService 내부 client가 None이면 검색 불가)
+    checks["search_service_es"] = _check_search_service_clients("es")
+    checks["search_service_neo4j"] = _check_search_service_clients("neo4j")
+
     return ReadinessResponse(
         ready=all(checks.values()),
         checks=checks,
@@ -187,6 +192,32 @@ async def _check_postgresql() -> bool:
             await conn.close()
     except Exception as e:
         logger.warning(f"PostgreSQL health check failed: {e}")
+        return False
+
+
+def _check_search_service_clients(client_type: str) -> bool:
+    """SearchService 내부 클라이언트 상태 체크
+
+    DB 자체는 healthy여도 SearchService.es_client / neo4j_driver가
+    None이면 검색이 0건 반환되므로 ready=false 처리.
+
+    Args:
+        client_type: "es" 또는 "neo4j"
+
+    Returns:
+        클라이언트가 유효한지 여부
+    """
+    try:
+        from app.services.search import _search_service
+
+        if _search_service is None:
+            return False
+        if client_type == "es":
+            return _search_service.es_client is not None
+        elif client_type == "neo4j":
+            return _search_service.neo4j_driver is not None
+        return False
+    except Exception:
         return False
 
 

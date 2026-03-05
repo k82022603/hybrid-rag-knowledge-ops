@@ -193,6 +193,73 @@ class SearchService:
         self._embedding_service = get_embedding_service()
         self._cache_enabled = cache_enabled and settings.search_cache_enabled
         self._cache = _get_cache_service() if self._cache_enabled else None
+        self._reconnect_lock = asyncio.Lock()
+
+    # ------------------------------------------------------------------
+    # Lazy Reconnection
+    # ------------------------------------------------------------------
+
+    async def _ensure_es_client(self) -> bool:
+        """ES 클라이언트가 None이면 재연결 시도 (lazy reconnection)
+
+        Returns:
+            연결 성공 여부
+        """
+        if self.es_client is not None:
+            return True
+
+        async with self._reconnect_lock:
+            if self.es_client is not None:
+                return True
+            try:
+                from elasticsearch import AsyncElasticsearch
+
+                client = AsyncElasticsearch(
+                    hosts=[f"http://{settings.elasticsearch_host}:{settings.elasticsearch_port}"],
+                )
+                health = await client.cluster.health(timeout="5s")
+                if health.get("status") in ("green", "yellow"):
+                    self.es_client = client
+                    logger.info(
+                        f"Elasticsearch lazy reconnection 성공: "
+                        f"status={health.get('status')}"
+                    )
+                    return True
+                else:
+                    await client.close()
+                    return False
+            except Exception as e:
+                logger.warning(f"Elasticsearch lazy reconnection 실패: {e}")
+                return False
+
+    async def _ensure_neo4j_driver(self) -> bool:
+        """Neo4j 드라이버가 None이면 재연결 시도 (lazy reconnection)
+
+        Returns:
+            연결 성공 여부
+        """
+        if self.neo4j_driver is not None:
+            return True
+
+        async with self._reconnect_lock:
+            if self.neo4j_driver is not None:
+                return True
+            try:
+                from neo4j import AsyncGraphDatabase
+
+                driver = AsyncGraphDatabase.driver(
+                    settings.neo4j_uri,
+                    auth=(settings.neo4j_user, settings.neo4j_password),
+                )
+                async with driver.session() as session:
+                    result = await session.run("RETURN 1 AS ping")
+                    await result.single()
+                self.neo4j_driver = driver
+                logger.info(f"Neo4j lazy reconnection 성공: {settings.neo4j_uri}")
+                return True
+            except Exception as e:
+                logger.warning(f"Neo4j lazy reconnection 실패: {e}")
+                return False
 
     # ------------------------------------------------------------------
     # Public API
@@ -536,6 +603,20 @@ class SearchService:
                 f"Fused: {len(final_results)}, "
                 f"Latency: {latency_ms:.1f}ms"
             )
+
+            # 검색 0건 + 클라이언트 None 조합 경고 (연결 장애 사전 감지)
+            if len(final_results) == 0:
+                missing = []
+                if self.es_client is None:
+                    missing.append("ES=None")
+                if self.neo4j_driver is None:
+                    missing.append("Neo4j=None")
+                if missing:
+                    logger.warning(
+                        f"[SEARCH_ALERT] 검색 결과 0건 — 클라이언트 미연결 감지: "
+                        f"{', '.join(missing)}. "
+                        f"Query: '{query[:60]}', 연결 장애 가능성 있음"
+                    )
 
             return {
                 "results": final_results,
@@ -1205,8 +1286,12 @@ class SearchService:
         Raises:
             ElasticsearchError: 검색 실패
         """
+        # Lazy reconnection: client가 None이면 재연결 시도
         if self.es_client is None:
-            return {"hits": {"hits": [], "total": {"value": 0}}}
+            reconnected = await self._ensure_es_client()
+            if not reconnected:
+                logger.warning("ES 클라이언트 없음 (reconnection 실패) — 빈 결과 반환")
+                return {"hits": {"hits": [], "total": {"value": 0}}}
 
         try:
             # Elasticsearch 비동기 검색
@@ -1218,6 +1303,8 @@ class SearchService:
                 return {"hits": {"hits": [], "total": {"value": 0}}}
 
         except Exception as e:
+            # 연결 끊김으로 인한 실패 → 클라이언트 초기화하여 다음 호출 시 재연결 유도
+            self.es_client = None
             raise ElasticsearchError(
                 message=f"Elasticsearch 검색 실패: {str(e)}",
                 details={"index": index},
@@ -1241,8 +1328,12 @@ class SearchService:
         Raises:
             Neo4jError: 쿼리 실패
         """
+        # Lazy reconnection: driver가 None이면 재연결 시도
         if self.neo4j_driver is None:
-            return []
+            reconnected = await self._ensure_neo4j_driver()
+            if not reconnected:
+                logger.warning("Neo4j 드라이버 없음 (reconnection 실패) — 빈 결과 반환")
+                return []
 
         try:
             async with self.neo4j_driver.session() as session:
@@ -1251,6 +1342,8 @@ class SearchService:
                 return records
 
         except Exception as e:
+            # 연결 끊김으로 인한 실패 → 드라이버 초기화하여 다음 호출 시 재연결 유도
+            self.neo4j_driver = None
             raise Neo4jError(
                 message=f"Neo4j 쿼리 실패: {str(e)}",
                 details={"cypher": cypher[:200]},

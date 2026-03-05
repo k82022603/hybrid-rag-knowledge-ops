@@ -4,9 +4,10 @@ Knowledge Service - FastAPI 메인 애플리케이션
 Graph RAG 기반 지능형 지식 검색 시스템의 AI Service 엔트리포인트
 """
 
+import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime
-from typing import Any, AsyncGenerator, Dict
+from typing import Any, AsyncGenerator, Dict, Optional
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +19,43 @@ from app.core.exceptions import KnowledgeServiceError
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+async def _connect_with_retry(
+    connect_fn,
+    name: str,
+    max_retries: int = 5,
+    base_delay: float = 3.0,
+) -> Optional[Any]:
+    """지수 백오프를 사용한 연결 재시도
+
+    Args:
+        connect_fn: 연결을 수행하는 async callable
+        name: 서비스 이름 (로깅용)
+        max_retries: 최대 재시도 횟수
+        base_delay: 초기 대기 시간 (초)
+
+    Returns:
+        연결된 클라이언트 또는 None
+    """
+    for attempt in range(max_retries):
+        try:
+            client = await connect_fn()
+            logger.info(f"{name} 연결 성공 (시도 {attempt + 1}/{max_retries})")
+            return client
+        except Exception as e:
+            if attempt < max_retries - 1:
+                delay = base_delay * (2 ** attempt)
+                logger.warning(
+                    f"{name} 연결 실패 ({attempt + 1}/{max_retries}): {e}, "
+                    f"{delay}초 후 재시도"
+                )
+                await asyncio.sleep(delay)
+            else:
+                logger.error(
+                    f"{name} 연결 최종 실패 ({max_retries}회 시도): {e}"
+                )
+    return None
 
 
 @asynccontextmanager
@@ -41,37 +79,43 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     background_worker = None
 
     try:
-        # Elasticsearch 클라이언트 연결
-        try:
+        # Elasticsearch 클라이언트 연결 (지수 백오프 재시도)
+        async def _connect_elasticsearch():
             from elasticsearch import AsyncElasticsearch
 
-            es_client = AsyncElasticsearch(
+            client = AsyncElasticsearch(
                 hosts=[f"http://{settings.elasticsearch_host}:{settings.elasticsearch_port}"],
             )
-            health = await es_client.cluster.health(timeout="5s")
-            logger.info(f"Elasticsearch connected: cluster={health.get('cluster_name')}, status={health.get('status')}")
-            app.state.es_client = es_client
-        except Exception as e:
-            logger.warning(f"Elasticsearch connection failed (non-critical): {e}")
-            app.state.es_client = None
+            health = await client.cluster.health(timeout="5s")
+            logger.info(
+                f"Elasticsearch cluster={health.get('cluster_name')}, "
+                f"status={health.get('status')}"
+            )
+            return client
 
-        # Neo4j 드라이버 연결
-        try:
+        es_client = await _connect_with_retry(
+            _connect_elasticsearch, "Elasticsearch", max_retries=5, base_delay=3.0
+        )
+        app.state.es_client = es_client
+
+        # Neo4j 드라이버 연결 (지수 백오프 재시도)
+        async def _connect_neo4j():
             from neo4j import AsyncGraphDatabase
 
-            neo4j_driver = AsyncGraphDatabase.driver(
+            driver = AsyncGraphDatabase.driver(
                 settings.neo4j_uri,
                 auth=(settings.neo4j_user, settings.neo4j_password),
             )
-            # 연결 테스트
-            async with neo4j_driver.session() as session:
+            async with driver.session() as session:
                 result = await session.run("RETURN 1 AS ping")
                 await result.single()
             logger.info(f"Neo4j connected: {settings.neo4j_uri}")
-            app.state.neo4j_driver = neo4j_driver
-        except Exception as e:
-            logger.warning(f"Neo4j connection failed (non-critical): {e}")
-            app.state.neo4j_driver = None
+            return driver
+
+        neo4j_driver = await _connect_with_retry(
+            _connect_neo4j, "Neo4j", max_retries=5, base_delay=3.0
+        )
+        app.state.neo4j_driver = neo4j_driver
 
         # SearchService 초기화 (ES + Neo4j 클라이언트 주입)
         from app.services.search import init_search_service
