@@ -9,7 +9,7 @@
 ## 폴더 구조
 
 ```
-docs/15_고도화_프로젝트/
+knowledge_service/docs/15_enhancement_project/
 ├── README.md                  ← 이 파일 (인덱스)
 ├── 01_계획/                   ← 고도화 계획, 전략 문서
 ├── 02_사고보고/               ← 사고 보고서, 인시던트 리포트
@@ -25,8 +25,8 @@ docs/15_고도화_프로젝트/
 
 | 문서 | 설명 | 원본 위치 |
 |------|------|----------|
-| [Sprint 09 계획서](../../backlog/sprints/sprint-09.md) | 38 SP, 13 Stories, P0~P2 | `backlog/sprints/` |
-| [프로젝트 전체 계획](../../PLAN.md) | 현재 Phase: ENHANCEMENT | 프로젝트 루트 |
+| [Sprint 09 계획서](../../../backlog/sprints/sprint-09.md) | 38 SP, 13 Stories, P0~P2 | `backlog/sprints/` |
+| [프로젝트 전체 계획](../../../PLAN.md) | 현재 Phase: ENHANCEMENT | 프로젝트 루트 |
 
 ### 02_사고보고
 
