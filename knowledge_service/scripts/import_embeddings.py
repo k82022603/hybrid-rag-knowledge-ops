@@ -19,6 +19,9 @@ import time
 import urllib.request
 import urllib.error
 
+# Add app to path for status_callback
+sys.path.insert(0, "/app/src")
+
 ES_URL = os.getenv("ELASTICSEARCH_URL", "http://elasticsearch:9200")
 INDEX = "knowledge_chunks"
 BULK_SIZE = 100
@@ -138,6 +141,34 @@ def bulk_update_embeddings(input_file: str, skip_completed: bool = False):
     print(f"\nCompleted in {elapsed:.1f}s ({elapsed/60:.1f}m)")
     print(f"  Updated: {updated}")
     print(f"  Failed: {failed}")
+
+    # STORY-089: Phase 2 GPU 임베딩 완료 → document별 PG 상태 콜백 (completed, es_synced=true)
+    if updated > 0:
+        print("\nNotifying PG status (completed, es_synced=true) for processed documents...")
+        try:
+            from app.services.status_callback import notify_status_sync
+
+            # 처리된 청크에서 unique document_id 추출
+            doc_ids_updated: set = set()
+            for rec in records:
+                doc_id = rec.get("document_id")
+                if doc_id:
+                    doc_ids_updated.add(doc_id)
+
+            notified = 0
+            for doc_id in doc_ids_updated:
+                ok = notify_status_sync(
+                    document_id=doc_id,
+                    status="completed",
+                    progress_percent=100,
+                    es_synced=True,
+                )
+                if ok:
+                    notified += 1
+
+            print(f"  PG callbacks sent: {notified}/{len(doc_ids_updated)} documents")
+        except Exception as e:
+            print(f"  PG callback failed (non-critical): {e}")
 
     # 결과 검증 (embedding_status 기반)
     verify_url = f"{ES_URL}/{INDEX}/_search"

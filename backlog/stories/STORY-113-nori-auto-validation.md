@@ -6,7 +6,7 @@
 |------|-----|
 | **Jira ID** | - |
 | **Epic** | 테스트 자동화 |
-| **Status** | To Do |
+| **Status** | Done |
 | **Priority** | P0 |
 | **Story Points** | 2 |
 | **Assignee** | QA |
@@ -33,20 +33,22 @@
 
 ## Acceptance Criteria
 
-- [ ] ES `_analyze` API 호출로 nori_tokenizer 실제 동작 검증 테스트 작성
-- [ ] 한국어 텍스트 형태소 분석 결과 검증 (standard analyzer와 다른 결과 확인)
-- [ ] CI/CD 파이프라인에 Nori 검증 스텝 추가
-- [ ] 검증 실패 시 파이프라인 중단 및 Slack 알림
+- [x] ES `_analyze` API 호출로 nori_tokenizer 실제 동작 검증 테스트 작성
+- [x] 한국어 텍스트 형태소 분석 결과 검증 (standard analyzer와 다른 결과 확인)
+- [ ] CI/CD 파이프라인에 Nori 검증 스텝 추가 → **DevOps 이관 (STORY-118 병합)**
+- [ ] 검증 실패 시 파이프라인 중단 및 Slack 알림 → **DevOps 이관**
 
 ---
 
 ## Tasks
 
-- [ ] `tests/integration/test_nori_analyzer.py` 작성
-- [ ] `_analyze` API 호출: `POST /{index}/_analyze` with `nori_tokenizer`
-- [ ] 기대 토큰 목록 검증 (standard vs nori 결과 비교)
-- [ ] GitHub Actions workflow에 Nori 검증 스텝 추가 (DevOps 협업)
-- [ ] 실패 시 Slack alerts 채널 알림 연동
+- [x] `tests/integration/test_nori_analyzer.py` 작성 — 4클래스 14메서드
+- [x] `_analyze` API 호출: `POST /{index}/_analyze` with `nori_tokenizer`
+- [x] 기대 토큰 목록 검증 (standard vs nori 결과 비교) — 14/14 PASS (TEST_MODE=docker)
+- [ ] GitHub Actions workflow에 Nori 검증 스텝 추가 → DevOps 이관
+- [ ] 실패 시 Slack alerts 채널 알림 연동 → DevOps 이관
+
+> **완료 메모** (2026-03-05): 실제 인덱스 analyzer 이름이 `nori_analyzer`가 아닌 `korean_analyzer` (nori_tokenizer + nori_part_of_speech 필터 조합)임을 확인하여 테스트 수정 완료. CI/CD 파이프라인 연동은 STORY-118(DevOps)에 이관.
 
 ---
 
@@ -71,8 +73,8 @@ assert "한국어" in tokens or len(tokens) > 1  # standard는 공백 분리만
 
 ## 테스트 계획
 
-- [ ] TEST_MODE=docker 환경에서 실행 (Mock 금지)
-- [ ] ES 컨테이너 기동 상태에서 통합 테스트 실행
+- [x] TEST_MODE=docker 환경에서 실행 (Mock 금지)
+- [x] ES 컨테이너 기동 상태에서 통합 테스트 실행 — 14/14 PASS
 
 ---
 

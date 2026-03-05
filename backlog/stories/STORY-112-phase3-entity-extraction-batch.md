@@ -6,7 +6,7 @@
 |------|-----|
 | **Jira ID** | - |
 | **Epic** | Graph RAG 고도화 |
-| **Status** | To Do |
+| **Status** | Done |
 | **Priority** | P0 |
 | **Story Points** | 3 |
 | **Assignee** | ETL/RAG |
@@ -31,26 +31,28 @@
 
 Phase 3 (엔티티 추출) 가 한 번도 실행되지 않아 Graph RAG가 사실상 동작하지 않는 상태.
 
+> **완료 결과** (2026-03-05): Entity 129,547개 / MENTIONS 405,651건 / RELATED_TO 300,140건 / 고아 Entity 0.070% (기준 < 1% PASS). 보완 추출 28청크 수행, PG entity_count 1,367건 동기화 완료.
+
 ---
 
 ## Acceptance Criteria
 
-- [ ] DeepSeek V3.2 기반 엔티티 추출 배치가 1,460개 문서 대상으로 실행 완료
-- [ ] Neo4j Entity 노드 10,000개 이상 생성
-- [ ] RELATED_TO 관계 생성 확인
-- [ ] PG entity_count 필드 업데이트 완료
-- [ ] Graph 검색 (`MATCH (e:Entity)`) 에서 결과 반환 확인
+- [x] DeepSeek V3.2 기반 엔티티 추출 배치가 1,460개 문서 대상으로 실행 완료
+- [x] Neo4j Entity 노드 10,000개 이상 생성 — **129,547개** 달성
+- [x] RELATED_TO 관계 생성 확인 — 300,140건
+- [x] PG entity_count 필드 업데이트 완료 — 1,367건 동기화
+- [x] Graph 검색 (`MATCH (e:Entity)`) 에서 결과 반환 확인
 
 ---
 
 ## Tasks
 
-- [ ] Docker 환경 기동 상태 확인 (Infra 선행)
-- [ ] STORY-088 MERGE 이슈 범위 RAG와 사전 확인
-- [ ] Phase 3 배치 실행 (100청크/회, 지수 백오프)
-- [ ] Neo4j Entity 수 확인 (`MATCH (e:Entity) RETURN count(e)`)
-- [ ] PG entity_count 보정 쿼리 실행
-- [ ] Graph 검색 동작 확인
+- [x] Docker 환경 기동 상태 확인 (Infra 선행)
+- [x] STORY-088 MERGE 이슈 범위 RAG와 사전 확인
+- [x] Phase 3 배치 실행 (100청크/회, 지수 백오프)
+- [x] Neo4j Entity 수 확인 (`MATCH (e:Entity) RETURN count(e)`) — 129,547개
+- [x] PG entity_count 보정 쿼리 실행 — 1,367건 동기화
+- [x] Graph 검색 동작 확인 — Docker/Python/Kubernetes 등 10건+ 반환 확인
 
 ---
 
@@ -70,9 +72,9 @@ Phase 3 (엔티티 추출) 가 한 번도 실행되지 않아 Graph RAG가 사�
 
 ## 테스트 계획
 
-- [ ] Neo4j Entity 수 검증 (목표: 10,000+)
-- [ ] Graph 검색 쿼리 동작 확인
-- [ ] PG-Neo4j entity_count 정합성 확인
+- [x] Neo4j Entity 수 검증 (목표: 10,000+) — 129,547개 달성
+- [x] Graph 검색 쿼리 동작 확인
+- [x] PG-Neo4j entity_count 정합성 확인 — 1,367건 동기화, 고아 0.070% (< 1% PASS)
 
 ---
 

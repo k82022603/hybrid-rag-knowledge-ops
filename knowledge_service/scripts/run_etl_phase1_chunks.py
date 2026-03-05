@@ -41,6 +41,7 @@ from app.services.initial_data_loader import (
     LoadResult,
     LoadStatus,
 )
+from app.services.status_callback import notify_status
 
 logger = get_logger(__name__)
 
@@ -180,8 +181,25 @@ async def _patched_load_source(self, source: DataSource) -> List[LoadResult]:
         if result.status == LoadStatus.SUCCESS:
             _progress["success"] += 1
             _progress["chunks_total"] += result.chunk_count
+            # STORY-089: Phase 1 완료 → PG 상태 콜백 (chunking, neo4j_synced=true)
+            if result.document_id:
+                await notify_status(
+                    document_id=result.document_id,
+                    status="chunking",
+                    progress_percent=30,
+                    chunk_count=result.chunk_count,
+                    neo4j_synced=True,
+                )
         elif result.status == LoadStatus.FAILED:
             _progress["failed"] += 1
+            # STORY-089: 실패 시 PG 상태 콜백
+            if result.document_id:
+                await notify_status(
+                    document_id=result.document_id,
+                    status="failed",
+                    progress_percent=0,
+                    error_message=result.error_message,
+                )
         elif result.status == LoadStatus.SKIPPED:
             _progress["skipped"] += 1
 

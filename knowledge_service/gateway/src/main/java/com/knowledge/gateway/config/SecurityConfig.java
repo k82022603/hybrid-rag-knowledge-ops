@@ -13,8 +13,10 @@ import org.springframework.security.config.annotation.web.reactive.EnableWebFlux
 import org.springframework.security.config.web.server.SecurityWebFiltersOrder;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
+import org.springframework.security.web.server.util.matcher.AndServerWebExchangeMatcher;
 import org.springframework.security.web.server.util.matcher.OrServerWebExchangeMatcher;
 import org.springframework.security.web.server.util.matcher.PathPatternParserServerWebExchangeMatcher;
+import org.springframework.security.web.server.util.matcher.ServerWebExchangeMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsConfigurationSource;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
@@ -58,6 +60,46 @@ public class SecurityConfig {
     private String allowedOrigins;
 
     /**
+     * Security chain for internal service callbacks (Order 1, highest priority).
+     *
+     * <p>Allows AI Service to call backend APIs without JWT token by using
+     * the {@code X-Internal-Service: ai-service} header as authentication.
+     * This is only trusted because the Docker internal network prevents external
+     * access with this header.
+     *
+     * <p>Matched paths:
+     * <ul>
+     *   <li>{@code POST /api/v1/documents/*&#47;status} - AI Service status callback</li>
+     * </ul>
+     */
+    @Bean
+    @Order(1)
+    public SecurityWebFilterChain internalServiceSecurityWebFilterChain(ServerHttpSecurity http) {
+        // Match requests that have X-Internal-Service: ai-service header
+        // AND match the callback path pattern
+        ServerWebExchangeMatcher internalServiceMatcher = new AndServerWebExchangeMatcher(
+            new PathPatternParserServerWebExchangeMatcher("/api/v1/documents/*/status", HttpMethod.POST),
+            exchange -> {
+                String internalServiceHeader = exchange.getRequest().getHeaders()
+                    .getFirst("X-Internal-Service");
+                if ("ai-service".equals(internalServiceHeader)) {
+                    return ServerWebExchangeMatcher.MatchResult.match();
+                }
+                return ServerWebExchangeMatcher.MatchResult.notMatch();
+            }
+        );
+
+        return http
+            .securityMatcher(internalServiceMatcher)
+            .csrf(ServerHttpSecurity.CsrfSpec::disable)
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .authorizeExchange(exchanges -> exchanges
+                .anyExchange().permitAll()
+            )
+            .build();
+    }
+
+    /**
      * Security chain for /api/auth/** and /api/v1/auth/** endpoints.
      *
      * <p>Public endpoints (no JWT validation):
@@ -75,7 +117,7 @@ public class SecurityConfig {
      * which will validate the token and invalidate the session.
      */
     @Bean
-    @Order(1)
+    @Order(2)
     public SecurityWebFilterChain authSecurityWebFilterChain(ServerHttpSecurity http) {
         return http
             .securityMatcher(new OrServerWebExchangeMatcher(
@@ -115,7 +157,7 @@ public class SecurityConfig {
      * </ol>
      */
     @Bean
-    @Order(2)
+    @Order(3)
     public SecurityWebFilterChain defaultSecurityWebFilterChain(ServerHttpSecurity http) {
         return http
             .csrf(ServerHttpSecurity.CsrfSpec::disable)

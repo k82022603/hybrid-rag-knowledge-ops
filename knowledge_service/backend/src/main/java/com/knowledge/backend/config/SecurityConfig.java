@@ -82,8 +82,9 @@ public class SecurityConfig {
                 .pathMatchers(HttpMethod.DELETE, "/api/v1/knowledge/**").hasAnyRole("DEVELOPER", "ADMIN")
 
                 // Legacy document endpoints
+                // Internal service status callback is handled by jwtAuthenticationFilter (X-Internal-Service header)
                 .pathMatchers(HttpMethod.GET, "/api/v1/documents/**").hasAnyRole("USER", "VIEWER", "DEVELOPER", "ADMIN")
-                .pathMatchers(HttpMethod.POST, "/api/v1/documents/**").hasAnyRole("USER", "DEVELOPER", "ADMIN")
+                .pathMatchers(HttpMethod.POST, "/api/v1/documents/**").hasAnyRole("USER", "DEVELOPER", "ADMIN", "INTERNAL_SERVICE")
                 .pathMatchers(HttpMethod.PUT, "/api/v1/documents/**").hasAnyRole("USER", "DEVELOPER", "ADMIN")
                 .pathMatchers(HttpMethod.DELETE, "/api/v1/documents/**").hasAnyRole("DEVELOPER", "ADMIN")
 
@@ -120,8 +121,11 @@ public class SecurityConfig {
     /**
      * Custom JWT Authentication WebFilter for self-issued tokens and Gateway-forwarded auth.
      *
-     * <p>Supports two authentication methods:
+     * <p>Supports three authentication methods:
      * <ol>
+     *   <li><strong>Internal Service</strong>: X-Internal-Service header with value "ai-service".
+     *       Used when AI Service calls backend APIs (e.g., status callback) without JWT token.
+     *       Grants INTERNAL_SERVICE role, trusted only within Docker internal network.</li>
      *   <li><strong>Direct JWT</strong>: Authorization header with Bearer token.
      *       Used when client sends token directly to backend (bypass gateway).</li>
      *   <li><strong>Gateway Forwarded</strong>: X-Auth-* headers set by Gateway.
@@ -131,6 +135,29 @@ public class SecurityConfig {
     private WebFilter jwtAuthenticationFilter() {
         return (exchange, chain) -> {
             HttpHeaders headers = exchange.getRequest().getHeaders();
+
+            // Method 0: Check for internal service header (X-Internal-Service: ai-service)
+            // AI Service calls backend status callback without JWT — grant INTERNAL_SERVICE role
+            String internalServiceHeader = headers.getFirst("X-Internal-Service");
+            if ("ai-service".equals(internalServiceHeader)) {
+                List<SimpleGrantedAuthority> authorities = List.of(
+                    new SimpleGrantedAuthority("ROLE_INTERNAL_SERVICE")
+                );
+                JwtUser jwtUser = new JwtUser(
+                    "ai-service",
+                    "ai-service",
+                    "ai-service@internal",
+                    null,
+                    null,
+                    Set.of("INTERNAL_SERVICE"),
+                    Set.of(),
+                    authorities
+                );
+                UsernamePasswordAuthenticationToken authToken =
+                    new UsernamePasswordAuthenticationToken(jwtUser, null, authorities);
+                return chain.filter(exchange)
+                    .contextWrite(ReactiveSecurityContextHolder.withAuthentication(authToken));
+            }
 
             // Method 1: Check for Gateway-forwarded authentication (X-Auth-* headers)
             // This takes priority because Gateway already validated the token

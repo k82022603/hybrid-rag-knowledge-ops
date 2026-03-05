@@ -171,8 +171,8 @@ class BackgroundWorker:
         """
         self._last_run = datetime.now(timezone.utc)
 
-        # 대기 중인 문서 조회
-        pending_docs = self._get_pending_documents()
+        # 대기 중인 문서 조회 (STORY-089: async로 전환 — PG polling 지원)
+        pending_docs = await self._get_pending_documents()
 
         if not pending_docs:
             logger.debug("No pending documents to process")
@@ -206,29 +206,53 @@ class BackgroundWorker:
                 except Exception as e:
                     logger.exception(f"Failed to process document {doc_id}: {e}")
 
-    def _get_pending_documents(self) -> List[Dict[str, Any]]:
+    async def _get_pending_documents(self) -> List[Dict[str, Any]]:
         """
-        대기 중인 문서 목록 조회
+        대기 중인 문서 목록 조회 (in-memory + PostgreSQL)
+
+        STORY-089: 컨테이너 재시작 후 in-memory가 비어도
+        PostgreSQL에서 uploaded/queued 상태 문서를 복구합니다.
 
         Returns:
             대기 중인 문서 딕셔너리 리스트
         """
-        if self._document_store is None:
-            # TODO: PostgreSQL 연동
+        if self._document_store is not None:
+            # in-memory 모드 (테스트 또는 기존 방식)
+            pending = []
+            for doc in self._document_store.values():
+                status = doc.get("status")
+                status_value = status.value if hasattr(status, "value") else str(status)
+
+                if status_value in (ProcessingStatus.QUEUED, ProcessingStatus.UPLOADED, "queued", "uploaded"):
+                    pending.append(doc)
+
+                if len(pending) >= self._batch_size:
+                    break
+
+            return pending
+
+        # STORY-089: PostgreSQL에서 pending 문서 폴링 (컨테이너 재시작 후 복구)
+        try:
+            from app.services.document_repository import get_document_repository
+
+            repo = await get_document_repository()
+
+            # uploaded 우선, 없으면 queued 조회
+            docs, _ = await repo.list_all(
+                status_filter="uploaded",
+                page=1,
+                page_size=self._batch_size,
+            )
+            if not docs:
+                docs, _ = await repo.list_all(
+                    status_filter="queued",
+                    page=1,
+                    page_size=self._batch_size,
+                )
+            return docs
+        except Exception as e:
+            logger.error(f"Failed to query pending documents from PostgreSQL: {e}")
             return []
-
-        pending = []
-        for doc in self._document_store.values():
-            status = doc.get("status")
-            status_value = status.value if hasattr(status, "value") else str(status)
-
-            if status_value in (ProcessingStatus.QUEUED, ProcessingStatus.UPLOADED, "queued", "uploaded"):
-                pending.append(doc)
-
-            if len(pending) >= self._batch_size:
-                break
-
-        return pending
 
     def get_stats(self) -> Dict[str, Any]:
         """

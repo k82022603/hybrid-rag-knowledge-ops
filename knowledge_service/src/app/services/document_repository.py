@@ -246,7 +246,7 @@ class DocumentRepository:
             document_id: 문서 UUID
             status: 새 처리 상태 문자열
             error_message: 에러 메시지 (실패 시)
-            progress_percent: 진행률 (현재 미사용, 향후 확장)
+            progress_percent: 진행률 0-100 (STORY-089: ETL Phase별 반영)
             chunk_count: 청크 수 (처리 완료 시)
             entity_count: 엔티티 수 (처리 완료 시)
             es_synced: ES 동기화 완료 여부
@@ -262,9 +262,16 @@ class DocumentRepository:
             "processing_status = $2",
             "processing_error = $3",
             "updated_at = $4",
+            "progress_percent = $5",  # STORY-089: 진행률 반영
         ]
-        params: list = [document_id, status, error_message, now]
-        idx = 5
+        params: list = [document_id, status, error_message, now, progress_percent]
+        idx = 6
+
+        # 완료 시 processed_at 기록
+        if status == "completed":
+            set_parts.append(f"processed_at = ${idx}")
+            params.append(now)
+            idx += 1
 
         if chunk_count is not None:
             set_parts.append(f"chunk_count = ${idx}")

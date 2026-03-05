@@ -35,6 +35,7 @@ os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.services.status_callback import notify_status
 
 logger = get_logger(__name__)
 
@@ -297,6 +298,14 @@ async def process_document(
             logger.info(
                 "Phase 2 doc processed: %s, entities=%d, rels=%d, time=%.1fms",
                 doc_id[:8], len(entities), len(relationships), elapsed_ms,
+            )
+
+            # STORY-089: Phase 3 완료 → PG entity_count 업데이트 (status=completed 유지)
+            await notify_status(
+                document_id=doc_id,
+                status="completed",
+                progress_percent=100,
+                entity_count=len(entities),
             )
 
         except Exception as e:

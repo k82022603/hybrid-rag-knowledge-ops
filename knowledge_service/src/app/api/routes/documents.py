@@ -449,7 +449,22 @@ async def upload_document(
                 result.chunk_count,
             )
         except Exception as e:
-            logger.warning("Auto-processing failed (will retry via background worker): %s", e)
+            logger.error("Auto-processing failed: %s - %s", document_id, e)
+            # STORY-089: 예외 발생 시 명시적으로 failed 상태 기록 (uploaded 상태 정체 방지)
+            try:
+                from app.services.document_repository import get_document_repository
+                repo = await get_document_repository()
+                await repo.update_status(
+                    document_id=document_id,
+                    status="failed",
+                    error_message=f"자동 처리 실패: {str(e)}",
+                )
+            except Exception as pg_err:
+                logger.error("Failed to record auto-process failure in PG: %s", pg_err)
+            # in-memory도 업데이트
+            if document_id in _document_store:
+                _document_store[document_id]["status"] = "failed"
+                _document_store[document_id]["error_message"] = f"자동 처리 실패: {str(e)}"
 
     asyncio.create_task(_auto_process_document())
 
@@ -1139,6 +1154,113 @@ async def download_document(document_id: UUID):
         status_code=status.HTTP_404_NOT_FOUND,
         detail=f"파일이 서버에 존재하지 않습니다: {filename}",
     )
+
+
+# ============================================================================
+# STORY-089: 상태 콜백 API (AI Service → Backend → PG 동기화)
+# ============================================================================
+
+
+@router.post(
+    "/{document_id}/status",
+    summary="문서 처리 상태 업데이트 (내부 서비스 콜백)",
+    description="AI Service 파이프라인에서 처리 단계 완료 시 PG 상태를 업데이트합니다",
+    status_code=status.HTTP_200_OK,
+)
+async def update_document_processing_status(
+    document_id: UUID,
+    request_body: Dict[str, Any],
+) -> Dict[str, Any]:
+    """
+    AI Service → PG 문서 처리 상태 동기화 콜백 API
+
+    ETL 3-Phase 배치 처리 또는 AI Service 파이프라인에서
+    각 단계 완료 시 호출하여 PG documents 테이블을 업데이트합니다.
+
+    Request Body:
+        status: 처리 상태 (parsing/chunking/embedding/storing/extracting/completed/failed)
+        progress_percent: 진행률 0-100 (선택)
+        error_message: 에러 메시지 (실패 시)
+        metadata: 추가 정보 (chunk_count, entity_count, es_synced, neo4j_synced)
+
+    Args:
+        document_id: 문서 UUID
+
+    Returns:
+        업데이트된 상태 정보
+
+    Raises:
+        HTTPException 400: 유효하지 않은 상태값
+        HTTPException 404: 문서를 찾을 수 없음
+    """
+    from app.services.document_processing_pipeline import ProcessingStatus
+    from datetime import datetime, timezone
+
+    _CALLBACK_VALID_STATUSES = {
+        ProcessingStatus.PARSING,
+        ProcessingStatus.CHUNKING,
+        ProcessingStatus.EMBEDDING,
+        ProcessingStatus.STORING,
+        ProcessingStatus.EXTRACTING,
+        ProcessingStatus.COMPLETED,
+        ProcessingStatus.FAILED,
+    }
+
+    new_status = request_body.get("status")
+    if not new_status or new_status not in _CALLBACK_VALID_STATUSES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"유효하지 않은 상태값: {new_status}. 허용값: {sorted(_CALLBACK_VALID_STATUSES)}",
+        )
+
+    progress_percent = request_body.get("progress_percent", 0)
+    if not isinstance(progress_percent, int) or not (0 <= progress_percent <= 100):
+        progress_percent = 0
+
+    error_message = request_body.get("error_message")
+    metadata = request_body.get("metadata", {})
+
+    # In-memory 저장소 업데이트
+    now = datetime.now(timezone.utc)
+    if document_id in _document_store:
+        _document_store[document_id]["status"] = new_status
+        _document_store[document_id]["progress_percent"] = progress_percent
+        _document_store[document_id]["updated_at"] = now
+        if error_message is not None:
+            _document_store[document_id]["error_message"] = error_message
+
+    # PG 업데이트
+    try:
+        from app.services.document_repository import get_document_repository
+
+        repo = await get_document_repository()
+        await repo.update_status(
+            document_id=document_id,
+            status=new_status,
+            error_message=error_message,
+            progress_percent=progress_percent,
+            chunk_count=metadata.get("chunk_count"),
+            entity_count=metadata.get("entity_count"),
+            es_synced=metadata.get("es_synced"),
+            neo4j_synced=metadata.get("neo4j_synced"),
+        )
+        logger.info(
+            "Document status updated via callback: %s -> %s (%d%%)",
+            document_id, new_status, progress_percent,
+        )
+    except Exception as e:
+        logger.error("PG status update failed: %s - %s", document_id, e)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"상태 업데이트에 실패했습니다: {e}",
+        )
+
+    return {
+        "document_id": str(document_id),
+        "status": new_status,
+        "progress_percent": progress_percent,
+        "updated_at": now.isoformat(),
+    }
 
 
 # ============================================================================

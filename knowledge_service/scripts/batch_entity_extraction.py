@@ -141,16 +141,26 @@ async def save_entities_to_neo4j(
 ):
     """추출된 엔티티와 관계를 Neo4j에 저장"""
 
+    # 엔티티 타입 → Neo4j 추가 라벨 매핑 (neo4j_storage.py와 동일)
+    _TYPE_TO_EXTRA_LABEL = {
+        "Person": "Person",
+        "Organization": "Person",   # Organization은 Person 라벨 사용
+        "Technology": "Technology",
+        "Project": "Topic",
+        "Concept": "Topic",
+        "Date": "Keyword",
+        "Location": "Keyword",
+    }
+
     with driver.session() as session:
         # 1. Entity 노드 생성 (MERGE로 중복 방지)
         for entity in entities:
             session.run(
                 """
                 MERGE (e:Entity {name: $name})
-                ON CREATE SET e.type = $type,
-                              e.description = $description,
-                              e.created_at = datetime()
-                ON MATCH SET e.description = COALESCE(e.description, $description)
+                SET e.entity_type = $type,
+                    e.description = COALESCE(e.description, $description),
+                    e.updated_at = datetime()
                 WITH e
                 MATCH (c:Chunk {id: $chunk_id})
                 MERGE (c)-[:MENTIONS]->(e)
@@ -161,19 +171,13 @@ async def save_entities_to_neo4j(
                 chunk_id=chunk_id,
             )
 
-            # 타입별 추가 레이블
+            # 타입별 추가 라벨 설정 (모든 타입 포함)
             type_label = entity["type"]
-            if type_label in (
-                "Person",
-                "Organization",
-                "Technology",
-                "Project",
-                "Concept",
-            ):
-                session.run(
-                    f"MATCH (e:Entity {{name: $name}}) SET e:{type_label}",
-                    name=entity["name"],
-                )
+            extra_label = _TYPE_TO_EXTRA_LABEL.get(type_label, "Keyword")
+            session.run(
+                f"MATCH (e:Entity {{name: $name}}) SET e:{extra_label}",
+                name=entity["name"],
+            )
 
         # 2. Entity 간 관계 생성
         for rel in relationships:

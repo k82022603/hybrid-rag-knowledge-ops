@@ -43,6 +43,7 @@ from app.storage.neo4j_storage import (
     Neo4jStorageService,
     get_neo4j_storage_service,
 )
+from app.services.status_callback import notify_status
 
 logger = get_logger(__name__)
 
@@ -593,6 +594,7 @@ class DocumentProcessingPipeline:
                 status=ProcessingStatus.PROCESSING,
                 progress_percent=5,
             )
+            await notify_status(document_id, ProcessingStatus.PROCESSING, progress_percent=5)
 
             # 1. 파일 다운로드
             await self.repository.update_document_status(
@@ -600,6 +602,7 @@ class DocumentProcessingPipeline:
                 status=ProcessingStatus.PARSING,
                 progress_percent=10,
             )
+            await notify_status(document_id, ProcessingStatus.PARSING, progress_percent=10)
 
             file_data = await FileStorage.download_file(storage_path)
 
@@ -648,6 +651,7 @@ class DocumentProcessingPipeline:
                     status=ProcessingStatus.CHUNKING,
                     progress_percent=30,
                 )
+                await notify_status(document_id, ProcessingStatus.CHUNKING, progress_percent=30)
 
                 chunk_result = self.chunker.chunk_document(parsed_doc)
                 raw_chunks = chunk_result.chunks
@@ -691,6 +695,7 @@ class DocumentProcessingPipeline:
                     status=ProcessingStatus.EMBEDDING,
                     progress_percent=50,
                 )
+                await notify_status(document_id, ProcessingStatus.EMBEDDING, progress_percent=50)
 
                 chunk_texts = [c.content for c in chunks]
                 chunk_ids = [c.id for c in chunks]
@@ -709,6 +714,7 @@ class DocumentProcessingPipeline:
                     status=ProcessingStatus.STORING,
                     progress_percent=70,
                 )
+                await notify_status(document_id, ProcessingStatus.STORING, progress_percent=70)
 
                 # 문서 메타데이터
                 doc_metadata = {
@@ -800,6 +806,7 @@ class DocumentProcessingPipeline:
                         status=ProcessingStatus.EXTRACTING,
                         progress_percent=85,
                     )
+                    await notify_status(document_id, ProcessingStatus.EXTRACTING, progress_percent=85)
 
                     try:
                         # 전체 문서 수준에서 엔티티 + 관계 추출
@@ -886,6 +893,16 @@ class DocumentProcessingPipeline:
                         "neo4j_synced": neo4j_synced,
                     },
                 )
+                # STORY-089: Backend API 콜백으로 PG 최종 상태 동기화
+                await notify_status(
+                    document_id,
+                    ProcessingStatus.COMPLETED,
+                    progress_percent=100,
+                    chunk_count=len(chunks),
+                    entity_count=entity_count,
+                    es_synced=es_synced,
+                    neo4j_synced=neo4j_synced,
+                )
 
                 logger.info(
                     f"Document processing completed: {document_id}, "
@@ -942,6 +959,13 @@ class DocumentProcessingPipeline:
         await self.repository.update_document_status(
             document_id=document_id,
             status=ProcessingStatus.FAILED,
+            progress_percent=0,
+            error_message=error_message,
+        )
+        # STORY-089: 실패 시에도 Backend API 콜백으로 PG 상태 동기화
+        await notify_status(
+            document_id,
+            ProcessingStatus.FAILED,
             progress_percent=0,
             error_message=error_message,
         )

@@ -42,10 +42,10 @@ Key Objectives:
 
 | Priority | ID | Title | Points | Assignee | Status | Depends On |
 |----------|-----|-------|--------|----------|--------|------------|
-| P0 | STORY-112 | Phase 3 엔티티 추출 배치 실행 (96K 청크) | 3 | ETL/RAG | To Do | - |
+| P0 | STORY-112 | Phase 3 엔티티 추출 배치 실행 (96K 청크) | 3 | ETL/RAG | **Done** | - |
 | P0 | STORY-089 | PG-AI Service 문서 동기화 (Reconciliation + Background Worker) | 5 | ETL/Backend | To Do | - |
-| P0 | STORY-113 | Nori 플러그인 자동 검증 (_analyze API 기반) | 2 | QA | To Do | - |
-| P0 | STORY-114 | Init-DB depends_on service_healthy 전면 적용 | 1 | Infra | To Do | - |
+| P0 | STORY-113 | Nori 플러그인 자동 검증 (_analyze API 기반) | 2 | QA | **Done** | - |
+| P0 | STORY-114 | Init-DB depends_on service_healthy 전면 적용 | 1 | Infra | **Done** | - |
 
 **P0 소계**: 4건, 11 SP
 
