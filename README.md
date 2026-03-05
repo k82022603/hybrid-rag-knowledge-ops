@@ -40,9 +40,9 @@ An enterprise knowledge platform that automatically processes internal documents
 
 | 항목 | 내용 |
 |------|------|
-| **Version** | 5.2 (Final) |
-| **프로젝트 기간** | 2026-01-12 ~ 2026-02-18 (38일, 12 스프린트) |
-| **Status** | **종료** — 사용자 테스트 완료, 산출물 10종, RAGAS v11 A- 등급 |
+| **Version** | 5.3 (Enhancement) |
+| **프로젝트 기간** | 2026-01-12 ~ 진행중 (Sprint 09 고도화) |
+| **Status** | **고도화** — Sprint 09 P2 QA 테스트 완료 (66 TC / 100% PASS) |
 | **Test Coverage** | 97% avg across 5 core modules (Docker mode) |
 | **CI/CD** | 8 GitHub Actions workflows |
 | **AI Model** | Claude Opus 4.6 / Sonnet 4.6 + Agent Teams (13 agents, tiered) |
