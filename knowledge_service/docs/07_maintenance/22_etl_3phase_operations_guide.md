@@ -1,6 +1,6 @@
 # ETL 3-Phase 파이프라인 운영 가이드
 
-**Version**: 1.2 | **Updated**: 2026-02-25
+**Version**: 1.3 | **Updated**: 2026-03-05
 
 ---
 
@@ -248,7 +248,29 @@ docker exec kp-ai-service bash -c 'nohup bash -c "ENTITY_MIN_TOKENS=50 ENTITY_CO
 - Neo4j: `c.entity_extracted=true`, `c.entity_count` 업데이트
 - 체크포인트 기반 중단/재개 지원
 
-### 4.4 모니터링
+### 4.4 지수 백오프 재시도 (STORY-120, v1.3 추가)
+
+`run_etl_phase2_entities.py`에 DeepSeek API 호출 및 Neo4j 저장 실패 시 지수 백오프 재시도 로직이 적용되어 있다.
+
+```python
+# 재시도 설정 (환경변수로 조정 가능)
+ETL_MAX_RETRIES=3          # 최대 재시도 횟수 (기본: 3)
+ETL_RETRY_BASE_DELAY=2.0   # 초기 대기(초) (기본: 2.0)
+ETL_RETRY_MAX_DELAY=30.0   # 최대 대기(초) (기본: 30.0)
+```
+
+| 시도 | 대기시간 | 비고 |
+|:----:|:--------:|------|
+| 1차 실패 | ~2초 | base_delay + jitter |
+| 2차 실패 | ~4초 | 2^1 × base + jitter |
+| 3차 실패 | ~8초 | 2^2 × base + jitter, max_delay 이내 |
+| 최종 실패 | 예외 발생 | KeyboardInterrupt/SystemExit는 즉시 전파 |
+
+적용 대상:
+- **엔티티/관계 추출**: `entity_extractor.extract_full()` — DeepSeek API 호출
+- **Neo4j 저장**: `store_entities_to_neo4j()` — 드라이버 연결 실패 대응
+
+### 4.5 모니터링
 
 ```bash
 # 각 워커 로그 확인
@@ -270,14 +292,15 @@ d.close()
 "'
 ```
 
-### 4.5 실행 이력
+### 4.6 실행 이력
 
 | 실행 | 날짜 | 설정 | 대상 | 결과 |
 |------|------|------|------|------|
 | 1차 | 2026-02-15 | MIN_TOKENS=100, 2워커 | 16,185건 | 완료 (70,855 엔티티) |
-| 2차 | 2026-02-16 | MIN_TOKENS=50, **3워커** | 23,074건 | **진행 중** |
+| 2차 | 2026-02-16 | MIN_TOKENS=50, **3워커** | 23,074건 | 완료 |
+| 최종 | 2026-03-05 | 검증 | 129,349 Entity | 정합성 확인 완료 |
 
-### 4.6 token_count < 50 쓰레기 데이터
+### 4.7 token_count < 50 쓰레기 데이터
 
 | 범위 | 청크 수 | 설명 |
 |------|--------:|------|
@@ -289,9 +312,67 @@ d.close()
 
 ---
 
-## 5. 트러블슈팅
+## 5. 유지보수: 고아 Entity 노드 정리 (STORY-120, v1.3 추가)
 
-### 5.1 nohup vs docker exec -d
+Phase 3 완료 후, Chunk가 삭제/재처리되면 연결이 끊어진 **고아 Entity 노드**가 발생할 수 있다.
+정기적으로 고아 비율을 **1% 미만**으로 유지해야 한다.
+
+### 5.1 고아 Entity 정의
+
+```
+고아 Entity = MENTIONS 관계가 없는 Entity 노드
+즉, 어떤 Chunk와도 연결되지 않은 Entity (RELATED_TO만 남아 있을 수 있음)
+```
+
+### 5.2 실행 방법
+
+```bash
+# 1. 현황 확인 (dry-run, 삭제 없음)
+docker exec kp-ai-service python3 /app/scripts/cleanup_orphan_nodes.py --dry-run
+
+# 2. 고아 노드 삭제 실행
+docker exec kp-ai-service python3 /app/scripts/cleanup_orphan_nodes.py
+
+# 3. 배치 크기 지정 (기본: 200)
+docker exec kp-ai-service python3 /app/scripts/cleanup_orphan_nodes.py --batch-size 100
+```
+
+### 5.3 파라미터
+
+| 파라미터 | 환경변수 | 기본값 | 설명 |
+|---------|---------|-------|------|
+| 배치 크기 | `ORPHAN_BATCH_SIZE` | 200 | 1회 삭제 배치 단위 |
+| 허용 비율 | `ORPHAN_MAX_RATIO` | 0.01 (1%) | 초과 시 비정상 종료 (exit 1) |
+
+### 5.4 동작 흐름
+
+```
+1. 초기 통계 수집 (전체 Entity / 고아 Entity / Chunk / RELATED_TO)
+2. dry-run 모드 → 고아 Entity 샘플 20건 출력 후 종료
+3. 삭제 모드 → 배치 단위로 DETACH DELETE (RELATED_TO 관계 포함)
+4. 최종 통계 출력 + 고아 비율 기준 판정
+5. 고아 비율 > 1% → exit 1 (CI/스케줄러에서 알림 용도)
+```
+
+### 5.5 실행 시점 권고
+
+| 시점 | 빈도 | 비고 |
+|------|------|------|
+| Phase 3 완료 직후 | 매번 | 추출 과정 중 발생한 고아 정리 |
+| 문서 삭제/재업로드 후 | 필요 시 | Chunk 삭제 → 연결 끊어짐 |
+| 정기 유지보수 | 월 1회 | 운영 안정성 점검 |
+
+### 5.6 실행 이력
+
+| 날짜 | 정리 전 고아 | 정리 후 고아 | 전체 Entity | 비율 |
+|------|:-----------:|:-----------:|:-----------:|:----:|
+| 2026-03-05 | 0 | 0 | 129,349 | 0.00% |
+
+---
+
+## 6. 트러블슈팅
+
+### 6.1 nohup vs docker exec -d
 
 ```bash
 # ❌ docker exec -d는 셸 끊기면 종료됨
@@ -301,7 +382,7 @@ docker exec -d kp-ai-service python3 /app/scripts/run_etl.py
 docker exec kp-ai-service bash -c "nohup python3 /app/scripts/run_etl.py > /tmp/etl.log 2>&1 &"
 ```
 
-### 5.2 PG chunk_count 수동 보정
+### 6.2 PG chunk_count 수동 보정
 
 Phase 1 코드 버그로 chunk_count가 잘못 저장된 경우:
 
@@ -331,7 +412,7 @@ docker cp /tmp/fix.sql kp-postgresql:/tmp/fix.sql
 docker exec kp-postgresql psql -U knowledge -d knowledge -f /tmp/fix.sql
 ```
 
-### 5.3 이전 모니터 프로세스 충돌
+### 6.3 이전 모니터 프로세스 충돌
 
 세션 전환 시 이전 모니터가 계속 실행되어 낡은 데이터를 Slack에 보내는 문제:
 
@@ -346,7 +427,7 @@ kill <OLD_PID>
 nohup bash knowledge_service/scripts/etl_phase1_monitor.sh > /tmp/etl_phase1_monitor.log 2>&1 &
 ```
 
-### 5.4 DB 연결 정보
+### 6.4 DB 연결 정보
 
 | DB | Host | User | Password | Database |
 |----|------|------|----------|----------|
@@ -354,7 +435,7 @@ nohup bash knowledge_service/scripts/etl_phase1_monitor.sh > /tmp/etl_phase1_mon
 | Neo4j | localhost:7687 | neo4j | neo4j_dev_2026! | neo4j |
 | Elasticsearch | localhost:9200 | - | - | knowledge_chunks |
 
-### 5.5 Bash에서 특수문자 주의
+### 6.5 Bash에서 특수문자 주의
 
 curl 요청 시 `!` 문자는 bash 히스토리 확장으로 해석됨:
 
@@ -371,7 +452,7 @@ curl -d @/tmp/req.json
 
 ---
 
-## 6. 스크립트 목록
+## 7. 스크립트 목록
 
 | 스크립트/파일 | 위치 | Phase | 용도 |
 |-------------|------|:-----:|------|
@@ -381,6 +462,8 @@ curl -d @/tmp/req.json
 | `import_embeddings.py` | `knowledge_service/scripts/` | 2 | ES Bulk Import (GPU 결과) |
 | `verify_3store_consistency.py` | `knowledge_service/scripts/` | 2 | 3-Store 정합성 검증 |
 | `batch_entity_extraction.py` | `knowledge_service/scripts/` | 3 | 엔티티 추출 (멀티워커) |
+| `run_etl_phase2_entities.py` | `knowledge_service/scripts/` | 3 | Phase 3 엔티티 추출 (지수 백오프 재시도) |
+| **`cleanup_orphan_nodes.py`** | `knowledge_service/scripts/` | **유지보수** | **고아 Entity 노드 정리 (dry-run/배치 삭제)** |
 | `etl_v2_monitor.sh` | `knowledge_service/scripts/` | - | 전체 ETL v2 모니터 |
 | `embedding_monitor.sh` | `knowledge_service/scripts/` | - | 임베딩 전용 모니터 |
 | `send_slack.sh` | `scripts/` | - | Slack 메시지 전송 |
@@ -389,7 +472,7 @@ curl -d @/tmp/req.json
 
 ---
 
-## 7. 운영 체크리스트
+## 8. 운영 체크리스트
 
 ### 세션 시작 시
 - [ ] `ps aux | grep monitor | grep -v grep` → 이전 모니터 확인/종료
@@ -402,6 +485,11 @@ curl -d @/tmp/req.json
 - [ ] PG chunk_count/entity_count 정합성 검증
 - [ ] 모니터 스크립트 교체
 - [ ] Slack 보고
+
+### Phase 3 완료 후 (또는 월 1회 정기)
+- [ ] 고아 Entity 점검: `cleanup_orphan_nodes.py --dry-run`
+- [ ] 고아 비율 > 1% 시 삭제 실행: `cleanup_orphan_nodes.py`
+- [ ] 결과를 §5.6 실행 이력 테이블에 기록
 
 ### 세션 종료 시
 - [ ] 실행 중 프로세스 기록 (PID, 내용)

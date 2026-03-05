@@ -7,7 +7,7 @@
 | **Duration** | 2026-03-04 ~ 2026-03-17 (2 weeks) |
 | **Velocity (Planned)** | 38 pts (13 Stories) |
 | **Velocity (Actual)** | - |
-| **Status** | planning |
+| **Status** | in_progress |
 | **Jira Sprint ID** | - |
 | **Objective** | Graph RAG 데이터 구축 + 데이터 정합성 + 검색 품질 고도화 + Observability 완성 |
 
@@ -43,7 +43,7 @@ Key Objectives:
 | Priority | ID | Title | Points | Assignee | Status | Depends On |
 |----------|-----|-------|--------|----------|--------|------------|
 | P0 | STORY-112 | Phase 3 엔티티 추출 배치 실행 (96K 청크) | 3 | ETL/RAG | **Done** | - |
-| P0 | STORY-089 | PG-AI Service 문서 동기화 (Reconciliation + Background Worker) | 5 | ETL/Backend | To Do | - |
+| P0 | STORY-089 | PG-AI Service 문서 동기화 (Reconciliation + Background Worker) | 5 | ETL/Backend | **Done** | - |
 | P0 | STORY-113 | Nori 플러그인 자동 검증 (_analyze API 기반) | 2 | QA | **Done** | - |
 | P0 | STORY-114 | Init-DB depends_on service_healthy 전면 적용 | 1 | Infra | **Done** | - |
 
@@ -56,7 +56,7 @@ Key Objectives:
 | P1 | STORY-088 | Neo4j Entity 라벨 누락 수정 (neo4j_storage.py + search.py) | 2 | RAG/DB | **Done** | STORY-112 |
 | P1 | STORY-096 | RRF 하이라이팅 + 소스별 점수 메타데이터 (hybrid_search 경로) | 5 | RAG/Backend/Frontend | To Do | - |
 | P1 | STORY-090 | 쿼리 임베딩 캐싱 + BGE-M3 비동기 처리 확인 | 3 | RAG/Backend | To Do | - |
-| P1 | STORY-115 | bge-reranker-v2-m3 ONNX 업그레이드 | 2 | RAG | To Do | - |
+| P1 | STORY-115 | bge-reranker-v2-m3 ONNX 업그레이드 | 2 | RAG | **Done** | - |
 | P1 | STORY-116 | ES 메모리 512MB → 1GB (docker-compose.yml) | 1 | Infra | **Done** | - |
 | P1 | STORY-117 | Prometheus Exporter 활성화 (postgres + redis + nginx) | 3 | DevOps/Infra | **Done** | - |
 | P1 | STORY-118 | RAGAS 베이스라인 측정 + CI/CD 통합 | 3 | QA/DevOps | To Do | - |
@@ -185,7 +185,7 @@ flowchart TD
 |--------|---------|--------|-------------|
 | RAGAS Mean | 0.711 | 0.75+ | RAGAS 평가 |
 | RAGAS Precision | 0.618 | 0.70+ | RAGAS 평가 |
-| Neo4j Entity 수 | 0개 | 10,000+ | Neo4j 쿼리 |
+| Neo4j Entity 수 | **129,349개** | 10,000+ ✅ | Neo4j 쿼리 |
 | Hybrid Search P95 | 984ms | 700ms 이하 (캐싱 적용) | Terminal Retriever |
 | Test Coverage | 97% | 97%+ 유지 | pytest |
 
