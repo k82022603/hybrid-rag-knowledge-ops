@@ -81,7 +81,7 @@ class BGEReranker:
     쿼리와 문서 쌍의 관련성을 정밀하게 측정하여 검색 결과를 재순위화합니다.
 
     Args:
-        model_name: HuggingFace 모델 이름 (기본: BAAI/bge-reranker-v2-m3)
+        model_name: HuggingFace 모델 이름 (기본: BAAI/bge-reranker-v2-m3, STORY-115)
         device: 연산 디바이스 ('cpu', 'cuda', None=자동감지)
         batch_size: 배치 처리 크기 (기본: 32)
         max_length: 입력 최대 토큰 수 (기본: 512)
@@ -108,7 +108,7 @@ class BGEReranker:
 
     def __init__(
         self,
-        model_name: str = "BAAI/bge-reranker-base",
+        model_name: str = "BAAI/bge-reranker-v2-m3",
         device: Optional[str] = None,
         batch_size: int = 32,
         max_length: int = 512,
@@ -765,7 +765,7 @@ _reranker: Optional[BGEReranker] = None
 
 
 def get_reranker(
-    model_name: str = "BAAI/bge-reranker-base",
+    model_name: str = "BAAI/bge-reranker-v2-m3",
     device: Optional[str] = None,
     batch_size: int = 32,
     max_length: int = 512,

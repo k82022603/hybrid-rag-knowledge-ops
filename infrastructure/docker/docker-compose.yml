@@ -1027,3 +1027,105 @@ services:
     restart: "no"
     profiles:
       - init
+
+  # ===========================================================================
+  # EXPORTER LAYER (3 containers)
+  # ===========================================================================
+
+  # ---------------------------------------------------------------------------
+  # 19. postgres-exporter - PostgreSQL Metrics Exporter
+  # ---------------------------------------------------------------------------
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    container_name: kp-postgres-exporter
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - DATA_SOURCE_NAME=postgresql://${DB_USERNAME:-knowledge}:${DB_PASSWORD}@postgresql:5432/${DB_NAME:-knowledge}?sslmode=disable
+      - PG_EXPORTER_AUTO_DISCOVER_DATABASES=true
+    networks:
+      - database
+      - monitoring
+    ports:
+      - 9187:9187
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, wget, --quiet, --tries=1, -O, /dev/null, http://localhost:9187/metrics]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  # ---------------------------------------------------------------------------
+  # 20. redis-exporter - Redis Metrics Exporter
+  # ---------------------------------------------------------------------------
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.58.0
+    container_name: kp-redis-exporter
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      - REDIS_ADDR=redis://redis:6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+    networks:
+      - database
+      - monitoring
+    ports:
+      - 9121:9121
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, wget, --quiet, --tries=1, -O, /dev/null, http://localhost:9121/metrics]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  # ---------------------------------------------------------------------------
+  # 21. nginx-exporter - Nginx Metrics Exporter (via stub_status)
+  # ---------------------------------------------------------------------------
+  nginx-exporter:
+    image: nginx/nginx-prometheus-exporter:1.1.0
+    container_name: kp-nginx-exporter
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    command:
+      - '--nginx.scrape-uri=http://nginx:80/stub_status'
+    networks:
+      - frontend
+      - monitoring
+    ports:
+      - 9113:9113
+    depends_on:
+      nginx:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, wget, --quiet, --tries=1, -O, /dev/null, http://localhost:9113/metrics]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 64M
+        reservations:
+          memory: 32M

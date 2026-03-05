@@ -53,15 +53,15 @@ Key Objectives:
 
 | Priority | ID | Title | Points | Assignee | Status | Depends On |
 |----------|-----|-------|--------|----------|--------|------------|
-| P1 | STORY-088 | Neo4j Entity 라벨 누락 수정 (neo4j_storage.py + search.py) | 2 | RAG/DB | To Do | STORY-112 |
+| P1 | STORY-088 | Neo4j Entity 라벨 누락 수정 (neo4j_storage.py + search.py) | 2 | RAG/DB | **Done** | STORY-112 |
 | P1 | STORY-096 | RRF 하이라이팅 + 소스별 점수 메타데이터 (hybrid_search 경로) | 5 | RAG/Backend/Frontend | To Do | - |
 | P1 | STORY-090 | 쿼리 임베딩 캐싱 + BGE-M3 비동기 처리 확인 | 3 | RAG/Backend | To Do | - |
 | P1 | STORY-115 | bge-reranker-v2-m3 ONNX 업그레이드 | 2 | RAG | To Do | - |
-| P1 | STORY-116 | ES 메모리 512MB → 1GB (docker-compose.yml) | 1 | Infra | To Do | - |
-| P1 | STORY-117 | Prometheus Exporter 활성화 (postgres + redis + nginx) | 3 | DevOps/Infra | To Do | - |
+| P1 | STORY-116 | ES 메모리 512MB → 1GB (docker-compose.yml) | 1 | Infra | **Done** | - |
+| P1 | STORY-117 | Prometheus Exporter 활성화 (postgres + redis + nginx) | 3 | DevOps/Infra | **Done** | - |
 | P1 | STORY-118 | RAGAS 베이스라인 측정 + CI/CD 통합 | 3 | QA/DevOps | To Do | - |
 | P1 | STORY-119 | RAGAS 종합 리포트 작성 (v1~v10 트렌드) | 3 | Documenter | To Do | - |
-| P1 | STORY-120 | ETL 실패 재시도 + 고아 노드 자동 정리 | 3 | ETL | To Do | STORY-112 |
+| P1 | STORY-120 | ETL 실패 재시도 + 고아 노드 자동 정리 | 3 | ETL | **Done** | STORY-112 |
 
 **P1 소계**: 9건, 25 SP
 

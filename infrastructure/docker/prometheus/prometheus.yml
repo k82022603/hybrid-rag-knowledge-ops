@@ -112,14 +112,13 @@ scrape_configs:
   # ---------------------------------------------------------------------------
   # Database Layer
   # ---------------------------------------------------------------------------
-  # PostgreSQL (via postgres-exporter if available)
-  # Uncomment when postgres-exporter is added
-  # - job_name: 'postgresql'
-  #   static_configs:
-  #     - targets: ['postgres-exporter:9187']
-  #       labels:
-  #         service: 'postgresql'
-  #         layer: 'database'
+  # PostgreSQL (via postgres-exporter)
+  - job_name: 'postgresql'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+        labels:
+          service: 'postgresql'
+          layer: 'database'
 
   # Elasticsearch
   - job_name: 'elasticsearch'
@@ -142,14 +141,13 @@ scrape_configs:
           service: 'neo4j'
           layer: 'database'
 
-  # Redis (via redis-exporter if available)
-  # Uncomment when redis-exporter is added
-  # - job_name: 'redis'
-  #   static_configs:
-  #     - targets: ['redis-exporter:9121']
-  #       labels:
-  #         service: 'redis'
-  #         layer: 'database'
+  # Redis (via redis-exporter)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+        labels:
+          service: 'redis'
+          layer: 'database'
 
   # ---------------------------------------------------------------------------
   # Monitoring Layer
@@ -181,11 +179,10 @@ scrape_configs:
   # ---------------------------------------------------------------------------
   # Proxy Layer
   # ---------------------------------------------------------------------------
-  # Nginx (via nginx-prometheus-exporter if available)
-  # Uncomment when nginx-exporter is added
-  # - job_name: 'nginx'
-  #   static_configs:
-  #     - targets: ['nginx-exporter:9113']
-  #       labels:
-  #         service: 'nginx'
-  #         layer: 'proxy'
+  # Nginx (via nginx-prometheus-exporter)
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx-exporter:9113']
+        labels:
+          service: 'nginx'
+          layer: 'proxy'

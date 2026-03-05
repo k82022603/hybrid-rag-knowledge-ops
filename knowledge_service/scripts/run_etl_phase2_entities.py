@@ -21,6 +21,7 @@ import argparse
 import asyncio
 import json
 import os
+import random
 import sys
 import time
 from datetime import datetime
@@ -41,6 +42,44 @@ logger = get_logger(__name__)
 
 PROGRESS_FILE = "/app/knowledge_data/etl_phase2_progress.json"
 COMPLETED_FILE = "/app/knowledge_data/etl_phase2_completed.json"
+
+# ---------------------------------------------------------------------------
+# 지수 백오프 재시도 설정
+# ---------------------------------------------------------------------------
+MAX_RETRIES = int(os.getenv("ETL_MAX_RETRIES", "3"))
+RETRY_BASE_DELAY = float(os.getenv("ETL_RETRY_BASE_DELAY", "2.0"))
+RETRY_MAX_DELAY = float(os.getenv("ETL_RETRY_MAX_DELAY", "30.0"))
+
+
+async def with_exponential_backoff(
+    coro_fn,
+    *args,
+    max_retries: int = MAX_RETRIES,
+    base_delay: float = RETRY_BASE_DELAY,
+    max_delay: float = RETRY_MAX_DELAY,
+    operation_name: str = "operation",
+    **kwargs,
+):
+    """지수 백오프로 코루틴을 재시도합니다."""
+    last_exc: Optional[Exception] = None
+    for attempt in range(max_retries + 1):
+        try:
+            return await coro_fn(*args, **kwargs)
+        except Exception as exc:
+            last_exc = exc
+            if attempt >= max_retries:
+                logger.error(
+                    "%s failed after %d retries: %s",
+                    operation_name, max_retries, str(exc)[:200],
+                )
+                raise
+            delay = min(base_delay * (2 ** attempt) + random.uniform(0, 1), max_delay)
+            logger.warning(
+                "%s attempt %d/%d failed: %s — retrying in %.1fs",
+                operation_name, attempt + 1, max_retries, str(exc)[:100], delay,
+            )
+            await asyncio.sleep(delay)
+    raise last_exc  # type: ignore
 
 _progress = {
     "status": "initializing",
@@ -275,10 +314,12 @@ async def process_document(
                 result["reason"] = "Text too short"
                 return result
 
-            # 엔티티 + 관계 추출
-            extraction = await entity_extractor.extract_full(
+            # 엔티티 + 관계 추출 (지수 백오프 재시도 포함)
+            extraction = await with_exponential_backoff(
+                entity_extractor.extract_full,
                 text=text,
                 enable_gleaning=True,
+                operation_name=f"extract_entities[{doc_id[:8]}]",
             )
 
             entities = extraction.entities
@@ -287,9 +328,15 @@ async def process_document(
             result["entities"] = len(entities)
             result["relationships"] = len(relationships)
 
-            # Neo4j 저장
+            # Neo4j 저장 (지수 백오프 재시도 포함)
             if entities:
-                await store_entities_to_neo4j(doc_id, entities, relationships)
+                await with_exponential_backoff(
+                    store_entities_to_neo4j,
+                    doc_id,
+                    entities,
+                    relationships,
+                    operation_name=f"store_neo4j[{doc_id[:8]}]",
+                )
 
             elapsed_ms = (time.monotonic() - start) * 1000
             result["status"] = "success"
@@ -311,7 +358,7 @@ async def process_document(
         except Exception as e:
             result["status"] = "failed"
             result["error"] = str(e)
-            logger.error("Phase 2 failed for doc %s: %s", doc_id[:8], e)
+            logger.error("Phase 2 permanently failed for doc %s after retries: %s", doc_id[:8], e)
 
         return result
 

@@ -25,6 +25,7 @@ import asyncio
 import json
 import logging
 import os
+import random
 import signal
 import sys
 import time
@@ -40,6 +41,7 @@ from neo4j import GraphDatabase
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.services.entity_extraction import EntityExtractionService
+from app.services.status_callback import notify_status
 
 logger = get_logger(__name__)
 
@@ -72,6 +74,52 @@ def _handle_signal(signum, frame):
 
 signal.signal(signal.SIGTERM, _handle_signal)
 signal.signal(signal.SIGINT, _handle_signal)
+
+
+# ---------------------------------------------------------------------------
+# 지수 백오프 재시도 유틸리티
+# ---------------------------------------------------------------------------
+
+MAX_RETRIES = int(os.getenv("ENTITY_MAX_RETRIES", "3"))
+RETRY_BASE_DELAY = float(os.getenv("ENTITY_RETRY_BASE_DELAY", "2.0"))  # 초
+RETRY_MAX_DELAY = float(os.getenv("ENTITY_RETRY_MAX_DELAY", "30.0"))   # 초
+
+
+async def with_exponential_backoff(
+    coro_fn,
+    *args,
+    max_retries: int = MAX_RETRIES,
+    base_delay: float = RETRY_BASE_DELAY,
+    max_delay: float = RETRY_MAX_DELAY,
+    operation_name: str = "operation",
+    **kwargs,
+):
+    """
+    지수 백오프로 코루틴을 재시도합니다.
+
+    대기 시간: base_delay * 2^attempt + jitter (최대 max_delay)
+    """
+    last_exc: Optional[Exception] = None
+    for attempt in range(max_retries + 1):
+        try:
+            return await coro_fn(*args, **kwargs)
+        except Exception as exc:
+            last_exc = exc
+            if attempt >= max_retries:
+                logger.error(
+                    "%s failed after %d retries: %s",
+                    operation_name, max_retries, str(exc)[:200],
+                )
+                raise
+
+            delay = min(base_delay * (2 ** attempt) + random.uniform(0, 1), max_delay)
+            logger.warning(
+                "%s attempt %d/%d failed: %s — retrying in %.1fs",
+                operation_name, attempt + 1, max_retries, str(exc)[:100], delay,
+            )
+            await asyncio.sleep(delay)
+
+    raise last_exc  # type: ignore
 
 
 # ---------------------------------------------------------------------------
@@ -213,6 +261,37 @@ async def save_entities_to_neo4j(
 # ---------------------------------------------------------------------------
 
 
+async def _extract_entities_with_retry(
+    svc: EntityExtractionService,
+    content: str,
+    chunk_id: str,
+):
+    """엔티티 추출 (지수 백오프 재시도 포함)"""
+    return await with_exponential_backoff(
+        svc.extract_full,
+        content,
+        enable_gleaning=True,
+        operation_name=f"extract_entities[{chunk_id[:12]}]",
+    )
+
+
+async def _save_to_neo4j_with_retry(
+    driver,
+    chunk_id: str,
+    entities: List[Dict],
+    relationships: List[Dict],
+):
+    """Neo4j 저장 (지수 백오프 재시도 포함)"""
+    return await with_exponential_backoff(
+        save_entities_to_neo4j,
+        driver,
+        chunk_id,
+        entities,
+        relationships,
+        operation_name=f"save_neo4j[{chunk_id[:12]}]",
+    )
+
+
 async def process_chunk(
     svc: EntityExtractionService,
     driver,
@@ -220,8 +299,9 @@ async def process_chunk(
     content: str,
     checkpoint: Checkpoint,
     semaphore: asyncio.Semaphore,
+    document_id: Optional[str] = None,
 ):
-    """단일 청크의 엔티티/관계 추출 및 저장"""
+    """단일 청크의 엔티티/관계 추출 및 저장 (지수 백오프 재시도 포함)"""
 
     async with semaphore:
         if _shutdown_requested:
@@ -229,7 +309,7 @@ async def process_chunk(
 
         try:
             start = time.time()
-            result = await svc.extract_full(content, enable_gleaning=True)
+            result = await _extract_entities_with_retry(svc, content, chunk_id)
             elapsed = time.time() - start
 
             # Entity/Relationship를 Neo4j 저장 형식으로 변환
@@ -259,8 +339,8 @@ async def process_chunk(
                         }
                     )
 
-            # Neo4j 저장
-            await save_entities_to_neo4j(driver, chunk_id, entities, relationships)
+            # Neo4j 저장 (재시도 포함)
+            await _save_to_neo4j_with_retry(driver, chunk_id, entities, relationships)
 
             checkpoint.mark_done(chunk_id, len(entities), len(relationships))
 
@@ -274,9 +354,26 @@ async def process_chunk(
                 processed,
             )
 
+            # STORY-089: Phase 3 완료 → PG entity_count 업데이트 (non-blocking)
+            if document_id:
+                await notify_status(
+                    document_id=document_id,
+                    status="completed",
+                    progress_percent=100,
+                    entity_count=checkpoint.stats["total_entities"],
+                )
+
         except Exception as e:
             checkpoint.mark_error(chunk_id)
-            logger.error("Chunk %s failed: %s", chunk_id[:12], str(e)[:200])
+            logger.error("Chunk %s permanently failed after retries: %s", chunk_id[:12], str(e)[:200])
+            # STORY-089: 실패 시 PG 상태 콜백 (non-blocking)
+            if document_id:
+                await notify_status(
+                    document_id=document_id,
+                    status="failed",
+                    progress_percent=0,
+                    error_message=str(e)[:200],
+                )
 
 
 # ---------------------------------------------------------------------------
@@ -310,18 +407,23 @@ async def run_batch():
         auth=(settings.neo4j_user, settings.neo4j_password),
     )
 
-    # 대상 청크 조회
+    # 대상 청크 조회 (document_id 포함 — STORY-089 콜백용)
     with driver.session() as session:
         r = session.run(
             """
             MATCH (c:Chunk)
             WHERE c.token_count >= $min_tokens
-            RETURN c.id as id, c.content as content, c.token_count as tc
+            OPTIONAL MATCH (c)-[:PART_OF]->(d:Document)
+            RETURN c.id as id, c.content as content, c.token_count as tc,
+                   d.id as document_id
             ORDER BY c.token_count DESC
             """,
             min_tokens=MIN_TOKENS,
         )
-        all_chunks = [(rec["id"], rec["content"], rec["tc"]) for rec in r]
+        all_chunks = [
+            (rec["id"], rec["content"], rec["tc"], rec["document_id"])
+            for rec in r
+        ]
 
     # 이미 처리된 청크 필터링 (모든 워커의 체크포인트 통합)
     # 다른 워커의 체크포인트도 읽어서 중복 방지
@@ -341,8 +443,8 @@ async def run_batch():
                 logger.info("Loaded %d IDs from worker %d checkpoint", len(other_ids), pid)
 
     pending = [
-        (cid, content, tc)
-        for cid, content, tc in all_chunks
+        (cid, content, tc, doc_id)
+        for cid, content, tc, doc_id in all_chunks
         if not (cid in all_processed)
     ]
 
@@ -380,8 +482,8 @@ async def run_batch():
 
         # 동시 처리
         tasks = [
-            process_chunk(svc, driver, cid, content, checkpoint, semaphore)
-            for cid, content, tc in batch
+            process_chunk(svc, driver, cid, content, checkpoint, semaphore, doc_id)
+            for cid, content, tc, doc_id in batch
         ]
         await asyncio.gather(*tasks)
 
