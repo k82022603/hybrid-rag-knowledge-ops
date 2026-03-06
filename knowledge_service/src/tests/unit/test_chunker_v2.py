@@ -222,7 +222,7 @@ class TestChunkQualityGate:
     """ChunkQualityGate 테스트"""
 
     def test_minimum_token_rejection(self, quality_gate, make_chunk):
-        """MIN_TOKEN_COUNT(10) 미만 기각"""
+        """MIN_TOKEN_COUNT(50) 미만 기각"""
         chunk = make_chunk("짧은 텍스트입니다.", token_count=5)
         passed, rejected = quality_gate.filter([chunk])
         assert len(passed) == 0
@@ -230,7 +230,7 @@ class TestChunkQualityGate:
 
     def test_minimum_length_rejection(self, quality_gate, make_chunk):
         """MIN_CHAR_LENGTH(30) 미만 기각"""
-        chunk = make_chunk("짧은 텍스트", token_count=15)
+        chunk = make_chunk("짧은 텍스트", token_count=55)
         passed, rejected = quality_gate.filter([chunk])
         assert len(passed) == 0
         assert len(rejected) == 1
@@ -251,7 +251,7 @@ class TestChunkQualityGate:
         # 특수문자 80% 이상
         chunk = make_chunk(
             "!@#$%^&*()!@#$%^&*()!@#$%^&*()ab",
-            token_count=15,
+            token_count=55,
         )
         passed, rejected = quality_gate.filter([chunk])
         assert len(passed) == 0
@@ -260,31 +260,31 @@ class TestChunkQualityGate:
         """정상 텍스트 통과"""
         chunk = make_chunk(
             "인공지능은 현대 기술의 핵심이며 다양한 분야에서 활용됩니다.",
-            token_count=15,
+            token_count=50,
         )
         passed, rejected = quality_gate.filter([chunk])
         assert len(passed) == 1
         assert len(rejected) == 0
 
     def test_code_block_bypass(self, quality_gate, make_chunk):
-        """code block_type은 QualityGate bypass"""
+        """code block_type은 완화된 기준 적용 (token>=20, len>=30)"""
         chunk = make_chunk(
-            "x=1",  # 짧지만 코드 블록
-            token_count=3,
+            "def calculate_sum(a, b): return a + b",  # 37자, 코드 블록
+            token_count=20,
             metadata={"block_type": "code"},
         )
         passed, rejected = quality_gate.filter([chunk])
-        assert len(passed) == 1, "Code blocks should bypass QualityGate"
+        assert len(passed) == 1, "Code blocks should pass with relaxed criteria"
 
     def test_table_block_bypass(self, quality_gate, make_chunk):
-        """table block_type은 QualityGate bypass"""
+        """table block_type은 완화된 기준 적용 (token>=20, len>=30)"""
         chunk = make_chunk(
-            "|a|b|",  # 짧지만 테이블 블록
-            token_count=3,
+            "| Column A | Column B | Column C |",  # 34자, 테이블 블록
+            token_count=20,
             metadata={"block_type": "table"},
         )
         passed, rejected = quality_gate.filter([chunk])
-        assert len(passed) == 1, "Table blocks should bypass QualityGate"
+        assert len(passed) == 1, "Table blocks should pass with relaxed criteria"
 
 
 # ===========================================================================

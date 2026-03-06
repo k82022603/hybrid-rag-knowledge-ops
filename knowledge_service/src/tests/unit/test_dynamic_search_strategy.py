@@ -368,10 +368,10 @@ class TestBoundaryValues:
 
     def test_nine_words_factual_pattern_becomes_complex(self):
         """9단어 초과 + factual 패턴 → complex (긴 질의 hybrid 폴백)"""
-        # words > 8 이면 factual 패턴 매칭 안 함
-        query = "Elasticsearch 벡터 검색이란 무엇인지 구체적으로 자세하게 알려주세요"
+        # words > 8 이면 factual 패턴 매칭 안 함 (정확히 9단어로 구성)
+        query = "Elasticsearch 벡터 검색이란 무엇인지 구체적으로 자세하게 여러 방면에서 알려주세요"
+        assert len(query.split()) > 8, f"테스트 쿼리는 8단어 초과여야 함 (현재: {len(query.split())}단어)"
         result = classify(query)
-        # 9단어 초과, 패턴 미적용 → keyword도 아님(물음표 없어도 단어 수>2)
         assert result == "complex"
 
     def test_strategy_all_types_covered(self):

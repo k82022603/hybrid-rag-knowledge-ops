@@ -558,7 +558,7 @@ class TestQuerySubgraph:
 
         # Cypher 쿼리에 최대값 5가 반영되었는지 확인
         cypher = mock_session.run.call_args[0][0]
-        assert "[*1..5]" in cypher
+        assert "[r*1..5]" in cypher
 
     @pytest.mark.asyncio
     async def test_query_subgraph_depth_clamped_to_min(self, service):
@@ -572,7 +572,7 @@ class TestQuerySubgraph:
 
         # Cypher 쿼리에 최소값 1이 반영되었는지 확인
         cypher = mock_session.run.call_args[0][0]
-        assert "[*1..1]" in cypher
+        assert "[r*1..1]" in cypher
 
     @pytest.mark.asyncio
     async def test_query_subgraph_depth_valid_range(self, service):
@@ -586,7 +586,7 @@ class TestQuerySubgraph:
 
         # Cypher 쿼리에 지정한 depth가 반영되었는지 확인
         cypher = mock_session.run.call_args[0][0]
-        assert "[*1..4]" in cypher
+        assert "[r*1..4]" in cypher
 
 
 # ---------------------------------------------------------------------------

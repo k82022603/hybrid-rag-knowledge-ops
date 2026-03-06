@@ -9,6 +9,8 @@
  * 5. Verify getting started section
  *
  * Uses real API calls in Docker environment.
+ *
+ * NOTE: UI is rendered in Korean (ko-KR). All text assertions use Korean strings.
  */
 import { test, expect } from '@playwright/test';
 import { loginAsUser, loginAsAdmin } from './helpers/auth.helper';
@@ -47,12 +49,13 @@ test.describe('Dashboard E2E Tests', () => {
       const welcomeSection = page.locator('[data-testid="welcome-section"]');
       await expect(welcomeSection).toBeVisible({ timeout: 5000 });
 
-      // Should contain greeting text (flexible matching for different time greetings)
-      const greeting = page.locator('h1:has-text("Good"), h1:has-text("Welcome"), h1:has-text("Hello")');
+      // Should contain Korean greeting text (flexible matching for different time greetings)
+      // Korean greetings: "좋은 아침이에요" (morning) / "안녕하세요" (afternoon) / "좋은 저녁이에요" (evening)
+      const greeting = page.locator('h1:has-text("좋은 아침이에요"), h1:has-text("안녕하세요"), h1:has-text("좋은 저녁이에요")');
       await expect(greeting.first()).toBeVisible({ timeout: 5000 });
 
       // Welcome message may or may not be present depending on implementation
-      const welcomeMessage = page.locator('text=Welcome to the Knowledge Portal');
+      const welcomeMessage = page.locator('text=Knowledge Portal에 오신 것을 환영합니다');
       const hasWelcome = await welcomeMessage.isVisible().catch(() => false);
       expect(hasWelcome || true).toBeTruthy();
     });
@@ -78,17 +81,11 @@ test.describe('Dashboard E2E Tests', () => {
       const statsSection = page.locator('[data-testid="stats-section"]');
       const isStatsVisible = await statsSection.isVisible().catch(() => false);
       if (isStatsVisible) {
-        // Should have Total Documents card
-        await expect(page.locator('text=Total Documents')).toBeVisible();
-
-        // Should have Search Queries card
-        await expect(page.locator('text=Search Queries')).toBeVisible();
-
-        // Should have Active Users card
-        await expect(page.locator('text=Active Users')).toBeVisible();
-
-        // Should have Avg Response Time card
-        await expect(page.locator('text=Avg Response Time')).toBeVisible();
+        // Should have stat cards with Korean labels
+        await expect(page.locator('text=전체 문서')).toBeVisible();
+        await expect(page.locator('text=검색 횟수')).toBeVisible();
+        await expect(page.locator('text=활성 사용자')).toBeVisible();
+        await expect(page.locator('text=평균 응답시간')).toBeVisible();
       } else {
         // Stats may not load in mock environment
         expect(true).toBeTruthy();
@@ -153,10 +150,10 @@ test.describe('Dashboard E2E Tests', () => {
       const quickSearch = page.locator('[data-testid="quick-search"]');
       await expect(quickSearch).toBeVisible({ timeout: 5000 });
 
-      // Input should be visible
+      // Input should be visible with Korean placeholder
       const searchInput = page.locator('[data-testid="quick-search-input"]');
       await expect(searchInput).toBeVisible({ timeout: 5000 });
-      await expect(searchInput).toHaveAttribute('placeholder', /Search/i);
+      await expect(searchInput).toHaveAttribute('placeholder', /지식 베이스 검색/);
     });
 
     test('should display keyboard shortcut hint', async ({ page }) => {
@@ -233,8 +230,8 @@ test.describe('Dashboard E2E Tests', () => {
       await page.goto('/dashboard');
       await expect(page.locator('[data-testid="dashboard-page"]')).toBeVisible({ timeout: 15000 });
 
-      // Recent searches heading should be visible
-      const recentSearches = page.getByRole('heading', { name: 'Recent Searches' });
+      // Recent searches heading should be visible (Korean: "최근 검색어")
+      const recentSearches = page.getByRole('heading', { name: '최근 검색어' });
       await expect(recentSearches).toBeVisible({ timeout: 5000 });
     });
 
@@ -247,7 +244,7 @@ test.describe('Dashboard E2E Tests', () => {
       await expect(page.locator('[data-testid="dashboard-page"]')).toBeVisible({ timeout: 10000 });
 
       // Should show empty state message or no search items
-      const recentSearches = page.getByRole('heading', { name: 'Recent Searches' });
+      const recentSearches = page.getByRole('heading', { name: '최근 검색어' });
       await expect(recentSearches).toBeVisible();
     });
 
@@ -294,8 +291,8 @@ test.describe('Dashboard E2E Tests', () => {
       await page.goto('/dashboard');
       await expect(page.locator('[data-testid="dashboard-page"]')).toBeVisible({ timeout: 10000 });
 
-      // Look for clear all button
-      const clearAllButton = page.locator('button:has-text("Clear"), button:has-text("clear all")').first();
+      // Look for clear all button (Korean: "모두 지우기")
+      const clearAllButton = page.locator('button:has-text("모두 지우기")').first();
       if (await clearAllButton.isVisible()) {
         await clearAllButton.click();
       }
@@ -307,32 +304,28 @@ test.describe('Dashboard E2E Tests', () => {
       await page.goto('/dashboard');
       await expect(page.locator('[data-testid="dashboard-page"]')).toBeVisible({ timeout: 10000 });
 
-      // Getting Started heading
-      await expect(page.locator('text=Getting Started')).toBeVisible();
+      // Getting Started heading (Korean: "시작하기")
+      await expect(page.locator('text=시작하기')).toBeVisible();
     });
 
     test('should display three getting started items', async ({ page }) => {
       await page.goto('/dashboard');
       await expect(page.locator('[data-testid="dashboard-page"]')).toBeVisible({ timeout: 10000 });
 
-      // Search Knowledge item
-      await expect(page.locator('text=Search Knowledge')).toBeVisible();
-
-      // Browse Documents item
-      await expect(page.locator('text=Browse Documents')).toBeVisible();
-
-      // Collaborate item
-      await expect(page.locator('text=Collaborate')).toBeVisible();
+      // Korean labels for getting started items
+      await expect(page.locator('text=지식 검색')).toBeVisible();
+      await expect(page.locator('text=문서 탐색')).toBeVisible();
+      await expect(page.locator('text=협업')).toBeVisible();
     });
 
     test('should display descriptions for getting started items', async ({ page }) => {
       await page.goto('/dashboard');
       await expect(page.locator('[data-testid="dashboard-page"]')).toBeVisible({ timeout: 10000 });
 
-      // Descriptions should be visible
-      await expect(page.locator('text=Use the search bar')).toBeVisible();
-      await expect(page.locator('text=Explore the knowledge base')).toBeVisible();
-      await expect(page.locator('text=Share and bookmark')).toBeVisible();
+      // Korean descriptions
+      await expect(page.locator('text=검색창에 질문을 입력하거나 검색 페이지에서 상세 검색을 이용하세요.')).toBeVisible();
+      await expect(page.locator('text=지식 베이스 페이지에서 등록된 문서를 탐색하고 관리하세요.')).toBeVisible();
+      await expect(page.locator('text=유용한 문서를 북마크하고 팀원들과 공유하세요.')).toBeVisible();
     });
   });
 
@@ -372,8 +365,8 @@ test.describe('Dashboard E2E Tests', () => {
       await page.goto('/dashboard');
       await expect(page.locator('[data-testid="dashboard-page"]')).toBeVisible({ timeout: 10000 });
 
-      // Click Search in sidebar
-      const searchLink = page.locator('aside a[href="/search"], aside button').filter({ hasText: 'Search' });
+      // Click Search in sidebar (Korean: "검색")
+      const searchLink = page.locator('aside a[href="/search"], aside button').filter({ hasText: '검색' });
       if (await searchLink.isVisible()) {
         await searchLink.click();
         await expect(page).toHaveURL(/.*search/);
@@ -384,8 +377,8 @@ test.describe('Dashboard E2E Tests', () => {
       await page.goto('/dashboard');
       await expect(page.locator('[data-testid="dashboard-page"]')).toBeVisible({ timeout: 10000 });
 
-      // Click Knowledge in sidebar
-      const knowledgeLink = page.locator('aside a[href="/knowledge"], aside button').filter({ hasText: 'Knowledge' });
+      // Click Knowledge in sidebar (Korean: "지식 관리")
+      const knowledgeLink = page.locator('aside a[href="/knowledge"], aside button').filter({ hasText: '지식 관리' });
       if (await knowledgeLink.isVisible()) {
         await knowledgeLink.click();
         await expect(page).toHaveURL(/.*knowledge/);
@@ -396,8 +389,8 @@ test.describe('Dashboard E2E Tests', () => {
       await page.goto('/dashboard');
       await expect(page.locator('[data-testid="dashboard-page"]')).toBeVisible({ timeout: 10000 });
 
-      // Click Bookmarks in sidebar
-      const bookmarksLink = page.locator('aside a[href="/bookmarks"], aside button').filter({ hasText: 'Bookmarks' });
+      // Click Bookmarks in sidebar (Korean: "북마크")
+      const bookmarksLink = page.locator('aside a[href="/bookmarks"], aside button').filter({ hasText: '북마크' });
       if (await bookmarksLink.isVisible()) {
         await bookmarksLink.click();
         await expect(page).toHaveURL(/.*bookmarks/);
@@ -466,15 +459,11 @@ test.describe('Dashboard E2E Tests', () => {
       const h1 = page.locator('h1').first();
       const greetingText = await h1.textContent().catch(() => '');
 
-      // Accept various greeting patterns (including non-English or different formats)
+      // Accept Korean greeting patterns
       const hasTimeGreeting =
-        greetingText?.includes('Good morning') ||
-        greetingText?.includes('Good afternoon') ||
-        greetingText?.includes('Good evening') ||
-        greetingText?.includes('Welcome') ||
-        greetingText?.includes('Hello') ||
-        greetingText?.includes('Hi') ||
-        greetingText?.match(/좋은|안녕/); // Korean greetings
+        greetingText?.includes('좋은 아침이에요') ||
+        greetingText?.includes('안녕하세요') ||
+        greetingText?.includes('좋은 저녁이에요');
 
       // If no greeting text found, verify h1 at least exists
       if (!hasTimeGreeting) {
@@ -511,8 +500,8 @@ test.describe('Admin Dashboard Tests', () => {
     await page.goto('/dashboard');
     await expect(page.locator('[data-testid="dashboard-page"]')).toBeVisible({ timeout: 15000 });
 
-    // Admin link should be visible for admin users
-    const adminLink = page.locator('aside a[href="/admin"], aside button').filter({ hasText: 'Admin' });
+    // Admin link should be visible for admin users (Korean: "관리자")
+    const adminLink = page.locator('aside a[href="/admin"], aside button').filter({ hasText: '관리자' });
     await expect(adminLink).toBeVisible({ timeout: 5000 });
   });
 
@@ -520,8 +509,8 @@ test.describe('Admin Dashboard Tests', () => {
     await page.goto('/dashboard');
     await expect(page.locator('[data-testid="dashboard-page"]')).toBeVisible({ timeout: 15000 });
 
-    // Upload link should be visible for admin/knowledge manager users
-    const uploadLink = page.locator('aside a[href="/upload"], aside button').filter({ hasText: 'Upload' });
+    // Upload link should be visible for admin/knowledge manager users (Korean: "문서 업로드")
+    const uploadLink = page.locator('aside a[href="/upload"], aside button').filter({ hasText: '문서 업로드' });
     await expect(uploadLink).toBeVisible({ timeout: 5000 });
   });
 });

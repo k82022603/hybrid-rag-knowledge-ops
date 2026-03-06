@@ -688,15 +688,15 @@ class TestLoadAllMocked:
         # Mock: 청킹 결과
         mock_chunk = MagicMock()
         mock_chunk.id = "chunk-1"
-        mock_chunk.content = "Test chunk content"
+        mock_chunk.content = "Test chunk content with enough meaningful text for quality gate validation pass"
         mock_chunk.chunk_index = 0
         mock_chunk.heading = "Section 1"
-        mock_chunk.token_count = 10
+        mock_chunk.token_count = 50
 
         mock_chunk_result = MagicMock()
         mock_chunk_result.chunks = [mock_chunk]
         mock_chunk_result.total_chunks = 1
-        mock_chunk_result.avg_token_count = 10.0
+        mock_chunk_result.avg_token_count = 50.0
 
         # Patch 서비스
         with patch.object(loader, "_parser", create=True) as mock_parser, \
@@ -752,15 +752,15 @@ class TestLoadAllMocked:
 
         mock_chunk = MagicMock()
         mock_chunk.id = "chunk-1"
-        mock_chunk.content = "Content"
+        mock_chunk.content = "Content with enough meaningful text for quality gate validation pass"
         mock_chunk.chunk_index = 0
         mock_chunk.heading = None
-        mock_chunk.token_count = 5
+        mock_chunk.token_count = 50
 
         mock_chunk_result = MagicMock()
         mock_chunk_result.chunks = [mock_chunk]
         mock_chunk_result.total_chunks = 1
-        mock_chunk_result.avg_token_count = 5.0
+        mock_chunk_result.avg_token_count = 50.0
 
         with patch.object(loader, "_parser", create=True) as mock_parser, \
              patch.object(loader, "_chunker", create=True) as mock_chunker:

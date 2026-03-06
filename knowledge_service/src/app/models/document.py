@@ -9,7 +9,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 # ============================================================================
@@ -59,6 +59,8 @@ class DocumentFormat(str, Enum):
 class Chunk(BaseModel):
     """문서 청크 모델"""
 
+    model_config = ConfigDict(from_attributes=True)
+
     id: Optional[UUID] = Field(default=None, description="청크 UUID")
     document_id: UUID = Field(description="문서 UUID")
     chunk_index: int = Field(ge=0, description="청크 순서 인덱스")
@@ -67,14 +69,11 @@ class Chunk(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict, description="청크 메타데이터")
     created_at: Optional[datetime] = Field(default=None, description="생성 시간")
 
-    class Config:
-        """Pydantic 설정"""
-
-        from_attributes = True
-
 
 class Document(BaseModel):
     """문서 모델"""
+
+    model_config = ConfigDict(from_attributes=True)
 
     id: Optional[UUID] = Field(default=None, description="문서 UUID")
     title: str = Field(min_length=1, max_length=500, description="문서 제목")
@@ -89,11 +88,6 @@ class Document(BaseModel):
     chunks: List[Chunk] = Field(default_factory=list, description="청크 목록")
     created_at: Optional[datetime] = Field(default=None, description="생성 시간")
     updated_at: Optional[datetime] = Field(default=None, description="수정 시간")
-
-    class Config:
-        """Pydantic 설정"""
-
-        from_attributes = True
 
 
 # ============================================================================
@@ -137,6 +131,8 @@ class DocumentMetadataInput(BaseModel):
 class DocumentResponse(BaseModel):
     """문서 업로드 응답 모델"""
 
+    model_config = ConfigDict(from_attributes=True)
+
     document_id: UUID = Field(description="문서 UUID")
     filename: str = Field(description="정제된 파일명")
     format: DocumentFormat = Field(description="문서 형식")
@@ -146,14 +142,11 @@ class DocumentResponse(BaseModel):
     created_at: datetime = Field(description="업로드 시간")
     metadata: Optional[DocumentMetadataInput] = Field(default=None, description="메타데이터")
 
-    class Config:
-        """Pydantic 설정"""
-
-        from_attributes = True
-
 
 class DocumentStatusResponse(BaseModel):
     """문서 처리 상태 응답 모델"""
+
+    model_config = ConfigDict(from_attributes=True)
 
     document_id: UUID = Field(description="문서 UUID")
     status: DocumentStatus = Field(description="처리 상태")
@@ -161,14 +154,11 @@ class DocumentStatusResponse(BaseModel):
     error_message: Optional[str] = Field(default=None, description="에러 메시지")
     updated_at: datetime = Field(description="마지막 업데이트 시간")
 
-    class Config:
-        """Pydantic 설정"""
-
-        from_attributes = True
-
 
 class DocumentListItem(BaseModel):
     """문서 목록 항목 모델"""
+
+    model_config = ConfigDict(from_attributes=True)
 
     document_id: UUID = Field(description="문서 UUID")
     filename: str = Field(description="원본 파일명")
@@ -176,11 +166,6 @@ class DocumentListItem(BaseModel):
     size_bytes: int = Field(ge=0, description="파일 크기 (바이트)")
     status: DocumentStatus = Field(description="처리 상태")
     created_at: datetime = Field(description="업로드 시간")
-
-    class Config:
-        """Pydantic 설정"""
-
-        from_attributes = True
 
 
 class DocumentListResponse(BaseModel):

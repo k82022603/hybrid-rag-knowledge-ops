@@ -777,8 +777,12 @@ class TestDefaultIndexSettings:
         assert "title" in meta["properties"]
 
     def test_knn_enabled(self):
-        """kNN 인덱스 활성화 확인"""
-        assert DEFAULT_INDEX_SETTINGS["settings"]["index.knn"] is True
+        """kNN 인덱스 활성화 확인 (ES 8.x native kNN via dense_vector)"""
+        # ES 8.x에서는 index.knn 설정이 아닌 dense_vector의 index=True로 kNN 활성화
+        props = DEFAULT_INDEX_SETTINGS["mappings"]["properties"]
+        dv = props["dense_vector"]
+        assert dv["index"] is True
+        assert dv["similarity"] == "cosine"
 
 
 # ---------------------------------------------------------------------------

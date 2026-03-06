@@ -2,14 +2,14 @@
 Graph Search E2E 테스트
 
 ISSUE-011: entity_name에 파일명이 전달되는 버그 수정 검증
-Graph Search 3단계 매칭 (Entity -> Community -> Keyword) E2E 테스트
+Graph Search Entity-Enhanced BM25 E2E 테스트
 
 테스트 범주:
 1. _is_filename() 파일명 패턴 필터링 검증
 2. _extract_entities_from_title() 제목 기반 엔티티 추출 검증
 3. build_sources_from_results() 출처 정보 생성 검증 (ISSUE-011 핵심)
-4. SearchService._graph_search() Cypher matched_entities RETURN 검증
-5. Graph Search 3단계 매칭 전략 검증 (Entity -> Community -> Keyword)
+4. SearchService._graph_search() Entity-Enhanced BM25 검증
+5. Graph Search Neo4j -> ES 파이프라인 검증
 6. Edge Case: 파일명만 있는 경우 / 엔티티 없는 경우 / 빈 결과
 """
 
@@ -118,6 +118,38 @@ def make_search_result(
     )
 
 
+def _make_es_response(hits: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """테스트용 ES 응답 생성 헬퍼"""
+    return {
+        "hits": {
+            "hits": hits,
+            "total": {"value": len(hits)},
+        }
+    }
+
+
+def _make_es_hit(
+    chunk_id: str,
+    content: str = "test content",
+    document_id: str = "doc_1",
+    title: str = "Test Doc",
+    score: float = 1.0,
+) -> Dict[str, Any]:
+    """테스트용 ES hit 생성 헬퍼"""
+    return {
+        "_id": chunk_id,
+        "_score": score,
+        "_source": {
+            "text": content,
+            "document_id": document_id,
+            "metadata": {
+                "title": title,
+                "document_id": document_id,
+            },
+        },
+    }
+
+
 # ---------------------------------------------------------------------------
 # 1. _is_filename() 파일명 패턴 필터링 검증
 # ---------------------------------------------------------------------------
@@ -200,12 +232,20 @@ class TestIsFilename:
 
 
 class TestExtractEntitiesFromTitle:
-    """ISSUE-011: _extract_entities_from_title() 테스트"""
+    """ISSUE-011: _extract_entities_from_title() 테스트
 
-    def test_normal_title_returns_title_as_entity(self):
-        """일반 제목은 엔티티로 반환"""
+    현행 동작: 제목을 단어 단위로 분리하여 개별 키워드를 반환합니다.
+    - 불용어, 날짜 패턴, 2자 미만 단어는 필터링
+    - 한글 키워드는 정규식으로 별도 추출 (2글자 이상)
+    - 최대 5개 반환
+    """
+
+    def test_normal_title_returns_split_keywords(self):
+        """일반 제목은 개별 키워드로 분리하여 반환"""
         result = _extract_entities_from_title("하이브리드 RAG 설계서")
-        assert result == ["하이브리드 RAG 설계서"]
+        assert "RAG" in result
+        assert "하이브리드" in result
+        assert "설계서" in result
 
     def test_filename_title_returns_empty(self):
         """파일명 제목은 빈 리스트 반환"""
@@ -227,10 +267,12 @@ class TestExtractEntitiesFromTitle:
         result = _extract_entities_from_title("프로젝트_요구사항.docx")
         assert result == []
 
-    def test_technology_title(self):
-        """기술명 제목은 엔티티로 반환"""
+    def test_technology_title_returns_split_keywords(self):
+        """기술명 제목은 개별 키워드로 분리하여 반환"""
         result = _extract_entities_from_title("Elasticsearch 설정 가이드")
-        assert result == ["Elasticsearch 설정 가이드"]
+        assert "Elasticsearch" in result
+        assert "설정" in result
+        assert "가이드" in result
 
 
 # ---------------------------------------------------------------------------
@@ -242,8 +284,9 @@ class TestBuildSourcesFromResults:
     """
     ISSUE-011 핵심 검증: build_sources_from_results()
 
-    모든 소스에 graph_context.related_entities가 포함되고,
-    파일명이 아닌 실제 엔티티명이 사용되는지 검증합니다.
+    현행 동작: matched_entities만 사용하여 graph_context를 생성합니다.
+    Tier 2/3 폴백(제목/콘텐츠 기반 엔티티 추출)은 제거되었습니다.
+    Neo4j에서 검증된 엔티티(matched_entities)만 graph_context에 포함됩니다.
     """
 
     def test_graph_source_with_matched_entities(self):
@@ -291,8 +334,8 @@ class TestBuildSourcesFromResults:
         assert "Neo4j" in entities
         assert "RAG" in entities
 
-    def test_vector_source_gets_graph_context(self):
-        """ISSUE-011: Vector 소스에도 graph_context 생성됨"""
+    def test_vector_source_without_matched_entities_no_graph_context(self):
+        """Vector 소스: matched_entities 없으면 graph_context 없음 (타이틀 폴백 제거됨)"""
         results = [
             make_search_result(
                 chunk_id="chunk_1",
@@ -306,14 +349,11 @@ class TestBuildSourcesFromResults:
         sources = build_sources_from_results(results)
 
         assert len(sources) == 1
-        # 제목이 파일명이 아니므로 엔티티로 추출
-        assert "graph_context" in sources[0]
-        assert sources[0]["graph_context"]["related_entities"] == [
-            "하이브리드 RAG 설계서"
-        ]
+        # 타이틀 폴백이 제거되었으므로 matched_entities 없으면 graph_context 없음
+        assert "graph_context" not in sources[0]
 
-    def test_keyword_source_gets_graph_context(self):
-        """ISSUE-011: Keyword 소스에도 graph_context 생성됨"""
+    def test_keyword_source_without_matched_entities_no_graph_context(self):
+        """Keyword 소스: matched_entities 없으면 graph_context 없음 (타이틀 폴백 제거됨)"""
         results = [
             make_search_result(
                 chunk_id="chunk_1",
@@ -326,8 +366,8 @@ class TestBuildSourcesFromResults:
 
         sources = build_sources_from_results(results)
 
-        assert "graph_context" in sources[0]
-        assert "Elasticsearch 운영 가이드" in sources[0]["graph_context"]["related_entities"]
+        # 타이틀 폴백이 제거되었으므로 matched_entities 없으면 graph_context 없음
+        assert "graph_context" not in sources[0]
 
     def test_filename_title_no_graph_context(self):
         """제목이 파일명이고 matched_entities도 없으면 graph_context 없음"""
@@ -346,8 +386,8 @@ class TestBuildSourcesFromResults:
         # 파일명 제목이므로 엔티티 추출 불가 -> graph_context 없음
         assert "graph_context" not in sources[0]
 
-    def test_all_matched_entities_are_filenames(self):
-        """matched_entities가 모두 파일명인 경우 -> 제목에서 폴백 시도"""
+    def test_all_matched_entities_are_filenames_no_graph_context(self):
+        """matched_entities가 모두 파일명인 경우 -> 필터링 후 빈 리스트 -> graph_context 없음"""
         results = [
             make_search_result(
                 chunk_id="chunk_1",
@@ -361,12 +401,12 @@ class TestBuildSourcesFromResults:
 
         sources = build_sources_from_results(results)
 
-        # 파일명 필터링 후 matched_entities 비어짐 -> 제목에서 폴백
-        assert "graph_context" in sources[0]
-        assert "RAG 파이프라인" in sources[0]["graph_context"]["related_entities"]
+        # 파일명 필터링 후 matched_entities 비어짐
+        # 타이틀 폴백이 제거되었으므로 graph_context 없음
+        assert "graph_context" not in sources[0]
 
-    def test_empty_matched_entities_fallback_to_title(self):
-        """matched_entities가 빈 리스트면 제목에서 폴백"""
+    def test_empty_matched_entities_no_graph_context(self):
+        """matched_entities가 빈 리스트면 graph_context 없음 (타이틀 폴백 제거됨)"""
         results = [
             make_search_result(
                 chunk_id="chunk_1",
@@ -380,11 +420,11 @@ class TestBuildSourcesFromResults:
 
         sources = build_sources_from_results(results)
 
-        assert "graph_context" in sources[0]
-        assert "Knowledge Graph 구축" in sources[0]["graph_context"]["related_entities"]
+        # 빈 matched_entities + 타이틀 폴백 제거 -> graph_context 없음
+        assert "graph_context" not in sources[0]
 
-    def test_no_matched_entities_key(self):
-        """matched_entities 키가 없으면 제목에서 폴백"""
+    def test_no_matched_entities_key_no_graph_context(self):
+        """matched_entities 키가 없으면 graph_context 없음 (타이틀 폴백 제거됨)"""
         results = [
             make_search_result(
                 chunk_id="chunk_1",
@@ -397,8 +437,8 @@ class TestBuildSourcesFromResults:
 
         sources = build_sources_from_results(results)
 
-        assert "graph_context" in sources[0]
-        assert "DeepSeek LLM 가이드" in sources[0]["graph_context"]["related_entities"]
+        # matched_entities 키 없음 + 타이틀 폴백 제거 -> graph_context 없음
+        assert "graph_context" not in sources[0]
 
     def test_empty_results(self):
         """빈 검색 결과"""
@@ -443,11 +483,10 @@ class TestBuildSourcesFromResults:
         assert "graph_context" in sources[0]
         assert "Neo4j" in sources[0]["graph_context"]["related_entities"]
 
-        # Vector 소스: 제목에서 엔티티 추출
-        assert "graph_context" in sources[1]
-        assert "AI 서비스 아키텍처" in sources[1]["graph_context"]["related_entities"]
+        # Vector 소스: matched_entities 없으므로 graph_context 없음 (타이틀 폴백 제거)
+        assert "graph_context" not in sources[1]
 
-        # Keyword 소스: 파일명 제목 -> graph_context 없음
+        # Keyword 소스: 파일명 제목 + matched_entities 없음 -> graph_context 없음
         assert "graph_context" not in sources[2]
 
     def test_source_info_contains_expected_fields(self):
@@ -523,15 +562,20 @@ class TestBuildSourcesFromResults:
 
 
 # ---------------------------------------------------------------------------
-# 4. SearchService._graph_search() Cypher matched_entities RETURN 검증
+# 4. SearchService._graph_search() Entity-Enhanced BM25 검증
 # ---------------------------------------------------------------------------
 
 
 class TestGraphSearchCypherQuery:
     """
-    SearchService._graph_search() Cypher 쿼리 검증
+    SearchService._graph_search() 검증
 
-    ISSUE-011: entity_names 경로에서 matched_entities가 RETURN에 포함되는지 검증
+    현행 동작 (Entity-Enhanced BM25):
+    1. Neo4j에서 쿼리 관련 엔티티명 추출
+    2. 엔티티명으로 ES BM25 검색 (엔티티 부스트)
+    3. ES 결과를 SearchResult로 파싱하여 반환
+
+    이전 동작(Neo4j에서 직접 chunk 반환)은 제거되었습니다.
     """
 
     def setup_method(self):
@@ -550,36 +594,37 @@ class TestGraphSearchCypherQuery:
         assert results == []
 
     @pytest.mark.asyncio
-    async def test_graph_search_with_entities_includes_matched_entities(self):
-        """ISSUE-011: entity_names 경로에서 matched_entities가 반환되는지 검증"""
-        mock_records = [
-            {
-                "chunk_id": "chunk_1",
-                "content": "Neo4j를 사용한 지식 그래프 구축",
-                "document_id": "doc_1",
-                "title": "KG 가이드",
-                "score": 3.0,
-                "matched_entities": ["Neo4j", "LangGraph"],
-            }
+    async def test_graph_search_with_entities_returns_es_results(self):
+        """entity_names 경로: Neo4j에서 엔티티 확장 -> ES 검색"""
+        # Neo4j에서 엔티티명 반환
+        neo4j_entity_records = [
+            {"name": "Neo4j"},
+            {"name": "LangGraph"},
+            {"name": "Knowledge Graph"},  # RELATED_TO 확장 엔티티
         ]
 
-        mock_driver = AsyncMock()
-        mock_session = AsyncMock()
-        mock_result = AsyncMock()
+        # ES 검색 결과
+        es_response = _make_es_response([
+            _make_es_hit(
+                chunk_id="chunk_1",
+                content="Neo4j를 사용한 지식 그래프 구축",
+                document_id="doc_1",
+                title="KG 가이드",
+                score=3.0,
+            ),
+        ])
 
-        # async for 지원을 위한 설정
-        mock_result.__aiter__ = lambda self: self
-        mock_result.__anext__ = AsyncMock(side_effect=StopAsyncIteration)
+        mock_es_client = AsyncMock()
+        mock_es_client.search = AsyncMock(return_value=es_response)
 
-        mock_session.run = AsyncMock(return_value=mock_result)
-        mock_driver.session = MagicMock(return_value=mock_session)
-
-        # _neo4j_query를 직접 mock하여 records 반환
         with patch("app.services.search.get_embedding_service"):
             from app.services.search import SearchService
-            service = SearchService(es_client=None, neo4j_driver=mock_driver)
+            service = SearchService(
+                es_client=mock_es_client,
+                neo4j_driver=MagicMock(),
+            )
 
-        service._neo4j_query = AsyncMock(return_value=mock_records)
+        service._neo4j_query = AsyncMock(return_value=neo4j_entity_records)
 
         results = await service._graph_search(
             query="Neo4j 사용법",
@@ -588,29 +633,41 @@ class TestGraphSearchCypherQuery:
         )
 
         assert len(results) == 1
-        assert results[0].metadata["matched_entities"] == ["Neo4j", "LangGraph"]
-        assert results[0].metadata["search_source"] == "neo4j_graph"
+        assert results[0].chunk_id == "chunk_1"
         assert results[0].source == "graph"
+        # _neo4j_query가 1번 호출됨 (엔티티명 조회)
+        assert service._neo4j_query.call_count == 1
 
     @pytest.mark.asyncio
-    async def test_graph_search_without_entities_3step_matching(self):
-        """엔티티 없을 때 3단계 매칭 (Entity -> Community -> Keyword)"""
-        mock_records = [
-            {
-                "chunk_id": "chunk_1",
-                "content": "Elasticsearch를 활용한 벡터 검색",
-                "document_id": "doc_1",
-                "title": "ES 가이드",
-                "score": 2.0,
-                "matched_entities": ["Elasticsearch"],
-            }
+    async def test_graph_search_without_entities_uses_query_words(self):
+        """엔티티 없을 때 query_words로 Neo4j 검색 -> ES 검색"""
+        # Neo4j에서 쿼리 단어 기반 엔티티명 반환
+        neo4j_entity_records = [
+            {"name": "Elasticsearch"},
         ]
+
+        # ES 검색 결과
+        es_response = _make_es_response([
+            _make_es_hit(
+                chunk_id="chunk_1",
+                content="Elasticsearch를 활용한 벡터 검색",
+                document_id="doc_1",
+                title="ES 가이드",
+                score=2.0,
+            ),
+        ])
+
+        mock_es_client = AsyncMock()
+        mock_es_client.search = AsyncMock(return_value=es_response)
 
         with patch("app.services.search.get_embedding_service"):
             from app.services.search import SearchService
-            service = SearchService(es_client=None, neo4j_driver=MagicMock())
+            service = SearchService(
+                es_client=mock_es_client,
+                neo4j_driver=MagicMock(),
+            )
 
-        service._neo4j_query = AsyncMock(return_value=mock_records)
+        service._neo4j_query = AsyncMock(return_value=neo4j_entity_records)
 
         results = await service._graph_search(
             query="Elasticsearch 설정",
@@ -619,31 +676,23 @@ class TestGraphSearchCypherQuery:
         )
 
         assert len(results) == 1
-        assert "Elasticsearch" in results[0].metadata["matched_entities"]
+        assert results[0].chunk_id == "chunk_1"
+        assert results[0].source == "graph"
 
     @pytest.mark.asyncio
-    async def test_graph_search_entity_step_fallback_to_content(self):
-        """엔티티 매칭 실패 시 컨텐츠 기반 폴백"""
-        fallback_records = [
-            {
-                "chunk_id": "chunk_fb",
-                "content": "폴백 컨텐츠 내용",
-                "document_id": "doc_fb",
-                "title": "폴백 문서",
-                "score": 1.0,
-                "matched_entities": [],
-            }
-        ]
+    async def test_graph_search_neo4j_no_entities_returns_empty(self):
+        """Neo4j에서 엔티티를 찾지 못하면 빈 결과 반환 (ES 검색 수행 안 함)"""
+        mock_es_client = AsyncMock()
 
         with patch("app.services.search.get_embedding_service"):
             from app.services.search import SearchService
-            service = SearchService(es_client=None, neo4j_driver=MagicMock())
+            service = SearchService(
+                es_client=mock_es_client,
+                neo4j_driver=MagicMock(),
+            )
 
-        # 첫 번째 호출(엔티티 매칭): 빈 결과
-        # 두 번째 호출(컨텐츠 폴백): 결과 반환
-        service._neo4j_query = AsyncMock(
-            side_effect=[[], fallback_records]
-        )
+        # Neo4j에서 빈 결과
+        service._neo4j_query = AsyncMock(return_value=[])
 
         results = await service._graph_search(
             query="폴백 테스트",
@@ -651,45 +700,51 @@ class TestGraphSearchCypherQuery:
             top_k=10,
         )
 
-        assert len(results) == 1
-        assert results[0].chunk_id == "chunk_fb"
-        # _neo4j_query가 2번 호출됨 (엔티티 매칭 + 컨텐츠 폴백)
-        assert service._neo4j_query.call_count == 2
+        # Neo4j에서 엔티티 없으면 즉시 빈 결과 반환
+        assert results == []
+        assert service._neo4j_query.call_count == 1
 
 
 # ---------------------------------------------------------------------------
-# 5. Graph Search 3단계 매칭 전략 E2E 검증
+# 5. Graph Search Neo4j -> ES 파이프라인 검증
 # ---------------------------------------------------------------------------
 
 
-class TestGraphSearch3StepMatching:
+class TestGraphSearchPipeline:
     """
-    Graph Search 3단계 매칭 전략 E2E 테스트
+    Graph Search Neo4j -> ES 파이프라인 E2E 테스트
 
-    Step 1: 역방향 CONTAINS - 쿼리에 엔티티 이름이 포함
-    Step 2: 정방향 CONTAINS - 쿼리 단어가 엔티티 이름에 포함
-    Step 3: 컨텐츠 폴백 - 청크 내용에서 직접 검색
+    현행 구조:
+    1. Neo4j에서 쿼리 관련 엔티티명 추출 (정확 매칭 + 부분 매칭)
+    2. 엔티티명으로 ES multi_match + entity boost 검색
+    3. _parse_es_results로 SearchResult 변환
     """
 
     @pytest.mark.asyncio
-    async def test_step1_query_contains_entity(self):
-        """Step 1: 쿼리 'Neo4j 설명' -> 엔티티 'Neo4j' 매칭"""
-        mock_records = [
-            {
-                "chunk_id": "c1",
-                "content": "Neo4j는 그래프 데이터베이스입니다",
-                "document_id": "d1",
-                "title": "Neo4j 가이드",
-                "score": 1.0,
-                "matched_entities": ["Neo4j"],
-            }
-        ]
+    async def test_entity_names_used_in_es_query(self):
+        """Neo4j 엔티티명이 ES 검색 쿼리에 반영되는지 확인"""
+        neo4j_records = [{"name": "Neo4j"}]
+        es_response = _make_es_response([
+            _make_es_hit(
+                chunk_id="c1",
+                content="Neo4j는 그래프 데이터베이스입니다",
+                document_id="d1",
+                title="Neo4j 가이드",
+                score=1.0,
+            ),
+        ])
+
+        mock_es_client = AsyncMock()
+        mock_es_client.search = AsyncMock(return_value=es_response)
 
         with patch("app.services.search.get_embedding_service"):
             from app.services.search import SearchService
-            service = SearchService(es_client=None, neo4j_driver=MagicMock())
+            service = SearchService(
+                es_client=mock_es_client,
+                neo4j_driver=MagicMock(),
+            )
 
-        service._neo4j_query = AsyncMock(return_value=mock_records)
+        service._neo4j_query = AsyncMock(return_value=neo4j_records)
 
         results = await service._graph_search(
             query="Neo4j 설명해줘",
@@ -698,27 +753,40 @@ class TestGraphSearch3StepMatching:
         )
 
         assert len(results) == 1
-        assert results[0].metadata["matched_entities"] == ["Neo4j"]
+        assert results[0].chunk_id == "c1"
+        assert results[0].source == "graph"
+
+        # ES search가 호출되었는지 확인
+        assert mock_es_client.search.call_count == 1
 
     @pytest.mark.asyncio
-    async def test_step2_entity_contains_query_word(self):
-        """Step 2: 쿼리 'Spring 설정' -> 엔티티 'SpringBoot 3.x' 매칭"""
-        mock_records = [
-            {
-                "chunk_id": "c1",
-                "content": "SpringBoot 3.x 설정 방법",
-                "document_id": "d1",
-                "title": "Spring 가이드",
-                "score": 1.0,
-                "matched_entities": ["SpringBoot 3.x"],
-            }
+    async def test_multiple_entities_boost_es_search(self):
+        """여러 엔티티명이 ES should 절에 부스트로 추가"""
+        neo4j_records = [
+            {"name": "SpringBoot"},
+            {"name": "Spring Cloud"},
         ]
+        es_response = _make_es_response([
+            _make_es_hit(
+                chunk_id="c1",
+                content="SpringBoot 3.x 설정 방법",
+                document_id="d1",
+                title="Spring 가이드",
+                score=1.0,
+            ),
+        ])
+
+        mock_es_client = AsyncMock()
+        mock_es_client.search = AsyncMock(return_value=es_response)
 
         with patch("app.services.search.get_embedding_service"):
             from app.services.search import SearchService
-            service = SearchService(es_client=None, neo4j_driver=MagicMock())
+            service = SearchService(
+                es_client=mock_es_client,
+                neo4j_driver=MagicMock(),
+            )
 
-        service._neo4j_query = AsyncMock(return_value=mock_records)
+        service._neo4j_query = AsyncMock(return_value=neo4j_records)
 
         results = await service._graph_search(
             query="Spring 설정",
@@ -727,50 +795,45 @@ class TestGraphSearch3StepMatching:
         )
 
         assert len(results) == 1
-        assert "SpringBoot 3.x" in results[0].metadata["matched_entities"]
+        assert results[0].chunk_id == "c1"
 
     @pytest.mark.asyncio
-    async def test_step3_content_fallback(self):
-        """Step 3: 엔티티 매칭 실패 -> 컨텐츠에서 직접 검색"""
-        content_records = [
-            {
-                "chunk_id": "c_fb",
-                "content": "이 문서는 AI 서비스 아키텍처를 설명합니다",
-                "document_id": "d_fb",
-                "title": "AI 아키텍처",
-                "score": 1.0,
-                "matched_entities": ["AI"],
-            }
-        ]
+    async def test_es_empty_response_returns_empty(self):
+        """Neo4j 엔티티 있지만 ES 결과 없으면 빈 리스트"""
+        neo4j_records = [{"name": "NonexistentEntity"}]
+        es_response = _make_es_response([])
+
+        mock_es_client = AsyncMock()
+        mock_es_client.search = AsyncMock(return_value=es_response)
 
         with patch("app.services.search.get_embedding_service"):
             from app.services.search import SearchService
-            service = SearchService(es_client=None, neo4j_driver=MagicMock())
+            service = SearchService(
+                es_client=mock_es_client,
+                neo4j_driver=MagicMock(),
+            )
 
-        # Step 1+2 실패 (빈 결과) -> Step 3 폴백 성공
-        service._neo4j_query = AsyncMock(
-            side_effect=[[], content_records]
-        )
+        service._neo4j_query = AsyncMock(return_value=neo4j_records)
 
         results = await service._graph_search(
-            query="아키텍처 설명",
+            query="존재하지않는쿼리",
             entities=None,
             top_k=10,
         )
 
-        assert len(results) == 1
-        assert results[0].chunk_id == "c_fb"
+        assert results == []
 
     @pytest.mark.asyncio
-    async def test_all_3_steps_fail_returns_empty(self):
-        """3단계 모두 실패 -> 빈 결과"""
+    async def test_all_steps_fail_returns_empty(self):
+        """Neo4j 엔티티 없으면 빈 결과 (ES 검색 수행 안 함)"""
         with patch("app.services.search.get_embedding_service"):
             from app.services.search import SearchService
-            service = SearchService(es_client=None, neo4j_driver=MagicMock())
+            service = SearchService(
+                es_client=MagicMock(),
+                neo4j_driver=MagicMock(),
+            )
 
-        service._neo4j_query = AsyncMock(
-            side_effect=[[], []]
-        )
+        service._neo4j_query = AsyncMock(return_value=[])
 
         results = await service._graph_search(
             query="존재하지않는쿼리",
@@ -920,6 +983,9 @@ class TestIssue011EndToEnd:
 
     시나리오: Chat Search -> Graph Search -> build_sources -> Frontend에서
     entity_name이 파일명이 아닌 실제 엔티티명으로 전달되는지 검증
+
+    현행 동작: build_sources_from_results는 matched_entities만 사용합니다.
+    타이틀 기반 폴백은 제거되었습니다 (Neo4j 미검증 엔티티 방지).
     """
 
     def test_scenario_graph_source_with_real_entities(self):
@@ -954,12 +1020,12 @@ class TestIssue011EndToEnd:
         assert "Knowledge Graph" in related_entities
         assert "KMS_설계서.pdf" not in related_entities
 
-    def test_scenario_vector_source_title_fallback(self):
+    def test_scenario_vector_source_no_title_fallback(self):
         """
-        시나리오 2: Vector 소스에서 제목 기반 엔티티 폴백
+        시나리오 2: Vector 소스에서 matched_entities 없으면 graph_context 없음
 
-        matched_entities가 없는 Vector 소스에서도
-        제목(파일명 아닌)에서 엔티티를 추출
+        타이틀 기반 폴백이 제거되었으므로 matched_entities 없는
+        Vector 소스에는 graph_context가 생성되지 않습니다.
         """
         results = [
             make_search_result(
@@ -978,14 +1044,15 @@ class TestIssue011EndToEnd:
         sources = build_sources_from_results(results)
         source = sources[0]
 
-        assert "graph_context" in source
-        assert "마이크로서비스 아키텍처" in source["graph_context"]["related_entities"]
+        # matched_entities 없으므로 graph_context 없음 (타이틀 폴백 제거됨)
+        assert "graph_context" not in source
 
     def test_scenario_mixed_results_correct_entity_extraction(self):
         """
         시나리오 3: 혼합 결과에서 올바른 엔티티 추출
 
         Graph/Vector/Keyword 소스 혼합 시 각각 올바르게 처리
+        matched_entities가 있는 소스만 graph_context를 가짐
         """
         results = [
             # Graph 소스: matched_entities 사용
@@ -998,7 +1065,7 @@ class TestIssue011EndToEnd:
                     "matched_entities": ["PostgreSQL", "Elasticsearch"],
                 },
             ),
-            # Vector 소스: 제목에서 엔티티 추출
+            # Vector 소스: matched_entities 없음 -> graph_context 없음
             make_search_result(
                 chunk_id="c_vector",
                 source="vector",
@@ -1007,7 +1074,7 @@ class TestIssue011EndToEnd:
                     "title": "API Gateway 설계",
                 },
             ),
-            # Keyword 소스: 파일명 제목 -> graph_context 없음
+            # Keyword 소스: 파일명 제목 + matched_entities 없음 -> graph_context 없음
             make_search_result(
                 chunk_id="c_keyword",
                 source="keyword",
@@ -1025,11 +1092,10 @@ class TestIssue011EndToEnd:
         assert "PostgreSQL" in sources[0]["graph_context"]["related_entities"]
         assert "설계서.pdf" not in sources[0]["graph_context"]["related_entities"]
 
-        # Vector: 제목에서 엔티티
-        assert "graph_context" in sources[1]
-        assert "API Gateway 설계" in sources[1]["graph_context"]["related_entities"]
+        # Vector: matched_entities 없으므로 graph_context 없음
+        assert "graph_context" not in sources[1]
 
-        # Keyword: 파일명 -> graph_context 없음
+        # Keyword: 파일명 + matched_entities 없음 -> graph_context 없음
         assert "graph_context" not in sources[2]
 
     def test_scenario_frontend_would_not_get_filename_as_entity(self):

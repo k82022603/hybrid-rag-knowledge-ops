@@ -39,7 +39,7 @@ class TestPassCases:
     """품질 통과 케이스"""
 
     def test_normal_text(self, gate):
-        chunk = make_chunk("이것은 정상적인 한국어 텍스트입니다. 충분한 길이를 가지고 있습니다.", 20)
+        chunk = make_chunk("이것은 정상적인 한국어 텍스트입니다. 충분한 길이를 가지고 있습니다.", 50)
         passed, rejected = gate.filter([chunk])
         assert len(passed) == 1
         assert len(rejected) == 0
@@ -47,31 +47,31 @@ class TestPassCases:
     def test_english_text(self, gate):
         chunk = make_chunk(
             "This is a normal English text with enough tokens and meaningful content.",
-            15,
+            50,
         )
         passed, rejected = gate.filter([chunk])
         assert len(passed) == 1
 
     def test_mixed_content(self, gate):
-        chunk = make_chunk("API 게이트웨이 설정: SpringBoot에서 /api/v1/** 경로 라우팅", 15)
+        chunk = make_chunk("API 게이트웨이 설정: SpringBoot에서 /api/v1/** 경로 라우팅", 50)
         passed, rejected = gate.filter([chunk])
         assert len(passed) == 1
 
     def test_code_block_passes(self, gate):
-        """코드 블록: 완화된 기준 적용 (token>=3, len>=10)"""
+        """코드 블록: 완화된 기준 적용 (token>=20, len>=30)"""
         chunk = make_chunk(
             "def hello():\n    return 'world'",
-            5,
+            20,
             metadata={"block_type": "code"},
         )
         passed, rejected = gate.filter([chunk])
         assert len(passed) == 1
 
     def test_table_block_passes(self, gate):
-        """테이블 블록: 완화된 기준 적용"""
+        """테이블 블록: 완화된 기준 적용 (token>=20, len>=30)"""
         chunk = make_chunk(
             "| Name | Value |\n| --- | --- |\n| key | 123 |",
-            8,
+            20,
             metadata={"block_type": "table"},
         )
         passed, rejected = gate.filter([chunk])
@@ -98,21 +98,21 @@ class TestMinimumLength:
         assert len(passed) == 0
 
     def test_below_min_tokens(self, gate):
-        """token_count < 10 기각"""
+        """token_count < 50 기각"""
         chunk = make_chunk("짧은 텍스트입니다", 5)
         passed, rejected = gate.filter([chunk])
         assert len(passed) == 0
 
     def test_below_min_chars(self, gate):
         """len(text) < 30 기각"""
-        chunk = make_chunk("a" * 29, 15)  # 29자 < 30
+        chunk = make_chunk("a" * 29, 55)  # 29자 < 30, token>=50
         passed, rejected = gate.filter([chunk])
         assert len(passed) == 0
 
     def test_exact_minimum(self, gate):
-        """정확히 최소 기준"""
+        """정확히 최소 기준 (token=50, len=30)"""
         text = "한" * 30  # 30자, 한글
-        chunk = make_chunk(text, 10)
+        chunk = make_chunk(text, 50)
         passed, rejected = gate.filter([chunk])
         assert len(passed) == 1
 
@@ -172,14 +172,14 @@ class TestMeaningfulRatio:
     def test_mostly_special_chars(self, gate):
         """특수문자 70% 이상이면 기각"""
         text = "!@#$%^&*()!@#$%^&*()!@#$%^&*()!!" + "a" * 5  # 약 14% 의미
-        chunk = make_chunk(text, 15)
+        chunk = make_chunk(text, 50)
         passed, rejected = gate.filter([chunk])
         assert len(passed) == 0
 
     def test_enough_meaningful_chars(self, gate):
         """의미있는 문자 30% 이상이면 통과"""
         text = "abc가나다" + "!@#" * 3  # 6/15 = 40%
-        chunk = make_chunk(text * 3, 15)  # 길이 충족
+        chunk = make_chunk(text * 3, 50)  # 길이 충족 (45자), token=50
         passed, rejected = gate.filter([chunk])
         assert len(passed) == 1
 
@@ -195,10 +195,10 @@ class TestBatchFilter:
     def test_mixed_quality(self, gate):
         """양호/불량 혼합 필터링"""
         chunks = [
-            make_chunk("정상적인 텍스트입니다. 충분한 길이와 토큰을 가지고 있습니다.", 20),
+            make_chunk("정상적인 텍스트입니다. 충분한 길이와 토큰을 가지고 있습니다.", 50),
             make_chunk("", 0),
             make_chunk("---", 10),
-            make_chunk("또 다른 정상 텍스트. 이것도 충분히 길고 의미가 있는 문장입니다.", 25),
+            make_chunk("또 다른 정상 텍스트. 이것도 충분히 길고 의미가 있는 문장입니다.", 50),
         ]
         passed, rejected = gate.filter(chunks)
         assert len(passed) == 2
@@ -211,7 +211,7 @@ class TestBatchFilter:
 
     def test_all_pass(self, gate):
         chunks = [
-            make_chunk(f"정상 텍스트 번호 {i}. 충분한 길이를 가진 의미있는 문장입니다.", 20)
+            make_chunk(f"정상 텍스트 번호 {i}. 충분한 길이를 가진 의미있는 문장입니다.", 50)
             for i in range(5)
         ]
         passed, rejected = gate.filter(chunks)
@@ -234,14 +234,14 @@ class TestBlockTypeEdgeCases:
     """코드/테이블 블록 특수 기준"""
 
     def test_code_block_too_short(self, gate):
-        """코드 블록이라도 token<3 또는 len<10이면 기각"""
+        """코드 블록이라도 token<20 또는 len<30이면 기각"""
         chunk = make_chunk("x=1", 2, metadata={"block_type": "code"})
         passed, rejected = gate.filter([chunk])
         assert len(passed) == 0
 
     def test_code_block_exactly_minimum(self, gate):
-        """코드 블록 최소 기준 충족"""
-        chunk = make_chunk("x = 10 + 1", 3, metadata={"block_type": "code"})
+        """코드 블록 최소 기준 충족 (token=20, len>=30)"""
+        chunk = make_chunk("result = calculate_value(x, y)", 20, metadata={"block_type": "code"})
         passed, rejected = gate.filter([chunk])
         assert len(passed) == 1
 

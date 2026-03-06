@@ -12,6 +12,7 @@
 """
 
 import asyncio
+import sys
 import hashlib
 import json
 import pytest
@@ -979,14 +980,19 @@ class TestRedisCacheBackend:
         )
         assert backend._client is None
 
-        # 실제 Redis 없이 테스트 - import만 확인
-        with patch("redis.asyncio.from_url") as mock_from_url:
-            mock_client = AsyncMock()
-            mock_from_url.return_value = mock_client
+        # 실제 Redis 없이 테스트 - import를 mock으로 대체
+        mock_aioredis = MagicMock()
+        mock_client = AsyncMock()
+        mock_aioredis.from_url.return_value = mock_client
 
+        # redis 모듈의 asyncio 속성이 mock_aioredis를 가리키도록 설정
+        mock_redis = MagicMock()
+        mock_redis.asyncio = mock_aioredis
+
+        with patch.dict("sys.modules", {"redis": mock_redis, "redis.asyncio": mock_aioredis}):
             client = await backend._get_client()
             assert client is mock_client
-            mock_from_url.assert_called_once()
+            mock_aioredis.from_url.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_get_client_connection_failure(self):
@@ -996,9 +1002,13 @@ class TestRedisCacheBackend:
             prefix="test:",
         )
 
-        with patch("redis.asyncio.from_url") as mock_from_url:
-            mock_from_url.side_effect = Exception("Connection refused")
+        mock_aioredis = MagicMock()
+        mock_aioredis.from_url.side_effect = Exception("Connection refused")
 
+        mock_redis = MagicMock()
+        mock_redis.asyncio = mock_aioredis
+
+        with patch.dict("sys.modules", {"redis": mock_redis, "redis.asyncio": mock_aioredis}):
             with pytest.raises(Exception, match="Connection refused"):
                 await backend._get_client()
 

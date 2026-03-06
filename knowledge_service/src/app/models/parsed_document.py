@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class DocumentFormat(str, Enum):
@@ -121,6 +121,8 @@ class ParsedDocument(BaseModel):
     Docling 파싱 결과를 표준화된 형식으로 저장
     """
 
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID = Field(default_factory=uuid4, description="문서 UUID")
     source_path: Optional[str] = Field(default=None, description="원본 파일 경로")
     source_format: DocumentFormat = Field(
@@ -154,11 +156,6 @@ class ParsedDocument(BaseModel):
 
     # 추가 메타데이터
     metadata: Dict[str, Any] = Field(default_factory=dict, description="추가 메타데이터")
-
-    class Config:
-        """Pydantic 설정"""
-
-        from_attributes = True
 
     @classmethod
     def from_file_path(cls, file_path: str) -> "ParsedDocument":

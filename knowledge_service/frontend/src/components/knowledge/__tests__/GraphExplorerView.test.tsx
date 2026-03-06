@@ -670,7 +670,7 @@ describe('GraphExplorerView', () => {
       const truncateLabel = (label: string, maxLen = 18): string =>
         label.length > maxLen ? label.slice(0, maxLen) + '\u2026' : label;
 
-      const longName = '매우긴엔티티이름이여기에있습니다';
+      const longName = '매우긴엔티티이름이여기에있습니다아아아아';
       expect(longName.length).toBeGreaterThan(18);
 
       const result = truncateLabel(longName);
@@ -748,8 +748,9 @@ describe('GraphExplorerView', () => {
 
       // Technology(기술), Person(인물)은 표시되어야 함
       await waitFor(() => {
-        expect(screen.getByText('기술')).toBeInTheDocument();
-        expect(screen.getByText('인물')).toBeInTheDocument();
+        const fieldset = document.querySelector('fieldset');
+        expect(fieldset!.textContent).toContain('기술');
+        expect(fieldset!.textContent).toContain('인물');
       });
     });
   });

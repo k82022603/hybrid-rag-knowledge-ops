@@ -354,7 +354,7 @@ class TestOptimizedDocumentParser:
         with patch("app.etl.docling_adapter.DoclingAdapter") as MockAdapter:
             mock_adapter = MockAdapter.return_value
 
-            def mock_parse(path):
+            def mock_parse(path, **kwargs):
                 if Path(path).exists():
                     return ParseResult(
                         document=ParsedDocument(status=ParseStatus.SUCCESS),

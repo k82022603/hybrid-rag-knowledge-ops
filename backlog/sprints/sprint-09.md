@@ -6,9 +6,9 @@
 |------|-------|
 | **Duration** | 2026-03-04 ~ 2026-03-17 (2 weeks) |
 | **Velocity (Planned)** | 38 pts (13 Stories) |
-| **Velocity (Actual)** | - |
-| **Status** | in_progress |
-| **Jira Sprint ID** | - |
+| **Velocity (Actual)** | 56 pts (18 Stories: Done 16, Deferred 2) |
+| **Status** | completed |
+| **Jira Sprint ID** | SCRUM-104 ~ SCRUM-121 |
 | **Objective** | Graph RAG 데이터 구축 + 데이터 정합성 + 검색 품질 고도화 + Observability 완성 |
 
 ---

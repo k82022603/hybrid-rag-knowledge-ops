@@ -384,8 +384,8 @@ class TestRedisCacheBackend:
         assert redis_backend.get_backend_name() == "redis"
 
     def test_get_size(self, redis_backend: RedisCacheBackend):
-        """크기 조회 (비동기 불가로 -1 반환)"""
-        assert redis_backend.get_size() == -1
+        """크기 조회 (초기값 0)"""
+        assert redis_backend.get_size() == 0
 
     def test_get_max_size(self, redis_backend: RedisCacheBackend):
         """최대 크기"""
@@ -683,7 +683,7 @@ class TestSearchCacheService:
 
         # 캐시 미스
         await cache_service.get(key)
-        stats = cache_service.get_stats()
+        stats = await cache_service.get_stats()
         assert stats.misses == 1
         assert stats.hits == 0
 
@@ -692,7 +692,7 @@ class TestSearchCacheService:
 
         # 캐시 히트
         await cache_service.get(key)
-        stats = cache_service.get_stats()
+        stats = await cache_service.get_stats()
         assert stats.misses == 1
         assert stats.hits == 1
         assert stats.hit_rate == 0.5
@@ -772,14 +772,14 @@ class TestSearchCacheService:
         await cache_service.set(key, sample_search_result)
         await cache_service.get(key)  # hit
 
-        stats = cache_service.get_stats()
+        stats = await cache_service.get_stats()
         assert stats.hits == 1
         assert stats.misses == 1
 
         # 초기화
         cache_service.reset_stats()
 
-        stats = cache_service.get_stats()
+        stats = await cache_service.get_stats()
         assert stats.hits == 0
         assert stats.misses == 0
         assert stats.last_reset != ""
@@ -829,9 +829,10 @@ class TestSearchCacheService:
         )
         assert cache._stats.backend == "in_memory_lru"
 
-    def test_get_stats_updates_size(self, cache_service: SearchCacheService):
+    @pytest.mark.asyncio
+    async def test_get_stats_updates_size(self, cache_service: SearchCacheService):
         """get_stats가 현재 크기를 업데이트하는지 확인"""
-        stats = cache_service.get_stats()
+        stats = await cache_service.get_stats()
         assert stats.size == 0
         assert stats.max_size == 100
         assert stats.backend == "in_memory_lru"
@@ -1093,7 +1094,7 @@ class TestConcurrentAccess:
         # 50개 동시 저장
         results = await asyncio.gather(*[set_item(i) for i in range(50)])
         assert all(results)
-        assert cache_service.get_stats().size == 50
+        assert (await cache_service.get_stats()).size == 50
 
     @pytest.mark.asyncio
     async def test_concurrent_get(self, cache_service: SearchCacheService):
@@ -1142,7 +1143,7 @@ class TestStatsTracking:
             key = cache_service.get_cache_key(query=f"query{i}")
             await cache_service.get(key)
 
-        stats = cache_service.get_stats()
+        stats = await cache_service.get_stats()
         assert stats.misses == 3
         assert stats.hits == 0
 
@@ -1152,7 +1153,7 @@ class TestStatsTracking:
         await cache_service.get(key)
         await cache_service.get(key)
 
-        stats = cache_service.get_stats()
+        stats = await cache_service.get_stats()
         assert stats.misses == 3
         assert stats.hits == 2
         assert stats.hit_rate == 2 / 5
@@ -1170,30 +1171,32 @@ class TestStatsTracking:
             key = cache_service.get_cache_key(query=f"query{i}")
             await cache_service.get(key)
 
-        stats = cache_service.get_stats()
+        stats = await cache_service.get_stats()
         assert stats.hits == 5
         assert stats.size == 5
 
         # clear
         await cache_service.invalidate(pattern=None)
 
-        stats = cache_service.get_stats()
+        stats = await cache_service.get_stats()
         assert stats.hits == 5  # 통계는 유지
         assert stats.size == 0  # 크기만 0
 
     @pytest.mark.asyncio
     async def test_stats_with_redis_backend(self):
-        """Redis 백엔드에서 통계 (get_size가 -1 반환)"""
+        """Redis 백엔드에서 통계 (backend=redis 확인)"""
         cache = SearchCacheService(
             redis_url="redis://localhost:6379/0",
             ttl=60,
             max_size=100,
         )
 
-        # Redis 백엔드는 get_size가 -1 반환
-        # get_stats에서 음수 크기는 업데이트하지 않음
-        stats = cache.get_stats()
-        assert stats.size == 0  # 초기값 유지
+        # Redis 백엔드가 올바르게 설정되었는지 확인
+        # sync_size를 mock하여 실제 Redis 데이터에 의존하지 않음
+        with patch.object(cache._backend, "sync_size", new_callable=AsyncMock, return_value=0):
+            stats = await cache.get_stats()
+            assert stats.backend == "redis"
+            assert stats.max_size == 100
 
 
 # ---------------------------------------------------------------------------
