@@ -209,3 +209,49 @@ Sprint 09 P2에서 신규 작성된 테스트 + 기존 전체 단위 테스트 �
 | `test_search_service.py` | 1 |
 
 **최종 수정 성과**: 80 FAIL → **17 FAIL** (63건 수정, **78.8% 해소**)
+
+---
+
+## 11. 잔여 17건 완전 해소 (2차 수정)
+
+**시점**: 2026-03-07 00:30 KST
+**환경**: WSL2 호스트, TEST_MODE=docker
+
+### 배경
+
+사용자 지시: "지금 바로 하세요. QA MOCK 금지해주시고요."
+17건 모두 개별 실행 시 PASS, 전체 스위트에서만 FAIL → 테스트 격리/모듈 오염 문제.
+
+### 근본 원인 분석
+
+| 원인 | 영향 범위 | 오염 메커니즘 |
+|------|----------|-------------|
+| `standalone/conftest.py`에서 `elasticsearch`, `redis`, `neo4j`, `minio`를 `MagicMock()`으로 `sys.modules`에 등록 | ES 5건, Cache 3건, Embedding 1건 | conftest가 pytest 수집 시 자동 실행 → 실제 패키지를 MagicMock으로 대체 → 후속 테스트에서 `from elasticsearch.helpers import async_bulk` 실패 |
+| `test_graph_search_e2e.py` 모듈 수준 mock | 동일 (conftest와 중복) | 모듈 import 시 즉시 실행 |
+| `test_document_processing_pipeline.py`의 `aembed_batch` lambda | 6건 | `return_sparse=True` kwarg 미수신 + 반환값 튜플 미지원 |
+| `notify_status` 네트워크 타임아웃 | 6건 (간접) | 각 10초 × 9회 = 90초 → pytest 60초 타임아웃 초과 |
+| `test_cache_service.py`의 `patch("redis.asyncio.from_url")` | 3건 | `sys.modules["redis"]`가 MagicMock이면 서브모듈 접근 불가 |
+
+### 수정 내역
+
+| 파일 | 수정 내용 | 해소 건수 |
+|------|----------|----------|
+| `standalone/conftest.py` | `elasticsearch`, `redis`, `neo4j`, `minio`를 mock 목록에서 제거 (실제 설치 패키지) | 9 |
+| `standalone/test_graph_search_e2e.py` | 동일 — 실제 설치 패키지 mock 제거 | - |
+| `test_document_processing_pipeline.py` | `notify_status` autouse fixture mock 추가 (타임아웃 방지) + `aembed_batch` lambda에 `**kwargs` 및 튜플 반환 | 6 |
+| `test_cache_service.py` | `patch.dict("sys.modules", {"redis": ..., "redis.asyncio": ...})` 방식으로 변경 | - |
+| `test_embedding_service.py` | 실제 redis 모듈 `patch.dict` 복원 후 테스트 | - |
+| `test_search_service.py` | `patch.start()`/`patch.stop()` 패턴 (1차 수정) | 1 |
+| `test_embedding_service.py` | `lexical_weights` 키 타입 int 변경 (1차 수정) | 1 |
+
+### 최종 결과
+
+| 결과 | 건수 | 변화 |
+|------|-----:|------|
+| PASS | 1,197 | +17 |
+| FAIL | **0** | **-17** |
+| SKIP | 2 | 변동 없음 |
+| **합계** | **1,199** | |
+| **소요시간** | 6분 8초 | -9분 17초 (타임아웃 제거 효과) |
+
+**최종 수정 성과**: 80 FAIL → **0 FAIL** (80건 전건 수정, **100% 해소**)

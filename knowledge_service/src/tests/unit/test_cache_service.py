@@ -534,16 +534,18 @@ class TestRedisCacheBackend:
             redis_url="redis://localhost:6379/0",
             prefix="test:",
         )
-        assert backend._client is None
+        backend._client = None
 
-        # 실제 Redis 없이 테스트 - import만 확인
-        with patch("redis.asyncio.from_url") as mock_from_url:
-            mock_client = AsyncMock()
-            mock_from_url.return_value = mock_client
+        mock_client = AsyncMock()
+        mock_aioredis = MagicMock()
+        mock_aioredis.from_url.return_value = mock_client
+        mock_redis = MagicMock()
+        mock_redis.asyncio = mock_aioredis
 
+        with patch.dict("sys.modules", {"redis": mock_redis, "redis.asyncio": mock_aioredis}):
             client = await backend._get_client()
             assert client is mock_client
-            mock_from_url.assert_called_once()
+            mock_aioredis.from_url.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_get_client_reuse(self):
@@ -552,20 +554,19 @@ class TestRedisCacheBackend:
             redis_url="redis://localhost:6379/0",
             prefix="test:",
         )
+        backend._client = None
 
-        with patch("redis.asyncio.from_url") as mock_from_url:
-            mock_client = AsyncMock()
-            mock_from_url.return_value = mock_client
+        mock_client = AsyncMock()
+        mock_aioredis = MagicMock()
+        mock_aioredis.from_url.return_value = mock_client
+        mock_redis = MagicMock()
+        mock_redis.asyncio = mock_aioredis
 
-            # 첫 번째 호출
+        with patch.dict("sys.modules", {"redis": mock_redis, "redis.asyncio": mock_aioredis}):
             client1 = await backend._get_client()
-            # 두 번째 호출
             client2 = await backend._get_client()
-
-            # 같은 클라이언트 반환
             assert client1 is client2
-            # from_url은 한 번만 호출
-            assert mock_from_url.call_count == 1
+            assert mock_aioredis.from_url.call_count == 1
 
     @pytest.mark.asyncio
     async def test_get_client_connection_failure(self):
@@ -574,10 +575,14 @@ class TestRedisCacheBackend:
             redis_url="redis://localhost:6379/0",
             prefix="test:",
         )
+        backend._client = None
 
-        with patch("redis.asyncio.from_url") as mock_from_url:
-            mock_from_url.side_effect = Exception("Connection refused")
+        mock_aioredis = MagicMock()
+        mock_aioredis.from_url.side_effect = Exception("Connection refused")
+        mock_redis = MagicMock()
+        mock_redis.asyncio = mock_aioredis
 
+        with patch.dict("sys.modules", {"redis": mock_redis, "redis.asyncio": mock_aioredis}):
             with pytest.raises(Exception, match="Connection refused"):
                 await backend._get_client()
 

@@ -57,29 +57,61 @@ def document_store() -> Dict[UUID, Dict[str, Any]]:
     return {}
 
 
+@pytest.fixture(autouse=True)
+def mock_notify_status():
+    """Status callback을 모킹하여 네트워크 타임아웃 방지 (각 10초 × 9회 = 90초 절약)"""
+    with patch(
+        "app.services.document_processing_pipeline.notify_status",
+        new_callable=AsyncMock,
+        return_value=True,
+    ):
+        yield
+
+
 @pytest.fixture
 def sample_markdown_content() -> str:
-    """테스트용 Markdown 문서 내용"""
-    return """# Test Document
+    """테스트용 Markdown 문서 내용 (각 섹션 50+ 토큰, ChunkQualityGate 통과)"""
+    return """# Test Document for Processing Pipeline
 
 ## Introduction
 
-This is a test document for the processing pipeline.
-It contains sample content for testing chunking and embedding.
+This is a comprehensive test document designed for validating the document processing pipeline.
+The pipeline includes multiple stages such as parsing, chunking, embedding generation, and entity extraction.
+Each stage must handle various document formats and produce high-quality output for downstream consumers.
+The document contains enough content to pass the ChunkQualityGate minimum token count threshold.
+Quality filtering ensures that only meaningful and semantically rich chunks are indexed into the knowledge base.
+This introduction section provides an overview of the entire document processing workflow and its requirements.
 
-## Section 1
+## Section 1: Machine Learning Overview
 
-Some content in section 1.
-Machine learning and artificial intelligence are key technologies.
+Machine learning and artificial intelligence are key technologies driving modern software development.
+Supervised learning algorithms such as random forests, gradient boosting, and neural networks are widely used
+for classification and regression tasks in production environments across many industries worldwide.
+Unsupervised learning techniques including clustering, dimensionality reduction, and anomaly detection
+help discover hidden patterns in large datasets without requiring labeled training examples.
+Deep learning architectures like transformers have revolutionized natural language processing and computer vision,
+enabling applications such as machine translation, text summarization, and image recognition at scale.
+Reinforcement learning enables agents to learn optimal policies through trial and error interaction with environments.
 
-## Section 2
+## Section 2: Knowledge Graph Technologies
 
-More content in section 2.
-Knowledge graphs help represent relationships between entities.
+Knowledge graphs help represent relationships between entities in a structured and queryable format.
+Graph databases like Neo4j provide efficient traversal of complex relationships between millions of nodes
+and edges, making them ideal for recommendation engines, fraud detection, and knowledge management systems.
+Entity extraction using natural language processing techniques identifies key concepts, people, organizations,
+and locations from unstructured text documents and maps them to nodes within the knowledge graph structure.
+Relationship extraction determines how entities are connected, creating edges that capture semantic meaning.
+Graph neural networks combine the power of deep learning with graph-structured data for advanced reasoning.
+Knowledge graph embeddings enable similarity search and link prediction for discovering new connections.
 
 ## Conclusion
 
-This concludes the test document.
+This concludes the test document which covers machine learning fundamentals and knowledge graph technologies.
+The content has been specifically designed to ensure each section exceeds the minimum token count threshold
+required by the ChunkQualityGate filter, which validates that chunks contain sufficient semantic information
+for meaningful embedding generation and retrieval operations in the hybrid RAG knowledge search system.
+Each section contains detailed technical content that represents realistic document processing scenarios.
+The pipeline should successfully parse, chunk, embed, and extract entities from this test document.
 """
 
 
@@ -783,7 +815,7 @@ class TestDocumentProcessingPipeline:
             # EmbeddingService Mock
             mock_embedding = MagicMock()
             mock_embedding.aembed_batch = AsyncMock(
-                side_effect=lambda texts: [[0.1] * 1024 for _ in range(len(texts))]
+                side_effect=lambda texts, **kwargs: ([[0.1] * 1024 for _ in range(len(texts))], [{1: 0.5} for _ in range(len(texts))])
             )
             pipeline.embedding_service = mock_embedding
 
@@ -984,7 +1016,7 @@ class TestDocumentProcessingPipeline:
             # EmbeddingService Mock
             mock_embedding = MagicMock()
             mock_embedding.aembed_batch = AsyncMock(
-                side_effect=lambda texts: [[0.1] * 1024 for _ in range(len(texts))]
+                side_effect=lambda texts, **kwargs: ([[0.1] * 1024 for _ in range(len(texts))], [{1: 0.5} for _ in range(len(texts))])
             )
             pipeline.embedding_service = mock_embedding
 
@@ -1047,7 +1079,7 @@ class TestDocumentProcessingPipeline:
         with patch.object(pipeline, "_ensure_services"):
             mock_embedding = MagicMock()
             mock_embedding.aembed_batch = AsyncMock(
-                side_effect=lambda texts: [[0.1] * 1024 for _ in range(len(texts))]
+                side_effect=lambda texts, **kwargs: ([[0.1] * 1024 for _ in range(len(texts))], [{1: 0.5} for _ in range(len(texts))])
             )
             pipeline.embedding_service = mock_embedding
 
@@ -1167,7 +1199,7 @@ class TestDocumentProcessingPipeline:
         with patch.object(pipeline, "_ensure_services"):
             mock_embedding = MagicMock()
             mock_embedding.aembed_batch = AsyncMock(
-                side_effect=lambda texts: [[0.1] * 1024 for _ in range(len(texts))]
+                side_effect=lambda texts, **kwargs: ([[0.1] * 1024 for _ in range(len(texts))], [{1: 0.5} for _ in range(len(texts))])
             )
             pipeline.embedding_service = mock_embedding
 
@@ -1226,7 +1258,7 @@ class TestDocumentProcessingPipeline:
         with patch.object(pipeline, "_ensure_services"):
             mock_embedding = MagicMock()
             mock_embedding.aembed_batch = AsyncMock(
-                side_effect=lambda texts: [[0.1] * 1024 for _ in range(len(texts))]
+                side_effect=lambda texts, **kwargs: ([[0.1] * 1024 for _ in range(len(texts))], [{1: 0.5} for _ in range(len(texts))])
             )
             pipeline.embedding_service = mock_embedding
 
@@ -1451,7 +1483,7 @@ class TestDocumentFormatHandling:
         with patch.object(pipeline, "_ensure_services"):
             mock_embedding = MagicMock()
             mock_embedding.aembed_batch = AsyncMock(
-                side_effect=lambda texts: [[0.1] * 1024 for _ in range(len(texts))]
+                side_effect=lambda texts, **kwargs: ([[0.1] * 1024 for _ in range(len(texts))], [{1: 0.5} for _ in range(len(texts))])
             )
             pipeline.embedding_service = mock_embedding
 

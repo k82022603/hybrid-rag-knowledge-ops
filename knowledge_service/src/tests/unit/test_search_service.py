@@ -84,7 +84,7 @@ class TestSearchFilters:
         assert filters.tags == ["Python", "RAG"]
 
     def test_to_es_filter_empty(self):
-        """빈 필터 → 빈 ES 쿼리"""
+        """빈 필터 -> 빈 ES 쿼리"""
         filters = SearchFilters()
         es_filters = filters.to_es_filter()
         assert es_filters == []
@@ -175,8 +175,13 @@ class TestRRFFusion:
 
     def setup_method(self):
         """테스트 설정"""
-        with patch("app.services.search.get_embedding_service"):
-            self.service = SearchService()
+        self._patcher = patch("app.services.search.get_embedding_service")
+        self._patcher.start()
+        self.service = SearchService()
+
+    def teardown_method(self):
+        """테스트 정리"""
+        self._patcher.stop()
 
     def test_empty_results(self):
         """빈 결과 융합"""
@@ -221,7 +226,7 @@ class TestRRFFusion:
         assert len(fused) == 4
 
     def test_multiple_sources_with_overlap(self):
-        """다중 소스, 동일 청크 겹침 → 점수 합산"""
+        """다중 소스, 동일 청크 겹침 -> 점수 합산"""
         vector_results = [
             make_search_result("chunk_A", source="vector"),  # rank 0
             make_search_result("chunk_B", source="vector"),  # rank 1
@@ -320,18 +325,30 @@ class TestSearchServiceNoExternalDeps:
     """외부 서비스 없이 SearchService 테스트"""
 
     def setup_method(self):
-        """테스트 설정 - ES/Neo4j 없는 환경"""
-        mock_embedding_service = MagicMock()
-        # aembed는 비동기 메서드이므로 AsyncMock 사용
-        mock_embedding_service.aembed = AsyncMock(return_value=[0.1] * 1024)
-        mock_embedding_service.aembed_batch = AsyncMock(return_value=[[0.1] * 1024])
+        """테스트 설정 - ES/Neo4j 없는 환경
 
-        with patch("app.services.search.get_embedding_service", return_value=mock_embedding_service):
-            self.service = SearchService(es_client=None, neo4j_driver=None)
+        patch.start()/stop()을 사용하여 mock이 async 테스트 실행 중에도
+        유지되도록 합니다 (with 문은 setup_method 종료 시 mock이 해제됨).
+        """
+        self._mock_embedding_service = MagicMock()
+        # aembed는 비동기 메서드이므로 AsyncMock 사용
+        self._mock_embedding_service.aembed = AsyncMock(return_value=[0.1] * 1024)
+        self._mock_embedding_service.aembed_batch = AsyncMock(return_value=[[0.1] * 1024])
+
+        self._patcher = patch(
+            "app.services.search.get_embedding_service",
+            return_value=self._mock_embedding_service,
+        )
+        self._patcher.start()
+        self.service = SearchService(es_client=None, neo4j_driver=None)
+
+    def teardown_method(self):
+        """테스트 정리 - mock 해제"""
+        self._patcher.stop()
 
     @pytest.mark.asyncio
     async def test_hybrid_search_no_clients(self):
-        """ES/Neo4j 없이 hybrid 검색 → 빈 결과"""
+        """ES/Neo4j 없이 hybrid 검색 -> 빈 결과"""
         result = await self.service.hybrid_search(
             query="RAG 파이프라인",
             top_k=10,
@@ -344,7 +361,7 @@ class TestSearchServiceNoExternalDeps:
 
     @pytest.mark.asyncio
     async def test_semantic_search_no_es(self):
-        """ES 없이 semantic 검색 → 빈 결과"""
+        """ES 없이 semantic 검색 -> 빈 결과"""
         result = await self.service.semantic_search(
             query="Elasticsearch 설정",
             top_k=5,
@@ -355,7 +372,7 @@ class TestSearchServiceNoExternalDeps:
 
     @pytest.mark.asyncio
     async def test_keyword_search_no_es(self):
-        """ES 없이 keyword 검색 → 빈 결과"""
+        """ES 없이 keyword 검색 -> 빈 결과"""
         result = await self.service.keyword_search(
             query="BM25 검색",
             top_k=5,
@@ -393,7 +410,7 @@ class TestSearchServiceNoExternalDeps:
 
     @pytest.mark.asyncio
     async def test_graph_search_no_neo4j(self):
-        """Neo4j 없이 graph 검색 → 빈 결과"""
+        """Neo4j 없이 graph 검색 -> 빈 결과"""
         results = await self.service._graph_search(
             query="graph search test",
             top_k=10,
@@ -411,8 +428,13 @@ class TestESResultParsing:
 
     def setup_method(self):
         """테스트 설정"""
-        with patch("app.services.search.get_embedding_service"):
-            self.service = SearchService()
+        self._patcher = patch("app.services.search.get_embedding_service")
+        self._patcher.start()
+        self.service = SearchService()
+
+    def teardown_method(self):
+        """테스트 정리"""
+        self._patcher.stop()
 
     def test_parse_empty_response(self):
         """빈 ES 응답 파싱"""

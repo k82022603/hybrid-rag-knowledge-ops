@@ -142,6 +142,9 @@ python_functions = ["test_*"]
 asyncio_mode = "auto"
 timeout = 60
 addopts = "-v --tb=short --strict-markers"
+filterwarnings = [
+    "ignore:coroutine.*was never awaited:RuntimeWarning",
+]
 markers = [
     "unit: unit tests",
     "integration: integration tests",

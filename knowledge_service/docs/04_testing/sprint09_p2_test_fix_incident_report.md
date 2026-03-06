@@ -17,8 +17,8 @@ Sprint 09 P2 QA 테스트 검증 과정에서 **80건의 테스트 실패**가 �
 | 발견 시점 | 2026-03-06 17:19 |
 | 환경 | WSL2 호스트, TEST_MODE=docker |
 | 최초 실패 | 80건 / 1,199건 (6.7% 실패율) |
-| 최종 결과 | **18건 / 1,199건 (1.5% 실패율)** |
-| 수정 성과 | 62건 수정 완료 (77.5% 해소) |
+| 최종 결과 | **0건 / 1,199건 (0% 실패율)** |
+| 수정 성과 | **80건 전건 수정 완료 (100% 해소)** |
 | 영향 범위 | Python 단위 테스트 전체 |
 | 근본 원인 | QA 에이전트의 Mock 사용 + ChunkQualityGate 기준 상향 미동기화 |
 
@@ -278,4 +278,32 @@ ai-service 컨테이너를 리빌드(`docker-compose build ai-service`)하여 Py
 `test_search_service.py::test_hybrid_search_no_clients` 1건이 자연 해소됨.
 `test_optimized_document_parser.py` 1건도 해소됨 (리빌드로 timeout kwarg 적용 확인).
 
-**최종 성과**: 80 FAIL → **17 FAIL** (63건 수정, 78.8% 해소)
+**최종 성과**: 80 FAIL → **0 FAIL** (80건 전건 수정, 100% 해소)
+
+---
+
+## 11. 2차 수정 — 잔여 17건 완전 해소
+
+**시점**: 2026-03-07 00:30 KST
+
+### 근본 원인
+
+`standalone/conftest.py`에서 `elasticsearch`, `redis`, `neo4j`, `minio`를 `MagicMock()`으로 `sys.modules`에 등록 → 전체 스위트에서 실제 패키지를 import하는 테스트들이 `'elasticsearch' is not a package` 오류 발생.
+
+### 수정 파일 (7개)
+
+1. `standalone/conftest.py` — 실제 설치 패키지 4종 mock 제거
+2. `standalone/test_graph_search_e2e.py` — 동일
+3. `test_document_processing_pipeline.py` — `notify_status` mock fixture + `aembed_batch` 반환값 수정
+4. `test_cache_service.py` — `sys.modules` 직접 패치 방식
+5. `test_embedding_service.py` — 실제 redis 모듈 복원
+6. `test_search_service.py` — patch lifecycle 수정 (1차)
+7. `test_embedding_service.py` — lexical_weights 키 타입 (1차)
+
+### 최종 결과
+
+| 구분 | 1차 수정 후 | 2차 수정 후 |
+|------|-----------|-----------|
+| PASS | 1,180 | **1,197** |
+| FAIL | 17 | **0** |
+| 소요시간 | 15분 25초 | **6분 8초** |

@@ -170,8 +170,11 @@ class TestEmbeddingCache:
         original_logger = _emb_module.logger
         _emb_module.logger = MagicMock()
         try:
-            cache = EmbeddingCache(host="nonexistent", port=9999)
-            assert cache.available is False
+            # sys.modules에 오염된 redis mock이 있을 수 있으므로 실제 redis 모듈 복원
+            import redis as _real_redis
+            with patch.dict(sys.modules, {"redis": _real_redis}):
+                cache = EmbeddingCache(host="nonexistent", port=9999)
+                assert cache.available is False
         finally:
             _emb_module.logger = original_logger
 
@@ -1173,7 +1176,7 @@ class TestEncodeTexts:
         mock_model = MagicMock()
         mock_model.encode.return_value = {
             "dense_vecs": _make_mock_array([[0.1, 0.2]]),
-            "lexical_weights": [{"1": 0.5}],
+            "lexical_weights": [{1: 0.5}],
         }
 
         svc = _make_service(

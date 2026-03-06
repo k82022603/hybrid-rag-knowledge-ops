@@ -33,11 +33,9 @@ _MOCK_PACKAGES = [
     "FlagEmbedding",
     "sentence_transformers",
     "transformers",
-    "elasticsearch",
-    "neo4j",
-    "minio",
-    "redis",
 ]
+# elasticsearch, redis, neo4j, minio는 실제 설치된 패키지이므로 mock하지 않음
+# (sys.modules 오염으로 다른 테스트 파일에 영향을 주기 때문)
 
 for _pkg in _MOCK_PACKAGES:
     if _pkg not in sys.modules:

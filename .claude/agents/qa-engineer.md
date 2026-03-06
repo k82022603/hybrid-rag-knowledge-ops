@@ -11,6 +11,42 @@ model: claude-sonnet-4-6  # 심층 추론: claude-opus-4-6 | 경량: claude-haik
 
 ## 🚨 필수 규칙 (반드시 준수)
 
+### Mock 테스트 절대 금지 (CRITICAL)
+
+> **`@patch`, `MagicMock`, `unittest.mock`을 사용한 Mock 기반 테스트를 작성하지 마세요!**
+> **반드시 `TEST_MODE=docker` 실환경에서 테스트를 실행해야 합니다.**
+
+```python
+# ❌ 금지 — Mock 테스트
+from unittest.mock import MagicMock, patch
+@patch("app.services.embedding.get_model")
+def test_something(mock_model):
+    mock_model.return_value = [0.1] * 1024  # 거짓 안전감!
+
+# ✅ 올바른 방법 — Docker 실환경 테스트
+import pytest, os
+pytestmark = pytest.mark.skipif(
+    os.getenv("TEST_MODE") != "docker",
+    reason="TEST_MODE=docker 필수"
+)
+def test_something():
+    result = actual_service.call()  # 실제 서비스 호출
+    assert result is not None
+```
+
+**왜 금지인가?**
+- Mock이 의존성을 대체하면, 의존성이 바뀌어도 테스트는 계속 통과
+- 2026-03-06 인시던트: ChunkQualityGate 기준 상향(02-16) 후 18일간 Mock이 변경을 가림 → 80건 FAIL
+- "테스트가 통과한다고 품질이 보장된 것이 아니다"
+
+**테스트 실행 방법:**
+```bash
+export TEST_MODE=docker
+pytest src/tests/unit/ -v
+```
+
+### Slack 알림 필수
+
 > **작업 시작과 종료 시 반드시 Slack 알림을 보내야 합니다!**
 
 ```bash
