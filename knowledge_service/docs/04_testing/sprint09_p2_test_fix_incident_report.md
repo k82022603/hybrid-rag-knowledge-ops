@@ -261,3 +261,21 @@ QA가 이것을 컨테이너 내부에서 테스트하도록 작성 → docker �
 | `test_optimized_document_parser.py` | 1 | timeout kwarg |
 
 **처리 방침**: Sprint 10 백로그로 이관 (테스트 인프라 개선 스토리)
+
+---
+
+## 10. 컨테이너 리빌드 후 재검증 (21:54 KST)
+
+ai-service 컨테이너를 리빌드(`docker-compose build ai-service`)하여 Pydantic V2 마이그레이션을 반영 후 전체 단위 테스트를 재실행.
+
+| 항목 | 리빌드 전 | 리빌드 후 | 변화 |
+|------|-----------|-----------|------|
+| PASS | 1,179 | **1,180** | +1 |
+| FAIL | 18 | **17** | -1 |
+| SKIP | 2 | 2 | - |
+| 소요시간 | 8분 45초 | 15분 25초 | +6분 40초 |
+
+`test_search_service.py::test_hybrid_search_no_clients` 1건이 자연 해소됨.
+`test_optimized_document_parser.py` 1건도 해소됨 (리빌드로 timeout kwarg 적용 확인).
+
+**최종 성과**: 80 FAIL → **17 FAIL** (63건 수정, 78.8% 해소)

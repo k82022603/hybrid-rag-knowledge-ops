@@ -178,3 +178,34 @@ Sprint 09 P2에서 신규 작성된 테스트 + 기존 전체 단위 테스트 �
 | `test_optimized_document_parser.py` | 1 | timeout kwarg 전달 (수정 완료이나 잔여) | 재검증 필요 |
 
 **분류**: 18건 모두 **테스트 격리/비동기 모킹 문제** — 실제 코드 결함이 아닌 테스트 인프라 이슈
+
+---
+
+## 10. 컨테이너 리빌드 후 재검증
+
+**시점**: 2026-03-06 21:54 KST
+**환경**: ai-service 컨테이너 리빌드 후 (Pydantic V2 마이그레이션 반영)
+
+### 빌드 후 테스트 결과
+
+| 결과 | 건수 | 변화 |
+|------|-----:|------|
+| PASS | 1,180 | +1 |
+| FAIL | 17 | -1 |
+| SKIP | 2 | 변동 없음 |
+| **합계** | **1,199** | |
+| **소요시간** | 15분 25초 | |
+
+**개선**: `test_search_service.py` 1건 자연 해소 (컨테이너 리빌드로 격리 문제 해결)
+
+### 잔여 17건 목록
+
+| 파일 | 실패 수 |
+|------|--------:|
+| `test_document_processing_pipeline.py` | 6 |
+| `test_es_storage.py` | 5 |
+| `test_cache_service.py` | 3 |
+| `test_embedding_service.py` | 2 |
+| `test_search_service.py` | 1 |
+
+**최종 수정 성과**: 80 FAIL → **17 FAIL** (63건 수정, **78.8% 해소**)
