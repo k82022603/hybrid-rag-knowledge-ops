@@ -159,6 +159,15 @@ UAT 18건 전수 PASS, Chat API 성능 튜닝, Graph RRF 후보 수 제한, SCRU
 - `34_graph_search_rrf_tuning.md` §5.3~5.5: 프론트엔드 태그, SCRUM-101 제거, 검증 포인트
 - "< Graph" 버튼 = 그래프 시각화 패널 열기 (source type 표시가 아님)
 
+### 12. OPS-035 Reranker 이중 실행 트러블슈팅 문서 (주요)
+
+#### 상세 내용
+- `docs/07_maintenance/35_reranker_dual_execution_troubleshooting.md` 신규 작성
+- **분류**: 구현 오류 (Implementation Defect) — 설계 오류가 아님
+- **근거**: STORY-032 테스트 계획서에서 Reranker 통합 대상은 `HybridRetriever`만 명시, `SearchService`는 수정 대상 아님
+- **원인**: 구현 시 `SearchService.hybrid_search()`에 설계 외 Reranker 중복 구현
+- 초기 "설계 오류(Architecture Defect)"로 잘못 분류 → 사용자 지적 → "구현 오류" 정정
+
 ---
 
 ## 주요 결정사항
@@ -174,6 +183,7 @@ UAT 18건 전수 PASS, Chat API 성능 튜닝, Graph RRF 후보 수 제한, SCRU
 | hybrid-rag/RummiArena 병행 금지 | 프로젝트 전환 시 반드시 이전 프로젝트 down | 16GB RAM에서 양쪽 컨테이너 병행 운용 불가 |
 | **SCRUM-101 오버라이드 제거** | **RRF primary source를 downstream에서 임의 변경하지 않음** | **모든 결과가 Graph로 표시되는 버그 — RRF 결과 존중** |
 | **"< Graph" 버튼 = 의도된 동작** | **source type 표시가 아닌 그래프 시각화 패널 열기 버튼** | **사용자 확인: "의도된 것이다"** |
+| **Reranker 이중 실행 = 구현 오류** | **설계(STORY-032)는 HybridRetriever에만 명시** | **SearchService 중복 구현은 설계 범위 외 — 구현 오류** |
 
 ---
 
@@ -303,14 +313,16 @@ work_logs/
 | 항목 | 값 |
 |------|-----|
 | 수정된 파일 | 20개 |
-| 신규 생성 파일 | 5개 (UAT 보고서, 세션 로그, 리소스 정리 가이드, RRF 튜닝 가이드, RummiArena 운영 가이드) |
+| 신규 생성 파일 | 6개 (UAT 보고서, 세션 로그, 리소스 정리 가이드, RRF 튜닝 가이드, RummiArena 운영 가이드, OPS-035 트러블슈팅) |
 | Docker 빌드 | 7회 (ai-service 5회, frontend 1회, nginx 1회) |
 | 에이전트 투입 | 9개 (QA x2, TechLead x2, RAG, Infra, Frontend, CodeDocumenter x2) |
 | UAT 테스트 | 18/18 PASS (100%) |
 | 리소스 정리 후 QA 재테스트 | 12/12 PASS, Chat 80→47초 (41% 개선) |
 | SCRUM-101 수정 | Backend 2파일 + Frontend 5파일 + 문서 2파일 |
+| OPS-035 | Reranker 이중 실행 트러블슈팅 (구현 오류 분류) |
+| 커밋 | 4건 (9b500a3, 73a684b, 68fcd34, d2bbbdd) |
 
 ---
 
 *기록자: Claude Code (Opus 4.6)*
-*기록 시간: 2026-03-09 16:45 KST*
+*기록 시간: 2026-03-09 17:48 KST (마감 보완)*
