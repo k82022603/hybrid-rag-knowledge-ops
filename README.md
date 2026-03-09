@@ -42,7 +42,7 @@ An enterprise knowledge platform that automatically processes internal documents
 |------|------|
 | **Version** | 5.4 (Enhancement) |
 | **프로젝트 기간** | 2026-01-12 ~ 진행중 (Sprint 09 고도화) |
-| **Status** | **고도화** — UAT 18/18 PASS, SCRUM-101 수정, Chat API 튜닝, RRF 후보 수 제한 |
+| **Status** | **고도화** — UAT 18/18 PASS, RAGAS v12 평가 완료, Reranker 수정 검증 |
 | **Test Coverage** | 97% avg across 5 core modules (Docker mode) |
 | **CI/CD** | 8 GitHub Actions workflows |
 | **AI Model** | Claude Opus 4.6 / Sonnet 4.6 + Agent Teams (13 agents, tiered) |
