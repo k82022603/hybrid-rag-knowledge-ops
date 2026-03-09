@@ -353,7 +353,7 @@ class HybridRetriever:
                 and len(fused_results) > top_k
             ):
                 rerank_start = time.monotonic()
-                rerank_candidate_count = min(len(fused_results), top_k * 2, 15)
+                rerank_candidate_count = min(len(fused_results), top_k * 2, 50)
                 rerank_input_count = rerank_candidate_count
                 before_max_score = max((r.score for r in fused_results), default=0.0)
                 try:

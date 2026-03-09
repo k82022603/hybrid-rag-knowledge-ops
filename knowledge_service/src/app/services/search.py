@@ -508,8 +508,8 @@ class SearchService:
                     reranker = get_reranker()
                     if not reranker.is_loaded:
                         await reranker.load_model()
-                    # P0-2: 후보 수를 top_k*2 또는 최대 15건으로 제한 (CPU 추론 부하 경감)
-                    rerank_candidate_count = min(top_k * 2, 15)
+                    # v14: 후보 수 원복 (15→50) — Context Recall 회복 검증
+                    rerank_candidate_count = min(top_k * 2, 50)
                     rerank_candidates = fused_results[:rerank_candidate_count]
                     reranked = await reranker.arerank_with_timeout(
                         query=query,
