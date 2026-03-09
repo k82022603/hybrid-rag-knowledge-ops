@@ -463,13 +463,13 @@ class RAGPipeline:
                 else result.content,
             }
 
-            # Graph 소스인 경우 관련 엔티티 정보 추가
-            if result.source == "graph":
-                matched_entities = result.metadata.get("matched_entities", [])
-                if matched_entities:
-                    source_info["graph_context"] = {
-                        "related_entities": matched_entities,
-                    }
+            # 모든 소스에 대해 matched_entities가 있으면 graph_context 추가
+            # (graph가 contributing source로 기여한 경우에도 Graph 버튼 표시)
+            matched_entities = result.metadata.get("matched_entities", [])
+            if matched_entities:
+                source_info["graph_context"] = {
+                    "related_entities": matched_entities,
+                }
 
             # 문서 중복이라도 청크는 각각 표시
             if doc_id not in seen_doc_ids:

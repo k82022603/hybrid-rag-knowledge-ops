@@ -212,10 +212,10 @@ async def hybrid_search(
                     title=r.metadata.get("title") or r.metadata.get("file_name"),
                     content=r.content,
                     score=r.score,
-                    # SCRUM-101: graph 기여 시 source_type="graph" 우선 표시
+                    # Primary source: RRF 융합 시 가중치 점수가 가장 높은 소스를 표시
+                    # (graph가 contributing_sources에 포함되어도, primary source가 아니면 vector/keyword 표시)
                     source_type=(
-                        "graph" if "graph" in r.metadata.get("contributing_sources", [])
-                        else getattr(r, "source", None) or r.metadata.get("search_source")
+                        getattr(r, "source", None) or r.metadata.get("search_source")
                     ),
                     contributing_sources=r.metadata.get("contributing_sources"),
                     metadata=r.metadata,
@@ -416,6 +416,8 @@ async def chat_search(
         conversation_svc = get_conversation_history_service()
 
         # Reranker + HybridRetriever 초기화 (STORY-032)
+        # Reranker는 CPU 환경에서 ~33초 소요되나 검색 품질(score 0.98+)에 필수
+        # 이중 실행 제거(P0-1)로 1회만 실행, 타임아웃 확대로 안정성 확보
         try:
             reranker = get_reranker()
             hybrid_retriever = get_hybrid_retriever(

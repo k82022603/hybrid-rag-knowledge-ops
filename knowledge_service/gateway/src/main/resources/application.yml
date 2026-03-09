@@ -25,11 +25,11 @@ spring:
       # ==============================================
       # HttpClient Configuration (Connection Pool & Timeouts)
       # SCRUM-62: Netty Channel Error 대응
-      # Cold start: 임베딩 모델 로드(46s) + Reranking(9s) + LLM(35s) = 91s 대응
+      # Chat API: 검색(~1s) + Reranker(~33s CPU) + LLM(~30s) ≈ 65s, 여유 포함 180s
       # ==============================================
       httpclient:
         connect-timeout: 10000
-        response-timeout: 120s
+        response-timeout: 180s
         pool:
           type: elastic
           max-connections: 500

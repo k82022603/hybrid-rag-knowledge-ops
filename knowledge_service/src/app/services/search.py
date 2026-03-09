@@ -214,8 +214,10 @@ class SearchService:
             try:
                 from elasticsearch import AsyncElasticsearch
 
+                # P1-1: 명시적 request_timeout 설정 (OS TCP 기본값 의존 방지)
                 client = AsyncElasticsearch(
                     hosts=[f"http://{settings.elasticsearch_host}:{settings.elasticsearch_port}"],
+                    request_timeout=10,
                 )
                 health = await client.cluster.health(timeout="5s")
                 if health.get("status") in ("green", "yellow"):
@@ -274,6 +276,7 @@ class SearchService:
         use_cache: bool = True,
         use_graph: bool = True,
         use_vector: bool = True,
+        skip_reranking: bool = False,
     ) -> Dict[str, Any]:
         """
         Hybrid 검색 수행
@@ -291,6 +294,9 @@ class SearchService:
             use_cache: 캐시 사용 여부 (기본 True)
             use_graph: Graph 검색 사용 여부 (기본 True)
             use_vector: Vector 검색 사용 여부 (기본 True)
+            skip_reranking: Reranker 건너뛰기 (기본 False).
+                HybridRetriever에서 자체 reranking을 수행하는 경우 True로 설정하여
+                이중 reranking을 방지합니다. REST API 직접 호출 시에는 False(기본값).
 
         Returns:
             검색 결과 딕셔너리
@@ -406,7 +412,7 @@ class SearchService:
             # Graph 검색 (use_graph=True 일 때)
             if use_graph:
                 tasks.append(self._graph_search(
-                    query=query, top_k=top_k * 2
+                    query=query, top_k=settings.graph_search_top_k
                 ))
                 task_names.append("graph")
 
@@ -490,45 +496,54 @@ class SearchService:
 
             # 2.5 Reranker 적용 (Post-RRF, STORY-032)
             # RRF 융합 결과를 BGE Reranker로 재순위화하여 Context Precision 개선
+            # skip_reranking=True 시 건너뜀 (HybridRetriever에서 자체 reranking 수행)
             reranker_used = False
-            try:
-                reranker = get_reranker()
-                if not reranker.is_loaded:
-                    await reranker.load_model()
-                rerank_candidates = fused_results[:top_k * 2]  # 상위 2배를 rerank 대상
-                reranked = await reranker.arerank_with_timeout(
-                    query=query,
-                    documents=[
-                        {
-                            "doc_id": r.chunk_id,
-                            "content": r.content,
-                            "score": r.score,
-                            "metadata": r.metadata,
-                        }
-                        for r in rerank_candidates
-                    ],
-                    top_k=top_k,
-                    timeout=30.0,
+            if skip_reranking:
+                logger.debug(
+                    "Reranking skipped in hybrid_search (skip_reranking=True, "
+                    "caller handles reranking)"
                 )
-                # rerank 결과를 SearchResult로 매핑
-                result_map = {r.chunk_id: r for r in rerank_candidates}
-                reranked_results: List[SearchResult] = []
-                for rr in reranked:
-                    original = result_map.get(rr.doc_id)
-                    if original is not None:
-                        original.metadata["rerank_score"] = round(rr.score, 6)
-                        original.metadata["original_rrf_score"] = original.score
-                        original.score = round(rr.score, 6)
-                        reranked_results.append(original)
-                fused_results = reranked_results if reranked_results else fused_results
-                reranker_used = bool(reranked_results)
-                if reranker_used:
-                    logger.info(
-                        f"Reranker applied - top_score={reranked[0].score:.4f}, "
-                        f"candidates={len(rerank_candidates)}, output={len(reranked_results)}"
+            else:
+                try:
+                    reranker = get_reranker()
+                    if not reranker.is_loaded:
+                        await reranker.load_model()
+                    # P0-2: 후보 수를 top_k*2 또는 최대 15건으로 제한 (CPU 추론 부하 경감)
+                    rerank_candidate_count = min(top_k * 2, 15)
+                    rerank_candidates = fused_results[:rerank_candidate_count]
+                    reranked = await reranker.arerank_with_timeout(
+                        query=query,
+                        documents=[
+                            {
+                                "doc_id": r.chunk_id,
+                                "content": r.content,
+                                "score": r.score,
+                                "metadata": r.metadata,
+                            }
+                            for r in rerank_candidates
+                        ],
+                        top_k=top_k,
+                        timeout=60.0,  # CPU Reranker: 15건 기준 ~33초, 여유분 포함 60초
                     )
-            except Exception as e:
-                logger.warning(f"Reranker failed (non-critical, using RRF order): {e}")
+                    # rerank 결과를 SearchResult로 매핑
+                    result_map = {r.chunk_id: r for r in rerank_candidates}
+                    reranked_results: List[SearchResult] = []
+                    for rr in reranked:
+                        original = result_map.get(rr.doc_id)
+                        if original is not None:
+                            original.metadata["rerank_score"] = round(rr.score, 6)
+                            original.metadata["original_rrf_score"] = original.score
+                            original.score = round(rr.score, 6)
+                            reranked_results.append(original)
+                    fused_results = reranked_results if reranked_results else fused_results
+                    reranker_used = bool(reranked_results)
+                    if reranker_used:
+                        logger.info(
+                            f"Reranker applied - top_score={reranked[0].score:.4f}, "
+                            f"candidates={len(rerank_candidates)}, output={len(reranked_results)}"
+                        )
+                except Exception as e:
+                    logger.warning(f"Reranker failed (non-critical, using RRF order): {e}")
 
             # 2.6 청크별 Neo4j 엔티티 직접 조회 (Phase 2)
             # post-RRF 결과의 chunk_id로 Neo4j MENTIONS 관계를 직접 조회하여
@@ -1294,9 +1309,11 @@ class SearchService:
                 return {"hits": {"hits": [], "total": {"value": 0}}}
 
         try:
-            # Elasticsearch 비동기 검색
+            # P1-1: Elasticsearch 비동기 검색 (명시적 타임아웃 10초)
             if hasattr(self.es_client, "search"):
-                response = await self.es_client.search(index=index, body=body)
+                response = await self.es_client.search(
+                    index=index, body=body, request_timeout=10
+                )
                 return response
             else:
                 logger.warning("ES client does not support search method")

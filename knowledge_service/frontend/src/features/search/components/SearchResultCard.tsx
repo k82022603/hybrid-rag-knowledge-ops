@@ -8,7 +8,7 @@
 import React, { useState } from 'react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { DocumentTextIcon, ShareIcon, ArrowDownTrayIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon, ShareIcon, ArrowDownTrayIcon, ChevronDownIcon, ChevronUpIcon, CircleStackIcon, MagnifyingGlassIcon } from '@heroicons/react/24/outline';
 import type { SearchResultItem } from '../types';
 
 export interface SearchResultCardProps {
@@ -23,6 +23,31 @@ export interface SearchResultCardProps {
   /** Callback when Download button is clicked */
   onDownloadClick?: () => void;
 }
+
+/** Source type badge configuration */
+const SOURCE_TYPE_CONFIG: Record<
+  string,
+  { icon: typeof CircleStackIcon; label: string; className: string }
+> = {
+  vector: {
+    icon: CircleStackIcon,
+    label: 'Vector',
+    className:
+      'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300',
+  },
+  keyword: {
+    icon: MagnifyingGlassIcon,
+    label: 'Keyword',
+    className:
+      'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300',
+  },
+  graph: {
+    icon: ShareIcon,
+    label: 'Graph',
+    className:
+      'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300',
+  },
+};
 
 /**
  * Returns relevance level info based on score.
@@ -67,6 +92,19 @@ const SearchResultCard: React.FC<SearchResultCardProps> = ({
           </h3>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Source type badge: primary search source (vector/keyword/graph) */}
+          {result.sourceType && SOURCE_TYPE_CONFIG[result.sourceType] && (() => {
+            const config = SOURCE_TYPE_CONFIG[result.sourceType!];
+            const Icon = config.icon;
+            return (
+              <span
+                className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-2xs font-medium ${config.className}`}
+              >
+                <Icon className="h-3 w-3" aria-hidden="true" />
+                {config.label}
+              </span>
+            );
+          })()}
           {/* Graph button */}
           {onGraphClick && (
             <button
@@ -161,19 +199,6 @@ const SearchResultCard: React.FC<SearchResultCardProps> = ({
         {result.graphContext?.community && (
           <span className="inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-medium bg-accent-50 text-accent-700 dark:bg-accent-900/30 dark:text-accent-400">
             {result.graphContext.community}
-          </span>
-        )}
-        {result.sourceType && (
-          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-medium ${
-            result.sourceType === 'vector'
-              ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-              : result.sourceType === 'keyword'
-                ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
-                : result.sourceType === 'graph'
-                  ? 'bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-300'
-                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
-          }`}>
-            {result.sourceType === 'vector' ? 'Vector' : result.sourceType === 'keyword' ? 'Keyword' : result.sourceType === 'graph' ? 'Graph' : result.sourceType}
           </span>
         )}
       </div>

@@ -338,9 +338,10 @@ def build_sources_from_results(
     for idx, result in enumerate(search_results):
         doc_id = result.document_id
 
-        # SCRUM-101: graph가 기여한 결과는 source_type="graph"로 우선 표시
-        contributing = result.metadata.get("contributing_sources", [])
-        effective_source = "graph" if "graph" in contributing else result.source
+        # Primary source: RRF 융합 시 가중치 점수가 가장 높은 소스를 표시
+        # (graph가 contributing_sources에 포함되어도, primary source가 아니면 vector/keyword 표시)
+        # Graph 기여 여부는 graph_context.relatedEntities로 별도 표시
+        effective_source = result.source
 
         source_info: Dict[str, Any] = {
             "index": idx + 1,
@@ -354,6 +355,7 @@ def build_sources_from_results(
                 if len(result.content) > 200
                 else result.content
             ),
+            "has_embedding": getattr(result, "has_embedding", None),
         }
 
         # ISSUE-011: 모든 소스에 대해 graph_context 생성

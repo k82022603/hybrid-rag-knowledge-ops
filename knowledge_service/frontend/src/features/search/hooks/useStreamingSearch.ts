@@ -105,6 +105,7 @@ function mapSSESourcesToSources(sseSources: SSESourceData[]): Source[] {
       relatedEntities: s.graph_context.related_entities ?? [],
       community: s.graph_context.community ?? '',
     } : undefined)) as Source['graphContext'],
+    hasEmbedding: (s.hasEmbedding ?? (s as Record<string, unknown>).has_embedding) as boolean | undefined,
   }));
 }
 

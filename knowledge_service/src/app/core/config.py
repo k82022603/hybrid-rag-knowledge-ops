@@ -158,6 +158,7 @@ class Settings(BaseSettings):
     rrf_weight_keyword: float = Field(default=1.0, description="RRF Keyword 채널 가중치")
     rrf_weight_sparse: float = Field(default=0.7, description="RRF Sparse 채널 가중치 (ADR-001)")
     rrf_weight_graph: float = Field(default=0.8, description="RRF Graph 채널 가중치 (엔티티 관계 기반)")
+    graph_search_top_k: int = Field(default=3, description="Graph 검색 RRF 후보 수 (primary 1~2건 유도)")
 
     # Sparse 검색 설정
     sparse_search_enabled: bool = Field(default=True, description="Sparse 검색 활성화")

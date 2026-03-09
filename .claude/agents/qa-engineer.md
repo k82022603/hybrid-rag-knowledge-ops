@@ -11,10 +11,16 @@ model: claude-sonnet-4-6  # 심층 추론: claude-opus-4-6 | 경량: claude-haik
 
 ## 🚨 필수 규칙 (반드시 준수)
 
-### Mock 테스트 절대 금지 (CRITICAL)
+### Mock/MagicMock/@patch 사용 금지 (2026-03-06 교훈 반영)
 
-> **`@patch`, `MagicMock`, `unittest.mock`을 사용한 Mock 기반 테스트를 작성하지 마세요!**
-> **반드시 `TEST_MODE=docker` 실환경에서 테스트를 실행해야 합니다.**
+> **절대 Mock, MagicMock, @patch를 사용하지 마세요!**
+>
+> Mock 테스트는 코드 변경과 동기화되지 않아 "겉보기 통과"를 만들어냅니다.
+
+**금지 사항:**
+- `unittest.mock.Mock`, `MagicMock`, `@patch` 데코레이터 사용 금지
+- Mock 객체로 외부 의존성(DB, API, Redis) 대체 금지
+- `TEST_MODE=mock` 또는 Mock 기반 테스트 실행 금지
 
 ```python
 # ❌ 금지 — Mock 테스트
@@ -34,16 +40,50 @@ def test_something():
     assert result is not None
 ```
 
-**왜 금지인가?**
-- Mock이 의존성을 대체하면, 의존성이 바뀌어도 테스트는 계속 통과
-- 2026-03-06 인시던트: ChunkQualityGate 기준 상향(02-16) 후 18일간 Mock이 변경을 가림 → 80건 FAIL
-- "테스트가 통과한다고 품질이 보장된 것이 아니다"
+**필수 사항:**
+- 반드시 `TEST_MODE=docker` 환경에서 실제 컨테이너 연동 테스트
+- 테스트 데이터의 token_count 등 수치는 현행 코드 기준값 이상으로 설정
+  - 예: ChunkQualityGate MIN_TOKEN_COUNT=50 → 테스트 데이터도 50 이상 사용
+- 테스트 실행 전 현행 코드의 Quality Gate/Threshold 값 확인 필수
 
 **테스트 실행 방법:**
 ```bash
 export TEST_MODE=docker
 pytest src/tests/unit/ -v
 ```
+
+**2026-03-06 사례:**
+- ChunkQualityGate MIN_TOKEN_COUNT가 10→50으로 변경됨 (2026-02-16)
+- QA가 token_count=5,8,10,20 등 비현실적 Mock 데이터로 테스트 → 전부 PASS
+- TEST_MODE=docker 실행 시 실제 Quality Gate 작동 → 80건 FAIL
+- **교훈**: Mock은 코드 변경 시 동기화 안 되어 품질 게이트를 무력화함
+
+### 테스트 전 리소스 정리 필수 (2026-03-09 추가)
+
+> **QA 주도 테스트, E2E, UAT, RAGAS 평가, 부하 테스트(k6) 등 메모리 소요가 많은 테스트를 시작하기 전에 반드시 리소스 정리를 수행하세요!**
+
+```bash
+# Step 1: Docker 빌드 캐시 정리
+docker builder prune -f
+
+# Step 2: 미사용 Docker 이미지 정리
+docker image prune -a -f
+
+# Step 3: 결과 확인
+free -h && docker system df
+```
+
+**통과 기준** (정리 후 확인):
+- 빌드 캐시 < 500 MB
+- Free 메모리 > 1 GiB (또는 available > 4 GiB)
+- Swap 사용률 < 50%
+
+**왜 필수인가?**
+- 2026-03-09 사례: 빌드 캐시 18GB + 미사용 이미지 → Free 374MiB → 컨테이너 OOM 위험
+- 정리 후: 캐시 62MB, Free 924MiB로 안정화
+- 상세 가이드: `knowledge_service/docs/05_development/03_pre_test_resource_cleanup.md`
+
+---
 
 ### Slack 알림 필수
 

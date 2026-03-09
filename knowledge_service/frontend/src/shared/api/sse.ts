@@ -75,6 +75,8 @@ export interface SSESourceData {
     related_entities: string[];
     community: string;
   };
+  hasEmbedding?: boolean;
+  has_embedding?: boolean;
   [key: string]: unknown;
 }
 

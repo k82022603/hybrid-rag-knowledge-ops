@@ -140,10 +140,8 @@ function SourceCard({
           </span>
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          {/* sourceType 배지: Graph 버튼이 표시될 때는 중복 방지를 위해 Graph 배지 숨김 */}
-          {source.sourceType && !(
-            (source.sourceType === 'graph' || source.graphContext?.relatedEntities?.length) && onGraphSourceClick
-          ) && (
+          {/* sourceType 배지: primary source를 항상 표시 (Graph 버튼과 독립) */}
+          {source.sourceType && (
             <SourceTypeBadge type={source.sourceType} />
           )}
           {/* Embedding status badge (SCRUM-97) */}
@@ -156,7 +154,7 @@ function SourceCard({
           >
             {source.hasEmbedding !== false ? 'AI 검색' : '키워드'}
           </span>
-          {/* Graph button - 그래프 출처이거나 그래프 엔티티가 있는 소스 */}
+          {/* Graph button - 엔티티 연결이 있는 소스에 표시 (클릭 시 그래프 시각화 패널 열기) */}
           {(source.sourceType === 'graph' || source.graphContext?.relatedEntities?.length) && onGraphSourceClick && (
             <button
               type="button"

@@ -37,6 +37,7 @@ function mapSources(rawSources: Array<Record<string, unknown>>): Source[] {
       relatedEntities: (s.graph_context as Record<string, unknown>).related_entities ?? [],
       community: (s.graph_context as Record<string, unknown>).community ?? '',
     } : undefined)) as Source['graphContext'],
+    hasEmbedding: (s.has_embedding ?? s.hasEmbedding) as boolean | undefined,
   }));
 }
 

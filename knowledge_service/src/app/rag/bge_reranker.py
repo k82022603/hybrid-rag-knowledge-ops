@@ -254,7 +254,9 @@ class BGEReranker:
 
             sess_options = ort.SessionOptions()
             sess_options.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
-            sess_options.intra_op_num_threads = max(os.cpu_count() or 1, 1)
+            # P1-2: 최대 2코어로 제한하여 전체 CPU 점유 방지
+            # (healthcheck 응답 불가 → 컨테이너 재시작 문제 해소)
+            sess_options.intra_op_num_threads = min(max(os.cpu_count() or 1, 1), 2)
             sess_options.inter_op_num_threads = 1
 
             self._onnx_session = ort.InferenceSession(

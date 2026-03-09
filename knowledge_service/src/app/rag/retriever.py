@@ -320,8 +320,8 @@ class HybridRetriever:
         """
         start_time = time.monotonic()
 
-        # Reranking 활성화 시 더 많은 결과를 요청하여 reranker 입력으로 사용
-        fetch_k = min(top_k * 5, 50) if (use_reranking and self._reranker) else top_k
+        # P0-2: Reranking 활성화 시 후보 수를 top_k*3 또는 최대 25건으로 제한 (50→25)
+        fetch_k = min(top_k * 3, 25) if (use_reranking and self._reranker) else top_k
 
         logger.info(
             "Hybrid retrieval - Query: '%s', top_k=%d, fetch_k=%d, "
@@ -331,30 +331,35 @@ class HybridRetriever:
         )
 
         try:
-            # SearchService에 위임하여 hybrid search 수행
+            # P0-1: SearchService에 위임하여 hybrid search 수행
+            # skip_reranking=True로 SearchService 내부 reranking을 건너뛰고
+            # HybridRetriever에서 자체 reranking만 수행 (이중 실행 방지)
             result = await self.search_service.hybrid_search(
                 query=query,
                 filters=filters,
                 top_k=fetch_k,
                 user_id=user_id,
+                skip_reranking=True,
             )
 
             fused_results = result.get("results", [])
             debug_info = result.get("debug", {})
 
             # STORY-032: Reranking 적용
+            # P0-2: 후보 수를 top_k*2 또는 최대 15건으로 제한 (50→15, CPU 추론 부하 경감)
             if (
                 use_reranking
                 and self._reranker is not None
                 and len(fused_results) > top_k
             ):
                 rerank_start = time.monotonic()
-                rerank_input_count = min(len(fused_results), 50)
+                rerank_candidate_count = min(len(fused_results), top_k * 2, 15)
+                rerank_input_count = rerank_candidate_count
                 before_max_score = max((r.score for r in fused_results), default=0.0)
                 try:
                     fused_results = await self._reranker.rerank_search_results(
                         query=query,
-                        search_results=fused_results[:50],
+                        search_results=fused_results[:rerank_candidate_count],
                         top_k=top_k,
                     )
                     rerank_ms = (time.monotonic() - rerank_start) * 1000
