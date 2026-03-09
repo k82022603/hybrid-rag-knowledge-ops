@@ -213,7 +213,39 @@ Graph Search (Neo4j)          ─┘
 | `metadata.extension` | 파일 확장자 (.pdf, .docx, .pptx 등) |
 | `has_embedding` | 벡터 임베딩 존재 여부 |
 
-### 3.5 검색 팁
+### 3.5 검색 결과 UI 태그 설명
+
+검색 결과의 각 출처(Source) 카드에는 다음 태그/배지가 표시됩니다.
+
+| 태그 | 색상 | 의미 | 표시 조건 |
+|------|------|------|----------|
+| **Vector** | 파란색 | Primary source가 벡터 유사도 검색 | `source_type = "vector"` |
+| **Keyword** | 노란색 | Primary source가 BM25 키워드 검색 | `source_type = "keyword"` |
+| **Graph** (배지) | 초록색 | Primary source가 그래프 엔티티 검색 | `source_type = "graph"` |
+| **AI 검색** | 연두색 | 벡터 임베딩이 적용된 청크 | `has_embedding = true` |
+| **< Graph** (버튼) | 초록 테두리 | 클릭 시 그래프 시각화 패널 열기 | 해당 문서에 연결된 엔티티가 있을 때 |
+
+#### Primary Source 배지 (Vector / Keyword / Graph)
+
+4-Way RRF 융합 결과에서 **해당 청크의 RRF 점수에 가장 크게 기여한 채널**이 primary source로 표시됩니다. 예를 들어, 벡터 유사도에서 높은 순위를 차지한 청크는 "Vector"로, BM25 키워드 매칭이 강한 청크는 "Keyword"로 표시됩니다.
+
+#### "< Graph" 버튼 — 의도된 동작
+
+> **"< Graph" 버튼이 대부분의 검색 결과에 표시되는 것은 의도된 동작입니다.**
+
+이 버튼은 primary source 표시가 **아닙니다.** Knowledge Graph(Neo4j)에서 해당 문서와 연결된 엔티티가 있을 때 표시되며, 클릭하면 **그래프 시각화 패널**이 열려 엔티티 관계를 탐색할 수 있습니다.
+
+시스템의 Knowledge Graph에는 169,886개 엔티티와 775,366개 관계가 구축되어 있어, 대부분의 문서가 하나 이상의 엔티티와 연결되어 있습니다. 따라서 "< Graph" 버튼은 거의 모든 검색 결과에 표시됩니다. 이는 사용자가 어떤 검색 결과에서든 그래프 탐색 기능에 접근할 수 있도록 하기 위한 **의도된 설계**입니다.
+
+```
+[출처1]  Microsoft GraphRAG 가이드     Vector  AI 검색  < Graph  96%
+                                       ^^^^^^           ^^^^^^^
+                                       Primary source   그래프 시각화 버튼
+                                       (벡터 검색이     (클릭하면 엔티티
+                                        이 결과를 찾음)   관계 탐색 가능)
+```
+
+### 3.6 검색 팁
 
 | 상황 | 권장 검색 방식 |
 |------|-------------|

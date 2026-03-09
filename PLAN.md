@@ -2,11 +2,11 @@
 
 > Claude Code 세션 간 컨텍스트 유지를 위한 계획 문서
 >
-> **Last Updated**: 2026-03-06 14:00 KST (Sprint 09 공식 종료 + Sprint 10 계획 수립)
-> **Current Phase**: ENHANCEMENT - Sprint 09 완료, Sprint 10 계획 중
+> **Last Updated**: 2026-03-09 17:35 KST (UAT 18/18 PASS + SCRUM-101 수정 + Chat API 튜닝)
+> **Current Phase**: ENHANCEMENT - Sprint 10 진행 중
 > **Sprint 09**: 완료 (56 SP, 16 Done + 2 Deferred, QA 66 TC PASS, Jira SCRUM-104~121)
 > **Sprint 10**: 검색 UX 고도화 + 성능 최적화 (24 SP, 6 Stories, 2026-03-07~03-20)
-> **Project Status**: ACTIVE — Sprint 10 계획 수립 완료, 착수 대기
+> **Project Status**: ACTIVE — UAT 18/18 PASS, SCRUM-101 Critical 수정, Chat API 성능 튜닝 완료
 > **Frontend 전략 변경**: Tailwind + Antigravity + Stitch MCP 도입 결정 (2026-01-25)
 > **소스코드 리뷰**: 72.5/100 B+ (Gateway 65, Backend 72, AI Service 78, Frontend 75)
 
@@ -20,7 +20,7 @@
 [Phase 3: 구현]     ████████████████████ 100% ✅ Sprint 03 완료 (15 Story Done, 84/84 pts)
 [Phase 4: 테스트]   ████████████████████ 100% ✅ Sprint 06 완료, 기술부채 4건 해결, 프로덕션 준비도 95.75%
 [Phase 5: 배포]     ████████████████████ 100% ✅ Sprint 07 완료, Production-Ready (TechLead 승인)
-[Phase 6: 고도화]   █████████████░░░░░░░  65% 🔄 Sprint 09 완료(56SP), Sprint 10 계획 중
+[Phase 6: 고도화]   ██████████████░░░░░░  70% 🔄 Sprint 10 진행 중 — UAT 18/18, SCRUM-101 수정, Chat API 튜닝
 ```
 
 ---
@@ -998,6 +998,17 @@ CI/CD Pipeline (GitHub Actions)
 ---
 
 ## Session Notes
+
+### 2026-03-09 (Sprint 10 - UAT + SCRUM-101 수정 + Chat API 튜닝)
+
+- **UAT 18/18 PASS (100%)**: QA 에이전트 투입, 전 영역 커버
+- **Chat API 성능 튜닝 5건**: Reranker 이중 실행 제거, 후보 50→15, ES timeout, ONNX 2코어, 타임아웃 180초
+- **Graph RRF 후보 수 제한**: `graph_search_top_k=3` (가중치 0.8 유지, 후보 수만 제한)
+- **SCRUM-101 Critical 수정**: source_type 강제 오버라이드 제거 → RRF primary source 존중
+- **UI 소스코드 점검**: TL+FE+QA 합동, SourceCitation/SearchResultCard 수정
+- **"< Graph" 의도된 동작 문서화**: 사용자 매뉴얼 §3.5, OPS-034 §5.3~5.5
+- **문서**: DEV-003 리소스 정리, OPS-034 RRF 튜닝, RummiArena 운영 가이드
+- **커밋**: 1건 (9b500a3), 에이전트 9개 투입
 
 ### 2026-02-15 PM (Sprint 12 - Entity Extraction 배치)
 

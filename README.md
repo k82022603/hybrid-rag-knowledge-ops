@@ -40,9 +40,9 @@ An enterprise knowledge platform that automatically processes internal documents
 
 | 항목 | 내용 |
 |------|------|
-| **Version** | 5.3 (Enhancement) |
+| **Version** | 5.4 (Enhancement) |
 | **프로젝트 기간** | 2026-01-12 ~ 진행중 (Sprint 09 고도화) |
-| **Status** | **고도화** — Sprint 09 P2 QA 테스트 완료 (66 TC / 100% PASS) |
+| **Status** | **고도화** — UAT 18/18 PASS, SCRUM-101 수정, Chat API 튜닝, RRF 후보 수 제한 |
 | **Test Coverage** | 97% avg across 5 core modules (Docker mode) |
 | **CI/CD** | 8 GitHub Actions workflows |
 | **AI Model** | Claude Opus 4.6 / Sonnet 4.6 + Agent Teams (13 agents, tiered) |
@@ -115,9 +115,9 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 | 항목 | 수치 |
 |------|------|
 | 문서 | 1,437개 |
-| 청크 | 42,462개 (쓰레기 청크 13,601건 정리 후) |
-| 엔티티 노드 | 169,886 (Entity + Technology + Person) |
-| 관계 | 775,366 (MENTIONS + RELATED_TO + HAS_ENTITY + PART_OF) |
+| 청크 | 42,612개 (쓰레기 청크 13,601건 정리 후) |
+| 엔티티 노드 | 91,673 (Entity + Technology + Person) |
+| 관계 | 746,667 (MENTIONS + RELATED_TO + HAS_ENTITY + PART_OF) |
 | Dense + Sparse 임베딩 | 100% 완료 |
 | Entity Extraction | 100% 완료 (23,074건 처리) |
 | 3-Store 정합성 | ES = PG = Neo4j 100% |
@@ -149,6 +149,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 | 02-15 | Phase 3 Entity Extraction Round 1 + RAGAS v9 |
 | 02-16 | Phase 3 Round 2 + Reranker + RAGAS v11 A- 달성 |
 | 02-18 | **프로젝트 종료 — 사용자 테스트 완료, 산출물 v1.1, 문서 현행화** |
+| 03-09 | **고도화 — UAT 18/18, Chat API 튜닝, SCRUM-101 수정, RRF 후보 수 제한** |
 
 ## 📈 프로젝트 성과
 
