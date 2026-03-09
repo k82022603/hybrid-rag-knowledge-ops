@@ -1,6 +1,6 @@
 # OPS-035: Reranker 이중 실행 트러블슈팅
 
-> **분류**: 설계 오류 (Architecture Defect)
+> **분류**: 구현 오류 (Implementation Defect)
 > **발견일**: 2026-03-09
 > **심각도**: High (Chat API 타임아웃 유발)
 > **상태**: 해결 완료
@@ -37,28 +37,37 @@ Chat API 요청
 
 ### 2.2 근본 원인
 
-STORY-032 (BGE-Reranker 적용) 구현 시, 두 클래스에 각각 독립적으로 Reranker를 구현:
+STORY-032 (BGE-Reranker 적용) **설계는 `HybridRetriever`에만 Reranker를 통합**하도록 명시:
 
-| 클래스 | 파일 | Reranker 호출 |
-|--------|------|---------------|
-| `SearchService` | `services/search.py` | `hybrid_search()` 내부에서 RRF 후 reranking |
-| `HybridRetriever` | `rag/retriever.py` | `retrieve()` 내부에서 SearchService 결과를 reranking |
+> **STORY-032 테스트 계획서 (07_STORY-032_bge_reranker_test_plan.md)**
+> - 테스트 대상: `bge_reranker.py` (신규) + `hybrid_retriever.py` (수정)
+> - `SearchService`는 테스트 대상에 **포함되지 않음**
+> - 시나리오 8: "`HybridRetriever` 내에서 Reranker 호출이 정확한지 확인"
 
-**문제**: `HybridRetriever`가 `SearchService.hybrid_search()`를 내부적으로 호출하는 구조에서, 양쪽 모두 Reranker를 실행하여 **같은 데이터에 2회 실행**됨.
+그러나 **구현 시 `SearchService.hybrid_search()`에도 Reranker를 중복 구현**:
 
-### 2.3 이것은 버그인가?
+| 클래스 | 파일 | 설계 | 구현 |
+|--------|------|:----:|:----:|
+| `HybridRetriever` | `rag/retriever.py` | Reranker 통합 | Reranker 호출 |
+| `SearchService` | `services/search.py` | Reranker **없음** | Reranker 호출 (**설계 외 추가**) |
 
-**설계 오류(Architecture Defect)**입니다.
+**문제**: `HybridRetriever`가 `SearchService.hybrid_search()`를 내부적으로 호출하는 구조에서, 설계에 없던 `SearchService` 내부 Reranker와 합쳐져 **같은 데이터에 2회 실행**됨.
 
-- 코드 자체는 각각 정상 동작 (단위 테스트 통과)
-- 두 클래스의 책임 경계가 불명확하여 발생한 중복 실행
-- 런타임에서만 발현 (통합 테스트에서 발견 가능했으나, Mock 테스트로 가려짐)
+### 2.3 분류: 구현 오류 (Implementation Defect)
+
+**설계 오류가 아니라 구현 오류**입니다.
+
+- 설계(STORY-032)는 Reranker를 `HybridRetriever`에만 넣도록 명시
+- 구현 시 `SearchService`에도 중복 구현 — **설계 범위를 벗어난 추가 구현**
+- 단위 테스트는 각 클래스를 독립적으로 검증하여 이중 실행 미발견
+- 통합 테스트에서 발견 가능했으나, Mock 기반 테스트로 가려짐
 
 ```
-분류: 설계 오류 (Design Defect)
- ├─ 코드 오류(Bug)가 아님: 각 클래스는 설계대로 동작
+분류: 구현 오류 (Implementation Defect)
+ ├─ 설계는 명확: HybridRetriever에만 Reranker 통합
+ ├─ 구현이 설계를 위반: SearchService에 설계 외 Reranker 추가
  ├─ 성능 결함(Performance Defect): 불필요한 33초 CPU 추론 추가
- └─ 아키텍처 결함: 레이어 간 책임 분리 미흡
+ └─ 책임: 클로드 (구현 시 설계 범위 미준수)
 ```
 
 ---
@@ -145,12 +154,13 @@ Chat API 요청
 
 ## 6. 재발 방지
 
-### 6.1 아키텍처 원칙
+### 6.1 교훈
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│  "파이프라인의 각 단계는 자기 책임 범위만 처리하고,           │
-│   이전/이후 단계의 처리를 중복하지 않는다."                   │
+│  "설계에 명시된 범위를 벗어나는 구현을 하지 않는다."          │
+│  "구현 시 설계 문서를 반드시 참조하고, 추가 구현이 필요하면   │
+│   설계를 먼저 변경한다."                                      │
 │                                                              │
 │  Reranking은 파이프라인에서 딱 한 곳에서만 실행되어야 한다.  │
 └──────────────────────────────────────────────────────────────┘
@@ -158,9 +168,10 @@ Chat API 요청
 
 ### 6.2 체크리스트
 
+- [ ] 구현 전 설계 문서에서 해당 클래스의 수정 범위 확인
 - [ ] 새로운 검색 경로 추가 시, Reranker 호출 지점이 1곳인지 확인
 - [ ] `SearchService`와 `HybridRetriever`의 책임 경계 문서화
-- [ ] 통합 테스트에서 Reranker 호출 횟수 검증 (Mock count 확인)
+- [ ] 통합 테스트에서 Reranker 호출 횟수 검증 (E2E 경로)
 
 ### 6.3 관련 수정 (동일 세션)
 
@@ -176,8 +187,9 @@ Chat API 요청
 
 | 시점 | 이벤트 |
 |------|--------|
-| STORY-032 구현 시 | SearchService, HybridRetriever 양쪽에 독립적 Reranker 구현 |
-| UAT 이전 | 개별 단위 테스트 통과, 이중 실행 미발견 |
+| STORY-032 설계 | Reranker를 `HybridRetriever`에만 통합하도록 설계 |
+| STORY-032 구현 | 설계 외로 `SearchService`에도 Reranker 중복 구현 (구현 오류) |
+| UAT 이전 | 개별 단위 테스트 통과, 이중 실행 미발견 (Mock 기반) |
 | 2026-03-09 UAT | TC-07 RAG Chat FAIL (73초 타임아웃) |
 | 2026-03-09 분석 | TechLead 에이전트가 호출 흐름 추적 → 이중 실행 발견 |
 | 2026-03-09 수정 | `skip_reranking=True` 플래그 적용, 47초로 개선 |
