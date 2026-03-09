@@ -4,6 +4,8 @@
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white)](#) [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi&logoColor=white)](#) [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](#) [![Docker](https://img.shields.io/badge/Docker_Compose-18_containers-2496ED?logo=docker&logoColor=white)](#) [![RAGAS](https://img.shields.io/badge/RAGAS-A--grade-brightgreen)](#) [![Coverage](https://img.shields.io/badge/Coverage-97%25-success)](#)
 
+**"구글처럼 검색하고, 사람처럼 답변한다"** — 회사 내부 문서를 넣으면 AI가 알아서 읽고 정리해서, 질문하면 근거 있는 답변을 돌려줍니다. 검색 결과 나열이 아니라, "이 문서와 저 문서를 종합하면 답은 이겁니다"라고 말해주는 시스템입니다.
+
 기업 내부 문서를 **3-Phase ETL**(파싱 → 청킹 → 임베딩 → 엔티티 추출)로 자동 처리하고, **4-Way Hybrid Search**(Dense + Sparse + BM25 + Graph)를 RRF로 통합하여 최적의 검색 결과를 제공합니다. Knowledge Graph가 문서 간 숨겨진 관계를 시각화하고 관계 기반 질의를 지원합니다.
 
 ### Highlights
