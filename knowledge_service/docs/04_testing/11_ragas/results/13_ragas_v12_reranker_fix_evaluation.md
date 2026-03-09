@@ -1,10 +1,11 @@
-# RAGAS v12 평가 리포트 — Reranker 이중실행 수정 영향 분석
+# RAGAS v12/v13 평가 리포트 — Reranker 이중실행 수정 영향 분석
 
 **프로젝트**: Hybrid RAG Knowledge Platform (HRKP)
 **평가일**: 2026-03-09
 **작성자**: Claude Code (Main Agent)
 **관련 이슈**: OPS-035 (Reranker 이중실행 구현 오류)
 **Baseline**: v11 (2026-02-16)
+**v13 보정**: 2026-03-09 21:57 KST (동일 파이프라인 재평가)
 
 ---
 
@@ -25,16 +26,18 @@ OPS-035에서 발견된 **Reranker 이중실행 구현 오류(2회→1회)** 수
 
 ### 1.3 핵심 결과
 
-| 메트릭 | v11 | v12 | 변화 | 판정 |
-|--------|:---:|:---:|:----:|:----:|
-| **Faithfulness** | 0.935 | 0.678 | -0.257 | :warning: 하락 |
-| **Context Precision** | 0.618 | 0.672 | +0.054 | :white_check_mark: 개선 |
-| **Context Recall** | 0.672 | 0.614 | -0.058 | :warning: 소폭 하락 |
-| **Answer Relevancy** | 0.621 | (skip) | — | OpenAI 임베딩 필요 |
-| **Quality Gate HIGH** | 33/51 (65%) | 50/51 (98%) | +17건 | :white_check_mark: 대폭 개선 |
-| **Quality Gate NONE** | 6/51 (12%) | 0/51 (0%) | -6건 | :white_check_mark: 전건 해소 |
+| 메트릭 | v11 | v12 (경로 불일치) | v13 (동일 파이프라인) | vs v11 | 판정 |
+|--------|:---:|:---:|:---:|:----:|:----:|
+| **Faithfulness** | 0.935 | ~~0.678~~ | **0.940** | +0.005 | :white_check_mark: 유지 |
+| **Context Precision** | 0.618 | 0.672 | **0.673** | +0.055 | :white_check_mark: 개선 |
+| **Context Recall** | 0.672 | 0.614 | **0.605** | -0.067 | :warning: 실제 하락 |
+| **Answer Relevancy** | 0.621 | (skip) | (skip) | — | OpenAI 임베딩 필요 |
+| **Quality Gate HIGH** | 33/51 (65%) | 50/51 (98%) | — | +17건 | :white_check_mark: 대폭 개선 |
+| **Quality Gate NONE** | 6/51 (12%) | 0/51 (0%) | — | -6건 | :white_check_mark: 전건 해소 |
 
-> **판정: Faithfulness 하락은 방법론 차이에 의한 artifact일 가능성 높음 (§4 분석 참조)**
+> **v12 Faithfulness -25.7%는 방법론 오류(답변-컨텍스트 경로 불일치)로 확정.**
+> **v13 동일 파이프라인 재평가 결과: Faithfulness 0.940 (v11 대비 +0.5%), 실제 하락 없음.**
+> **Context Recall -6.7%는 실제 하락 — graph_search_top_k=3, candidates 50→15 영향.**
 
 ---
 
@@ -268,6 +271,48 @@ Reranker 수정: 정상 동작 확인 (이중실행 해소)
 
 ---
 
+## 9. v13 Same-Pipeline 재평가 결과
+
+### 9.1 v12 Faithfulness 하락은 방법론 오류
+
+v12에서 Faithfulness가 0.935→0.678로 급락한 것을 "방법론 차이"로 분석했으나, **실측으로 확인하지 않으면 변명에 불과하다.** v13에서 동일 파이프라인 평가를 실행하여 검증했다.
+
+### 9.2 v13 평가 방법
+
+```
+REST /search/hybrid → 컨텍스트 5개 수집
+      ↓ (동일 컨텍스트)
+DeepSeek 직접 호출 → 답변 생성
+      ↓ (동일 컨텍스트 + 답변)
+ragas.evaluate() → 3 metrics
+```
+
+**핵심**: 답변 생성에 사용된 컨텍스트와 RAGAS 평가에 전달되는 컨텍스트가 **100% 동일**.
+
+### 9.3 v13 결과
+
+| 메트릭 | v11 | v12 (경로 불일치) | v13 (동일 파이프라인) | 판정 |
+|--------|:---:|:---:|:---:|:----:|
+| Faithfulness | 0.935 | 0.678 | **0.940** | v12는 방법론 오류 |
+| Context Precision | 0.618 | 0.672 | **0.673** | 실제 +5.5% 개선 확인 |
+| Context Recall | 0.672 | 0.614 | **0.605** | 실제 -6.7% 하락 확인 |
+
+### 9.4 확정 분석
+
+1. **Faithfulness (0.940, +0.5%)**: Reranker 수정은 Faithfulness에 영향 없음. v12의 -25.7%는 답변(Chat API)과 컨텍스트(REST API)가 서로 다른 문서를 참조한 방법론 오류.
+2. **Context Precision (0.673, +5.5%)**: Reranker 이중실행 제거로 상위 문서 관련성이 실제로 향상됨.
+3. **Context Recall (0.605, -6.7%)**: `graph_search_top_k 10→3`과 `candidates 50→15` 변경으로 후보 풀이 줄어 ground truth 커버리지가 실제로 감소함. **이 하락은 수정이 필요하다.**
+
+### 9.5 Context Recall 회복 방안
+
+| 방안 | 예상 효과 | 리스크 |
+|------|----------|--------|
+| graph_search_top_k 3→5 | Recall +3~4% | Graph 과점유 재발 가능 |
+| candidates 15→25 | Recall +2~3% | CPU Reranker 시간 증가 |
+| 두 가지 동시 적용 | Recall +5~7% (v11 수준 회복) | 성능 vs 품질 트레이드오프 |
+
+---
+
 ## Appendix A: 평가 스크립트
 
 ```python
@@ -281,12 +326,14 @@ Reranker 수정: 정상 동작 확인 (이중실행 해소)
 
 | 파일 | 위치 |
 |------|------|
-| 평가 결과 JSON | `knowledge_service/docs/04_testing/11_ragas/results/ragas_v12_result.json` |
-| 평가 스크립트 | 컨테이너 `/tmp/run_ragas_v12_direct.py` |
+| v12 평가 결과 JSON | `knowledge_service/docs/04_testing/11_ragas/results/ragas_v12_result.json` |
+| v13 평가 결과 JSON | `knowledge_service/docs/04_testing/11_ragas/results/ragas_v13_result.json` |
+| v12 평가 스크립트 | 컨테이너 `/tmp/run_ragas_v12_direct.py` |
+| v13 평가 스크립트 | 컨테이너 `/tmp/run_ragas_v13.py` (same-pipeline) |
 | 질문 데이터 | 컨테이너 `/tmp/ragas_v12_questions.json` |
 
 ---
 
-*Generated: 2026-03-09 20:58 KST*
+*Generated: 2026-03-09 20:58 KST (v12) / 21:57 KST (v13 보정)*
 *Author: Claude Code (Main Agent)*
 *RAGAS Version: 0.2.15 | LLM: DeepSeek V3.2 | Embedding: BGE-M3*
