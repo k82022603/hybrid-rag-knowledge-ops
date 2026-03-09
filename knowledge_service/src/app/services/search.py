@@ -508,9 +508,12 @@ class SearchService:
                     reranker = get_reranker()
                     if not reranker.is_loaded:
                         await reranker.load_model()
-                    # v14: 후보 수 원복 (15→50) — Context Recall 회복 검증
-                    rerank_candidate_count = min(top_k * 2, 50)
+                    # v16 최적화: Reranker 1x, 후보 풀 최대화 (top_k*3, cap=50)
+                    # v15 분석 결과: 동일 Cross-encoder 2-Pass는 수학적으로 중복
+                    # 후보 풀 크기가 품질에 직접 영향 (10→15 = Faithfulness +3.5%)
+                    rerank_candidate_count = min(top_k * 3, 50)
                     rerank_candidates = fused_results[:rerank_candidate_count]
+
                     reranked = await reranker.arerank_with_timeout(
                         query=query,
                         documents=[
@@ -523,9 +526,8 @@ class SearchService:
                             for r in rerank_candidates
                         ],
                         top_k=top_k,
-                        timeout=60.0,  # CPU Reranker: 15건 기준 ~33초, 여유분 포함 60초
+                        timeout=60.0,
                     )
-                    # rerank 결과를 SearchResult로 매핑
                     result_map = {r.chunk_id: r for r in rerank_candidates}
                     reranked_results: List[SearchResult] = []
                     for rr in reranked:
@@ -539,8 +541,9 @@ class SearchService:
                     reranker_used = bool(reranked_results)
                     if reranker_used:
                         logger.info(
-                            f"Reranker applied - top_score={reranked[0].score:.4f}, "
-                            f"candidates={len(rerank_candidates)}, output={len(reranked_results)}"
+                            f"Reranker - candidates={len(rerank_candidates)}, "
+                            f"output={len(reranked_results)}, "
+                            f"top_score={reranked[0].score:.4f}"
                         )
                 except Exception as e:
                     logger.warning(f"Reranker failed (non-critical, using RRF order): {e}")

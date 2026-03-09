@@ -350,6 +350,7 @@ def build_sources_from_results(
             "title": result.metadata.get("title", "문서"),
             "score": round(result.score, 4),
             "source_type": effective_source,
+            "content": result.content,
             "snippet": (
                 result.content[:200] + "..."
                 if len(result.content) > 200

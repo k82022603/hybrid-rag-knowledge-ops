@@ -1,0 +1,455 @@
+{
+  "version": "v15",
+  "timestamp": "2026-03-10T02:02:34.923390",
+  "purpose": "Reranker 2회 + candidates=15 + graph_search_top_k=3",
+  "method": "same-pipeline",
+  "config": {
+    "graph_search_top_k": 3,
+    "rerank_candidates_max": 15,
+    "reranker_passes": 2
+  },
+  "scores": {
+    "faithfulness": 0.9068,
+    "context_precision": 0.6821,
+    "context_recall": 0.5948
+  },
+  "latency_stats": {
+    "avg_ms": 19442.3,
+    "median_ms": 5.2
+  },
+  "v11_baseline": {
+    "faithfulness": 0.935,
+    "context_precision": 0.618,
+    "context_recall": 0.672
+  },
+  "v13_scores": {
+    "faithfulness": 0.94,
+    "context_precision": 0.673,
+    "context_recall": 0.605
+  },
+  "v14_scores": {
+    "faithfulness": 0.9403,
+    "context_precision": 0.6822,
+    "context_recall": 0.6078
+  },
+  "delta_vs_v11": {
+    "faithfulness": -0.0282,
+    "context_precision": 0.0641,
+    "context_recall": -0.0772
+  },
+  "delta_vs_v13": {
+    "faithfulness": -0.0332,
+    "context_precision": 0.0091,
+    "context_recall": -0.0102
+  },
+  "individual_results": [
+    {
+      "idx": 1,
+      "question": "Neo4j와 Elasticsearch의 역할 차이점은?",
+      "ground_truth": "Neo4j는 Knowledge Graph 저장소로 엔티티 간 관계를 관리하고, Elasticsearch는 벡터 검색(kNN)과 BM25 키워드 검색을 담당합니다.",
+      "answer": "컨텍스트에 따르면, Neo4j는 그래프 데이터베이스(Graph DB)로, 데이터 간의 관계와 연결성을 저장 및 분석하는 데 특화되어 있습니다. 반면, Elasticsearch는 하이브리드 검색 엔진으로, 정형 데이터 검색, 전문(Full-text) 검색, 벡터 검색을 모두 제공하여 복합적인 검색 및 RAG 시스템 구현에 적합합니다.",
+      "contexts_count": 5,
+      "latency_ms": 44950.72
+    },
+    {
+      "idx": 2,
+      "question": "LangGraph와 LangChain 중 어떤 것을 사용해야 하나요?",
+      "ground_truth": "LangGraph는 상태 기반 에이전트 워크플로우에 적합하고, LangChain은 단순 체인 기반 RAG 파이프라인에 적합합니다.",
+      "answer": "주어진 컨텍스트에 따르면, LangGraph와 LangChain 중 선택은 프로젝트의 구체적인 필요에 따라 다릅니다.\n\n*   **LangChain**은 선형 워크플로우나 단순한 에이전트 패턴에 적합하며, 학습 곡선이 낮고 구현이 쉽습니다.\n*   **LangGraph**는 비선형적이고 복잡한 워크플로우(조건부 분기, 피드백 루프, 동적 상호작용, 병렬 처리 등)가 필요하거나, 맞춤형 구현을 직접 구축할 수 있을 때 적합합니다.\n*   **두 프레임워크를 함께 사용**할 수도 있습니다. LangChain의 사전 구축된 컴포넌트(예: RAG 기능)를 활용하면서, LangGraph의 비선형 오케스트레이션을 통해 복잡한 태스크 흐름을 관리하는 방식입니다.\n\n따라서, 프로젝트에 복잡한 상태 관리나 다중 에이전트 상호작용이 필요하면 LangGraph를, 단순한 LLM 애플리케이션 개발에는 LangChain을, 두 가지 장점을 모두 활용하고 싶다면 함께 사용하는 것을 고려해야 합니다.",
+      "contexts_count": 5,
+      "latency_ms": 29965.59
+    },
+    {
+      "idx": 3,
+      "question": "FastAPI와 PostgreSQL을 연동하여 RAGAS 평가를 수행하려면?",
+      "ground_truth": "FastAPI에서 asyncpg로 PostgreSQL에 연결하고, RAGAS 라이브러리를 통해 Faithfulness 등 메트릭을 측정합니다.",
+      "answer": "컨텍스트에 따르면, FastAPI와 PostgreSQL을 연동하여 RAGAS 평가를 수행하는 구체적인 방법은 명시적으로 제공되지 않습니다. 제공된 정보는 RAG 시스템의 일반적인 아키텍처, AI 에이전트 프레임워크 비교, 벡터 데이터베이스 비교 등에 초점을 맞추고 있으며, RAGAS 평가를 위한 상세한 연동 단계는 다루지 않습니다.",
+      "contexts_count": 5,
+      "latency_ms": 41885.92
+    },
+    {
+      "idx": 4,
+      "question": "PostgreSQL과 Neo4j의 데이터 모델 차이는?",
+      "ground_truth": "PostgreSQL은 관계형 SSOT 저장소이고, Neo4j는 그래프 데이터베이스로 엔티티 간 관계를 노드-엣지로 표현합니다.",
+      "answer": "컨텍스트에 따르면, PostgreSQL과 Neo4j의 데이터 모델 차이는 다음과 같습니다:\n\n**PostgreSQL 데이터 모델:**\n- **역할**: 마스터 레코드 관리 및 Single Source of Truth(SSOT)\n- **구조**: 정형화된 테이블 기반 (예: `knowledge_master`, `projects` 테이블)\n- **저장 내용**:\n  - 문서 메타데이터의 영구 저장\n  - 시계열 정보 (생성일, 유효기간)\n  - GraphRAG 추출 정보 (엔티티, 요약, 태그)를 JSONB 형식으로 저장\n  - 프로젝트 기본 정보, 인사 정보\n- **특징**: ACID 트랜잭션 보장, 데이터 무결성 검증, 관리자 대시보드용 통계 쿼리 지원\n\n**Neo4j 데이터 모델:**\n- **역할**: 관계 탐색을 위한 Slim Graph\n- **구조**: 그래프 기반 (노드와 관계)\n- **저장 내용**:\n  - 엔티티 간의 관계만 저장 (ID와 관계 중심)\n  - 지식 간의 관계, 인물과 프로젝트 연결, 주제별 분류\n  - 상세 속성은 필요 시 디스크에서 로딩하는 방식\n- **특징**: 그래프 탐색 쿼리 (예: 연결된 프로젝트 찾기), 전문가 찾기, 영향도 분석, 최단 경로 탐색에 최적화\n\n**핵심 차이점**:\n- PostgreSQL은 **정형 데이터의 원본 저장**에 중점을 두고, Neo4j는 **관계 기반 탐색**에 특화되어 있습니다.\n- PostgreSQL은 전체 메타데이터를 저장하는 반면, Neo4j는 관계 구조만 저장하여 메모리 효율성을 높입니다.\n- 두 시스템은 상호 보완적으로 작동하며, PostgreSQL의 SSOT 데이터를 기반으로 Neo4j에서 관계 분석을 수행합니다.",
+      "contexts_count": 5,
+      "latency_ms": 47449.46
+    },
+    {
+      "idx": 5,
+      "question": "Spring Cloud Gateway와 FastAPI의 역할 분담은?",
+      "ground_truth": "Spring Cloud Gateway는 API Gateway로 라우팅/인증을 담당하고, FastAPI는 AI Service 백엔드로 RAG 파이프라인을 실행합니다.",
+      "answer": "Spring Cloud Gateway는 API Gateway로서 프론트엔드의 모든 요청을 라우팅하며, 인증/인가, 로깅, 모니터링 등의 공통 관심사를 처리합니다. FastAPI는 AI Service 내에서 AI 처리, 검색, 임베딩과 같은 특화된 기능을 담당하며, LLM 호출을 직접 수행합니다.",
+      "contexts_count": 5,
+      "latency_ms": 36588.12
+    },
+    {
+      "idx": 6,
+      "question": "BGE-M3와 BGE-Reranker의 역할 차이는?",
+      "ground_truth": "BGE-M3는 Bi-encoder로 문서/쿼리를 벡터로 변환하고, BGE-Reranker는 Cross-encoder로 검색 결과의 순위를 재조정합니다.",
+      "answer": "컨텍스트에 따르면, BGE-M3와 BGE-Reranker의 역할 차이는 다음과 같습니다:\n\n**BGE-M3의 역할**:\n- RAG 파이프라인에서 **검색(Retrieval)** 단계의 핵심 구성요소로 작동합니다.\n- 텍스트(질문과 문서)를 **의미적으로 풍부하고 정밀한 벡터 표현(임베딩)으로 변환**합니다.\n- 이 벡터 표현을 기반으로 벡터 데이터베이스에서 **유사한 데이터 조각을 효과적으로 검색**할 수 있도록 합니다.\n- **Multi-Functionality**를 통해 단일 모델로 Dense Retrieval, Sparse Retrieval, Multi-Vector Retrieval을 모두 수행할 수 있습니다.\n\n**BGE-Reranker의 역할**:\n- 컨텍스트에서 직접적으로 BGE-Reranker의 역할에 대해 설명하지는 않았지만, **Reranker**라는 용어와 Q3에 대한 분석(\"Reranker가 관련성을 판단하지 못했던 것이 근본 원인\")을 통해 추론할 수 있습니다.\n- 일반적으로 Reranker는 **검색 단계에서 초기에 검색된 여러 문서 후보들을 재정렬(re-rank)하여 관련성 순위를 개선**하는 역할을 합니다.\n- BGE-M3가 검색을 담당한다면, BGE-Reranker는 검색 결과의 **정확도와 관련성을 더욱 세밀하게 조정**하는 후처리 역할을 할 것으로 보입니다.\n\n**핵심 차이점**:\n- **BGE-M3**: 검색 파이프라인의 **초기 단계**에서 광범위한 후보 문서를 검색하는 역할 (Recall 중심).\n- **BGE-Reranker**: 검색된 후보 문서들을 **재평가하고 재정렬**하여 최종 결과의 관련성을 높이는 역할 (Precision 중심).\n\n컨텍스트의 표에서 \"BGE-M3 vs BGE-Reranker\" 쿼리가 HIGH 등급(0.842)을 받은 것으로 보아, 이 두 구성요소의 역할 차이는 RAG 시스템 설계에서 중요한 주제임을 알 수 있습니다.",
+      "contexts_count": 5,
+      "latency_ms": 46901.04
+    },
+    {
+      "idx": 7,
+      "question": "DeepSeek V3와 OpenAI GPT의 비용 및 성능 차이는?",
+      "ground_truth": "DeepSeek V3는 OpenAI GPT 대비 95% 비용 절감이 가능하며, 한국어 RAG 파이프라인에서 충분한 성능을 제공합니다.",
+      "answer": "주어진 컨텍스트에 따르면, DeepSeek V3와 OpenAI GPT의 비용 및 성능 차이는 다음과 같습니다:\n\n**비용 효율성**:\n- DeepSeek V3는 GPT-4 대비 **약 95% 저렴한 비용**으로 유사한 성능을 제공합니다.\n- 구체적인 가격 비교:\n  - 입력 토큰 (cache miss): DeepSeek V3 $0.07 / 1M 토큰 vs GPT-4 $30 / 1M 토큰\n  - 출력 토큰: DeepSeek V3 $0.27 / 1M 토큰 vs GPT-4 $60 / 1M 토큰\n- 캐시 히트 활용 시 DeepSeek V3 입력 비용은 $0.014 / 1M 토큰으로 더욱 절감됩니다.\n- 전체 학습 비용 측면에서 DeepSeek-V3는 약 2,000대 H800 GPU로 학습되어 GPT-4(16,000 H100 GPU)보다 훨씬 적은 컴퓨팅 리소스를 사용했습니다.\n\n**성능**:\n- DeepSeek-V3는 671B 파라미터 MoE 기반 모델로, 일반적인 작업에 최적화된 범용 LLM입니다.\n- 엔티티 추출 정확도는 Claude 대비 95% 수준이며, 추론 속도는 GPT-4o 수준입니다.\n- 한국어 지원이 양호합니다.\n- DeepSeek-R1(추론 모델)은 복잡한 수학, 논리, 코딩 문제 해결에 특화되어 있으며, OpenAI의 o1 모델과 직접적인 경쟁 관계에 있습니다.\n\n**기술적 접근**:\n- DeepSeek은 단 600만 달러의 개발 비용으로 구축되었으며, 이는 OpenAI의 30억 달러 이상 투자와 대비됩니다.\n- 운영 비용 측면에서 OpenAI 대비 96% 절감 효과가 있습니다.\n\n이러한 차이로 인해 DeepSeek V3는 비용 효율성이 매우 높으면서도 경쟁력 있는 성능을 제공하는 모델로 평가됩니다.",
+      "contexts_count": 5,
+      "latency_ms": 46699.56
+    },
+    {
+      "idx": 8,
+      "question": "RAG Pipeline에서 BGE-M3 임베딩 모델의 역할은?",
+      "ground_truth": "BGE-M3는 RAG Pipeline에서 문서와 쿼리를 1024차원 벡터로 변환하여 시맨틱 검색을 가능하게 합니다.",
+      "answer": "주어진 컨텍스트에 따르면, RAG 파이프라인에서 BGE-M3 임베딩 모델의 역할은 **추출된 텍스트를 벡터로 변환하는 것**입니다. 이는 문서 파싱 도구(예: LlamaParse, Docling)가 문서에서 텍스트와 테이블을 추출한 후, 그 텍스트를 의미적으로 풍부한 숫자 벡터 표현으로 변환하여 검색 가능하게 만드는 단계를 담당합니다. 컨텍스트에서는 BGE-M3가 PostgreSQL, Neo4j, Elasticsearch와 통합된 아키텍처에서 전문 검색 및 메타데이터 저장과 함께 사용된다고 언급되어 있습니다.",
+      "contexts_count": 5,
+      "latency_ms": 46604.88
+    },
+    {
+      "idx": 9,
+      "question": "Knowledge Graph 엔티티 추출이 RAG 검색 품질에 기여하는 방식은?",
+      "ground_truth": "엔티티 추출로 문서 간 관계를 Knowledge Graph에 저장하고, Graph Search 채널로 관계 기반 검색을 제공합니다.",
+      "answer": "Knowledge Graph 엔티티 추출은 RAG 검색 품질에 다음과 같은 방식으로 기여합니다:\n\n1. **구조화된 지식 네트워크 구축**: 비정형 텍스트 청크들을 92,209개의 엔티티 노드와 775,366개의 관계로 연결된 의미적 지식 네트워크로 전환합니다. 이는 단순한 데이터 양이 아닌 구조화의 질을 향상시켜 검색 성능을 결정합니다.\n\n2. **관계형 질문 처리 능력 향상**: 엔티티 간 관계를 묻는 질문(예: \"Neo4j와 Elasticsearch의 역할 차이\")에서 7건 전부 HIGH 등급을 달성할 정도로, 단순 키워드 매칭이 아닌 실제 엔티티 간 연결 관계를 기반으로 답변을 생성할 수 있습니다.\n\n3. **다중 문서 추론 지원**: 여러 청크를 연결하는 추론이 필요한 multi_hop 도메인에서 7건 중 6건이 HIGH를 기록하며, Knowledge Graph가 여러 문서에 걸친 정보를 연결하는 \"추론 경로\"를 제공합니다.\n\n4. **Post-RRF 엔티티 보강**: RRF 퓨전 이후 최종 결과의 chunk_id로 Neo4j MENTIONS 관계를 직접 조회하여 각 청크에 실제 연결된 엔티티만 할당하는 방식으로, 검색 재현율을 유지하면서 답변 관련성을 높입니다.\n\n이러한 방식으로 엔티티 추출은 검색 결과의 의미적 연결성과 추론 능력을 강화하여 전반적인 RAG 품질을 향상시킵니다.",
+      "contexts_count": 5,
+      "latency_ms": 42637.19
+    },
+    {
+      "idx": 10,
+      "question": "Agentic AI 에이전트 워크플로우 설계 패턴은 무엇인가요?",
+      "ground_truth": "Agentic AI 워크플로우는 Planner-Retriever-Generator 패턴을 따르며 LangGraph로 상태 기반 그래프를 구현합니다.",
+      "answer": "컨텍스트에 따르면, Agentic AI 에이전트 워크플로우 설계 패턴은 다음과 같습니다:\n\n1. **파이프라인(Pipeline) 패턴**: 작업이 순차적인 단계별 흐름을 따라 각 에이전트가 단계를 처리합니다. 조립 라인과 유사한 구조입니다.\n2. **ReAct(Reason-then-Act) 패턴**: 추론(Reasoning)과 행동(Action)을 번갈아 수행하여 복잡한 문제를 단계적으로 해결합니다.\n3. **Supervisor-Worker 구조**: 감독자(Supervisor)가 작업을 계획하고 여러 작업자(Worker) 에이전트에게 할당하여 조율합니다.\n4. **결정론적 구조**: 예측 가능한 실행 경로를 제공하여 작업을 명확하게 정의된 하위 작업으로 분해합니다.\n5. **에이전트와 워크플로우의 상호보완성**: 에이전트는 워크플로우 내에서 자율적으로 특정 과업을 수행하며, 워크플로우는 전체 프로세스를 조율합니다.\n6. **데이터 흐름 제어**: 조건에 따라 분기 및 루프를 처리하여 최적화된 데이터 처리를 위한 로직을 형성합니다.",
+      "contexts_count": 5,
+      "latency_ms": 45880.11
+    },
+    {
+      "idx": 11,
+      "question": "LangGraph에서 상태(State) 관리와 노드 간 데이터 전달 방식은?",
+      "ground_truth": "LangGraph는 TypedDict 기반 State를 정의하고, 노드 함수가 State를 받아 수정 후 반환하는 방식으로 데이터를 전달합니다.",
+      "answer": "LangGraph에서 상태(State) 관리와 노드 간 데이터 전달 방식은 다음과 같습니다:\n\n**상태(State) 관리:**\n- **TypedDict로 정의**: 상태는 TypedDict를 사용해 명시적으로 정의되며, 노드 간 공유되는 데이터 구조입니다.\n- **불변성 유지**: 상태는 불변성을 유지하며, 각 노드는 상태를 입력받아 수정된 새로운 상태를 반환합니다.\n- **중앙 집중식 관리**: StateGraph가 상태 관리와 워크플로우 제어를 담당하여 일관된 상태 관리를 보장합니다.\n\n**노드 간 데이터 전달 방식:**\n- **상태 기반 전달**: 모든 노드는 동일한 상태 객체를 입력받아 처리하고, 업데이트된 상태를 반환합니다.\n- **직접적 전달**: 엣지를 통해 노드 간에 상태가 자동으로 전달되며, 명시적인 데이터 전달 코드가 필요 없습니다.\n- **체크포인팅**: MemorySaver나 SQLiteSaver를 사용해 상태를 저장하고 복원할 수 있어, thread_id를 통해 다중 대화 상태를 관리합니다.\n\n이 방식은 상태 중심의 설계로 데이터 일관성을 유지하면서, 노드 간의 명확한 인터페이스를 제공합니다.",
+      "contexts_count": 5,
+      "latency_ms": 47256.01
+    },
+    {
+      "idx": 12,
+      "question": "ETL 파이프라인에서 문서 파싱부터 임베딩 저장까지의 전체 흐름은?",
+      "ground_truth": "문서를 Docling으로 파싱하고, 시맨틱 청커로 분할한 후, BGE-M3로 벡터화하여 Elasticsearch에 색인합니다.",
+      "answer": "ETL 파이프라인에서 문서 파싱부터 임베딩 저장까지의 전체 흐름은 다음과 같습니다:\n\n1. **문서 파싱 (Document Parsing)**\n   - DocumentParser를 사용하여 PDF, DOCX, HWP, MD, TXT, HTML 등 다양한 형식의 원본 문서에서 텍스트와 구조를 추출합니다.\n   - 기밀 문서는 로컬 Docling을, 공개 문서나 빠른 처리는 LlamaParse API를 사용합니다.\n\n2. **청킹 (Chunking)**\n   - SemanticChunker를 통해 추출된 텍스트를 의미 단위로 분할합니다.\n   - Docling의 HybridChunker와 BGE-M3 토크나이저를 연동하여 청크 크기를 임베딩 모델의 토큰 제한에 최적화합니다.\n\n3. **임베딩 생성 (Embedding Generation)**\n   - EmbeddingService를 사용하여 BGE-M3 모델로 각 청크의 Dense 벡터와 Sparse 벡터를 동시에 생성합니다.\n   - 비동기 배치 처리(aembed_batch)를 활용하고 Redis 캐시로 성능을 최적화합니다.\n\n4. **엔티티 추출 (Entity Extraction)**\n   - EntityExtractionService(Gleaning 포함)를 통해 문서에서 엔티티와 관계를 추출합니다.\n\n5. **저장 (Storage)**\n   - StorageTransaction을 사용하여 Neo4j(엔티티 관계), Elasticsearch(Dense/Sparse 벡터 및 메타데이터), PostgreSQL(마스터 레코드 및 시계열 정보)에 원자적으로 저장합니다.\n   - 실패 시 롤백 메커니즘을 보장합니다.\n\n이 흐름은 ETL 파이프라인 오케스트레이터 클래스(etl/pipeline.py)에서 비동기로 관리되며, 진행률 추적과 배치 처리를 포함합니다.",
+      "contexts_count": 5,
+      "latency_ms": 44237.12
+    },
+    {
+      "idx": 13,
+      "question": "Hybrid Search에서 RRF 퓨전이 단일 검색보다 나은 이유는?",
+      "ground_truth": "RRF는 Vector, BM25, Graph 등 서로 다른 검색 채널의 순위를 융합하여 단일 채널의 약점을 보완합니다.",
+      "answer": "주어진 컨텍스트에 따르면, Hybrid Search에서 RRF(Reciprocal Rank Fusion) 퓨전이 단일 검색보다 나은 이유는 다음과 같습니다:\n\n1. **단일 검색 방식의 한계 보완**: RRF는 키워드 기반 검색(BM25)과 벡터 검색(KNN)과 같은 서로 다른 검색 기법의 결과를 통합하여, 각 단일 검색 방식의 한계를 보완합니다.\n2. **정확성과 관련성 향상**: 서로 다른 검색 방법의 장점을 결합함으로써 최종 검색 결과의 정확성과 관련성을 높입니다.\n3. **강건한 결과 제공**: 다양한 검색 결과 리스트를 통합하고 재순위화하여 더욱 정확하고 강건한 최종 검색 결과를 제공합니다.\n\n이를 통해 Hybrid Search는 단일 검색 방식보다 균형 잡힌 성능과 향상된 검색 품질을 달성할 수 있습니다.",
+      "contexts_count": 5,
+      "latency_ms": 46847.8
+    },
+    {
+      "idx": 14,
+      "question": "AI 에이전트에서 Tool Calling과 Reasoning의 상호작용은?",
+      "ground_truth": "AI 에이전트는 Reasoning으로 문제를 분석한 후 적절한 Tool을 선택하여 호출하고 결과를 다시 Reasoning에 반영합니다.",
+      "answer": "AI 에이전트에서 Tool Calling과 Reasoning의 상호작용은 두 가지 핵심 **추론 표현(Expressions of Reasoning)** 을 통해 이루어집니다. 첫째, **평가 및 계획을 통한 추론(Reasoning through evaluation and planning)** 으로, 이는 매크로 수준에서 작업을 반복적으로 완료하고 각 단계의 결과를 고려합니다. 둘째, **도구 사용을 통한 추론(Reasoning through tool use)** 으로, 에이전트가 데이터를 검색하거나 API를 호출하는 등 도구를 올바르게 실행하여 환경과 효과적으로 상호작용할 수 있도록 합니다. 이 두 방식은 상호보완적으로 작동하여 복잡한 문제를 해결하는 데 기여합니다.",
+      "contexts_count": 5,
+      "latency_ms": 45855.82
+    },
+    {
+      "idx": 15,
+      "question": "Docker Compose에서 컨테이너 간 네트워크 통신 설정 방법은?",
+      "ground_truth": "docker-compose.yml에서 networks를 정의하고 서비스마다 네트워크를 지정하면 컨테이너 간 호스트명으로 통신합니다.",
+      "answer": "컨텍스트에 따르면, Docker Compose에서 컨테이너 간 네트워크 통신을 설정하는 방법은 다음과 같습니다:\n\n1. **커스텀 네트워크 생성**: Docker Compose는 기본적으로 서비스들을 하나의 네트워크로 자동 연결합니다. 예를 들어, `backend`라는 이름의 커스텀 네트워크를 생성할 수 있으며, 디폴트 타입은 `bridge`입니다.\n\n2. **서비스 네트워크 지정**: 각 서비스가 속한 네트워크 이름을 `docker-compose.yml` 파일에서 지정합니다. 이를 통해 PostgreSQL, FastAPI, Prometheus, Grafana 등의 컨테이너가 동일 네트워크에 속해 서로 통신할 수 있습니다.\n\n3. **호스트 이름 사용**: 네트워크 상의 서비스는 서비스 이름을 호스트 이름으로 사용하여 통신할 수 있습니다. 예를 들어, PostgreSQL 컨테이너는 `postgres`라는 서비스 이름으로 접근 가능합니다.\n\n4. **포트 노출 설정**: 외부와의 통신이 필요한 경우, `ports` 값을 설정하여 호스트 포트와 컨테이너 포트를 바인딩합니다. 예: `8080:8080`.\n\n5. **환경 변수 설정**: 필요한 경우, `SPRING_PROFILES_ACTIVE`와 같은 환경 변수를 설정하여 서비스 구성을 관리할 수 있습니다.\n\n이러한 설정을 통해 Docker Compose는 여러 컨테이너를 하나의 네트워크로 연결하여 상호 통신을 가능하게 합니다.",
+      "contexts_count": 5,
+      "latency_ms": 44308.2
+    },
+    {
+      "idx": 16,
+      "question": "RRF 알고리즘이 Hybrid 검색에서 하는 역할은?",
+      "ground_truth": "RRF(Reciprocal Rank Fusion)는 Vector, BM25, Graph 검색 결과의 순위를 융합하여 최종 순위를 결정합니다.",
+      "answer": "RRF(Reciprocal Rank Fusion) 알고리즘은 Hybrid 검색에서 키워드 기반 검색(BM25)과 벡터 검색(KNN)과 같은 서로 다른 검색 기법의 결과를 통합하고 재순위화하는 역할을 합니다. 이를 통해 단일 검색 방식의 한계를 보완하고 최종 검색 결과의 정확성과 관련성을 높입니다.",
+      "contexts_count": 5,
+      "latency_ms": 47199.49
+    },
+    {
+      "idx": 17,
+      "question": "RAGAS 평가 메트릭의 종류와 의미는?",
+      "ground_truth": "Faithfulness(충실도), Answer Relevancy(답변 관련성), Context Precision(맥락 정밀도), Context Recall(맥락 재현율) 4가지입니다.",
+      "answer": "주어진 컨텍스트에는 RAGAS 평가 메트릭의 구체적인 종류와 의미에 대한 정보가 포함되어 있지 않습니다. 컨텍스트는 RAG 시스템의 한계, 에이전트 기반 RAG 구조, 그리고 성능 평가 시 'Generation Accuracy' 사용 예시 등만 언급하고 있습니다. 따라서, 질문에 답변하기에 충분한 정보가 제공되지 않았습니다.",
+      "contexts_count": 5,
+      "latency_ms": 27986.15
+    },
+    {
+      "idx": 18,
+      "question": "JWT 인증 토큰의 장점과 단점은 무엇인가요?",
+      "ground_truth": "JWT는 서버 상태 비저장(stateless) 인증이 가능하지만, 토큰 만료 전 무효화가 어렵고 크기가 큰 단점이 있습니다.",
+      "answer": "주어진 컨텍스트에 따르면, JWT 인증 토큰의 장점과 단점은 다음과 같습니다.\n\n**JWT의 장점:**\n1. 높은 확장성: Stateless 특성으로 서버 간 상태 공유 없이 수평 확장 가능합니다.\n2. 마이크로서비스 친화적: 서비스 간 독립적인 인증 검증으로 분산 아키텍처에 적합합니다.\n3. 네트워크 효율성: 매 요청마다 서버 세션 저장소 조회가 불필요하여 응답속도가 향상됩니다.\n\n**JWT의 단점:**\n1. 토큰 크기: 세션 ID 대비 큰 크기로 네트워크 오버헤드가 증가할 수 있습니다.\n2. 무효화 어려움: 발급된 토큰을 만료시간 전에 무효화하기 어렵습니다.\n3. 보안 위험: 클라이언트 저장으로 인한 XSS 공격 및 토큰 탈취 위험이 있습니다.",
+      "contexts_count": 5,
+      "latency_ms": 47792.48
+    },
+    {
+      "idx": 19,
+      "question": "Kubernetes에서 Spring Boot 마이크로서비스를 배포하는 방법은?",
+      "ground_truth": "Spring Boot 앱을 Docker 이미지로 빌드한 후 Kubernetes Deployment와 Service를 생성하여 배포합니다.",
+      "answer": "제공된 컨텍스트에는 Kubernetes에서 Spring Boot 마이크로서비스를 배포하는 구체적인 단계나 방법이 명시되어 있지 않습니다. 컨텍스트는 Kubernetes가 마이크로서비스 관리에 유용한 오케스트레이션 플랫폼이며, Spring Boot와 Docker를 함께 사용하는 일반적인 개념만 언급하고 있습니다.",
+      "contexts_count": 5,
+      "latency_ms": 38378.52
+    },
+    {
+      "idx": 20,
+      "question": "Elasticsearch 벡터 검색을 위한 인덱스 설정 방법은?",
+      "ground_truth": "dense_vector 타입 필드를 정의하고 dims, similarity, knn 옵션을 설정하여 벡터 검색 인덱스를 생성합니다.",
+      "answer": "Elasticsearch 벡터 검색을 위한 인덱스 설정 방법은 컨텍스트에 제공된 JSON 설정을 참조할 수 있습니다. 설정은 다음과 같습니다:\n\n1. **settings**: \n   - `number_of_shards`: 3 (샤드 수)\n   - `number_of_replicas`: 1 (레플리카 수)\n   - `refresh_interval`: \"30s\" (새로 고침 간격)\n   - `index.codec`: \"best_compression\" (인덱스 압축 코덱)\n\n2. **mappings**:\n   - `embedding`: \n     - `type`: \"dense_vector\" (밀집 벡터 타입)\n     - `dims`: 1024 (차원 수)\n     - `index`: true (인덱싱 활성화)\n     - `similarity`: \"cosine\" (코사인 유사도 사용)\n   - `text`:\n     - `type`: \"text\" (텍스트 타입)\n     - `analyzer`: \"korean\" (한국어 분석기)\n\n이 설정은 벡터 검색을 위해 `embedding` 필드를 밀집 벡터로 정의하고, 텍스트 검색을 위해 `text` 필드를 한국어 분석기로 설정합니다.",
+      "contexts_count": 5,
+      "latency_ms": 49042.07
+    },
+    {
+      "idx": 21,
+      "question": "WBS(Work Breakdown Structure)란 무엇이며 프로젝트 관리에서 어떻게 활용하나요?",
+      "ground_truth": "WBS는 프로젝트를 작은 작업 단위로 분해하여 체계적으로 관리하는 구조로, 범위 정의와 일정 관리에 활용됩니다.",
+      "answer": "주어진 컨텍스트에 따르면, WBS(Work Breakdown Structure)는 프로젝트를 활동으로 분해하고 마일스톤을 식별하는 작업 분할 구조입니다. 프로젝트 관리에서는 다음과 같이 활용됩니다:\n\n1. **프로젝트 계획 수립**: 소프트웨어 개발 계획의 \"Work Breakdown\" 섹션에서 프로젝트를 활동과 마일스톤으로 세분화합니다.\n2. **일정 관리**: \"Project Schedule\"과 함께 Gantt 차트(예: Microsoft Project 활용)로 활동 간 의존성, 예상 시간, 인력 할당을 시각화합니다.\n3. **프로세스 맞춤화**: 개발 프로세스 경로에서 프로젝트 관리자가 프로젝트 특성에 맞게 WBS를 정의하기 용이하도록 작업 흐름을 제공합니다.\n4. **산출물 관리**: 개발 산출물 점검 시 장기간 활동을 단기간 하위 작업으로 세부 조정하는 데 활용됩니다.\n\n이는 프로젝트 참여자가 활동을 수행하고 산출물을 생성하는 기반이 됩니다.",
+      "contexts_count": 5,
+      "latency_ms": 45158.15
+    },
+    {
+      "idx": 22,
+      "question": "대규모 문서를 효율적으로 처리하는 방법은?",
+      "ground_truth": "청킹(chunking)으로 문서를 분할하고 배치 임베딩으로 벡터화한 후 Elasticsearch에 색인합니다.",
+      "answer": "컨텍스트에 따르면, 대규모 문서를 효율적으로 처리하는 방법은 **청킹(Chunking)** 작업을 통해 문서를 작은 단위로 나누는 것입니다. 이는 다음과 같은 이유로 효율성을 높입니다:\n\n1. **효율적인 검색**: 작은 청크로 나누어 각각 독립적으로 검색하면 관련 문서를 빠르고 정확하게 찾을 수 있습니다.\n2. **문맥 유지**: LLM의 입력 길이 제한을 고려하여, 청크 단위로 처리할 때 문맥을 유지할 수 있습니다.\n\n또한, **재순위화(Reranking)** 를 통해 가장 관련성 높은 문서를 우선적으로 선별하고 불필요한 정보를 걸러내어 정밀도를 높일 수 있습니다.",
+      "contexts_count": 5,
+      "latency_ms": 30530.97
+    },
+    {
+      "idx": 23,
+      "question": "검색 성능을 최적화하려면 어떻게 해야 하나요?",
+      "ground_truth": "Hybrid 검색(BM25+Dense+Graph), RRF 퓨전, Redis 캐싱, 배치 임베딩으로 성능을 최적화합니다.",
+      "answer": "컨텍스트에 따르면 검색 성능을 최적화하려면 다음과 같은 전략을 활용해야 합니다:\n\n1. **하이브리드 검색 탐색**: 키워드 기반 검색, 의미적 검색, 벡터 검색을 지능적으로 결합하여 성능을 향상시킵니다.\n2. **재귀 검색 및 쿼리 엔진**: 작은 덩어리로 검색을 시작하고, 더 큰 맥락 정보를 확보하여 효율성과 응답의 맥락적 풍부함을 균형 있게 맞춥니다.\n3. **하위 쿼리**: 시나리오에 따라 트리 쿼리, 벡터 쿼리 또는 순차적 쿼리 방식을 사용합니다.\n4. **근사 최근접 이웃(ANN) 알고리즘**: HNSW, FAISS와 같은 알고리즘을 통해 고속 검색을 구현합니다.\n5. **검색과 생성의 분리**: 검색 품질에 집중하여 최적화하는 모듈식 프레임워크를 적용합니다.",
+      "contexts_count": 5,
+      "latency_ms": 47288.22
+    },
+    {
+      "idx": 24,
+      "question": "환경변수를 안전하게 관리하는 방법은?",
+      "ground_truth": ".env 파일에 환경변수를 정의하고 docker-compose에서 env_file로 로드하며, 시크릿은 별도 관리합니다.",
+      "answer": "제공된 컨텍스트에는 환경변수를 안전하게 관리하는 구체적인 방법이 명시되어 있지 않습니다. 컨텍스트는 주로 자연환경 보전, 환경오염 관리, AI 학습 환경 정의 및 관련 법적 용어에 관한 내용을 다루고 있습니다.",
+      "contexts_count": 5,
+      "latency_ms": 5.16
+    },
+    {
+      "idx": 25,
+      "question": "답변 품질을 체계적으로 평가하는 방법론은 무엇인가요?",
+      "ground_truth": "RAGAS 프레임워크로 Faithfulness, Answer Relevancy, Context Precision, Context Recall을 측정하여 체계적으로 평가합니다.",
+      "answer": "주어진 컨텍스트에 따르면, 답변 품질을 체계적으로 평가하는 방법론은 **Ragas 평가**를 포함한 다양한 지표를 활용합니다. 이는 검색 품질, 생성 품질, 종단 간(E2E) 품질을 평가하는 체계적인 방법론으로, 다음과 같은 지표를 사용합니다:\n\n- **검색 품질**: Precision@K, Recall@K, MRR, NDCG\n- **생성 품질**: Faithfulness, Answer Relevancy, Context Precision\n- **E2E 품질**: End-to-End Accuracy, Response Latency\n\nRagas 평가는 Python 라이브러리를 통해 구현되며, `faithfulness`와 `answer_relevancy`와 같은 메트릭을 적용하여 답변 품질을 평가합니다.",
+      "contexts_count": 5,
+      "latency_ms": 3.57
+    },
+    {
+      "idx": 26,
+      "question": "반복적이고 점진적인 개발 방법론은 어떤 것이 있나요?",
+      "ground_truth": "Agile/Scrum 방법론으로 Sprint 단위 반복 개발, 데일리 스크럼, 스프린트 리뷰를 통해 점진적으로 발전시킵니다.",
+      "answer": "주어진 컨텍스트에 따르면, 반복적이고 점진적인 개발 방법론으로는 **경량 개발 방법론**이 언급되어 있습니다. 이 방법론은 반복적 점증적 개발 방법론(iterative and incremental development method)으로 설명되며, 소프트웨어 개발을 진행할 때 모든 공정을 여러 번 반복하면서 개선해 나가고, 각 인도(deliver) 시마다 더 많은 기능에 가치가 부가되는 점진적 방식을 포함합니다. 또한, 컨텍스트에서는 애자일 방법론(Agile Method)도 반복적이고 점진적인 개발을 강조하는 현대적인 접근 방식으로 소개하고 있습니다.",
+      "contexts_count": 5,
+      "latency_ms": 4.65
+    },
+    {
+      "idx": 27,
+      "question": "데이터베이스 마이그레이션을 안전하게 수행하는 방법은?",
+      "ground_truth": "Flyway/Alembic 등 마이그레이션 도구를 사용하여 스키마 변경을 버전 관리하고 롤백 가능하게 합니다.",
+      "answer": "컨텍스트에 따르면, 데이터베이스 마이그레이션을 안전하게 수행하는 방법은 다음과 같습니다:\n\n1. **마이그레이션 도구 사용**: Flyway나 Liquibase 같은 도구를 사용하여 스키마 변경을 관리합니다. Flyway는 SQL 파일 기반으로 버전 관리되고, Liquibase는 XML/YAML/JSON 형식으로 더 유연하며 롤백 기능을 지원합니다.\n\n2. **버전 관리 및 기록**: 마이그레이션 스크립트를 Git으로 버전 관리하고, 실행된 마이그레이션은 별도의 테이블(예: `flyway_schema_history` 또는 `migrations`)에 기록하여 중복 실행을 방지합니다.\n\n3. **트랜잭션과 롤백**: 마이그레이션 실행 시 트랜잭션을 사용하여 오류 발생 시 롤백할 수 있도록 합니다. Liquibase는 롤백 기능을 내장하고, 커스텀 스크립트에서는 명시적으로 `BEGIN`/`COMMIT`/`ROLLBACK`을 처리합니다.\n\n4. **Hooks를 통한 자동화**: 배포 또는 마이그레이션 명령에 Hooks를 설정하여, 실행 전에 DB 백업을 수행하고 실행 후 검증 스크립트를 실행하는 등의 안전 장치를 추가합니다.\n\n5. **체크리스트와 검증**: 배포 전 데이터베이스 백업 완료, 테스트 완료 등을 확인하고, 배포 후에는 모든 시스템 연동 및 성능 메트릭을 검증합니다.\n\n6. **롤백 계획 수립**: 문제 발생 시 즉시 롤백할 수 있는 계획(예: Blue-Green Deployment에서 트래픽 전환, 데이터베이스 롤백)을 마련합니다.\n\n7. **문서화**: 마이그레이션 절차를 `feature_list.json` 같은 형식으로 문서화하여 지식 전달의 한계를 극복하고 재현성을 보장합니다.\n\n이러한 방법들은 마이그레이션 과정의 안정성과 신뢰성을 높이며, 실수를 방지하고 문제 발생 시 신속하게 대응할 수 있도록 합니다.",
+      "contexts_count": 5,
+      "latency_ms": 3.61
+    },
+    {
+      "idx": 28,
+      "question": "마이크로서비스 아키텍처에서 서비스 간 통신 패턴은?",
+      "ground_truth": "동기 방식(REST, gRPC)과 비동기 방식(이벤트 기반 메시징)이 있으며, API Gateway로 진입점을 통합합니다.",
+      "answer": "주어진 컨텍스트에는 마이크로서비스 아키텍처에서 서비스 간 통신 패턴에 대한 구체적인 정보가 명시적으로 포함되어 있지 않습니다. 컨텍스트는 데이터 관리, 일관성, 패턴(예: Saga, Circuit Breaker)에 초점을 맞추고 있지만, 통신 패턴(예: 동기식/비동기식, 요청-응답 등)에 대한 직접적인 설명은 제공하지 않습니다.",
+      "contexts_count": 5,
+      "latency_ms": 3.19
+    },
+    {
+      "idx": 29,
+      "question": "Spring Cloud Gateway에서 API 라우팅과 필터를 설정하는 방법은?",
+      "ground_truth": "Spring Cloud Gateway에서 RouteLocator로 라우팅 규칙을 정의하고, GlobalFilter로 인증/로깅 등 필터를 적용합니다.",
+      "answer": "Spring Cloud Gateway에서 API 라우팅과 필터를 설정하는 방법은 다음과 같습니다.\n\n### 1. **의존성 추가**\n```xml\n<dependency>\n    <groupId>org.springframework.cloud</groupId>\n    <artifactId>spring-cloud-starter-gateway</artifactId>\n</dependency>\n```\n\n### 2. **라우팅 설정**\n**Java Config 방식** (권장):\n```java\n@Bean\npublic RouteLocator routeWithFilters(RouteLocatorBuilder builder) {\n    return builder.routes()\n        .route(\"filtered-route\", r -> r.path(\"/api/**\")\n            .filters(f -> f\n                .addRequestHeader(\"X-Request-ID\", UUID.randomUUID().toString())\n                .addResponseHeader(\"X-Response-Time\", System.currentTimeMillis() + \"\")\n                .retry(3)\n                .circuitBreaker(c -> c.name(\"api-cb\"))\n                .requestRateLimiter(rl -> rl\n                    .setRateLimiter(redisRateLimiter())\n                    .setKeyResolver(userKeyResolver())))\n            .uri(\"lb://backend-service\"))\n        .build();\n}\n```\n\n**YAML 설정 방식**:\n```yaml\nspring:\n  cloud:\n    gateway:\n      routes:\n        - id: filtered-route\n          uri: lb://backend-service\n          predicates:\n            - Path=/api/**\n          filters:\n            - AddRequestHeader=X-Request-ID, {uuid}\n            - AddResponseHeader=X-Response-Time, {timestamp}\n            - name: Retry\n              args:\n                retries: 3\n            - name: CircuitBreaker\n              args:\n                name: api-cb\n            - name: RequestRateLimiter\n              args:\n                redis-rate-limiter.replenishRate: 10\n                redis-rate-limiter.burstCapacity: 20\n```\n\n### 3. **필터 설정**\n**글로벌 필터**:\n```java\n@Bean\npublic GlobalFilter customGlobalFilter() {\n    return (exchange, chain) -> {\n        log.info(\"Request: {}\", exchange.getRequest().getPath());\n        return chain.filter(exchange)\n            .then(Mono.fromRunnable(() -> {\n                log.info(\"Response: {}\", exchange.getResponse().getStatusCode());\n            }));\n    };\n}\n```\n\n**주요 필터 유형**:\n- **인증/인가 필터**: JWT 검증, OAuth2 연동\n- **트래픽 제어 필터**: Rate Limiting, Circuit Breaker\n- **변환 필터**: 요청/응답 헤더 추가/수정\n- **로깅/모니터링 필터**: 요청 추적, 메트릭 수집\n\n### 4. **주요 설정 항목**\n| 항목 | 구현 방법 | 비고 |\n|------|----------|------|\n| **JWT 인증** | SecurityConfig.java에 인증 체인 구현 | HS256 + RS256 이중 인증 지원 |\n| **Rate Limiting** | RequestRateLimiter 필터 + Redis | Redis 기반 토큰 버킷 알고리즘 |\n| **Circuit Breaker** | Resilience4j 연동 | 장애 격리 및 폴백 처리 |\n| **CORS 설정** | corsConfigurationSource 빈 정의 | 교차 출처 요청 허용 |\n| **로깅** | LoggingFilter 구현 | 요청/응답 로깅 |\n| **메트릭** | actuator/prometheus 노출 | 모니터링 연동 |\n\n### 5. **고급 설정**\n- **동적 라우팅**: RouteDefinitionRepository 구현\n- **커스텀 필터**: AbstractGatewayFilterFactory 상속\n- **폴백 처리**: FallbackController 구현\n- **로드밸런싱**: LoadBalancerClientFilter 사용\n\n이 설정들은 마이크로서비스 아키텍처에서 API 게이트웨이의 핵심 기능인 라우팅, 필터링, 보안, 회복력, 모니터링을 제공합니다.",
+      "contexts_count": 5,
+      "latency_ms": 5.14
+    },
+    {
+      "idx": 30,
+      "question": "Gleaning 기법이란 무엇이며 RAG 파이프라인에서 어떻게 활용되나요?",
+      "ground_truth": "Gleaning은 LLM이 추출한 엔티티를 반복 검증하여 Knowledge Graph의 품질을 높이는 기법입니다.",
+      "answer": "주어진 컨텍스트에 따르면, Gleaning 기법은 Microsoft GraphRAG에서 검증된 다중 추출(Multi-pass Extraction) 기법입니다. 이 기법은 RAG(Retrieval-Augmented Generation) 파이프라인에서 검색 단계의 정밀도를 높이기 위해 사용되며, 특히 지식 그래프 품질 향상에 효과적입니다.\n\n**Gleaning 기법의 활용 방식:**\n1. **프로세스**: 텍스트 청크 입력 후 1차 추출(Primary Extraction)을 수행하고, 누락된 엔티티와 관계가 있는지 확인합니다. 누락이 있을 경우 Gleaning 패스를 추가로 실행하여 누락된 요소를 추출합니다. 이 과정은 최대 Gleaning 횟수(max_gleanings)에 도달할 때까지 반복됩니다.\n2. **설정**: 컨텍스트에서는 청크 크기(600 토큰), max_gleanings(1회), 적용 대상(기술문서, 제안서 등 복잡도 높은 문서)을 권장합니다.\n3. **기대 효과**: 단일 추출 대비 엔티티 Recall을 33% 향상(60% → 80%)시키고, 관계 Recall을 40% 향상(50% → 70%)시킬 수 있으나, 문서당 비용은 약 60% 증가합니다.\n\n이 기법은 현재 프로젝트의 Graph RAG 성능 향상에 효과적인 방안으로 평가되며, LangGraph와 DeepSeek 기반 아키텍처와 호환되어 점진적 도입이 가능합니다.",
+      "contexts_count": 5,
+      "latency_ms": 2.88
+    },
+    {
+      "idx": 31,
+      "question": "cosine similarity와 dot product 유사도의 차이와 적합한 사용 시나리오는?",
+      "ground_truth": "cosine similarity는 방향만 비교하여 정규화된 벡터에 적합하고, dot product는 크기도 반영하여 비정규화 벡터에 적합합니다.",
+      "answer": "주어진 컨텍스트에 따르면, 코사인 유사도와 내적(닷 프로덕트) 유사도의 차이와 적합한 사용 시나리오는 다음과 같습니다:\n\n**차이점:**\n- **코사인 유사도**: 벡터의 크기(노름)를 정규화하여 방향의 유사성을 측정합니다. 공식은 `(A·B) / (||A|| × ||B||)`이며, 범위는 -1(반대 방향)에서 1(동일 방향)입니다. 벡터의 크기가 다를 경우에도 방향적 유사성을 비교할 수 있습니다.\n- **내적 유사도**: 벡터의 크기와 방향을 모두 고려한 원시적인 유사도 측정입니다. 공식은 `A·B`이며, 범위가 제한되지 않아 크기 차이에 민감할 수 있습니다.\n\n**적합한 사용 시나리오:**\n- **코사인 유사도**: TF-IDF 벡터나 문서 임베딩과 같이 벡터의 크기보다 방향(의미적 유사성)이 중요한 경우에 적합합니다. 컨텍스트에서 문서 검색(retrieve_relevant_documents)이나 벡터 데이터베이스 쿼리(예: PostgreSQL의 cosine_similarity 함수)에 사용됩니다.\n- **내적 유사도**: 벡터의 크기 자체가 의미를 가지는 경우(예: 특정 특성의 강도를 반영하는 임베딩)에 적합할 수 있으나, 컨텍스트에서는 주로 코사인 유사도의 구성 요소로 언급됩니다.\n\n컨텍스트에서 코사인 유사도는 문서 유사성 검색, RAG(Retrieval-Augmented Generation) 체인, 및 벡터 데이터베이스에서의 관련성 정렬에 사용되고 있습니다.",
+      "contexts_count": 5,
+      "latency_ms": 3.56
+    },
+    {
+      "idx": 32,
+      "question": "SSOT 원칙이란 무엇이며 데이터 아키텍처에서 왜 중요한가요?",
+      "ground_truth": "SSOT(Single Source of Truth)는 데이터의 단일 원본을 유지하는 원칙으로, PostgreSQL이 SSOT 역할을 합니다.",
+      "answer": "SSOT(Single Source of Truth, 단일 진실 공급원) 원칙은 데이터 아키텍처에서 모든 핵심 데이터 요소가 단일, 권위 있는 출처에 저장되고 관리되어야 한다는 개념입니다. 이 원칙은 데이터의 일관성, 정확성, 신뢰성을 보장하기 위해 설계되었습니다.\n\n데이터 아키텍처에서 SSOT가 중요한 이유는 다음과 같습니다:\n1. **데이터 일관성 유지**: 여러 시스템에서 데이터가 중복 저장되면 불일치가 발생할 수 있으나, SSOT를 통해 단일 출처에서 데이터를 관리함으로써 일관성을 보장합니다.\n2. **데이터 무결성 보장**: PostgreSQL과 같은 마스터 데이터베이스를 SSOT로 사용하여 트랜잭션 ACID 속성을 준수하고 데이터의 정확성을 유지합니다.\n3. **효율적인 데이터 동기화**: SSOT를 중심으로 Elasticsearch, Neo4j 등의 시스템에 데이터를 동기화하여 시스템 간 데이터 불일치를 방지합니다.\n4. **운영 효율성 향상**: 데이터 출처가 명확해져 유지보수 및 문제 해결이 용이하며, 데이터 관리 비용을 절감할 수 있습니다.\n\n이러한 SSOT 원칙은 Hybrid RAG 아키텍처와 같은 복잡한 시스템에서 데이터 신뢰성을 기반으로 검색 및 분석 성능을 최적화하는 데 핵심 역할을 합니다.",
+      "contexts_count": 5,
+      "latency_ms": 3.91
+    },
+    {
+      "idx": 33,
+      "question": "Vector Search와 Graph Search를 결합하면 어떤 이점이 있나요?",
+      "ground_truth": "Vector Search는 의미 유사성 기반 검색을, Graph Search는 엔티티 관계 기반 검색을 제공하여 상호 보완합니다.",
+      "answer": "주어진 컨텍스트에 따르면, Vector Search와 Graph Search를 결합하면 다음과 같은 이점이 있습니다:\n\n1. **정확성과 맥락 이해 향상**: 의미적 유사성(Vector Search)과 관계 구조(Graph Search)를 동시에 고려하여 더 정확한 결과를 얻을 수 있습니다.\n2. **환각(Hallucination) 현상 감소**: Graph Search가 엔티티 간의 관계와 논리적 구조를 보완하여 더 정확하고 맥락에 맞는 응답을 생성합니다.\n3. **효율적인 검색 프로세스**: Vector Search로 관련 문서 후보를 빠르게 필터링한 후, Graph Traversal로 연결된 지식을 탐색하여 맥락을 확장합니다.\n4. **다양한 질문 유형 처리**: 사실 질문, 관계 질문, 복합 질문 등에 따라 Vector 우선, Graph 우선 또는 Hybrid 전략을 유연하게 적용할 수 있습니다.\n5. **포괄적인 답변 생성**: 두 접근법의 결과를 통합하고 재랭킹하여 더 정확하고 포괄적인 컨텍스트를 구성할 수 있습니다.\n\n이러한 결합은 전통적인 Vector RAG의 한계(문서 간 관계 활용 부족)를 극복하고, 정확도와 응답 정합성을 높이는 시너지를 제공합니다.",
+      "contexts_count": 5,
+      "latency_ms": 3.2
+    },
+    {
+      "idx": 34,
+      "question": "React 18에서 Concurrent 렌더링과 Suspense를 활용하는 방법은?",
+      "ground_truth": "React 18의 Concurrent 렌더링은 UI 응답성을 높이고, Suspense는 비동기 데이터 로딩을 선언적으로 처리합니다.",
+      "answer": "주어진 컨텍스트에 따르면, React 18에서 Concurrent 렌더링과 Suspense를 활용하는 방법은 다음과 같습니다:\n\n1. **Concurrent Rendering**: React 18의 Concurrent Rendering을 통해 대량의 검색 결과가 반환되더라도 UI가 멈추지 않고 부드럽게 동작하도록 합니다. 이는 사용자 경험을 향상시키며, 특히 데이터가 많은 상황에서 UI 반응성을 유지합니다.\n\n2. **Suspense와 Error Boundary**: Suspense를 활용하여 로딩 상태를 우아하게 처리하고, Error Boundary와 함께 사용하여 에러 상태를 관리합니다. 이를 통해 데이터 fetching 중 발생할 수 있는 로딩 지연이나 오류를 사용자에게 자연스럽게 표시할 수 있습니다.\n\n이러한 기능들은 애플리케이션의 성능과 사용자 경험을 최적화하는 데 기여하며, React 18의 최신 웹 개발 패러다임을 적극 반영한 것입니다.",
+      "contexts_count": 5,
+      "latency_ms": 3.96
+    },
+    {
+      "idx": 35,
+      "question": "Python 3.11의 ExceptionGroup과 except* 구문의 사용 방법은?",
+      "ground_truth": "ExceptionGroup은 여러 예외를 하나로 묶고, except*로 특정 예외 유형만 선택적으로 처리합니다.",
+      "answer": "주어진 컨텍스트에는 Python 3.11의 `ExceptionGroup`과 `except*` 구문에 대한 정보가 포함되어 있지 않습니다. 컨텍스트는 주로 Java 코딩 스타일, 예외처리 규칙, indent, switch 문장, try-catch 문장, 그리고 Python을 사용한 문서 분석 및 FastAPI에 대한 내용을 다루고 있습니다. Python 3.11의 새로운 예외 처리 기능인 `ExceptionGroup`과 `except*`에 대해서는 언급되지 않았습니다.",
+      "contexts_count": 5,
+      "latency_ms": 4.9
+    },
+    {
+      "idx": 36,
+      "question": "AI Service에서 RAG Pipeline의 전체 처리 흐름은?",
+      "ground_truth": "쿼리 입력 → Hybrid 검색(BM25+Dense+Sparse+Graph) → RRF 퓨전 → Quality Gate → LLM 생성 순서입니다.",
+      "answer": "주어진 컨텍스트에 따르면, AI Service에서 RAG Pipeline의 전체 처리 흐름은 **기본적인 검색-생성 구조를 기반**으로 하며, **Query → Planner → Retriever → Reranker → Generator → Answer**의 단계를 거칩니다. 이는 컨텍스트에서 제시된 E2E 테스트 케이스(S04-051-E2E-001)에 명시된 흐름과 일치합니다. 또한, RAG는 LLM에 더 나은 맥락화를 제공하여 응답 품질을 향상시키는 것을 원칙으로 합니다.",
+      "contexts_count": 5,
+      "latency_ms": 3.94
+    },
+    {
+      "idx": 37,
+      "question": "개인정보보호법에서 개인정보 수집 시 동의 요건은?",
+      "ground_truth": "개인정보보호법에 따라 정보주체의 동의를 받아야 하며, 수집 목적, 항목, 보유 기간을 명시해야 합니다.",
+      "answer": "개인정보보호법에서 개인정보 수집 시 동의 요건은 다음과 같습니다:\n\n1. **동의를 통한 수집**: 개인정보처리자는 정보주체의 동의를 받아 개인정보를 수집할 수 있습니다(제15조제1항제1호).\n\n2. **동의 시 고지사항**: 동의를 받을 때 다음 사항을 정보주체에게 알려야 합니다(제15조제2항):\n   - 개인정보의 수집·이용 목적\n   - 수집하려는 개인정보의 항목\n   - 개인정보의 보유 및 이용 기간\n   - 동의를 거부할 권리가 있다는 사실 및 동의 거부에 따른 불이익 내용\n\n3. **최소한의 정보 수집**: 동의를 받아 개인정보를 수집하는 경우, 필요한 최소한의 정보 외의 개인정보 수집에는 동의하지 않을 수 있다는 사실을 구체적으로 알려야 합니다(제16조제2항).\n\n4. **동의 거부 시 불이익 금지**: 정보주체가 필요한 최소한의 정보 외의 개인정보 수집에 동의하지 않는다는 이유로 재화 또는 서비스 제공을 거부해서는 안 됩니다(제16조제3항).\n\n5. **동의 없이 수집 가능한 경우**: 다음 각 호에 해당하는 경우에는 동의 없이 개인정보를 수집할 수 있습니다(제15조제1항):\n   - 법률에 특별한 규정이 있거나 법령상 의무 준수를 위해 불가피한 경우\n   - 공공기관이 법령에서 정하는 소관 업무 수행을 위해 불가피한 경우\n   - 정보주체와의 계약 체결 및 이행을 위해 불가피하게 필요한 경우\n   - 정보주체 또는 법정대리인이 의사표시를 할 수 없는 상태 등으로 사전 동의를 받을 수 없는 경우로서 급박한 생명, 신체, 재산의 이익을 위해 필요한 경우\n   - 개인정보처리자의 정당한 이익을 달성하기 위해 필요한 경우로서 정보주체의 권리보다 명백히 우선하는 경우(단, 상당한 관련이 있고 합리적인 범위 내에서)",
+      "contexts_count": 5,
+      "latency_ms": 3.38
+    },
+    {
+      "idx": 38,
+      "question": "GDPR의 핵심 원칙과 국내 기업의 준수 사항은?",
+      "ground_truth": "GDPR은 데이터 최소 수집, 목적 제한, 정보주체 권리 보장 등을 요구하며, EU 시민 데이터 처리 시 준수해야 합니다.",
+      "answer": "주어진 컨텍스트에 따르면, GDPR의 핵심 원칙과 국내 기업의 준수 사항에 대한 질문(질문 번호 38)은 등급이 \"NONE\"으로 표시되어 있으며, 이는 해당 질문에 대한 충분한 답변이 컨텍스트에 포함되어 있지 않음을 의미합니다. 컨텍스트에서는 GDPR 준수 여부가 \"✅ 준수\"로 표시되어 있고, \"암호화 + 접근 제어\"가 비고로 언급되어 있지만, 구체적인 핵심 원칙이나 상세한 준수 사항은 제공되지 않습니다. 또한, 국내 기업의 준수 사항에 대해서는 개인정보보호법 준수 여부만 간략히 언급되어 있습니다. 따라서, 이 질문에 대한 자세한 답변은 컨텍스트 내에서 확인할 수 없습니다.",
+      "contexts_count": 5,
+      "latency_ms": 5.42
+    },
+    {
+      "idx": 39,
+      "question": "민법에서 계약의 성립 요건은 무엇인가요?",
+      "ground_truth": "계약은 당사자 간 청약과 승낙의 합치로 성립하며, 의사표시의 합치가 핵심 요건입니다.",
+      "answer": "제공된 컨텍스트에는 계약의 성립 요건에 대한 직접적이고 완전한 정보가 포함되어 있지 않습니다. 컨텍스트는 계약 성립의 일반적 요건 중 첫 번째 항목인 '당사자의 합치된 의사표시 (청약과 승낙)'만 언급하고 있으며, 나머지 요건은 생략되어 있습니다. 따라서 컨텍스트 내의 정보만으로는 질문에 충분히 답할 수 없습니다.",
+      "contexts_count": 5,
+      "latency_ms": 3.24
+    },
+    {
+      "idx": 40,
+      "question": "SLA(서비스 수준 협약)에서 반드시 포함해야 할 핵심 항목은?",
+      "ground_truth": "가용성(Uptime), 응답 시간, 장애 대응 시간, 보상 조건, 측정 방법 등이 SLA 핵심 항목입니다.",
+      "answer": "주어진 컨텍스트에 따르면, SLA(서비스 수준 협약)는 \"서비스 수준 협약 (계약적 보장)\"으로 정의됩니다. 컨텍스트에는 SLA의 구체적인 핵심 항목 목록이 명시되어 있지 않지만, 관련된 SLO(서비스 품질 목표) 및 SLI(서비스 수준 지표)와의 관계를 고려할 때, SLA에는 일반적으로 **보장되는 서비스 수준(예: 가용성, 성능 목표), 이를 측정하는 방법(SLI), 그리고 목표(SLO)를 달성하지 못했을 때의 책임 또는 보상 조항**이 포함되어야 합니다. 또한 컨텍스트의 Severity 테이블은 SLA와 연계된 우선순위 및 해결 시간을 암시하므로, **문제의 심각도별 대응 시간 또는 해결 기한**도 핵심 항목에 해당할 수 있습니다.",
+      "contexts_count": 5,
+      "latency_ms": 4.6
+    },
+    {
+      "idx": 41,
+      "question": "ISMS 인증을 위한 정보보안 점검 항목은?",
+      "ground_truth": "관리체계 수립, 보호대책 구현, 접근 통제, 침해사고 대응, 개인정보 보호 등을 점검합니다.",
+      "answer": "제공된 컨텍스트에는 ISMS(정보보안관리체계) 인증을 위한 정보보안 점검 항목에 대한 명시적인 언급이 없습니다. 컨텍스트는 주로 특정 정보시스템 구축 시 적용되는 보안 요구사항, 취약점 점검 유형(소스취약점, 웹취약점, 모의해킹), 그리고 보안적합성 검증 절차에 초점을 맞추고 있습니다.\n\n따라서, 주어진 정보만으로는 ISMS 인증을 위한 구체적인 점검 항목을 확인할 수 없습니다.",
+      "contexts_count": 5,
+      "latency_ms": 3.14
+    },
+    {
+      "idx": 42,
+      "question": "소프트웨어 라이선스 종류(MIT, GPL, Apache)의 차이는?",
+      "ground_truth": "MIT는 최소 제약, GPL은 파생물도 GPL 적용 의무, Apache는 특허권 명시 허가가 특징입니다.",
+      "answer": "주어진 컨텍스트에 따르면, MIT, GPL, Apache 라이선스의 차이는 다음과 같습니다:\n\n**MIT 라이선스**:\n- ✅ **허용 사항**: 모든 것 허용 (가장 자유로운 라이선스)\n- 📄 **의무 사항**: 저작권 고지만 필요 (매우 간단)\n- ✅ **특허 사용권**: 묵시적 (약함)\n\n**Apache 2.0 라이선스**:\n- MIT와 실무에서는 거의 동일\n- **차이점**: 특허 보호가 명시적\n\n**GPL 라이선스**:\n- 컨텍스트에서 GPL, AGPL은 **제한적 라이선스**로 분류됨\n- MIT, Apache, BSD 라이선스 코드만 사용 가능하다고 명시\n- GPL 라이선스 코드는 학습 데이터에서 제외됨\n\n**결론**:\n- MIT와 Apache 2.0은 매우 유사하며, 특허 조항의 명시성 차이가 주요 차이점\n- GPL은 더 제한적인 라이선스로 분류됨\n- 한국에서 사용 시 MIT 라이선스는 \"모든 용도 OK, 고지만 하면 끝, 가장 간단\"",
+      "contexts_count": 5,
+      "latency_ms": 3.44
+    },
+    {
+      "idx": 43,
+      "question": "법령 용어에서 '선의'와 '악의'의 법률적 의미 차이는?",
+      "ground_truth": "법률에서 선의는 어떤 사실을 모르는 상태, 악의는 어떤 사실을 알고 있는 상태를 의미합니다.",
+      "answer": "주어진 컨텍스트에 따르면, '선의'와 '악의'의 법률적 의미 차이는 다음과 같습니다.\n\n- **선의(bona fide; in good faith)**: 어떤 사실을 알지 못하거나, 알 수 없었던 정당한 상태를 의미합니다. 법적으로 보호받을 수 있는 우호적 의사 상태입니다.\n- **악의(bad faith)**: 사실을 알면서도 고의나 부정한 의도로 행동하는 상태를 의미합니다. (컨텍스트에서 설명이 일부 누락되었으나, 일반적으로 악의는 부정한 의도나 고의성을 포함합니다.)\n\n이 개념들은 주로 주관적 의사나 인식 상태를 기준으로 법적 효과를 달리 적용하는 데 사용됩니다.",
+      "contexts_count": 5,
+      "latency_ms": 4.36
+    },
+    {
+      "idx": 44,
+      "question": "RAG(Retrieval-Augmented Generation) 시스템의 동작 원리는?",
+      "ground_truth": "RAG는 질문에 관련된 문서를 검색(Retrieval)한 후 LLM이 검색된 컨텍스트를 참고하여 답변을 생성(Generation)합니다.",
+      "answer": "RAG(Retrieval-Augmented Generation) 시스템의 동작 원리는 크게 두 가지 핵심 프로세스로 구성됩니다: **인덱싱(Indexing)** 프로세스와 **검색 및 생성(Retrieval & Generation)** 프로세스입니다.\n\n### 1. 인덱싱 프로세스 (오프라인)\n이 과정은 시스템이 사용자 질의에 대응하기 전에 사전에 문서를 처리하여 저장하는 단계입니다.\n- **문서 로드**: 웹페이지, PDF 등 다양한 소스에서 문서를 가져옵니다.\n- **문서 분할**: 긴 문서를 의미 있는 작은 청크로 분할하여 모델의 컨텍스트 창 크기 제한을 고려하고 검색 효율성을 높입니다.\n- **임베딩 및 저장**: 분할된 청크를 임베딩 모델을 통해 벡터로 변환한 후 벡터 저장소에 저장합니다.\n\n### 2. 검색 및 생성 프로세스 (실시간)\n이 과정은 사용자 질의가 입력될 때 실시간으로 수행됩니다.\n- **사용자 질문**: 시스템에 질의가 입력됩니다.\n- **쿼리 분석 (선택 사항)**: 원본 질문을 구조화하거나 개선하여 검색 효율성을 높입니다.\n- **문서 검색**: Retriever를 통해 벡터 저장소에서 질문과 가장 관련성 높은 문서 청크를 검색합니다.\n- **답변 생성**: 검색된 문서와 원본 질문을 프롬프트 형태로 LLM에 전달하여 최종 답변을 생성합니다.\n\nRAG는 외부 지식(예: 벡터 데이터베이스 또는 인터넷)을 검색하여 LLM의 환각 현상을 줄이고, 최신 정보를 반영한 정확한 답변을 제공하는 것을 목표로 합니다. LangGraph와 같은 도구를 활용하면 이 과정을 효율적으로 구현하고, 쿼리 분석 등의 기능을 추가하여 성능을 향상시킬 수 있습니다.",
+      "contexts_count": 5,
+      "latency_ms": 4.23
+    },
+    {
+      "idx": 45,
+      "question": "Transformer 아키텍처의 Self-Attention 메커니즘은?",
+      "ground_truth": "Self-Attention은 입력 시퀀스의 각 토큰이 다른 모든 토큰과의 관련도를 계산하여 문맥 정보를 인코딩합니다.",
+      "answer": "주어진 컨텍스트에 따르면, Transformer 아키텍처의 Self-Attention 메커니즘은 다음과 같은 특징을 가집니다:\n\n1. **핵심 구성 요소**: Queries(W_Q), Keys(W_K), Values(W_V)의 가중치 행렬을 사용하며, 이들은 학습된 매개변수입니다.\n2. **작동 방식**: 입력에 가중치를 곱하여 Query(Q)와 Key(K) 변환을 생성하고, 이를 Value(V)에 적용하며, softmax 함수를 통해 확률 기반의 가중치를 부여합니다.\n3. **목적**: 입력 텍스트 내에서 관련 정보를 \"조회\"하는 방식으로 작동하여, 입력의 특정 부분에 집중하고 장거리 의존성을 포착합니다.\n4. **Causal Masking**: 디코더에서는 양방향 어텐션을 제한하기 위해 대각선 위에 -∞ 값을 가진 삼각 행렬 형태의 causal mask를 적용합니다.\n\n이 메커니즘은 Transformer 블록의 첫 부분으로, 기존 RNN보다 향상된 성능을 제공합니다.",
+      "contexts_count": 5,
+      "latency_ms": 4.26
+    },
+    {
+      "idx": 46,
+      "question": "Reranking이 RAG 검색 품질을 향상시키는 원리는?",
+      "ground_truth": "Reranking은 Cross-encoder로 쿼리와 문서 쌍의 관련성을 정밀 평가하여 초기 검색 결과의 순위를 재조정합니다.",
+      "answer": "컨텍스트에 따르면, Reranking은 RAG 시스템에서 검색 후(Post-Retrieval) 단계에서 초기 검색(예: 벡터 검색)으로 얻은 문서 후보들을 **맥락적 관련성**에 따라 재정렬합니다. 이를 통해 가장 맥락에 적합하고 가치 있는 문서를 상위에 배치함으로써 LLM에 제공되는 정보의 **정확도와 관련성**을 높입니다. 결과적으로 RAG 시스템의 응답 품질이 향상되고, 불필요한 잡음이 줄어들며, 사용되는 토큰 수를 절감할 수 있습니다.",
+      "contexts_count": 5,
+      "latency_ms": 4.94
+    },
+    {
+      "idx": 47,
+      "question": "HNSW와 IVF 벡터 인덱스 알고리즘의 비교는?",
+      "ground_truth": "HNSW는 그래프 기반으로 높은 검색 정확도를 제공하고, IVF는 클러스터 기반으로 메모리 효율이 좋습니다.",
+      "answer": "주어진 컨텍스트에 따르면, HNSW와 IVF(IVFFlat) 벡터 인덱스 알고리즘의 비교는 다음과 같이 요약할 수 있습니다:\n\n- **HNSW**: 벡터 검색을 위한 그래프 기반 인덱스 알고리즘으로, pgvector의 IVFFlat보다 **빠르지만 메모리 사용량이 높음**.\n- **IVF(IVFFlat)**: pgvector에서 지원하는 인덱스 유형 중 하나로, HNSW에 비해 **속도가 느리지만 메모리 사용량이 낮을 수 있음**.\n\n컨텍스트에서는 성능 최적화 측면에서 두 솔루션(Elasticsearch와 OpenSearch) 모두 HNSW 알고리즘을 사용한다고 언급하며, pgvector는 HNSW와 IVFFlat 인덱스를 모두 지원한다고 나와 있습니다.",
+      "contexts_count": 5,
+      "latency_ms": 3.23
+    },
+    {
+      "idx": 48,
+      "question": "Chain of Thought 추론이 LLM 성능에 미치는 영향은?",
+      "ground_truth": "Chain of Thought는 LLM이 단계별로 추론하도록 유도하여 복잡한 문제 해결 능력을 향상시킵니다.",
+      "answer": "컨텍스트에 따르면, Chain of Thought(CoT) 추론은 LLM이 복잡한 문제를 단계별로 사고하고 오류를 수정할 수 있게 하여, 특히 수학, 코딩, 과학 등 다단계 추론이 필요한 과제에서 성능을 크게 향상시킵니다. 또한, CoT는 모델이 \"생각하는 시간\"을 활용해 계산량을 기하급수적으로 증가시킬 수 있으며, OpenAI의 o1 모델과 같은 사례에서 내부 추론 과정과 과정 감독을 통해 환각을 줄이고 정확도를 높이는 데 기여합니다. 결과적으로, CoT는 LLM의 추론 능력과 문제 해결 능력을 강화하는 핵심 요소로 작용합니다.",
+      "contexts_count": 5,
+      "latency_ms": 5.53
+    },
+    {
+      "idx": 49,
+      "question": "벡터 임베딩의 차원 수가 검색 정확도에 미치는 영향은?",
+      "ground_truth": "차원이 높을수록 의미 표현력이 증가하나 계산 비용도 증가하며, 1024차원이 성능과 효율의 균형점입니다.",
+      "answer": "주어진 컨텍스트에는 벡터 임베딩의 차원 수가 검색 정확도에 미치는 영향에 대한 직접적인 설명이 포함되어 있지 않습니다. 컨텍스트는 주로 시맨틱 검색, 임베딩 모델, 하이브리드 검색, 청크 크기의 영향 및 관련 기술 구성 요소에 초점을 맞추고 있습니다.",
+      "contexts_count": 5,
+      "latency_ms": 3.87
+    },
+    {
+      "idx": 50,
+      "question": "비즈니스에 실제 활용 가능한 LLM 서비스를 만들기 위한 핵심 고려사항은?",
+      "ground_truth": "프롬프트 설계, RAG 파이프라인, 평가 체계, 비용 최적화, 할루시네이션 방지가 핵심 고려사항입니다.",
+      "answer": "비즈니스에 실제 활용 가능한 LLM 서비스를 만들기 위한 핵심 고려사항은 LLM을 단순 응답형을 넘어 자율적인 문제 해결이 가능한 **지능형 에이전트 시스템**으로 발전시키는 것입니다. 이를 위해 다음 세 가지 핵심 컴포넌트의 통합 관리가 필요합니다:\n\n1. **LLM 엔진**: 추론과 의사결정을 담당합니다.\n2. **도구 인터페이스**: 외부 도구 및 API와의 통합을 가능하게 합니다.\n3. **메모리 시스템**: 경험, 학습, 컨텍스트를 관리합니다.\n\n이러한 구조를 통해 시스템은 목표 이해, 계획 수립, 상황에 맞는 도구 활용 및 지속적인 학습이 가능해집니다. 또한, LLM의 확률적 작동 방식으로 인한 비일관성을 해결하기 위해 **결정론적(deterministic) 시스템**을 보장하는 거버넌스 체계(예: 출력 검증, 다중 모델 교차 검증, 인간 모니터링 및 개입 가능성)가 필수적입니다.",
+      "contexts_count": 5,
+      "latency_ms": 3.41
+    },
+    {
+      "idx": 51,
+      "question": "프롬프트 엔지니어링의 핵심 원칙과 효과적인 기법은?",
+      "ground_truth": "명확한 지시, 예시 제공(few-shot), 역할 부여, 단계별 사고 유도가 핵심 기법입니다.",
+      "answer": "주어진 컨텍스트에 따르면, 프롬프트 엔지니어링의 핵심 원칙은 **단순성과 투명성**입니다. 효과적인 기법으로는 **프롬프트 체이닝(단계적 처리), 라우팅(동적 경로 선택), 병렬화** 등이 있으며, 복잡한 프레임워크보다 조합 가능한 단순한 패턴을 사용하는 것이 중요합니다.\n\n또한, 2025년 구글의 프롬프트 엔지니어링 백서에서 제시한 핵심 원칙을 바이브코딩에 적용한 내용으로는 다음과 같은 원칙이 강조됩니다:\n1. **명확성과 구체성**: 구체적인 형식과 요구사항을 명시합니다.\n2. **컨텍스트 제공**: 목표, 타겟, 제품, 채널, 형식, 조건, 톤앤매너를 명확히 제공합니다.\n3. **예시 제공(Few-shot Learning)**: 원하는 결과의 형태를 예시로 보여줍니다.\n4. **단계적 추론(Chain of Thought)**: 복잡한 작업을 중간 단계로 나누어 제시합니다.\n\nClaude 4 시대의 추가 원칙으로는 **명시적으로 표현하고, 원하는 것을 정확히 요청하고, 맥락과 이유를 제공**하는 것이 중요합니다.",
+      "contexts_count": 5,
+      "latency_ms": 3.8
+    }
+  ]
+}
