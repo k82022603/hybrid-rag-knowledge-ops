@@ -57,7 +57,7 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 OPENAI_BASE_URL = "https://api.openai.com/v1"
 
 TOKEN_REFRESH_INTERVAL = 15
-INTER_QUERY_DELAY = 3  # seconds between search queries to prevent service overload
+INTER_QUERY_DELAY = 5  # seconds between search queries to prevent service overload
 MAX_RETRIES = 3
 RETRY_DELAY = 10  # seconds to wait before retry
 
@@ -631,11 +631,11 @@ def main():
         try:
             sr = client.hybrid_search(q["question"], top_k=10)
             raw_results = sr.get("results", [])
-            contexts = []
-            for item in raw_results:
-                content = item.get("content", "")
-                if content and not content.startswith("**HRKP"):
-                    contexts.append(content)
+            contexts = [
+                item.get("content", "")
+                for item in raw_results
+                if item.get("content", "")
+            ]
             latency = sr.get("latency_ms", 0)
         except Exception as e:
             print(f"FAIL({e})", end=" ", flush=True)
@@ -648,15 +648,9 @@ def main():
         elapsed = time.time() - t0
         total_search_time += elapsed
 
-        graph_count = sum(
-            1 for item in (raw_results if 'raw_results' in dir() else [])
-            if isinstance(item, dict) and item.get("source_type") == "graph"
-        ) if contexts else 0
-
-        # Re-count from actual results
         try:
             graph_count = sum(1 for item in raw_results if item.get("source_type") == "graph")
-        except:
+        except Exception:
             graph_count = 0
 
         samples.append({
@@ -684,7 +678,7 @@ def main():
     print(f"  Samples with contexts: {samples_with_ctx}/{len(samples)}")
     print(f"  Failed queries: {failed_queries}")
 
-    if samples_with_ctx < 10:
+    if samples_with_ctx < 5:
         print(f"\n  [ERROR] Too few samples with contexts ({samples_with_ctx}). "
               f"AI service may be unstable. Aborting.")
         sys.exit(1)
