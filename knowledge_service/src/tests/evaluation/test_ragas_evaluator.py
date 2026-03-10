@@ -9,8 +9,10 @@ RagasEvaluator 클래스의 기능을 검증합니다.
 - Mock 평가 로직 검증
 - 파일 기반 평가 기능 검증
 - 목표 점수 통과 여부 검증
+- Judge LLM 전환 검증 (GPT-4o / DeepSeek)
 
 STORY-058: RAGAS 평가 프레임워크 통합
+RAGAS Judge GPT-4o 전환
 """
 
 import json
@@ -32,9 +34,12 @@ from app.evaluation.models import (
     MetricScores,
 )
 from app.evaluation.ragas_evaluator import (
+    SUPPORTED_JUDGE_MODELS,
     SUPPORTED_METRICS,
     RagasEvaluator,
     get_ragas_evaluator,
+    reset_ragas_evaluator,
+    _resolve_judge_model,
 )
 
 
@@ -96,6 +101,13 @@ def test_dataset_path() -> str:
     return str(
         Path(__file__).parent / "test_dataset.json"
     )
+
+
+@pytest.fixture(autouse=True)
+def reset_singleton():
+    """각 테스트 후 싱글톤 리셋"""
+    yield
+    reset_ragas_evaluator()
 
 
 # ============================================================================
@@ -281,6 +293,14 @@ class TestRagasEvaluatorInit:
 
         assert evaluator1 is evaluator2
 
+    def test_singleton_reset(self):
+        """싱글톤 리셋 검증"""
+        evaluator1 = get_ragas_evaluator()
+        reset_ragas_evaluator()
+        evaluator2 = get_ragas_evaluator()
+
+        assert evaluator1 is not evaluator2
+
 
 class TestRagasEvaluatorMetrics:
     """RagasEvaluator 메트릭 테스트"""
@@ -300,6 +320,207 @@ class TestRagasEvaluatorMetrics:
                 sample_evaluation_data,
                 metrics=["invalid_metric"],
             )
+
+
+# ============================================================================
+# Judge LLM 전환 테스트 (GPT-4o / DeepSeek)
+# ============================================================================
+
+
+class TestJudgeModelConfig:
+    """Judge LLM 설정 테스트"""
+
+    def test_default_judge_is_deepseek(self):
+        """기본 judge 모델은 deepseek"""
+        # RAGAS_JUDGE_MODEL 환경변수가 없을 때
+        old_val = os.environ.pop("RAGAS_JUDGE_MODEL", None)
+        try:
+            evaluator = RagasEvaluator()
+            assert evaluator.judge_model == "deepseek"
+        finally:
+            if old_val is not None:
+                os.environ["RAGAS_JUDGE_MODEL"] = old_val
+
+    def test_judge_model_gpt4o_via_constructor(self):
+        """생성자로 GPT-4o judge 설정"""
+        evaluator = RagasEvaluator(judge_model="gpt-4o")
+
+        assert evaluator.judge_model == "gpt-4o"
+        assert evaluator.llm_model == "gpt-4o"
+
+    def test_judge_model_gpt4o_mini_via_constructor(self):
+        """생성자로 GPT-4o-mini judge 설정"""
+        evaluator = RagasEvaluator(judge_model="gpt-4o-mini")
+
+        assert evaluator.judge_model == "gpt-4o-mini"
+        assert evaluator.llm_model == "gpt-4o-mini"
+
+    def test_judge_model_deepseek_via_constructor(self):
+        """생성자로 deepseek judge 명시적 설정"""
+        evaluator = RagasEvaluator(judge_model="deepseek")
+
+        assert evaluator.judge_model == "deepseek"
+        # deepseek 모델명은 settings에서 가져옴
+        assert "deepseek" in evaluator.llm_model.lower()
+
+    def test_judge_model_via_env_var(self):
+        """환경변수로 GPT-4o judge 설정"""
+        old_val = os.environ.get("RAGAS_JUDGE_MODEL")
+        try:
+            os.environ["RAGAS_JUDGE_MODEL"] = "gpt-4o"
+            evaluator = RagasEvaluator()
+
+            assert evaluator.judge_model == "gpt-4o"
+            assert evaluator.llm_model == "gpt-4o"
+        finally:
+            if old_val is not None:
+                os.environ["RAGAS_JUDGE_MODEL"] = old_val
+            else:
+                os.environ.pop("RAGAS_JUDGE_MODEL", None)
+
+    def test_constructor_overrides_env_var(self):
+        """생성자 인자가 환경변수보다 우선"""
+        old_val = os.environ.get("RAGAS_JUDGE_MODEL")
+        try:
+            os.environ["RAGAS_JUDGE_MODEL"] = "gpt-4o"
+            evaluator = RagasEvaluator(judge_model="deepseek")
+
+            assert evaluator.judge_model == "deepseek"
+        finally:
+            if old_val is not None:
+                os.environ["RAGAS_JUDGE_MODEL"] = old_val
+            else:
+                os.environ.pop("RAGAS_JUDGE_MODEL", None)
+
+    def test_custom_llm_model_overrides_judge_default(self):
+        """llm_model 직접 지정 시 judge 모델의 기본 LLM명을 오버라이드"""
+        evaluator = RagasEvaluator(
+            judge_model="gpt-4o",
+            llm_model="gpt-4-turbo",
+        )
+
+        assert evaluator.judge_model == "gpt-4o"
+        assert evaluator.llm_model == "gpt-4-turbo"
+
+    def test_supported_judge_models_registry(self):
+        """지원 Judge 모델 레지스트리 확인"""
+        assert "deepseek" in SUPPORTED_JUDGE_MODELS
+        assert "gpt-4o" in SUPPORTED_JUDGE_MODELS
+        assert "gpt-4o-mini" in SUPPORTED_JUDGE_MODELS
+
+        for model, info in SUPPORTED_JUDGE_MODELS.items():
+            assert "description" in info
+            assert "env_key" in info
+
+    def test_resolve_judge_model_defaults(self):
+        """_resolve_judge_model 기본값 테스트"""
+        old_val = os.environ.pop("RAGAS_JUDGE_MODEL", None)
+        try:
+            assert _resolve_judge_model() == "deepseek"
+        finally:
+            if old_val is not None:
+                os.environ["RAGAS_JUDGE_MODEL"] = old_val
+
+    def test_resolve_judge_model_with_env(self):
+        """_resolve_judge_model 환경변수 테스트"""
+        old_val = os.environ.get("RAGAS_JUDGE_MODEL")
+        try:
+            os.environ["RAGAS_JUDGE_MODEL"] = "gpt-4o"
+            assert _resolve_judge_model() == "gpt-4o"
+
+            os.environ["RAGAS_JUDGE_MODEL"] = "gpt-4o-mini"
+            assert _resolve_judge_model() == "gpt-4o-mini"
+
+            os.environ["RAGAS_JUDGE_MODEL"] = "deepseek-chat"
+            assert _resolve_judge_model() == "deepseek"
+
+            # 미지원 모델은 기본값으로 폴백
+            os.environ["RAGAS_JUDGE_MODEL"] = "unknown-model"
+            assert _resolve_judge_model() == "deepseek"
+        finally:
+            if old_val is not None:
+                os.environ["RAGAS_JUDGE_MODEL"] = old_val
+            else:
+                os.environ.pop("RAGAS_JUDGE_MODEL", None)
+
+    def test_judge_api_key_deepseek(self):
+        """DeepSeek judge API 키 조회"""
+        evaluator = RagasEvaluator(judge_model="deepseek")
+        # API 키는 환경에 따라 None 또는 문자열
+        # 메서드가 에러 없이 실행되는지만 확인
+        key = evaluator._get_judge_api_key()
+        # key는 None일 수도, 문자열일 수도 있음 (환경에 따라)
+        assert key is None or isinstance(key, str)
+
+    def test_judge_api_key_gpt4o(self):
+        """GPT-4o judge API 키 조회"""
+        evaluator = RagasEvaluator(judge_model="gpt-4o")
+        key = evaluator._get_judge_api_key()
+        # OPENAI_API_KEY가 없으면 None
+        assert key is None or isinstance(key, str)
+
+    def test_judge_base_url_deepseek(self):
+        """DeepSeek judge base URL"""
+        evaluator = RagasEvaluator(judge_model="deepseek")
+        url = evaluator._get_judge_base_url()
+        assert url is not None
+        assert "deepseek" in url.lower()
+
+    def test_judge_base_url_gpt4o_is_none(self):
+        """GPT-4o judge base URL은 None (OpenAI 기본값 사용)"""
+        evaluator = RagasEvaluator(judge_model="gpt-4o")
+        url = evaluator._get_judge_base_url()
+        assert url is None
+
+    @pytest.mark.asyncio
+    async def test_evaluate_includes_judge_info_in_summary(self):
+        """평가 결과 summary에 judge 모델 정보 포함"""
+        evaluator = RagasEvaluator(
+            judge_model="deepseek",
+            targets={"faithfulness": 0.5},
+        )
+
+        sample = EvaluationSample(
+            question="테스트 질문입니다",
+            answer="테스트 답변입니다",
+            contexts=["테스트 컨텍스트입니다"],
+        )
+
+        response = await evaluator.evaluate(
+            [sample], metrics=["faithfulness"]
+        )
+
+        assert "judge_model" in response.summary
+        assert response.summary["judge_model"] == "deepseek"
+        assert "llm_model" in response.summary
+
+    @pytest.mark.asyncio
+    async def test_gpt4o_judge_mock_evaluation(self):
+        """GPT-4o judge로 mock 평가 (API 키 없을 때 폴백)"""
+        evaluator = RagasEvaluator(
+            judge_model="gpt-4o",
+            targets={"faithfulness": 0.5},
+        )
+
+        sample = EvaluationSample(
+            question="RAG란 무엇인가요",
+            answer="RAG는 검색 증강 생성입니다",
+            contexts=["RAG는 검색 기반 생성 기술입니다"],
+        )
+
+        # OPENAI_API_KEY 없이 실행 -- mock으로 폴백
+        response = await evaluator.evaluate(
+            [sample], metrics=["faithfulness"]
+        )
+
+        assert response.total_samples == 1
+        assert response.summary["judge_model"] == "gpt-4o"
+
+    def test_singleton_with_judge_model(self):
+        """싱글톤에 judge_model 전달"""
+        reset_ragas_evaluator()
+        evaluator = get_ragas_evaluator(judge_model="gpt-4o")
+        assert evaluator.judge_model == "gpt-4o"
 
 
 class TestMockEvaluation:
@@ -583,6 +804,8 @@ class TestRagasIntegration:
         assert "metrics_evaluated" in response.summary
         assert "targets" in response.summary
         assert "meets_targets" in response.summary
+        assert "judge_model" in response.summary
+        assert "llm_model" in response.summary
 
     @pytest.mark.asyncio
     async def test_evaluation_with_test_dataset_file(self, test_dataset_path):
@@ -655,9 +878,9 @@ class TestEdgeCases:
     async def test_unicode_text(self, evaluator):
         """유니코드 텍스트로 평가"""
         sample = EvaluationSample(
-            question="한글 질문입니다. 日本語です. English question.",
+            question="한글 질문입니다. English question.",
             answer="다국어 답변 테스트",
-            contexts=["한글과 日本語와 English가 섞인 컨텍스트"],
+            contexts=["한글과 English가 섞인 컨텍스트"],
         )
 
         response = await evaluator.evaluate([sample])

@@ -14,10 +14,18 @@ RAG 파이프라인의 품질을 측정하기 위한 평가 도구를 제공합�
 - Context Precision: 검색된 컨텍스트의 정밀도 측정 (목표: 0.8)
 - Context Recall: 검색된 컨텍스트의 재현율 측정 (목표: 0.7)
 
+Judge LLM 설정:
+- 기본값: DeepSeek (비용 효율적)
+- GPT-4o: RAGAS_JUDGE_MODEL=gpt-4o 환경변수 설정 시 (Faithfulness 안정성 향상)
+
 사용 예시:
     # 정적 데이터셋 평가
     evaluator = RagasEvaluator()
     response = await evaluator.evaluate_from_file("test_dataset.json")
+
+    # GPT-4o judge로 평가
+    evaluator = RagasEvaluator(judge_model="gpt-4o")
+    response = await evaluator.evaluate(samples)
 
     # Live 평가
     live_eval = LiveRagasEvaluator()
@@ -28,7 +36,12 @@ RAG 파이프라인의 품질을 측정하기 위한 평가 도구를 제공합�
     generator.save_reports(response, output_dir="reports")
 """
 
-from app.evaluation.ragas_evaluator import RagasEvaluator, get_ragas_evaluator
+from app.evaluation.ragas_evaluator import (
+    RagasEvaluator,
+    get_ragas_evaluator,
+    reset_ragas_evaluator,
+    SUPPORTED_JUDGE_MODELS,
+)
 from app.evaluation.models import (
     EvaluationSample,
     EvaluationResult,
@@ -43,6 +56,8 @@ __all__ = [
     # Core Evaluator
     "RagasEvaluator",
     "get_ragas_evaluator",
+    "reset_ragas_evaluator",
+    "SUPPORTED_JUDGE_MODELS",
     # Live Evaluator
     "LiveRagasEvaluator",
     "get_live_evaluator",

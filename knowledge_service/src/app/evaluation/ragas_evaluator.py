@@ -9,8 +9,17 @@ RAG 파이프라인의 품질을 RAGAS 메트릭으로 측정합니다.
 - Context Precision: 검색된 컨텍스트가 정확한지
 - Context Recall: 필요한 정보가 검색되었는지
 
+Judge LLM 설정:
+- 기본값: DeepSeek (RAGAS_JUDGE_MODEL 미설정 시)
+- GPT-4o: RAGAS_JUDGE_MODEL=gpt-4o + OPENAI_API_KEY 설정 시
+- 환경변수로 런타임 전환 가능
+
 사용 예시:
     evaluator = RagasEvaluator()
+    result = await evaluator.evaluate(samples)
+
+    # GPT-4o judge 사용:
+    evaluator = RagasEvaluator(judge_model="gpt-4o")
     result = await evaluator.evaluate(samples)
 """
 
@@ -40,6 +49,42 @@ SUPPORTED_METRICS: Set[str] = {
     "context_recall",
 }
 
+# 지원 Judge 모델 목록
+SUPPORTED_JUDGE_MODELS: Dict[str, Dict[str, str]] = {
+    "deepseek": {
+        "description": "DeepSeek Chat (default, cost-effective)",
+        "env_key": "DEEPSEEK_API_KEY",
+    },
+    "gpt-4o": {
+        "description": "OpenAI GPT-4o (higher accuracy for Faithfulness)",
+        "env_key": "OPENAI_API_KEY",
+    },
+    "gpt-4o-mini": {
+        "description": "OpenAI GPT-4o-mini (balanced cost/accuracy)",
+        "env_key": "OPENAI_API_KEY",
+    },
+}
+
+
+def _resolve_judge_model() -> str:
+    """
+    Judge LLM 모델을 결정합니다.
+
+    우선순위:
+    1. RAGAS_JUDGE_MODEL 환경변수
+    2. settings.deepseek_chat_model (기본값: deepseek)
+
+    Returns:
+        Judge 모델 식별자 (예: "deepseek", "gpt-4o")
+    """
+    judge = os.getenv("RAGAS_JUDGE_MODEL", "").strip().lower()
+    if judge and judge in SUPPORTED_JUDGE_MODELS:
+        return judge
+    if judge == "deepseek-chat" or judge == "deepseek":
+        return "deepseek"
+    # 기본값: deepseek
+    return "deepseek"
+
 
 class RagasEvaluator:
     """
@@ -47,13 +92,23 @@ class RagasEvaluator:
 
     RAG 파이프라인의 품질을 측정하기 위한 RAGAS 메트릭 평가를 수행합니다.
 
+    Judge LLM을 DeepSeek 또는 GPT-4o 중 선택할 수 있습니다.
+    - 기본값: DeepSeek (비용 효율적)
+    - GPT-4o: Faithfulness 측정 안정성이 높음 (RAGAS 공식 권장)
+
     Attributes:
-        llm_model: LLM 모델 (평가에 사용)
-        embedding_model: 임베딩 모델 (Answer Relevancy 측정에 사용)
+        llm_model: LLM 모델명 (RAGAS judge에 사용)
+        embedding_model: 임베딩 모델명 (Answer Relevancy 측정에 사용)
         targets: 메트릭별 목표 점수
+        judge_model: Judge LLM 식별자 ("deepseek" | "gpt-4o" | "gpt-4o-mini")
 
     Example:
+        >>> # DeepSeek judge (기본)
         >>> evaluator = RagasEvaluator()
+
+        >>> # GPT-4o judge
+        >>> evaluator = RagasEvaluator(judge_model="gpt-4o")
+
         >>> samples = [
         ...     EvaluationSample(
         ...         question="LangGraph란 무엇인가요?",
@@ -71,16 +126,31 @@ class RagasEvaluator:
         llm_model: Optional[str] = None,
         embedding_model: Optional[str] = None,
         targets: Optional[Dict[str, float]] = None,
+        judge_model: Optional[str] = None,
     ):
         """
         초기화
 
         Args:
-            llm_model: LLM 모델명 (기본: DeepSeek Chat)
+            llm_model: LLM 모델명 (기본: judge_model에 따라 자동 결정)
             embedding_model: 임베딩 모델명 (기본: BGE-M3)
             targets: 메트릭별 목표 점수
+            judge_model: Judge LLM 선택 ("deepseek" | "gpt-4o" | "gpt-4o-mini")
+                         기본값: RAGAS_JUDGE_MODEL 환경변수 또는 "deepseek"
         """
-        self.llm_model = llm_model or settings.deepseek_chat_model
+        # Judge 모델 결정
+        self.judge_model = judge_model or _resolve_judge_model()
+
+        # LLM 모델명 결정
+        if llm_model:
+            self.llm_model = llm_model
+        elif self.judge_model == "deepseek":
+            self.llm_model = settings.deepseek_chat_model
+        elif self.judge_model in ("gpt-4o", "gpt-4o-mini"):
+            self.llm_model = self.judge_model
+        else:
+            self.llm_model = settings.deepseek_chat_model
+
         self.embedding_model = embedding_model or settings.embedding_model
         self.targets = targets or {
             "faithfulness": settings.ragas_faithfulness_target,
@@ -94,49 +164,98 @@ class RagasEvaluator:
         self._ragas_embeddings = None
 
         logger.info(
-            f"RagasEvaluator initialized - LLM: {self.llm_model}, "
+            f"RagasEvaluator initialized - Judge: {self.judge_model}, "
+            f"LLM: {self.llm_model}, "
             f"Embedding: {self.embedding_model}, Targets: {self.targets}"
         )
+
+    def _get_judge_api_key(self) -> Optional[str]:
+        """
+        Judge 모델에 맞는 API 키를 반환합니다.
+
+        Returns:
+            API 키 문자열 또는 None
+        """
+        if self.judge_model == "deepseek":
+            return settings.deepseek_api_key or os.getenv("DEEPSEEK_API_KEY")
+        elif self.judge_model in ("gpt-4o", "gpt-4o-mini"):
+            key = os.getenv("OPENAI_API_KEY")
+            if not key:
+                logger.warning(
+                    f"OPENAI_API_KEY not set for judge_model={self.judge_model}. "
+                    f"Set OPENAI_API_KEY environment variable."
+                )
+            return key
+        return None
+
+    def _get_judge_base_url(self) -> Optional[str]:
+        """
+        Judge 모델에 맞는 API base URL을 반환합니다.
+
+        Returns:
+            Base URL 문자열 또는 None (OpenAI 기본값 사용)
+        """
+        if self.judge_model == "deepseek":
+            return settings.deepseek_base_url
+        # OpenAI 모델은 base_url 불필요 (langchain-openai 기본값 사용)
+        return None
 
     async def _init_ragas(self) -> None:
         """RAGAS 라이브러리 초기화 (지연 로딩)"""
         if self._ragas_initialized:
             return
 
-        # API 키가 없으면 Mock 모드 사용 (무거운 의존성 로딩 건너뛰기)
-        api_key = settings.deepseek_api_key
+        api_key = self._get_judge_api_key()
         if not api_key:
-            logger.warning("DEEPSEEK_API_KEY not set, using mock evaluation")
+            logger.warning(
+                f"API key not available for judge_model={self.judge_model}, "
+                f"using mock evaluation"
+            )
             self._ragas_initialized = True
             return
 
         try:
-            # RAGAS는 OpenAI 호환 API를 사용
-            # DeepSeek은 OpenAI 호환 API 제공
             from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
-            # DeepSeek LLM (OpenAI 호환)
-            self._ragas_llm = ChatOpenAI(
-                model=self.llm_model,
-                api_key=api_key,
-                base_url=settings.deepseek_base_url,
-                temperature=0.0,
+            # Judge LLM 초기화
+            llm_kwargs: Dict[str, Any] = {
+                "model": self.llm_model,
+                "api_key": api_key,
+                "temperature": 0.0,
+            }
+
+            base_url = self._get_judge_base_url()
+            if base_url:
+                llm_kwargs["base_url"] = base_url
+
+            self._ragas_llm = ChatOpenAI(**llm_kwargs)
+
+            logger.info(
+                f"RAGAS Judge LLM initialized: model={self.llm_model}, "
+                f"provider={self.judge_model}"
+                + (f", base_url={base_url}" if base_url else "")
             )
 
-            # 임베딩 모델 (로컬 BGE-M3 또는 OpenAI)
-            # 여기서는 간단히 OpenAI Embeddings 사용
-            # 실제 배포에서는 로컬 BGE-M3 사용 권장
-            try:
-                self._ragas_embeddings = OpenAIEmbeddings(
-                    model="text-embedding-3-small",
-                    api_key=os.getenv("OPENAI_API_KEY", ""),
-                )
-            except Exception as e:
-                logger.warning(f"OpenAI Embeddings init failed: {e}, using None")
+            # 임베딩 모델 (Answer Relevancy 계산용)
+            # OpenAI Embeddings 사용 (GPT-4o judge 시 동일 API 키 활용)
+            openai_key = os.getenv("OPENAI_API_KEY", "")
+            if openai_key:
+                try:
+                    self._ragas_embeddings = OpenAIEmbeddings(
+                        model="text-embedding-3-small",
+                        api_key=openai_key,
+                    )
+                except Exception as e:
+                    logger.warning(f"OpenAI Embeddings init failed: {e}, using None")
+                    self._ragas_embeddings = None
+            else:
+                logger.info("OPENAI_API_KEY not set, embeddings will be None")
                 self._ragas_embeddings = None
 
             self._ragas_initialized = True
-            logger.info("RAGAS initialized successfully")
+            logger.info(
+                f"RAGAS initialized successfully with {self.judge_model} judge"
+            )
 
         except ImportError as e:
             logger.error(f"RAGAS dependencies not installed: {e}")
@@ -185,7 +304,10 @@ class RagasEvaluator:
                     "ground_truth가 없는 샘플은 해당 메트릭이 None으로 설정됩니다."
                 )
 
-        logger.info(f"Starting evaluation - Samples: {len(samples)}, Metrics: {metrics}")
+        logger.info(
+            f"Starting evaluation - Samples: {len(samples)}, "
+            f"Metrics: {metrics}, Judge: {self.judge_model}"
+        )
 
         await self._init_ragas()
 
@@ -253,13 +375,16 @@ class RagasEvaluator:
                 "metrics_evaluated": metrics,
                 "targets": self.targets,
                 "meets_targets": self._meets_targets(aggregate_scores),
+                "judge_model": self.judge_model,
+                "llm_model": self.llm_model,
             },
         )
 
         logger.info(
             f"Evaluation complete - Pass rate: {response.pass_rate:.2%}, "
             f"Faithfulness: {aggregate_scores.faithfulness}, "
-            f"Relevancy: {aggregate_scores.answer_relevancy}"
+            f"Relevancy: {aggregate_scores.answer_relevancy}, "
+            f"Judge: {self.judge_model}"
         )
 
         return response
@@ -282,7 +407,8 @@ class RagasEvaluator:
         scores: Dict[str, Optional[float]] = {}
 
         # API 키가 없으면 mock 평가
-        if not settings.deepseek_api_key:
+        api_key = self._get_judge_api_key()
+        if not api_key:
             return self._mock_evaluate(sample, metrics)
 
         try:
@@ -453,9 +579,26 @@ class RagasEvaluator:
 _evaluator: Optional[RagasEvaluator] = None
 
 
-def get_ragas_evaluator() -> RagasEvaluator:
-    """RagasEvaluator 인스턴스 반환 (싱글톤)"""
+def get_ragas_evaluator(
+    judge_model: Optional[str] = None,
+) -> RagasEvaluator:
+    """
+    RagasEvaluator 인스턴스 반환 (싱글톤)
+
+    Args:
+        judge_model: Judge LLM 선택 ("deepseek" | "gpt-4o" | "gpt-4o-mini")
+                     기본값: RAGAS_JUDGE_MODEL 환경변수 또는 "deepseek"
+
+    Returns:
+        RagasEvaluator 인스턴스
+    """
     global _evaluator
     if _evaluator is None:
-        _evaluator = RagasEvaluator()
+        _evaluator = RagasEvaluator(judge_model=judge_model)
     return _evaluator
+
+
+def reset_ragas_evaluator() -> None:
+    """싱글톤 인스턴스 초기화 (테스트 또는 judge 전환 시 사용)"""
+    global _evaluator
+    _evaluator = None
