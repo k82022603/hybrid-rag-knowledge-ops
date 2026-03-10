@@ -1,6 +1,6 @@
 # Hybrid RAG Knowledge Platform
 
-> **[고도화 진행중]** 2026-01-12 ~ 진행중 (Sprint 09 고도화) | Graph RAG 기반 지능형 지식 검색 시스템 — 4-Way Hybrid Search + Knowledge Graph + 13 AI Agents
+> **[프로젝트 완료]** 2025-12 ~ 2026-03-10 (10 Sprints, 130 Stories, 458 SP) | Graph RAG 기반 지능형 지식 검색 시스템 — 4-Way Hybrid Search + Knowledge Graph + 13 AI Agents
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white)](#) [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi&logoColor=white)](#) [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](#) [![Docker](https://img.shields.io/badge/Docker_Compose-18_containers-2496ED?logo=docker&logoColor=white)](#) [![RAGAS](https://img.shields.io/badge/RAGAS-A--grade-brightgreen)](#) [![Coverage](https://img.shields.io/badge/Coverage-97%25-success)](#)
 
@@ -23,7 +23,7 @@
 <details>
 <summary><b>English</b></summary>
 
-> **[Project Completed]** 2026-01-12 ~ 2026-02-18 (38 days, 12 sprints) | Intelligent knowledge search system powered by Graph RAG — 4-Way Hybrid Search + Knowledge Graph + 13 AI Agents
+> **[Project Completed]** 2025-12 ~ 2026-03-10 (10 Sprints, 130 Stories, 458 SP) | Intelligent knowledge search system powered by Graph RAG — 4-Way Hybrid Search + Knowledge Graph + 13 AI Agents
 
 An enterprise knowledge platform that automatically processes internal documents through a **3-Phase ETL** pipeline (parsing → chunking → embedding → entity extraction) and delivers optimal search results via **4-Way Hybrid Search** (Dense + Sparse + BM25 + Graph) unified with RRF. The Knowledge Graph visualizes hidden relationships between documents and supports relationship-based queries.
 
@@ -42,9 +42,10 @@ An enterprise knowledge platform that automatically processes internal documents
 
 | 항목 | 내용 |
 |------|------|
-| **Version** | 5.4 (Enhancement) |
-| **프로젝트 기간** | 2026-01-12 ~ 진행중 (Sprint 09 고도화) |
-| **Status** | **고도화** — RAGAS v16 Mean 0.763 (A등급, 역대 최고), Reranker 1-Pass 최적 파라미터 확정 |
+| **Version** | 6.0 (Final) |
+| **프로젝트 기간** | 2025-12 ~ 2026-03-10 (10 Sprints 완료) |
+| **Status** | **완료** — RAGAS v16 Mean 0.763 (A등급), 테스트 1,197건 0 FAIL, 커버리지 97% |
+| **Sprint 실적** | 10개 Sprint, 130 Stories, 458 SP 완수 |
 | **Test Coverage** | 97% avg across 5 core modules (Docker mode) |
 | **CI/CD** | 8 GitHub Actions workflows |
 | **AI Model** | Claude Opus 4.6 / Sonnet 4.6 + Agent Teams (13 agents, tiered) |
@@ -124,71 +125,91 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 | Entity Extraction | 100% 완료 (23,074건 처리) |
 | 3-Store 정합성 | ES = PG = Neo4j 100% |
 
-## 📅 최종 완료 현황
+## 📅 프로젝트 완료 현황
 
-### Sprint 12 — Final (2026-02-16 ~ 02-18)
+### 전체 Phase 진행률
 
-| 상태 | 작업 | 설명 |
-|:----:|------|------|
-| ✅ | ETL Phase 1 | 파싱+청킹 → 1,437 docs → 56,063 chunks |
-| ✅ | ETL Phase 2 | Colab GPU 임베딩 (Dense+Sparse 100%) |
-| ✅ | Phase 3 Round 1 | Entity Extraction (tc>=100) → 16,185건 |
-| ✅ | Phase 3 Round 2 | Entity Extraction (tc>=50) → 23,074건 완료 |
-| ✅ | 쓰레기 청크 삭제 | tc<50 청크 13,601건 ES/Neo4j/PG 정리 |
-| ✅ | 4-Way RRF 검색 | Dense+Sparse+BM25+Graph 통합 |
-| ✅ | BGE-Reranker 적용 | Post-RRF Cross-encoder 재순위 |
-| ✅ | RAGAS v11 평가 | **A- 등급** (51쿼리, 7도메인, 산술평균 0.711) |
+```
+Phase 1: 기획     ████████████████████ 100% ✅
+Phase 2: 설계     ████████████████████ 100% ✅ (91점 A등급)
+Phase 3: 구현     ████████████████████ 100% ✅ (15 Stories, 84 SP)
+Phase 4: 테스트   ████████████████████ 100% ✅ (커버리지 97%, UAT 18/18)
+Phase 5: 배포     ████████████████████ 100% ✅ (TechLead 승인)
+Phase 6: 고도화   ████████████████████ 100% ✅ (RAGAS 0.763 A등급)
+```
+
+### Sprint 10 — Final (2026-03-07 ~ 03-10)
+
+| 상태 | Story | 설명 |
+|:----:|-------|------|
+| ✅ | STORY-096 | RRF 하이라이팅 — channel_scores, highlight 필드 API 노출 |
+| ✅ | STORY-097 | Graph RAG A/B 비교 — useGraph on/off 프레임워크 + 실측 |
+| ✅ | STORY-128 | data_loader 모듈 분리 — 1,583줄 → 8개 모듈, 후방 호환 |
+| ✅ | STORY-129 | k6 성능 회귀 테스트 — search/chat/auth 3종 + smoke 실행 |
+| ✅ | STORY-130 | Adaptive Gleaning — 동적 횟수 + 수확 체감 조기종료 |
+| ✅ | STORY-090 | 임베딩 캐싱 — Sparse-aware cache, 149x speedup |
+| ✅ | (Bonus) | HybridRetriever rerank pool 통일, ONNX INT8 전환, GPT-4o Judge |
 
 ### 주요 마일스톤
 
 | 날짜 | 마일스톤 |
 |------|----------|
-| 01-16 | 설계 문서 6종 완성 (종합 9.1/10) |
+| 01-16 | 설계 문서 6종 완성 (종합 91점 A등급) |
 | 01-24 | 인프라 18개 컨테이너 + CI/CD 구축 |
 | 01-30 | Backend API 12개 + 테스트 626/627 |
 | 02-05 | Phase 5 배포, 테스트 97%, Opus 4.6 전환 |
 | 02-10 | ETL Phase 1+2 완료 (56,063건 100%) |
-| 02-15 | Phase 3 Entity Extraction Round 1 + RAGAS v9 |
-| 02-16 | Phase 3 Round 2 + Reranker + RAGAS v11 A- 달성 |
-| 02-18 | **프로젝트 종료 — 사용자 테스트 완료, 산출물 v1.1, 문서 현행화** |
-| 03-09 | **고도화 — UAT 18/18, Chat API 튜닝, SCRUM-101 수정, RRF 후보 수 제한** |
+| 02-16 | Phase 3 완료 + Reranker + RAGAS v11 A- 달성 |
+| 02-18 | 프로젝트 1차 종료 — 산출물 v1.1, 문서 현행화 |
+| 03-06 | Nori 적용 재검증 완료, Mock 금지 정책 수립 |
+| 03-09 | UAT 18/18 PASS, RAGAS v12~v14 변수 격리 완료 |
+| 03-10 | **프로젝트 최종 완료 — Sprint 10 전건, RAGAS v16 Mean 0.763 A등급** |
 
 ## 📈 프로젝트 성과
 
-### 검색 품질 (RAGAS v11 — Reranker 적용)
+### 검색 품질 (RAGAS v7 → v16 개선 여정)
 
-| 지표 | v11 점수 | v10 점수 | 변화 | 의미 |
-|------|:----:|:----:|:---:|------|
-| **Faithfulness** | **0.935** | 0.919 | +0.016 | 환각 6.5% — 역대 최고 |
-| **Answer Relevancy** | **0.621** | 0.647 | -0.026 | 소폭 하락 (트레이드오프) |
-| **Context Precision** | **0.618** | 0.489 | **+0.129** | **+26.4%** Reranker 효과 |
-| **Context Recall** | **0.672** | 0.474 | **+0.198** | **+41.8%** Reranker 효과 |
-| **종합** | **A-** | B+ | | HIGH 33건(65%), PARTIAL 12건, NONE 6건 |
+| 지표 | v7 (최초) | v11 | v16 (최종) | 개선폭 |
+|------|:----:|:----:|:----:|:---:|
+| **Faithfulness** | 0.706 | 0.935 | **0.859** | +21.7%p |
+| **Context Precision** | 0.447 | 0.618 | **0.739** | +65.3%p |
+| **Context Recall** | 0.512 | 0.672 | **0.690** | +34.8%p |
+| **산술평균** | **0.543** | 0.711 | **0.763** | **+40.5%p** |
+| **등급** | C | A- | **A** | C → A |
+
+**18회 실험(v1~v18)** 을 통해 변수를 하나씩 격리하며 최적 파라미터를 확정했다:
+- `chunk_size=50`, `graph_search_top_k=10`, Reranker 1-Pass, `rerank_pool=min(top_k*3, 50)`
 
 ### 핵심 성과
 
 **"데이터의 양이 아닌 구조화의 질이 검색 성능을 결정한다"** 는 것을 수치로 입증했다.
 
-v8 시스템은 108,000개 청크를 무차별 인덱싱했다 (산술평균 0.632).
-v11은 그 중 61%를 제거하고 42,462개만 남겼음에도
-**산술평균 0.711로 +12.5% 향상**을 달성했다.
-92,209개 엔티티와 775,366개 관계를 Knowledge Graph로 구축하고,
-BGE-Reranker로 정밀 재순위하여 달성한 결과다.
+- **RAGAS v7(0.543) → v16(0.763)**: 40.5%p 개선, 18회 변수 격리 실험으로 달성
+- **단위 테스트**: 0건 → 1,197건, 0 FAIL
+- **UAT**: 18/18 PASS (100%)
+- **테스트 커버리지**: 0% → 97% 평균 (5개 핵심 모듈)
+- **설계서 품질**: 91점 A등급
+- **OPS 운영 문서**: 35건+
 
-- **entity_relation 도메인**: 7건 전부 HIGH, **Faithfulness 1.000** — 엔티티 관계 질의 완벽 대응
-- **multi_hop 도메인**: 7건 중 6건 HIGH (86%) — 여러 문서에 걸친 추론 경로 제공
-- **semantic 도메인**: v10 D등급 → v11 **C등급 승격** (+0.152) — Reranker 효과
-- **v8→v9→v10→v11**: "양으로 밀어붙이기" → "품질 정제" → "Knowledge Graph 보강" → "Reranker로 정밀도 향상"
+### 핵심 기술 결정
+
+| 결정 | 영향 | 근거 |
+|------|------|------|
+| **Nori 한국어 분석기 적용** | BM25 검색 품질 정상화 | 32일 미적용 사고 → E2E 검증 필수 |
+| **Reranker 1-Pass 전환** | 불필요 연산 제거 | Cross-encoder 수학적 중복 증명 |
+| **Graph RRF 후보 10개** | Precision +12%p | 가중치보다 후보 수가 정교 |
+| **DeepSeek V3.2** | 95% 비용 절감 | GPT-4o급 품질, $52 운영 |
+| **3-Phase ETL 분리** | 장애 격리 + GPU 분리 | 파싱/임베딩/엔티티 독립 실행 |
+| **Adaptive Gleaning** | 동적 추출 횟수 | 텍스트 길이별 1~3회 + 체감 조기종료 |
 
 ### 기술적 의의
 
 1. **4-Way RRF + Reranker 검증**: Dense + Sparse + BM25(Nori) + Graph Search를 RRF로 결합하고
    BGE-Reranker(ONNX)로 재순위 — 한국어 1,437문서 / 7도메인 51쿼리에서 체계적으로 평가한 실무 사례
-2. **3-Phase ETL 확립**: GPU 없는 환경에서도 Colab 무료 GPU를 활용한 대규모 RAG 구축 가능 —
-   소규모 팀/개인 프로젝트에서 현실적으로 적용 가능한 아키텍처
-3. **Post-RRF 엔티티 보강**: RRF 퓨전 후 chunk_id로 Neo4j MENTIONS 직접 조회하여
-   검색 재현율을 유지하면서 답변 관련성을 높이는 패턴 적용
-4. **Reranker ROI 최고**: 코드 변경량 대비 효과가 가장 큰 개선 — Context Precision +26%, Recall +42%
+2. **RAGAS 18회 반복 실험**: 변수 격리 방법론으로 최적 파라미터를 체계적으로 탐색 — 재현 가능한 RAG 튜닝 프로세스 확립
+3. **AI 가상팀 13명 협업**: PM/TL/Dev/QA 역할 분리, Slack 통합, 병렬 실행 — 실제 개발팀 운영 방식 적용
+4. **3-Phase ETL**: GPU 없는 환경에서도 Colab 무료 GPU를 활용한 대규모 RAG 구축 가능
+5. **Reranker 수학적 분석**: Cross-encoder 2-Pass가 중복임을 증명하여 불필요 연산 제거
 
 ### 비용 효율
 
@@ -202,11 +223,7 @@ BGE-Reranker로 정밀 재순위하여 달성한 결과다.
 | Claude Sonnet 4.6 | $1,063 | 20x |
 | Claude Opus 4.6 | $5,314 | 102x |
 
-$52로 92,209개 엔티티 추출 + 775,366개 관계 구축 + A- 등급 달성 —
-DeepSeek V3.2의 비용 효율은 "실험적으로 재미있는 수준"이 아니라
-**"실용 시스템 구축을 가능하게 하는 수준"** 이다.
-
-> 상세 평가: [RAGAS v10/v11 종합 보고서](./knowledge_service/docs/04_testing/13_etl_v2_reprocessing/05_ragas_v10_post_entity_evaluation.md)
+> 상세 평가: [RAGAS 종합 평가 보고서](./knowledge_service/docs/04_testing/12_embedding_evaluation/) | [프로젝트 최종 보고서](./knowledge_service/docs/07_maintenance/99_project_final_report.md)
 
 ## 📚 문서
 
@@ -220,7 +237,9 @@ DeepSeek V3.2의 비용 효율은 "실험적으로 재미있는 수준"이 아�
 | [RAGAS v10/v11 종합 보고서](./knowledge_service/docs/04_testing/13_etl_v2_reprocessing/05_ragas_v10_post_entity_evaluation.md) | v10 B+ → v11 A- 달성 + 총평 + LLM 비용 비교 |
 | [Entity Extraction 보고서](./knowledge_service/docs/04_testing/13_etl_v2_reprocessing/06_entity_extraction_report_2026-02-15.md) | 실측 비용 + 타 LLM 비교 |
 | [운영 매뉴얼](./knowledge_service/docs/08_deliverables/03_operator_manual.md) | 시스템 운영/ETL/모니터링 가이드 |
-| [프로젝트 완료 보고서 (PPT)](./knowledge_service/docs/08_deliverables/00_project_completion_report.pptx) | 13슬라이드, Tech Innovation 테마 |
+| [프로젝트 최종 보고서](./knowledge_service/docs/07_maintenance/99_project_final_report.md) | 12개 섹션, 전체 프로젝트 총정리 |
+| [최종 보고서 PPT](./knowledge_service/docs/07_maintenance/고도화프로젝트_최종보고서_TechInnovation.pptx) | 24슬라이드, Tech Innovation 테마 |
+| [프로젝트 완료 보고서 (PPT)](./knowledge_service/docs/08_deliverables/00_project_completion_report.pptx) | 13슬라이드, 1차 완료 보고서 |
 | [개발자 에이전트 가이드](./knowledge_service/docs/05_development/01_developer_agent_guide.md) | AI 에이전트 도구 사용법 |
 | [Agent Teams 가이드 v3.1](./docs/12_Agent_Teams_활용_가이드.md) | 멀티-에이전트 협업 + 모델 티어링 |
 | [프로젝트 사업 방법론](./docs/13_프로젝트_사업_방법론.md) | Claude Code 기반 AI 가상팀 사업 수행 방법론 |
@@ -238,5 +257,5 @@ DeepSeek V3.2의 비용 효율은 "실험적으로 재미있는 수준"이 아�
 
 ---
 
-**Made with Claude Code (Opus 4.6 + Sonnet 4.6) & DeepSeek V3.2**
+**Made with Claude Code (Opus 4.6 + Sonnet 4.6) & DeepSeek V3.2** | 2025-12 ~ 2026-03-10
 

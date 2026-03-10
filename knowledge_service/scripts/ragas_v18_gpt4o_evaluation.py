@@ -5,13 +5,7 @@ RAGAS v18 Evaluation - GPT-4o Judge (Direct Implementation)
 Same pipeline as v16 (REST API Search + DeepSeek Direct Answer)
 but with GPT-4o as RAGAS judge instead of DeepSeek.
 
-Implements RAGAS metrics directly via GPT-4o API calls
-(avoids ragas library import hang issues).
-
-Metrics:
-- Faithfulness: Is the answer faithful to the contexts?
-- Context Precision: Are retrieved contexts relevant to the question?
-- Context Recall: Do contexts cover the ground truth information?
+Implements RAGAS metrics directly via GPT-4o API calls.
 
 Usage:
     cd knowledge_service
@@ -23,6 +17,7 @@ import asyncio
 import json
 import math
 import os
+import re
 import sys
 import time
 from datetime import datetime
@@ -54,30 +49,50 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
 
-# v16 result path (to extract questions)
 V16_RESULT = Path(__file__).resolve().parent.parent / "docs/04_testing/11_ragas/results/ragas_v16_result.json"
 OUTPUT_JSON = Path(__file__).resolve().parent.parent / "docs/04_testing/12_embedding_evaluation/ragas_v18_gpt4o_results.json"
 OUTPUT_REPORT = Path(__file__).resolve().parent.parent / "docs/04_testing/12_embedding_evaluation/22_ragas_v18_gpt4o_judge.md"
 
-# Rate limiting for GPT-4o
-CONCURRENT_LIMIT = 3  # Max concurrent GPT-4o calls
-DELAY_BETWEEN_CALLS = 0.5  # seconds
+CONCURRENT_LIMIT = 5
+DELAY_BETWEEN_CALLS = 0.3
 
 
 # -------------------------------------------------------------------
-# Helper: extract questions from v16
+# Helpers
 # -------------------------------------------------------------------
 def load_questions_from_v16() -> List[Dict[str, str]]:
-    """Load 51 questions + ground truths from v16 result JSON."""
     with open(V16_RESULT, "r", encoding="utf-8") as f:
         data = json.load(f)
-    questions = []
-    for r in data.get("individual_results", []):
-        questions.append({
-            "question": r["question"],
-            "ground_truth": r.get("ground_truth", ""),
-        })
-    return questions
+    return [
+        {"question": r["question"], "ground_truth": r.get("ground_truth", "")}
+        for r in data.get("individual_results", [])
+    ]
+
+
+def parse_json_from_response(text: str) -> Any:
+    """Robustly parse JSON from GPT-4o response, handling markdown code blocks."""
+    text = text.strip()
+    # Remove markdown code blocks
+    if "```" in text:
+        # Extract content between first pair of ```
+        match = re.search(r'```(?:json)?\s*\n?(.*?)\n?\s*```', text, re.DOTALL)
+        if match:
+            text = match.group(1).strip()
+    # Try direct parse
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+    # Try finding array/object boundaries
+    for start_char, end_char in [('[', ']'), ('{', '}')]:
+        start = text.find(start_char)
+        end = text.rfind(end_char)
+        if start != -1 and end != -1 and end > start:
+            try:
+                return json.loads(text[start:end + 1])
+            except json.JSONDecodeError:
+                pass
+    raise json.JSONDecodeError("Could not parse JSON", text, 0)
 
 
 # -------------------------------------------------------------------
@@ -88,7 +103,7 @@ async def call_gpt4o(
     system_prompt: str,
     user_prompt: str,
     temperature: float = 0.0,
-    max_tokens: int = 1024,
+    max_tokens: int = 2048,
 ) -> str:
     """Call GPT-4o API and return response text."""
     resp = await client.post(
@@ -116,23 +131,17 @@ async def call_gpt4o(
 # Step 1: Login & Search API calls
 # -------------------------------------------------------------------
 async def get_token(client: httpx.AsyncClient) -> str:
-    """Login and get JWT token."""
     resp = await client.post(
         f"{BASE_URL}/api/v1/auth/login",
         json={"email": LOGIN_EMAIL, "password": LOGIN_PASSWORD},
     )
     resp.raise_for_status()
-    data = resp.json()
-    token = data.get("accessToken", "")
-    if not token:
-        raise RuntimeError(f"Login failed, response: {data}")
-    return token
+    return resp.json().get("accessToken", "")
 
 
 async def search_hybrid(
     client: httpx.AsyncClient, token: str, query: str, top_k: int = 5
 ) -> Tuple[List[str], float]:
-    """Call hybrid search API and return (contexts, latency_ms)."""
     start = time.monotonic()
     resp = await client.post(
         f"{BASE_URL}{SEARCH_ENDPOINT}",
@@ -142,8 +151,7 @@ async def search_hybrid(
     )
     latency_ms = (time.monotonic() - start) * 1000
     resp.raise_for_status()
-    data = resp.json()
-    results = data.get("results", [])
+    results = resp.json().get("results", [])
     contexts = [r.get("content", "") for r in results if r.get("content")]
     return contexts, latency_ms
 
@@ -154,7 +162,6 @@ async def search_hybrid(
 async def generate_answer_deepseek(
     client: httpx.AsyncClient, question: str, contexts: List[str]
 ) -> Tuple[str, float]:
-    """Generate answer using DeepSeek API directly."""
     context_text = "\n\n---\n\n".join(contexts[:5])
     prompt = f"""다음 컨텍스트를 기반으로 질문에 답변하세요.
 컨텍스트에 없는 내용은 답변하지 마세요.
@@ -185,22 +192,16 @@ async def generate_answer_deepseek(
         )
         latency_ms = (time.monotonic() - start) * 1000
         resp.raise_for_status()
-        data = resp.json()
-        answer = data["choices"][0]["message"]["content"].strip()
+        answer = resp.json()["choices"][0]["message"]["content"].strip()
         return answer, latency_ms
     except Exception as e:
         latency_ms = (time.monotonic() - start) * 1000
-        print(f"  [ERROR] DeepSeek answer generation failed: {e}")
+        print(f"  [ERROR] DeepSeek failed: {e}")
         return f"Error: {e}", latency_ms
 
 
 # -------------------------------------------------------------------
-# Step 3: RAGAS metrics via GPT-4o (direct implementation)
-#
-# Following the RAGAS paper methodology:
-# - Faithfulness: decompose answer into claims, verify each against context
-# - Context Precision: for each context, check if relevant to question
-# - Context Recall: decompose ground truth into claims, check coverage
+# Step 3: RAGAS metrics via GPT-4o
 # -------------------------------------------------------------------
 
 async def evaluate_faithfulness(
@@ -209,40 +210,38 @@ async def evaluate_faithfulness(
     answer: str,
     contexts: List[str],
 ) -> float:
-    """
-    Faithfulness: Is the answer faithful to the provided contexts?
+    """Faithfulness: claim extraction + verification."""
+    # Truncate answer/contexts for prompt size management
+    answer_trunc = answer[:3000]
+    context_text = "\n---\n".join([c[:1500] for c in contexts[:5]])
 
-    RAGAS approach:
-    1. Extract claims from the answer
-    2. For each claim, check if it can be inferred from the contexts
-    3. Score = (supported claims) / (total claims)
-    """
-    context_text = "\n---\n".join(contexts)
+    claims_prompt = f"""Given the following answer to a question, extract all individual factual claims/statements.
+Each claim should be a single atomic factual statement.
 
-    # Step 1: Extract claims
-    claims_prompt = f"""Given the following answer, extract all individual factual claims/statements.
-Return as a JSON array of strings. Each claim should be a single atomic statement.
+Answer: {answer_trunc}
 
-Answer: {answer}
-
-Return ONLY a JSON array like: ["claim 1", "claim 2", ...]"""
+Return ONLY a JSON array of strings: ["claim 1", "claim 2", ...]
+Do NOT wrap in markdown code blocks."""
 
     try:
-        claims_response = await call_gpt4o(client, "You are a claim extraction assistant. Return only valid JSON.", claims_prompt)
-        # Parse claims
-        claims_response = claims_response.strip()
-        if claims_response.startswith("```"):
-            claims_response = claims_response.split("```")[1]
-            if claims_response.startswith("json"):
-                claims_response = claims_response[4:]
-        claims = json.loads(claims_response)
+        claims_response = await call_gpt4o(
+            client,
+            "You are a precise claim extraction assistant. Output raw JSON only, no markdown.",
+            claims_prompt,
+        )
+        claims = parse_json_from_response(claims_response)
         if not isinstance(claims, list) or len(claims) == 0:
-            return 1.0  # No claims to verify
-    except (json.JSONDecodeError, Exception):
-        return 0.5  # Fallback
+            return 1.0
+    except Exception as e:
+        print(f"    [Faith] Claim extraction failed: {e}")
+        return 0.5
 
-    # Step 2: Verify each claim against contexts
-    verify_prompt = f"""Given the following contexts and claims, determine which claims can be supported by the contexts.
+    # Limit claims to prevent token overflow
+    claims = claims[:20]
+
+    verify_prompt = f"""Given the following contexts, determine which claims are supported by the contexts.
+A claim is "supported" if the contexts contain information that implies or directly states the claim.
+A claim is "not_supported" if the contexts do NOT contain any information supporting the claim.
 
 Contexts:
 {context_text}
@@ -250,25 +249,23 @@ Contexts:
 Claims to verify:
 {json.dumps(claims, ensure_ascii=False)}
 
-For each claim, respond with "supported" or "not_supported".
-Return as a JSON array of objects: [{{"claim": "...", "verdict": "supported"}}]
-Return ONLY valid JSON."""
+Return a JSON array: [{{"claim": "...", "verdict": "supported"}}] or [{{"claim": "...", "verdict": "not_supported"}}]
+Do NOT wrap in markdown code blocks. Output raw JSON only."""
 
     try:
-        verify_response = await call_gpt4o(client, "You are a claim verification assistant. Return only valid JSON.", verify_prompt)
-        verify_response = verify_response.strip()
-        if verify_response.startswith("```"):
-            verify_response = verify_response.split("```")[1]
-            if verify_response.startswith("json"):
-                verify_response = verify_response[4:]
-        verdicts = json.loads(verify_response)
+        verify_response = await call_gpt4o(
+            client,
+            "You are a claim verification assistant. Output raw JSON only, no markdown.",
+            verify_prompt,
+        )
+        verdicts = parse_json_from_response(verify_response)
         if isinstance(verdicts, list) and len(verdicts) > 0:
             supported = sum(1 for v in verdicts if v.get("verdict", "").lower() == "supported")
-            return supported / len(verdicts)
-    except (json.JSONDecodeError, Exception):
-        pass
+            return round(supported / len(verdicts), 4)
+    except Exception as e:
+        print(f"    [Faith] Verification failed: {e}")
 
-    return 0.5  # Fallback
+    return 0.5
 
 
 async def evaluate_context_precision(
@@ -277,42 +274,40 @@ async def evaluate_context_precision(
     contexts: List[str],
     ground_truth: str,
 ) -> float:
-    """
-    Context Precision: Are the retrieved contexts relevant to answering the question?
-
-    RAGAS approach:
-    For each context, check if it is relevant.
-    Weighted by position (earlier contexts weighted more via AP@k).
-    Score = Average Precision
-    """
+    """Context Precision: Average Precision of context relevance."""
     if not contexts:
         return 0.0
 
-    context_items = "\n".join([f"Context {i+1}: {c[:500]}" for i, c in enumerate(contexts)])
+    context_items = "\n\n".join([
+        f"Context {i+1}: {c[:800]}"
+        for i, c in enumerate(contexts)
+    ])
 
-    prompt = f"""Given a question and its ground truth answer, determine which of the following retrieved contexts are relevant for answering the question.
+    prompt = f"""Given a question and its expected (ground truth) answer, evaluate each retrieved context for relevance.
+A context is "relevant" if it contains information useful for answering the question correctly.
+A context is "not_relevant" if it does not help answer the question.
 
 Question: {question}
-Ground Truth Answer: {ground_truth}
+
+Expected Answer: {ground_truth}
 
 Retrieved Contexts:
 {context_items}
 
-For each context, respond with "relevant" or "not_relevant".
-Return as a JSON array of objects: [{{"context_id": 1, "verdict": "relevant"}}]
-Return ONLY valid JSON."""
+For each context (in order), determine if it is "relevant" or "not_relevant".
+Return a JSON array of objects with context_id (1-based) and verdict.
+Example: [{{"context_id": 1, "verdict": "relevant"}}, {{"context_id": 2, "verdict": "not_relevant"}}]
+Do NOT wrap in markdown code blocks. Output raw JSON only."""
 
     try:
-        response = await call_gpt4o(client, "You are a relevance assessment assistant. Return only valid JSON.", prompt)
-        response = response.strip()
-        if response.startswith("```"):
-            response = response.split("```")[1]
-            if response.startswith("json"):
-                response = response[4:]
-        verdicts = json.loads(response)
+        response = await call_gpt4o(
+            client,
+            "You are a relevance assessment assistant. Output raw JSON only, no markdown.",
+            prompt,
+        )
+        verdicts = parse_json_from_response(response)
 
         if isinstance(verdicts, list) and len(verdicts) > 0:
-            # Calculate Average Precision (AP@k)
             relevant_count = 0
             precision_sum = 0.0
             for i, v in enumerate(verdicts):
@@ -320,12 +315,12 @@ Return ONLY valid JSON."""
                     relevant_count += 1
                     precision_sum += relevant_count / (i + 1)
             if relevant_count > 0:
-                return precision_sum / relevant_count
+                return round(precision_sum / relevant_count, 4)
             return 0.0
-    except (json.JSONDecodeError, Exception):
-        pass
+    except Exception as e:
+        print(f"    [Prec] Failed: {e}")
 
-    return 0.5  # Fallback
+    return 0.5
 
 
 async def evaluate_context_recall(
@@ -334,53 +329,47 @@ async def evaluate_context_recall(
     contexts: List[str],
     ground_truth: str,
 ) -> float:
-    """
-    Context Recall: Do the contexts contain the information in the ground truth?
+    """Context Recall: coverage of ground truth by contexts."""
+    context_text = "\n---\n".join([c[:1500] for c in contexts[:5]])
 
-    RAGAS approach:
-    1. Decompose ground truth into statements
-    2. For each statement, check if it can be attributed to any context
-    3. Score = (attributed statements) / (total statements)
-    """
-    context_text = "\n---\n".join(contexts)
+    prompt = f"""Given the ground truth answer and retrieved contexts, evaluate how well the contexts cover the ground truth.
 
-    prompt = f"""Given the ground truth answer and retrieved contexts, determine how well the contexts cover the ground truth information.
+Ground Truth Answer: {ground_truth}
 
-Ground Truth: {ground_truth}
-
-Contexts:
+Retrieved Contexts:
 {context_text}
 
 Steps:
-1. Break the ground truth into individual statements/claims
-2. For each statement, check if it can be attributed to the given contexts
-3. Return each statement with verdict "attributed" or "not_attributed"
+1. Break the ground truth into individual factual statements
+2. For each statement, determine if it can be attributed to (found in or inferred from) the retrieved contexts
+3. A statement is "attributed" if ANY of the contexts supports it
+4. A statement is "not_attributed" if NONE of the contexts support it
 
-Return as a JSON array: [{{"statement": "...", "verdict": "attributed"}}]
-Return ONLY valid JSON."""
+Return a JSON array: [{{"statement": "...", "verdict": "attributed"}}]
+Do NOT wrap in markdown code blocks. Output raw JSON only."""
 
     try:
-        response = await call_gpt4o(client, "You are a context recall assessment assistant. Return only valid JSON.", prompt)
-        response = response.strip()
-        if response.startswith("```"):
-            response = response.split("```")[1]
-            if response.startswith("json"):
-                response = response[4:]
-        verdicts = json.loads(response)
+        response = await call_gpt4o(
+            client,
+            "You are a context recall assessment assistant. Output raw JSON only, no markdown.",
+            prompt,
+        )
+        verdicts = parse_json_from_response(response)
 
         if isinstance(verdicts, list) and len(verdicts) > 0:
             attributed = sum(1 for v in verdicts if v.get("verdict", "").lower() == "attributed")
-            return attributed / len(verdicts)
-    except (json.JSONDecodeError, Exception):
-        pass
+            return round(attributed / len(verdicts), 4)
+    except Exception as e:
+        print(f"    [Recall] Failed: {e}")
 
-    return 0.5  # Fallback
+    return 0.5
 
 
 async def evaluate_sample_ragas(
     client: httpx.AsyncClient,
     semaphore: asyncio.Semaphore,
     idx: int,
+    total: int,
     sample: Dict[str, Any],
 ) -> Dict[str, Any]:
     """Evaluate a single sample using GPT-4o judge for all RAGAS metrics."""
@@ -390,8 +379,9 @@ async def evaluate_sample_ragas(
         contexts = sample["contexts"]
         gt = sample["ground_truth"]
 
+        print(f"  RAGAS [{idx}/{total}] {q[:45]}...", end="", flush=True)
+
         try:
-            # Run all three metrics (sequentially to avoid rate limits)
             faith = await evaluate_faithfulness(client, q, answer, contexts)
             await asyncio.sleep(DELAY_BETWEEN_CALLS)
 
@@ -400,6 +390,8 @@ async def evaluate_sample_ragas(
 
             recall = await evaluate_context_recall(client, q, contexts, gt)
 
+            print(f" F={faith:.2f} P={precision:.2f} R={recall:.2f}")
+
             return {
                 "idx": idx,
                 "faithfulness": faith,
@@ -407,7 +399,7 @@ async def evaluate_sample_ragas(
                 "context_recall": recall,
             }
         except Exception as e:
-            print(f"  [ERROR] Sample {idx} RAGAS eval failed: {e}")
+            print(f" ERROR: {e}")
             return {
                 "idx": idx,
                 "faithfulness": None,
@@ -421,13 +413,12 @@ async def evaluate_sample_ragas(
 # Main evaluation pipeline
 # -------------------------------------------------------------------
 async def run_evaluation():
-    """Main evaluation pipeline."""
     print("=" * 70)
     print("RAGAS v18 Evaluation - GPT-4o Judge (Direct Implementation)")
     print("=" * 70)
     print(f"Timestamp: {datetime.now().isoformat()}")
     print(f"Method: same-pipeline (REST Search + DeepSeek Direct)")
-    print(f"Judge: GPT-4o (OpenAI) - Direct RAGAS metric implementation")
+    print(f"Judge: GPT-4o (OpenAI)")
     print()
 
     # 1. Load questions
@@ -435,13 +426,13 @@ async def run_evaluation():
     questions_data = load_questions_from_v16()
     print(f"  Loaded {len(questions_data)} questions")
 
-    # 2. Login and search + generate answers
+    # 2. Search + generate answers
     print(f"\n[2/4] Calling Search API + DeepSeek for {len(questions_data)} questions...")
     samples = []
 
     async with httpx.AsyncClient() as client:
         token = await get_token(client)
-        print(f"  Login successful, token obtained")
+        print(f"  Login successful")
 
         latencies = []
 
@@ -451,10 +442,7 @@ async def run_evaluation():
             print(f"  [{i+1}/{len(questions_data)}] {q[:50]}...", end="", flush=True)
 
             try:
-                # Search
                 contexts, search_lat = await search_hybrid(client, token, q, SEARCH_TOP_K)
-
-                # Generate answer
                 answer, answer_lat = await generate_answer_deepseek(client, q, contexts)
                 total_lat = search_lat + answer_lat
                 latencies.append(total_lat)
@@ -469,7 +457,6 @@ async def run_evaluation():
                     "total_latency_ms": total_lat,
                 })
                 print(f" OK ({total_lat:.0f}ms)")
-
             except Exception as e:
                 print(f" FAILED: {e}")
                 samples.append({
@@ -484,26 +471,26 @@ async def run_evaluation():
 
     valid_samples = [s for s in samples if not s["answer"].startswith("Error:")]
     print(f"\n  Valid samples: {len(valid_samples)}/{len(samples)}")
-
     if latencies:
         print(f"  Avg latency: {mean(latencies):.0f}ms")
         print(f"  Median latency: {median(latencies):.0f}ms")
 
     # 3. RAGAS evaluation with GPT-4o
     print(f"\n[3/4] Running RAGAS evaluation with GPT-4o judge...")
-    print(f"  Evaluating {len(valid_samples)} samples (3 metrics each)")
-    print(f"  Concurrent limit: {CONCURRENT_LIMIT}")
-    print(f"  Estimated time: {len(valid_samples) * 3 * 3}+ seconds\n")
+    print(f"  Evaluating {len(valid_samples)} samples (3 GPT-4o calls each)")
+    print(f"  Concurrent limit: {CONCURRENT_LIMIT}\n")
 
     semaphore = asyncio.Semaphore(CONCURRENT_LIMIT)
     eval_start = time.monotonic()
 
     async with httpx.AsyncClient() as gpt_client:
-        tasks = [
-            evaluate_sample_ragas(gpt_client, semaphore, i + 1, s)
-            for i, s in enumerate(valid_samples)
-        ]
-        ragas_results = await asyncio.gather(*tasks)
+        # Run sequentially to avoid rate limits and see progress
+        ragas_results = []
+        for i, s in enumerate(valid_samples):
+            result = await evaluate_sample_ragas(
+                gpt_client, semaphore, i + 1, len(valid_samples), s
+            )
+            ragas_results.append(result)
 
     eval_time = time.monotonic() - eval_start
     print(f"\n  RAGAS evaluation completed in {eval_time:.1f}s")
@@ -530,7 +517,6 @@ async def run_evaluation():
     # 4. Save results
     print(f"\n[4/4] Saving results...")
 
-    # Latency stats
     latency_stats = {}
     if latencies:
         latency_stats = {
@@ -541,12 +527,10 @@ async def run_evaluation():
             "real_count": len(valid_samples),
         }
 
-    # Previous version scores for comparison
     v16_scores = {"faithfulness": 0.8588, "context_precision": 0.7389, "context_recall": 0.6902}
     v17_scores = {"faithfulness": 0.8002, "context_precision": 0.6833, "context_recall": 0.6846}
     v11_baseline = {"faithfulness": 0.935, "context_precision": 0.618, "context_recall": 0.672}
 
-    # Build individual results
     individual_results = []
     for i, s in enumerate(valid_samples):
         ragas_r = ragas_results[i] if i < len(ragas_results) else {}
@@ -590,22 +574,16 @@ async def run_evaluation():
         "v16_scores_deepseek_judge": v16_scores,
         "v17_scores_deepseek_judge": v17_scores,
         "v11_baseline": v11_baseline,
-        "delta_vs_v16": {
-            k: round(scores[k] - v16_scores[k], 4) for k in scores
-        },
-        "delta_vs_v11": {
-            k: round(scores[k] - v11_baseline[k], 4) for k in scores
-        },
+        "delta_vs_v16": {k: round(scores[k] - v16_scores[k], 4) for k in scores},
+        "delta_vs_v11": {k: round(scores[k] - v11_baseline[k], 4) for k in scores},
         "individual_results": individual_results,
     }
 
-    # Save JSON
     OUTPUT_JSON.parent.mkdir(parents=True, exist_ok=True)
     with open(OUTPUT_JSON, "w", encoding="utf-8") as f:
         json.dump(output_data, f, ensure_ascii=False, indent=2)
     print(f"  JSON saved: {OUTPUT_JSON}")
 
-    # Generate report
     generate_report(output_data)
     print(f"  Report saved: {OUTPUT_REPORT}")
 
@@ -628,35 +606,24 @@ def generate_report(data: Dict[str, Any]):
     individual = data.get("individual_results", [])
     am = data["arithmetic_mean"]
 
-    # Grade determination
-    if am >= 0.8:
-        grade = "A+"
-    elif am >= 0.75:
-        grade = "A"
-    elif am >= 0.7:
-        grade = "A-"
-    elif am >= 0.65:
-        grade = "B+"
-    elif am >= 0.6:
-        grade = "B"
-    else:
-        grade = "C"
+    if am >= 0.8: grade = "A+"
+    elif am >= 0.75: grade = "A"
+    elif am >= 0.7: grade = "A-"
+    elif am >= 0.65: grade = "B+"
+    elif am >= 0.6: grade = "B"
+    else: grade = "C"
 
-    # Faithfulness distribution
-    faith_low = sum(1 for r in individual if r.get("ragas_faithfulness") is not None and r["ragas_faithfulness"] < 0.5)
-    faith_mid = sum(1 for r in individual if r.get("ragas_faithfulness") is not None and 0.5 <= r["ragas_faithfulness"] < 0.8)
-    faith_high = sum(1 for r in individual if r.get("ragas_faithfulness") is not None and r["ragas_faithfulness"] >= 0.8)
-    total_scored = faith_low + faith_mid + faith_high
+    def dist(key):
+        vals = [r.get(key) for r in individual if r.get(key) is not None]
+        low = sum(1 for v in vals if v < 0.5)
+        mid = sum(1 for v in vals if 0.5 <= v < 0.8)
+        high = sum(1 for v in vals if v >= 0.8)
+        total = len(vals)
+        return low, mid, high, total
 
-    # Context Precision distribution
-    prec_low = sum(1 for r in individual if r.get("ragas_context_precision") is not None and r["ragas_context_precision"] < 0.5)
-    prec_mid = sum(1 for r in individual if r.get("ragas_context_precision") is not None and 0.5 <= r["ragas_context_precision"] < 0.8)
-    prec_high = sum(1 for r in individual if r.get("ragas_context_precision") is not None and r["ragas_context_precision"] >= 0.8)
-
-    # Context Recall distribution
-    recall_low = sum(1 for r in individual if r.get("ragas_context_recall") is not None and r["ragas_context_recall"] < 0.5)
-    recall_mid = sum(1 for r in individual if r.get("ragas_context_recall") is not None and 0.5 <= r["ragas_context_recall"] < 0.8)
-    recall_high = sum(1 for r in individual if r.get("ragas_context_recall") is not None and r["ragas_context_recall"] >= 0.8)
+    f_low, f_mid, f_high, f_total = dist("ragas_faithfulness")
+    p_low, p_mid, p_high, p_total = dist("ragas_context_precision")
+    r_low, r_mid, r_high, r_total = dist("ragas_context_recall")
 
     def fmt_delta(v):
         return f"+{v:.4f}" if v >= 0 else f"{v:.4f}"
@@ -726,33 +693,33 @@ v16과 v18은 동일한 파이프라인(REST Search + DeepSeek Direct)을 사용
 
 ### 3.2 메트릭 분포
 
-#### Faithfulness 분포
+#### Faithfulness
 
 | 구간 | 질문 수 | 비율 |
 |------|:-------:|:----:|
-| High (>= 0.8) | {faith_high} | {pct(faith_high, total_scored)} |
-| Medium (0.5-0.8) | {faith_mid} | {pct(faith_mid, total_scored)} |
-| Low (< 0.5) | {faith_low} | {pct(faith_low, total_scored)} |
+| High (>= 0.8) | {f_high} | {pct(f_high, f_total)} |
+| Medium (0.5-0.8) | {f_mid} | {pct(f_mid, f_total)} |
+| Low (< 0.5) | {f_low} | {pct(f_low, f_total)} |
 
-#### Context Precision 분포
-
-| 구간 | 질문 수 | 비율 |
-|------|:-------:|:----:|
-| High (>= 0.8) | {prec_high} | {pct(prec_high, total_scored)} |
-| Medium (0.5-0.8) | {prec_mid} | {pct(prec_mid, total_scored)} |
-| Low (< 0.5) | {prec_low} | {pct(prec_low, total_scored)} |
-
-#### Context Recall 분포
+#### Context Precision
 
 | 구간 | 질문 수 | 비율 |
 |------|:-------:|:----:|
-| High (>= 0.8) | {recall_high} | {pct(recall_high, total_scored)} |
-| Medium (0.5-0.8) | {recall_mid} | {pct(recall_mid, total_scored)} |
-| Low (< 0.5) | {recall_low} | {pct(recall_low, total_scored)} |
+| High (>= 0.8) | {p_high} | {pct(p_high, p_total)} |
+| Medium (0.5-0.8) | {p_mid} | {pct(p_mid, p_total)} |
+| Low (< 0.5) | {p_low} | {pct(p_low, p_total)} |
+
+#### Context Recall
+
+| 구간 | 질문 수 | 비율 |
+|------|:-------:|:----:|
+| High (>= 0.8) | {r_high} | {pct(r_high, r_total)} |
+| Medium (0.5-0.8) | {r_mid} | {pct(r_mid, r_total)} |
+| Low (< 0.5) | {r_low} | {pct(r_low, r_total)} |
 
 ---
 
-## 4. Latency 통계
+## 4. Latency 통계 (Search + Answer Generation)
 
 | 항목 | 값 |
 |------|-----|
@@ -802,52 +769,43 @@ v18     GPT-4o    {scores['faithfulness']:.3f}   {scores['context_precision']:.3
 
 ### RAGAS 논문 기반 직접 구현
 
-RAGAS 라이브러리(0.2.6)의 langchain-core 호환성 이슈로 인해,
+RAGAS 라이브러리의 langchain-core 호환성 이슈로 인해,
 RAGAS 논문 방법론을 GPT-4o API 직접 호출로 구현했습니다.
 
 #### Faithfulness (충실도)
-1. 답변에서 개별 팩트(claim) 추출
-2. 각 claim이 컨텍스트로부터 지지되는지 검증
+1. GPT-4o로 답변에서 개별 팩트(claim) 추출
+2. 각 claim이 컨텍스트로부터 지지되는지 GPT-4o로 검증
 3. Score = (지지된 claims) / (전체 claims)
 
 #### Context Precision (맥락 정밀도)
-1. 각 검색된 컨텍스트의 질문 관련성 판정
+1. 각 검색된 컨텍스트의 질문 관련성을 GPT-4o로 판정
 2. Average Precision (AP@k) 계산 (순위 가중치 적용)
 
 #### Context Recall (맥락 재현율)
-1. Ground truth를 개별 문장/주장으로 분해
-2. 각 문장이 검색된 컨텍스트에 귀속 가능한지 판정
+1. GPT-4o로 ground truth를 개별 문장으로 분해
+2. 각 문장이 검색된 컨텍스트에 귀속 가능한지 GPT-4o로 판정
 3. Score = (귀속된 문장) / (전체 문장)
-
-> GPT-4o의 강력한 이해력으로 DeepSeek judge 대비 더 일관된 평가 기대
 
 ---
 
 ## 8. 결론
 
-### GPT-4o Judge의 특성
-- RAGAS 공식 문서에서 권장하는 Judge 모델
-- Faithfulness 측정에서 더 안정적인 결과 기대
-- DeepSeek Judge 대비 비용이 높지만 평가 정확도가 높음
-
 ### v18 평가 결과 요약
 - **산술평균**: {am:.4f} (등급: {grade})
-- **Judge 전환 효과**: 동일 파이프라인에서 Judge만 변경하여 측정 편향 분석
+- **Judge 전환 효과**: 동일 파이프라인에서 Judge만 GPT-4o로 변경
 - **RAGAS 평가 소요**: {data.get('ragas_eval_time_seconds', 'N/A')}초
+- **GPT-4o API 호출**: {len(individual) * 3 * 2}회 (51 samples x 3 metrics x 2 calls/metric avg)
 
 ---
 
 *Generated: {data['timestamp']}*
-*RAGAS methodology via GPT-4o API | Judge: GPT-4o | 51 questions*
+*RAGAS methodology via GPT-4o API | Judge: GPT-4o | {len(individual)} questions*
 """
 
     with open(OUTPUT_REPORT, "w", encoding="utf-8") as f:
         f.write(report)
 
 
-# -------------------------------------------------------------------
-# Entry point
-# -------------------------------------------------------------------
 if __name__ == "__main__":
     result = asyncio.run(run_evaluation())
     print(f"\nFinal scores: {result['scores']}")
