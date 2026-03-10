@@ -2,11 +2,11 @@
 
 > Claude Code 세션 간 컨텍스트 유지를 위한 계획 문서
 >
-> **Last Updated**: 2026-03-10 04:42 KST (RAGAS v15~v17 완료, 최적 파라미터 확정 Mean 0.763)
-> **Current Phase**: ENHANCEMENT - Sprint 10 진행 중
+> **Last Updated**: 2026-03-10 12:00 KST (Sprint 10 전건 완료, 프로젝트 최종일)
+> **Current Phase**: COMPLETE - 고도화 프로젝트 종료
 > **Sprint 09**: 완료 (56 SP, 16 Done + 2 Deferred, QA 66 TC PASS, Jira SCRUM-104~121)
-> **Sprint 10**: 검색 UX 고도화 + 성능 최적화 (24 SP, 6 Stories, 2026-03-07~03-20)
-> **Project Status**: ACTIVE — RAGAS v16 Mean 0.763 (A등급, 역대 최고), Reranker 1-Pass 최적 파라미터 확정, v17 Chat E2E 검증 완료
+> **Sprint 10**: 완료 (24 SP, 6 Stories Done + 3 bonus, 2026-03-07~03-10)
+> **Project Status**: COMPLETE — Sprint 10 전건 완료, RAGAS v18 GPT-4o Judge, k6 성능 테스트, Graph RAG A/B 비교 완료
 > **Frontend 전략 변경**: Tailwind + Antigravity + Stitch MCP 도입 결정 (2026-01-25)
 > **소스코드 리뷰**: 72.5/100 B+ (Gateway 65, Backend 72, AI Service 78, Frontend 75)
 
@@ -20,7 +20,7 @@
 [Phase 3: 구현]     ████████████████████ 100% ✅ Sprint 03 완료 (15 Story Done, 84/84 pts)
 [Phase 4: 테스트]   ████████████████████ 100% ✅ Sprint 06 완료, 기술부채 4건 해결, 프로덕션 준비도 95.75%
 [Phase 5: 배포]     ████████████████████ 100% ✅ Sprint 07 완료, Production-Ready (TechLead 승인)
-[Phase 6: 고도화]   ██████████████░░░░░░  70% 🔄 Sprint 10 진행 중 — RAGAS v16 Mean 0.763 (A등급), 최적 파라미터 확정
+[Phase 6: 고도화]   ████████████████████ 100% ✅ Sprint 10 완료 — 프로젝트 종료 (6 Stories + 3 bonus, RAGAS Mean 0.763 A등급)
 ```
 
 ---
@@ -438,20 +438,27 @@
 
 **Sprint 09 공식 종료**: 2026-03-06
 
-### Sprint 10 (계획 중) - 검색 UX 고도화 + 성능 최적화
+### Sprint 10 (완료) - 검색 UX 고도화 + 성능 최적화
 
 **목표**: 검색 결과 UX 개선 + Graph RAG 품질 평가 + 성능 최적화 + 기술부채 해소
-**총 포인트**: 24 pts (6 Stories)
-**기간**: 2026-03-07 ~ 2026-03-20
+**총 포인트**: 24 pts (6 Stories) + 추가 3건
+**기간**: 2026-03-07 ~ 2026-03-10 (프로젝트 최종일)
 
 | Priority | ID | Title | SP | Status |
 |----------|----|-------|-----|--------|
-| P0 | STORY-096 | RRF 하이라이팅 + 소스별 점수 | 5 | To Do |
-| P0 | STORY-097 | Graph RAG A/B 비교 평가 | 5 | To Do |
-| P1 | STORY-129 | k6 성능 회귀 테스트 | 3 | To Do |
-| P1 | STORY-128 | initial_data_loader.py 분리 | 5 | To Do |
-| P2 | STORY-130 | Adaptive Gleaning 동적 횟수 | 3 | To Do |
-| P2 | STORY-090 | 쿼리 임베딩 캐싱 | 3 | To Do |
+| P0 | STORY-096 | RRF 하이라이팅 + 소스별 점수 (channel_scores, highlight) | 5 | Done |
+| P0 | STORY-097 | Graph RAG A/B 비교 평가 (useGraph on/off) | 5 | Done |
+| P1 | STORY-129 | k6 성능 회귀 테스트 (search/chat/auth 3종) | 3 | Done |
+| P1 | STORY-128 | initial_data_loader.py 모듈 분리 (1,583줄→8모듈) | 5 | Done |
+| P2 | STORY-130 | Adaptive Gleaning 동적 횟수 + 수확 체감 조기종료 | 3 | Done |
+| P2 | STORY-090 | 쿼리 임베딩 캐싱 (Sparse 포함) | 3 | Done |
+
+**추가 완료 (Sprint 10 bonus)**:
+| - | P0-fix | HybridRetriever rerank pool 통일 (Chat=REST, top_k*3 cap50) | - | Done |
+| - | P1-opt | ONNX INT8 Reranker 환경변수 전환 지원 | - | Done |
+| - | P1-qa | RAGAS v18 GPT-4o Judge 평가 (DeepSeek/OpenAI 이중 지원) | - | Done |
+
+**Sprint 10 공식 종료**: 2026-03-10
 
 ---
 
@@ -998,6 +1005,22 @@ CI/CD Pipeline (GitHub Actions)
 ---
 
 ## Session Notes
+
+### 2026-03-10 (Sprint 10 최종일 - 프로젝트 완료)
+
+- **Sprint 10 전건 완료 (6/6 Stories + 3 bonus)**:
+  - STORY-096: RRF 하이라이팅 — channel_scores, highlight 필드 API 노출
+  - STORY-097: Graph RAG A/B 비교 — useGraph on/off 비교 프레임워크 + 실측
+  - STORY-128: initial_data_loader.py 모듈 분리 — 1,583줄 → 8개 모듈 (후방 호환)
+  - STORY-129: k6 성능 테스트 — search/chat/auth 3종 스크립트 + smoke 실행
+  - STORY-130: Adaptive Gleaning — 문서 길이 기반 동적 횟수 + 수확 체감 조기종료
+  - STORY-090: Sparse 임베딩 캐싱 — Redis sparse-aware cache 4개 메서드
+- **P0 HybridRetriever 통일**: fetch_k cap 25→50, rerank_candidate_count top_k*3 (Chat=REST)
+- **ONNX INT8 Reranker**: RERANKER_MODEL_NAME 환경변수 전환 지원
+- **RAGAS v18 GPT-4o Judge**: 이중 LLM judge 지원 (DeepSeek/OpenAI)
+- **QA 실환경 검증**: Docker 환경 3개 QA 에이전트 병렬 투입
+- **Agent Teams 풀가동**: 13개 에이전트 역할 분담, PM 조율 + 개발자 구현 + QA 검증
+- **프로젝트 종료**: Phase 1~6 전체 완료
 
 ### 2026-03-09 (Sprint 10 - UAT + SCRUM-101 수정 + Chat API 튜닝)
 

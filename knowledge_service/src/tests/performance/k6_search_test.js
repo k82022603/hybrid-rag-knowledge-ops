@@ -113,7 +113,7 @@ export function setup() {
     "login has accessToken": (r) => {
       try {
         const body = JSON.parse(r.body);
-        return body.data && body.data.accessToken;
+        return !!body.accessToken;
       } catch (e) {
         return false;
       }
@@ -126,7 +126,7 @@ export function setup() {
   }
 
   const data = JSON.parse(res.body);
-  const token = data.data.accessToken;
+  const token = data.accessToken;
   console.log(`Login successful. Token obtained (length: ${token.length})`);
 
   return { token: token };

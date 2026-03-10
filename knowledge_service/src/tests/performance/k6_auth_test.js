@@ -108,7 +108,7 @@ export default function () {
       "login has accessToken": (r) => {
         try {
           const body = JSON.parse(r.body);
-          return body.data && body.data.accessToken;
+          return !!body.accessToken;
         } catch (e) {
           return false;
         }
@@ -121,8 +121,8 @@ export default function () {
 
     if (success) {
       const data = JSON.parse(res.body);
-      accessToken = data.data.accessToken;
-      refreshToken = data.data.refreshToken;
+      accessToken = data.accessToken;
+      refreshToken = data.refreshToken;
     } else {
       authErrors.add(1);
       console.warn(`Login failed: status=${res.status}`);
@@ -145,7 +145,7 @@ export default function () {
         "me has user data": (r) => {
           try {
             const body = JSON.parse(r.body);
-            return body.data && body.data.email;
+            return !!body.email;
           } catch (e) {
             return false;
           }
@@ -180,7 +180,7 @@ export default function () {
         "refresh has new token": (r) => {
           try {
             const body = JSON.parse(r.body);
-            return body.data && body.data.accessToken;
+            return !!body.accessToken;
           } catch (e) {
             return false;
           }
