@@ -320,8 +320,8 @@ class HybridRetriever:
         """
         start_time = time.monotonic()
 
-        # P0-2: Reranking 활성화 시 후보 수를 top_k*3 또는 최대 25건으로 제한 (50→25)
-        fetch_k = min(top_k * 3, 25) if (use_reranking and self._reranker) else top_k
+        # P0: Reranking 활성화 시 후보 풀을 SearchService와 동일하게 top_k*3 (cap 50)으로 통일
+        fetch_k = min(top_k * 3, 50) if (use_reranking and self._reranker) else top_k
 
         logger.info(
             "Hybrid retrieval - Query: '%s', top_k=%d, fetch_k=%d, "
@@ -346,14 +346,14 @@ class HybridRetriever:
             debug_info = result.get("debug", {})
 
             # STORY-032: Reranking 적용
-            # P0-2: 후보 수를 top_k*2 또는 최대 15건으로 제한 (50→15, CPU 추론 부하 경감)
+            # SearchService와 동일하게 top_k*3 (cap 50)으로 통일 — Chat API 4%p 개선
             if (
                 use_reranking
                 and self._reranker is not None
                 and len(fused_results) > top_k
             ):
                 rerank_start = time.monotonic()
-                rerank_candidate_count = min(len(fused_results), top_k * 2, 50)
+                rerank_candidate_count = min(len(fused_results), top_k * 3, 50)
                 rerank_input_count = rerank_candidate_count
                 before_max_score = max((r.score for r in fused_results), default=0.0)
                 try:

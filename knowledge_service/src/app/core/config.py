@@ -152,6 +152,20 @@ class Settings(BaseSettings):
     chunk_size: int = Field(default=600, description="청크 크기 (토큰)")
     chunk_overlap: int = Field(default=100, description="청크 오버랩 (토큰)")
     max_gleanings: int = Field(default=2, description="Gleaning 최대 반복 횟수")
+    adaptive_gleaning: bool = Field(
+        default=True,
+        description="Adaptive Gleaning 활성화 (문서 길이 기반 동적 횟수 + 수확 체감 조기 종료)",
+    )
+    adaptive_gleaning_short_threshold: int = Field(
+        default=500, description="짧은 텍스트 임계값 (자)"
+    )
+    adaptive_gleaning_long_threshold: int = Field(
+        default=2000, description="긴 텍스트 임계값 (자)"
+    )
+    adaptive_gleaning_diminishing_rate: float = Field(
+        default=0.1,
+        description="수확 체감 조기 종료 비율 (이전 대비 새 엔티티 비율이 이 값 미만이면 중단)",
+    )
     retrieval_top_k: int = Field(default=10, description="검색 결과 상위 K개")
     rrf_k: int = Field(default=60, description="RRF 융합 파라미터")
     rrf_weight_vector: float = Field(default=1.0, description="RRF Vector 채널 가중치")

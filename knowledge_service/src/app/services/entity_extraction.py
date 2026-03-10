@@ -190,6 +190,7 @@ class EntityExtractionService:
         self,
         max_text_length: int = 30000,
         max_gleanings: Optional[int] = None,
+        adaptive_gleaning: Optional[bool] = None,
     ):
         """
         초기화
@@ -197,10 +198,48 @@ class EntityExtractionService:
         Args:
             max_text_length: 처리할 최대 텍스트 길이
             max_gleanings: Gleaning 최대 반복 횟수 (None이면 설정값 사용)
+            adaptive_gleaning: Adaptive Gleaning 활성화 여부 (None이면 설정값 사용)
         """
         self.max_text_length = max_text_length
         self.max_gleanings = max_gleanings or settings.max_gleanings
+        self.adaptive_gleaning = (
+            adaptive_gleaning if adaptive_gleaning is not None
+            else settings.adaptive_gleaning
+        )
         self._llm_service = get_llm_service()
+
+    def _determine_max_gleanings(self, text_length: int) -> int:
+        """
+        Adaptive Gleaning: 문서 길이 기반 동적 gleaning 횟수 결정
+
+        짧은 문서는 적게, 긴 문서는 많이 gleaning하여 LLM 호출 비용을 최적화합니다.
+
+        Args:
+            text_length: 원본 텍스트 길이 (자)
+
+        Returns:
+            결정된 최대 gleaning 횟수
+        """
+        if not self.adaptive_gleaning:
+            return self.max_gleanings
+
+        short_threshold = settings.adaptive_gleaning_short_threshold
+        long_threshold = settings.adaptive_gleaning_long_threshold
+
+        if text_length < short_threshold:
+            adaptive_max = 1
+        elif text_length <= long_threshold:
+            adaptive_max = 2
+        else:
+            adaptive_max = 3
+
+        logger.info(
+            f"Adaptive gleaning: text_length={text_length}, "
+            f"determined max_gleanings={adaptive_max} "
+            f"(thresholds: short<{short_threshold}, long>{long_threshold})"
+        )
+
+        return adaptive_max
 
     async def extract_entities(
         self,
@@ -209,6 +248,12 @@ class EntityExtractionService:
     ) -> List[Entity]:
         """
         텍스트에서 엔티티 추출
+
+        Adaptive Gleaning이 활성화된 경우:
+        - 문서 길이에 따라 gleaning 횟수를 동적으로 결정
+          (짧은 텍스트 1회, 중간 2회, 긴 텍스트 3회)
+        - 수확 체감 법칙: 이전 pass 대비 새 엔티티 비율이
+          설정값(기본 10%) 미만이면 조기 종료
 
         Args:
             text: 추출 대상 텍스트
@@ -223,10 +268,16 @@ class EntityExtractionService:
         start_time = time.monotonic()
         truncated_text = text[:self.max_text_length]
 
+        # Adaptive Gleaning: 문서 길이 기반 동적 횟수 결정
+        effective_max_gleanings = self._determine_max_gleanings(len(truncated_text))
+        diminishing_rate = settings.adaptive_gleaning_diminishing_rate
+
         logger.info(
             f"Entity extraction - Text length: {len(text)}, "
             f"Truncated: {len(truncated_text)}, "
-            f"Gleaning: {enable_gleaning}"
+            f"Gleaning: {enable_gleaning}, "
+            f"Adaptive: {self.adaptive_gleaning}, "
+            f"Max gleanings: {effective_max_gleanings}"
         )
 
         # 1차 추출
@@ -235,8 +286,10 @@ class EntityExtractionService:
 
         # Gleaning: 누락 엔티티 추가 추출
         gleaning_count = 0
-        if enable_gleaning and self.max_gleanings > 0:
-            for pass_num in range(self.max_gleanings):
+        if enable_gleaning and effective_max_gleanings > 0:
+            for pass_num in range(effective_max_gleanings):
+                entities_before = len(entities)
+
                 gleaned = await self._gleaning_pass(
                     text=truncated_text,
                     existing_entities=entities,
@@ -249,10 +302,21 @@ class EntityExtractionService:
 
                 entities.extend(gleaned)
                 gleaning_count += 1
+
+                # 수확 체감 법칙 (Diminishing Returns)
+                new_ratio = len(gleaned) / entities_before if entities_before > 0 else 1.0
                 logger.info(
                     f"Gleaning pass {pass_num + 1}: "
-                    f"+{len(gleaned)} entities (total: {len(entities)})"
+                    f"+{len(gleaned)} entities (total: {len(entities)}), "
+                    f"new_ratio: {new_ratio:.2%}"
                 )
+
+                if self.adaptive_gleaning and new_ratio < diminishing_rate:
+                    logger.info(
+                        f"Gleaning early stop: new_ratio {new_ratio:.2%} "
+                        f"< threshold {diminishing_rate:.0%} - diminishing returns"
+                    )
+                    break
 
         # 중복 제거
         entities = self._deduplicate_entities(entities)
@@ -262,6 +326,7 @@ class EntityExtractionService:
             f"Entity extraction complete - "
             f"Total: {len(entities)}, "
             f"Gleaning passes: {gleaning_count}, "
+            f"Adaptive: {self.adaptive_gleaning}, "
             f"Latency: {latency_ms:.1f}ms"
         )
 
