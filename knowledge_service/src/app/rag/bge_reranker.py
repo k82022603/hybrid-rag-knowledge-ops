@@ -241,6 +241,12 @@ class BGEReranker:
         ONNX 모델 로딩 시도
 
         SCRUM-102: 캐시된 ONNX 모델이 있으면 ONNX Runtime으로 로딩.
+        STORY-096: HuggingFace Hub의 사전 양자화된 ONNX 모델도 지원
+        (예: hooman650/bge-reranker-v2-m3-onnx-o4).
+
+        검색 순서:
+        1. 로컬 캐시 디렉토리 ({onnx_cache_dir}/{model_name}.onnx)
+        2. HuggingFace Hub에서 ONNX 파일 다운로드 (model.onnx 또는 model_quantized.onnx)
 
         Returns:
             True: ONNX 로딩 성공, False: 실패 (PyTorch fallback 필요)
@@ -248,8 +254,8 @@ class BGEReranker:
         try:
             import onnxruntime as ort
 
-            onnx_path = self._onnx_cache_dir / f"{self.model_name.replace('/', '_')}.onnx"
-            if not onnx_path.exists():
+            onnx_path = self._find_onnx_path()
+            if onnx_path is None:
                 return False
 
             sess_options = ort.SessionOptions()
@@ -276,6 +282,55 @@ class BGEReranker:
             self._onnx_session = None
             self._use_onnx = False
             return False
+
+    def _find_onnx_path(self) -> Optional[Path]:
+        """ONNX 모델 파일 경로를 검색
+
+        검색 순서:
+        1. 로컬 캐시 디렉토리 (self-exported)
+        2. HuggingFace Hub에서 다운로드 (사전 양자화 모델)
+
+        Returns:
+            ONNX 모델 파일 경로 또는 None
+        """
+        # 1. 로컬 캐시 디렉토리 (기존 self-export 방식)
+        local_path = self._onnx_cache_dir / f"{self.model_name.replace('/', '_')}.onnx"
+        if local_path.exists():
+            logger.debug("Found local ONNX cache: %s", local_path)
+            return local_path
+
+        # 2. HuggingFace Hub에서 ONNX 파일 다운로드 시도
+        # 사전 양자화된 모델(예: hooman650/bge-reranker-v2-m3-onnx-o4)은
+        # 리포지토리에 .onnx 파일이 직접 포함되어 있음
+        try:
+            from huggingface_hub import hf_hub_download
+
+            # 일반적인 ONNX 파일명 패턴 시도
+            for onnx_filename in [
+                "model_quantized.onnx",  # INT8 양자화 모델
+                "model_optimized.onnx",  # 최적화 모델
+                "model.onnx",            # 기본 ONNX 모델
+                "onnx/model.onnx",       # 서브디렉토리
+            ]:
+                try:
+                    downloaded_path = hf_hub_download(
+                        repo_id=self.model_name,
+                        filename=onnx_filename,
+                    )
+                    logger.info(
+                        "Downloaded ONNX model from HuggingFace Hub: %s/%s",
+                        self.model_name, onnx_filename,
+                    )
+                    return Path(downloaded_path)
+                except Exception:
+                    continue
+
+        except ImportError:
+            logger.debug("huggingface_hub not available for ONNX download")
+        except Exception as e:
+            logger.debug("HuggingFace Hub ONNX download failed: %s", e)
+
+        return None
 
     def _try_export_onnx(self) -> None:
         """
@@ -767,7 +822,7 @@ _reranker: Optional[BGEReranker] = None
 
 
 def get_reranker(
-    model_name: str = "BAAI/bge-reranker-v2-m3",
+    model_name: Optional[str] = None,
     device: Optional[str] = None,
     batch_size: int = 32,
     max_length: int = 512,
@@ -775,8 +830,12 @@ def get_reranker(
     """
     BGEReranker 싱글톤 인스턴스 반환
 
+    모델명은 settings.reranker_model_name 환경변수로 설정 가능합니다.
+    INT8 양자화 모델(예: hooman650/bge-reranker-v2-m3-onnx-o4)을 사용하면
+    CPU 추론 2-4x 개선됩니다.
+
     Args:
-        model_name: HuggingFace 모델 이름
+        model_name: HuggingFace 모델 이름 (None이면 settings에서 로드)
         device: 연산 디바이스
         batch_size: 배치 처리 크기
         max_length: 입력 최대 토큰 수
@@ -786,6 +845,13 @@ def get_reranker(
     """
     global _reranker
     if _reranker is None:
+        # config.py의 reranker_model_name 설정 우선 사용
+        if model_name is None:
+            try:
+                from app.core.config import settings
+                model_name = settings.reranker_model_name
+            except Exception:
+                model_name = "BAAI/bge-reranker-v2-m3"
         _reranker = BGEReranker(
             model_name=model_name,
             device=device,

@@ -803,12 +803,17 @@ class SearchService:
                 body: Dict[str, Any] = {
                     "query": {"bool": bool_query},
                     "size": top_k,
+                    # STORY-096: BM25 키워드 하이라이트 (<em> 태그)
                     "highlight": {
                         "fields": {
                             "text": {
                                 "fragment_size": 200,
                                 "number_of_fragments": 3,
-                            }
+                            },
+                            "heading": {
+                                "fragment_size": 100,
+                                "number_of_fragments": 1,
+                            },
                         }
                     },
                 }
@@ -1163,7 +1168,19 @@ class SearchService:
                 }
 
                 response = await self._es_search(
-                    body={"query": es_query, "size": top_k},
+                    body={
+                        "query": es_query,
+                        "size": top_k,
+                        # STORY-096: Graph 검색에서도 키워드 하이라이트 반환
+                        "highlight": {
+                            "fields": {
+                                "text": {
+                                    "fragment_size": 200,
+                                    "number_of_fragments": 3,
+                                }
+                            }
+                        },
+                    },
                     index=settings.elasticsearch_index,
                 )
 

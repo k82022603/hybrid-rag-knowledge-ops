@@ -81,6 +81,18 @@ class Settings(BaseSettings):
     llm_max_tokens: int = Field(default=4096, description="LLM 최대 토큰")
     llm_timeout: int = Field(default=60, description="LLM 타임아웃 (초)")
 
+    # OpenAI 설정 (RAGAS Judge 병행 사용)
+    openai_api_key: Optional[str] = Field(default=None, description="OpenAI API 키")
+    openai_model: str = Field(default="gpt-4o", description="OpenAI 모델명")
+    openai_timeout: int = Field(default=120, description="OpenAI 타임아웃 (초)")
+    openai_max_retries: int = Field(default=3, description="OpenAI 최대 재시도")
+
+    # RAGAS Judge 설정
+    ragas_judge_provider: str = Field(
+        default="deepseek",
+        description="RAGAS 평가 LLM 제공자 ('deepseek' 또는 'openai')",
+    )
+
     # Embedding 설정 (BGE-M3)
     embedding_model: str = Field(default="BAAI/bge-m3", description="임베딩 모델명")
     embedding_dimension: int = Field(default=1024, description="임베딩 차원")
@@ -173,6 +185,16 @@ class Settings(BaseSettings):
     rrf_weight_sparse: float = Field(default=0.7, description="RRF Sparse 채널 가중치 (ADR-001)")
     rrf_weight_graph: float = Field(default=0.8, description="RRF Graph 채널 가중치 (엔티티 관계 기반)")
     graph_search_top_k: int = Field(default=10, description="Graph 검색 RRF 후보 수")
+
+    # Reranker 설정
+    reranker_model_name: str = Field(
+        default="BAAI/bge-reranker-v2-m3",
+        description=(
+            "Reranker HuggingFace 모델명. "
+            "INT8 양자화 모델(예: hooman650/bge-reranker-v2-m3-onnx-o4)로 교체 시 "
+            "CPU 추론 2-4x 개선 가능"
+        ),
+    )
 
     # Sparse 검색 설정
     sparse_search_enabled: bool = Field(default=True, description="Sparse 검색 활성화")

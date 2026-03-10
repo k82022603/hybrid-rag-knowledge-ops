@@ -61,6 +61,14 @@ class SearchResult(BaseModel):
     score: float = Field(description="관련성 점수")
     source_type: Optional[str] = Field(default=None, description="검색 소스 (vector, keyword, graph)")
     contributing_sources: Optional[List[str]] = Field(default=None, description="기여 소스 목록 (RRF 융합 시)")
+    channel_scores: Optional[Dict[str, float]] = Field(
+        default=None,
+        description="채널별 RRF 개별 점수 (STORY-096, 예: {\"vector\": 0.016, \"keyword\": 0.012, \"graph\": 0.008})",
+    )
+    highlight: Optional[Dict[str, List[str]]] = Field(
+        default=None,
+        description="BM25 키워드 매칭 하이라이트 (STORY-096, <em> 태그로 감싸진 매칭 텍스트)",
+    )
     metadata: Dict[str, Any] = Field(default_factory=dict, description="메타데이터")
     has_embedding: Optional[bool] = Field(default=None, description="임베딩 벡터 존재 여부 (SCRUM-96)")
 
@@ -218,6 +226,10 @@ async def hybrid_search(
                         getattr(r, "source", None) or r.metadata.get("search_source")
                     ),
                     contributing_sources=r.metadata.get("contributing_sources"),
+                    # STORY-096: 채널별 RRF 개별 점수 (source_scores from _rrf_fusion)
+                    channel_scores=r.metadata.get("source_scores"),
+                    # STORY-096: BM25 키워드 하이라이트 (<em> 태그)
+                    highlight=r.metadata.get("highlight"),
                     metadata=r.metadata,
                     has_embedding=getattr(r, "has_embedding", None),
                 )
@@ -347,6 +359,8 @@ async def keyword_search(
                     content=r.content,
                     score=r.score,
                     source_type="keyword",
+                    # STORY-096: BM25 키워드 하이라이트
+                    highlight=r.metadata.get("highlight"),
                     metadata=r.metadata,
                     has_embedding=getattr(r, "has_embedding", None),
                 )
