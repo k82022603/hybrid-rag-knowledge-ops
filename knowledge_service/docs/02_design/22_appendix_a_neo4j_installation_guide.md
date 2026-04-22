@@ -43,6 +43,8 @@
 - [A.16 제거 절차 (Uninstall)](#a16-제거-절차-uninstall)
 - [A.17 설치 체크리스트](#a17-설치-체크리스트)
 - [A.18 자주 묻는 질문 (FAQ)](#a18-자주-묻는-질문-faq)
+- [A.19 Cypher 실행 도구 4종 비교](#a19-cypher-실행-도구-4종-비교)
+- [A.20 Neo4j Desktop 활용 가이드 (보조 도구)](#a20-neo4j-desktop-활용-가이드-보조-도구)
 
 ---
 
@@ -50,13 +52,14 @@
 
 | 방식 | 장점 | 단점 | 권장 여부 |
 |------|------|------|-----------|
-| **Docker Compose** ⭐ | 격리/이식성, 다중 인스턴스 공존, plugins 자동 설치 | Docker 학습 필요 | ✅ **본 가이드 채택** |
+| **Docker Compose** ⭐ | 격리/이식성, 다중 인스턴스 공존, plugins 자동 설치 | Docker 학습 필요 | ✅ **본 가이드 채택 (서버)** |
 | Native Linux 패키지 (.deb) | 호스트 자원 최대 활용 | 다중 버전 공존 어려움, 의존성 충돌 | ❌ 본 환경 부적합 |
 | Windows MSI | GUI 설치 | WSL2 ↔ Windows 경로/포트 변환 복잡 | ❌ |
-| Neo4j Desktop | UI 편의성 | 라이선스 (개발용 무료, 상업용 제한) | △ 학습용만 |
+| **Neo4j Desktop** | 멀티 DBMS GUI 관리, Browser/Bloom/Importer 통합 | 별도 라이선스 활성화 필요, 서버 자체로는 중복 | △ **클라이언트 보조** ([§A.20](#a20-neo4j-desktop-활용-가이드-보조-도구)) |
 | AuraDB (클라우드) | 운영 부담 0 | 인터넷 필요, 비용 | △ 별도 검토 |
 
-> **결정 근거**: 기존 프로젝트(`kp-neo4j`)와 신규 프로젝트(`serag-neo4j`)가 **동일 호스트에서 공존**해야 하므로 Docker 격리가 필수.
+> **결정 근거**: 기존 프로젝트(`kp-neo4j`)와 신규 프로젝트(`serag-neo4j`)가 **동일 호스트에서 공존**해야 하므로 **서버는 Docker** 격리가 필수.
+> Neo4j Desktop은 *서버 대안이 아닌 클라이언트 도구*로 병행 사용할 수 있습니다 (§A.20 참조).
 
 ---
 
@@ -967,7 +970,584 @@ docker compose start serag-neo4j
 
 ---
 
+---
+
+## A.19 Cypher 실행 도구 4종 비교
+
+> **이 절의 목적**: §7 (스키마 부트스트랩) 이후 작성하는 Cypher 스크립트(`01_constraints.cypher` 등)를 **어느 도구에서 어떻게 실행할지** 결정하고 따라할 수 있게 합니다.
+
+### A.19.0 한눈에 보기
+
+| 도구 | 위치 | 적합 상황 | 자동화 | GUI | 본 가이드 사용처 |
+|------|------|----------|:------:|:---:|----------------|
+| **cypher-shell** | 컨테이너 내부 (WSL2 Bash로 호출) | 부트스트랩, CI/CD, 일괄 적용 | ✅ | ❌ | §7 자동화 (`bootstrap.sh`) |
+| **Neo4j Browser** | Windows 브라우저 | 학습, 1회성 탐색, 시각 확인 | ❌ | ✅ Web | §10.5 시각 검증 |
+| **Python `neo4j` Driver** | WSL2 Python venv | 앱 통합, E2E 테스트 | ✅ | ❌ | §10.4 `test_e2e.py` |
+| **Neo4j Desktop** | Windows 데스크탑 앱 | 멀티 DBMS GUI 관리 | ❌ | ✅ Native | 선택 (§A.20) |
+
+> 💡 **권장 조합**: 학습은 **Browser**, 자동화는 **cypher-shell**, 앱 통합은 **Python Driver**. 멀티 인스턴스 GUI 관리가 필요하면 **Desktop** 추가.
+
+---
+
+### A.19.1 [도구 ①] cypher-shell — 자동화의 표준
+
+#### 개요
+
+Neo4j 컨테이너에 **기본 포함된 공식 CLI**입니다. `psql`(PostgreSQL), `mysql` CLI와 같은 위상입니다.
+
+#### 실행 방법 3가지
+
+**(1) 한 줄 명령 실행**
+
+```bash
+docker exec serag-neo4j cypher-shell \
+  -u neo4j -p serag-pass-1234 \
+  "CREATE CONSTRAINT knowledge_id_unique IF NOT EXISTS
+   FOR (k:Knowledge) REQUIRE k.knowledge_id IS UNIQUE;"
+```
+
+**예상 출력**:
+```
+0 rows
+ready to start consuming query after 28 ms, results consumed after another 0 ms
+Added 1 constraints
+```
+
+**(2) `.cypher` 파일을 통째로 실행** ⭐ — **본 가이드 §7.3 방식**
+
+```bash
+# Bash 리다이렉트(<)로 파일 내용을 stdin으로 주입
+docker exec -i serag-neo4j cypher-shell \
+  -u neo4j -p serag-pass-1234 \
+  < /home/ktds/SearcheRAGWithGraphRAG/cypher/01_constraints.cypher
+```
+
+> **핵심**: `-it`가 아닌 `-i`만 사용 (TTY 없이 stdin만 연결).
+
+**(3) 인터랙티브 모드 (psql 스타일)**
+
+```bash
+docker exec -it serag-neo4j cypher-shell \
+  -u neo4j -p serag-pass-1234
+```
+
+**프롬프트 진입 후**:
+```
+Connected to Neo4j using Bolt protocol version 5.0 at neo4j://localhost:7687 as user neo4j.
+Type :help for a list of available commands or :exit to exit the shell.
+
+neo4j@neo4j> CREATE CONSTRAINT knowledge_id_unique IF NOT EXISTS
+            > FOR (k:Knowledge) REQUIRE k.knowledge_id IS UNIQUE;
+0 rows available after 30 ms, consumed after another 0 ms
+Added 1 constraints
+
+neo4j@neo4j> SHOW CONSTRAINTS;
++----------------------------------------------------------+
+| id | name                  | type      | entityType | ... |
++----------------------------------------------------------+
+| 1  | "knowledge_id_unique" | "UNIQUEN" | "NODE"     | ... |
++----------------------------------------------------------+
+
+neo4j@neo4j> :exit
+Bye!
+```
+
+#### 자주 쓰는 메타 명령 (인터랙티브)
+
+| 명령 | 동작 |
+|------|------|
+| `:help` | 메타 명령 목록 |
+| `:use <db>` | 데이터베이스 전환 (5.x는 기본 `neo4j`) |
+| `:param k => 'k_001'` | 파라미터 설정 |
+| `:exit` | 종료 |
+
+#### 자주 쓰는 옵션
+
+| 옵션 | 의미 |
+|------|------|
+| `--format plain` | 헤더만 출력 (스크립트 파싱용) |
+| `--format verbose` | 표 형식 (기본) |
+| `-d <database>` | 데이터베이스 지정 |
+| `-P k=>'k_001'` | 파라미터 전달 |
+| `--fail-fast` | 첫 오류에서 중단 (기본 ON) |
+| `--non-interactive` | 비대화형 (CI/CD에 권장) |
+
+#### 호스트(WSL2)에 cypher-shell 직접 설치 (선택)
+
+매번 `docker exec` 입력이 번거로우면:
+
+```bash
+# Ubuntu 패키지 추가
+wget -O - https://debian.neo4j.com/neotechnology.gpg.key | sudo apt-key add -
+echo 'deb https://debian.neo4j.com stable 5' | sudo tee /etc/apt/sources.list.d/neo4j.list
+sudo apt-get update
+sudo apt-get install -y cypher-shell
+
+# 호스트에서 직접 호출
+cypher-shell -a bolt://localhost:7688 -u neo4j -p serag-pass-1234 \
+  "RETURN 'OK';"
+```
+
+> 단, 본 가이드는 컨테이너 내부 cypher-shell만으로 충분하므로 호스트 설치는 선택 사항입니다.
+
+---
+
+### A.19.2 [도구 ②] Neo4j Browser — 학습/탐색의 표준
+
+#### 개요
+
+Neo4j 컨테이너에 **자동 동봉된 웹 UI**입니다. 별도 설치 없이 브라우저만으로 사용 가능.
+
+#### 접속
+
+```
+URL: http://localhost:7475
+ID:  neo4j
+PW:  serag-pass-1234
+```
+
+#### 화면 구성
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  [좌측 사이드]   [상단 명령창 (Cypher 입력) ▶ Run]        │
+│  - DBMS 정보                                              │
+│  - Database 목록                                          │
+│  - Labels / Rel Types        [결과 영역]                  │
+│  - Property Keys                                          │
+│  - Constraints / Indexes     - Graph 탭 (시각화)          │
+│  - Connected as              - Table 탭                   │
+│                              - Code 탭 (Cypher + 실행계획) │
+└──────────────────────────────────────────────────────────┘
+```
+
+#### 스크립트 실행 방법 4가지
+
+**(1) 한 줄 실행**
+
+상단 명령창에 입력 → **Ctrl+Enter** (또는 ▶ 버튼)
+
+```cypher
+CREATE CONSTRAINT knowledge_id_unique IF NOT EXISTS
+FOR (k:Knowledge) REQUIRE k.knowledge_id IS UNIQUE;
+```
+
+**(2) 여러 줄 명령**
+
+명령창은 줄바꿈 가능. 세미콜론(`;`)으로 구분된 여러 명령을 한 번에 입력해도 **각 명령이 순차 실행**됩니다.
+
+```cypher
+CREATE CONSTRAINT chunk_id_unique IF NOT EXISTS
+FOR (c:Chunk) REQUIRE c.id IS UNIQUE;
+
+CREATE INDEX person_name_idx IF NOT EXISTS
+FOR (n:Person) ON (n.name);
+
+SHOW CONSTRAINTS;
+```
+
+> ⚠️ Browser는 **`;` 단위가 아닌 명령창 전체를 1개 트랜잭션**으로 실행합니다. DDL(제약/인덱스)을 여러 개 묶을 때는 한 번에 실행 후 결과 확인이 가능합니다.
+
+**(3) `.cypher` 파일을 Browser로 가져오기** ⭐
+
+Browser는 직접 파일 업로드는 안 되지만, 다음 방법으로 가능:
+
+```
+방법 A: WSL2에서 클립보드로 복사
+  ─ wsl> cat /home/ktds/SearcheRAGWithGraphRAG/cypher/01_constraints.cypher | clip.exe
+  ─ Browser 명령창에 붙여넣기
+
+방법 B: Windows의 메모장으로 파일 열기
+  ─ Windows 탐색기 주소창: \\wsl$\Ubuntu\home\ktds\SearcheRAGWithGraphRAG\cypher
+  ─ 01_constraints.cypher 더블클릭 → 메모장에서 복사 → Browser에 붙여넣기
+
+방법 C: Browser의 :play 명령 (학습용 가이드 가져오기)
+  ─ neo4j$ :play movies   # 내장 튜토리얼
+```
+
+**(4) 즐겨찾기(Favorites) 저장**
+
+좌측 사이드 ⭐ 아이콘 → 자주 쓰는 쿼리 저장 → 클릭 한 번으로 재실행.
+
+#### 결과 시각화 — Browser의 진짜 가치
+
+```cypher
+MATCH (k:Knowledge)-[:CONTAINS]->(c:Chunk)-[:MENTIONS]->(e)
+RETURN k, c, e LIMIT 50;
+```
+
+→ **Graph 탭**에서 노드/관계가 색상별로 시각화됨. cypher-shell에는 없는 기능.
+
+| 탭 | 용도 |
+|----|------|
+| **Graph** | 노드/관계 시각 (드래그, 줌 가능) |
+| **Table** | 표 형태 |
+| **Text** | 일반 텍스트 |
+| **Code** | Cypher + 응답 메타데이터 |
+
+#### 자주 쓰는 메타 명령
+
+| 명령 | 동작 |
+|------|------|
+| `:help` | 도움말 |
+| `:server status` | 연결 상태 |
+| `:schema` | 인덱스/제약 한눈에 |
+| `:queries` | 실행 중인 쿼리 모니터 |
+| `:sysinfo` | 시스템 정보 |
+| `:clear` | 결과 영역 비우기 |
+| `:history` | 명령 이력 |
+
+---
+
+### A.19.3 [도구 ③] Python `neo4j` Driver — 앱 통합
+
+#### 개요
+
+운영 코드에서 호출하기 위한 공식 Python 드라이버. **본 가이드 §10.4 `test_e2e.py`에서 사용한 방식**.
+
+#### 설치
+
+```bash
+cd /home/ktds/SearcheRAGWithGraphRAG
+python3 -m venv .venv
+source .venv/bin/activate
+pip install neo4j==5.18.0
+```
+
+#### 스크립트 실행 방법 3가지
+
+**(1) 단일 쿼리 실행**
+
+```python
+# /home/ktds/SearcheRAGWithGraphRAG/scripts/apply_constraint.py
+from neo4j import GraphDatabase
+
+URI = "bolt://localhost:7688"
+AUTH = ("neo4j", "serag-pass-1234")
+
+with GraphDatabase.driver(URI, auth=AUTH) as driver:
+    with driver.session() as s:
+        result = s.run("""
+            CREATE CONSTRAINT knowledge_id_unique IF NOT EXISTS
+            FOR (k:Knowledge) REQUIRE k.knowledge_id IS UNIQUE
+        """)
+        print("✅ Constraint applied:", result.consume().counters)
+```
+
+```bash
+python /home/ktds/SearcheRAGWithGraphRAG/scripts/apply_constraint.py
+```
+
+**(2) `.cypher` 파일을 통째로 실행** ⭐
+
+```python
+# /home/ktds/SearcheRAGWithGraphRAG/scripts/run_cypher_file.py
+import sys
+from neo4j import GraphDatabase
+
+URI = "bolt://localhost:7688"
+AUTH = ("neo4j", "serag-pass-1234")
+
+def run_file(path: str):
+    with open(path, "r", encoding="utf-8") as f:
+        content = f.read()
+
+    # 세미콜론으로 분리, 빈 문장/주석 라인 스킵
+    statements = [
+        s.strip() for s in content.split(";")
+        if s.strip() and not s.strip().startswith("//")
+    ]
+
+    with GraphDatabase.driver(URI, auth=AUTH) as driver:
+        with driver.session() as s:
+            for stmt in statements:
+                summary = s.run(stmt).consume()
+                print(f"  ✓ {stmt[:60]}... ({summary.result_available_after} ms)")
+
+if __name__ == "__main__":
+    run_file(sys.argv[1])
+```
+
+```bash
+python scripts/run_cypher_file.py cypher/01_constraints.cypher
+python scripts/run_cypher_file.py cypher/02_fulltext.cypher
+python scripts/run_cypher_file.py cypher/05_sample_data.cypher
+```
+
+**(3) 파라미터 바인딩 (인젝션 방어)**
+
+```python
+with driver.session() as s:
+    s.run(
+        "MERGE (k:Knowledge {knowledge_id: $kid}) "
+        "SET k.title = $title, k.updated_at = datetime()",
+        kid="k_001", title="Sprint 10 회고 보고서"
+    )
+```
+
+> ⚠️ **절대 f-string으로 사용자 입력을 쿼리에 삽입하지 마세요** (Cypher 인젝션). 항상 `$param` + `kwargs` 사용.
+
+#### 트랜잭션 패턴
+
+```python
+def write_data(tx, data):
+    tx.run("MERGE (k:Knowledge {knowledge_id: $id})", id=data["id"])
+    tx.run("MERGE (c:Chunk {id: $cid})", cid=data["cid"])
+    tx.run(
+        "MATCH (k:Knowledge {knowledge_id: $id}), (c:Chunk {id: $cid}) "
+        "MERGE (k)-[:CONTAINS]->(c)",
+        id=data["id"], cid=data["cid"]
+    )
+
+with driver.session() as s:
+    s.execute_write(write_data, {"id": "k_001", "cid": "c_001_1"})
+    # ↑ 자동 재시도 + 트랜잭션 원자성 보장
+```
+
+---
+
+### A.19.4 [도구 ④] Neo4j Desktop — 멀티 DBMS GUI
+
+→ 별도 섹션 [§A.20](#a20-neo4j-desktop-활용-가이드-보조-도구) 참조.
+
+---
+
+### A.19.5 동일 스크립트를 4가지 도구로 실행한 결과 비교
+
+```cypher
+-- 대상 스크립트 (위 §7.1과 동일)
+CREATE CONSTRAINT knowledge_id_unique IF NOT EXISTS
+FOR (k:Knowledge) REQUIRE k.knowledge_id IS UNIQUE;
+```
+
+| 도구 | 명령 | 결과 형태 |
+|------|------|----------|
+| cypher-shell (한 줄) | `docker exec ... cypher-shell ... "..."` | `Added 1 constraints` (텍스트) |
+| cypher-shell (파일) | `docker exec -i ... < 01_constraints.cypher` | 파일의 모든 명령 결과 출력 |
+| Browser | 명령창에 붙여넣기 → Ctrl+Enter | 표 + "Added 1 constraints" 메시지 |
+| Python Driver | `s.run("CREATE ...")` | `ResultSummary` 객체 (counters, plan 포함) |
+| Neo4j Desktop | DBMS 선택 → Open Browser → 동일 | Browser와 같음 (Desktop은 Browser 임베드) |
+
+> **결론**: 모두 같은 결과를 만듭니다. **반복적/자동화는 cypher-shell 또는 Python**, **시각 확인/탐색은 Browser**, **여러 인스턴스 동시 관리는 Desktop**.
+
+---
+
+## A.20 Neo4j Desktop 활용 가이드 (보조 도구)
+
+> **포지션**: 본 가이드의 **서버 대안이 아닌, Docker 컨테이너에 GUI로 접속하는 클라이언트 도구**입니다. 단일 인스턴스만 다룬다면 Browser(http://localhost:7475)로 충분하며, **여러 인스턴스를 한 화면에서 관리**할 필요가 있을 때 가치가 있습니다.
+
+### A.20.1 Neo4j Desktop이란
+
+Neo4j Inc.가 제공하는 **Electron 기반 데스크탑 애플리케이션**입니다.
+
+| 기능 | 설명 |
+|------|------|
+| **Multi-DBMS 관리** | 여러 Neo4j 인스턴스(로컬 + 원격)를 한 화면에서 관리 |
+| **임베디드 Browser** | Browser UI를 앱 내에서 자동 실행 |
+| **임베디드 Bloom** | 비개발자용 자연어 그래프 시각화 도구 |
+| **Data Importer** | CSV → Graph 매핑 GUI |
+| **플러그인 마켓** | APOC, GDS, Bloom 등 원클릭 설치 (로컬 DBMS만) |
+| **로그/메트릭 뷰어** | DBMS 로그를 GUI로 |
+
+### A.20.2 본 가이드에서의 사용 시나리오 2가지
+
+```mermaid
+flowchart LR
+    subgraph Win["Windows (Desktop)"]
+        D["Neo4j Desktop"]
+    end
+
+    subgraph WSL["WSL2 (Docker)"]
+        S1["serag-neo4j<br/>:7688"]
+        S2["kp-neo4j<br/>:7687"]
+    end
+
+    D -.->|"Remote 연결<br/>(권장)"| S1
+    D -.->|"Remote 연결<br/>(권장)"| S2
+
+    D -->|"로컬 DBMS<br/>(비권장 — 중복)"| L["Desktop 내장 DBMS"]
+
+    style D fill:#fff3e0
+    style S1 fill:#e1f5ff
+    style S2 fill:#e1f5ff
+    style L fill:#ffebee
+```
+
+| 시나리오 | 설명 | 본 가이드 권장 |
+|---------|------|----------------|
+| **시나리오 1: 원격(Remote) 연결** ⭐ | Docker 컨테이너에 클라이언트로 접속 | ✅ **권장** |
+| 시나리오 2: 로컬 DBMS 생성 | Desktop이 자체 Neo4j 프로세스 실행 | ❌ Docker와 중복, 포트 충돌 가능 |
+
+### A.20.3 라이선스 정책 (2026-04 기준)
+
+| 항목 | 내용 |
+|------|------|
+| **본체** | 무료 (Free) |
+| **요구 사항** | 무료 계정 (이메일 등록) → Activation Key 발급 |
+| **Enterprise 기능** | Desktop으로 만든 로컬 DBMS는 **개발용 Enterprise** 트라이얼 |
+| **상업적 사용** | 운영 환경은 별도 라이선스 필요 — 본 가이드는 학습/개발용만 |
+| **Docker 컨테이너 원격 연결** | 라이선스 무관 (단순 클라이언트) |
+
+> 💡 **본 가이드 환경**(Docker Compose + Community Edition)에서는 Desktop을 **클라이언트로만** 사용하므로 Enterprise 라이선스 이슈가 발생하지 않습니다.
+
+### A.20.4 설치 (Windows)
+
+#### Step 1: 다운로드
+
+1. 브라우저 → https://neo4j.com/download/
+2. **Neo4j Desktop** 섹션 → **Download** 클릭
+3. 양식 입력 (이름, 이메일, 회사명) → 제출
+4. **Activation Key**가 화면 + 이메일로 표시됨 ⚠️ **반드시 복사 보관**
+5. Windows용 `Neo4j Desktop Setup x.x.x.exe` 다운로드 (~200MB)
+
+#### Step 2: 설치 실행
+
+1. 다운로드한 `.exe` 더블클릭
+2. 설치 경로 (기본값 권장): `C:\Users\<username>\AppData\Local\Programs\Neo4j Desktop`
+3. **Install** → 진행 (5분 내외)
+4. 첫 실행 시 **Activation Key 입력 화면** → 위에서 받은 키 붙여넣기
+5. 약관 동의 → 시작
+
+#### Step 3: 첫 화면 정리
+
+```
+┌────────────────────────────────────────────────────┐
+│ Neo4j Desktop                                       │
+├────────────────────────────────────────────────────┤
+│  [Projects]                                         │
+│   ▸ Example Project (기본 생성됨)                    │
+│       └ Movie DBMS (예제)                           │
+│                                                     │
+│  [+ New Project]   ← 신규 프로젝트 생성              │
+└────────────────────────────────────────────────────┘
+```
+
+### A.20.5 Docker 컨테이너에 원격(Remote) 연결 — 핵심 사용법
+
+> **시나리오**: WSL2에서 가동 중인 `serag-neo4j`(7688) 또는 `kp-neo4j`(7687)에 Desktop으로 접속.
+
+#### Step 1: 신규 프로젝트 생성
+
+1. Desktop 좌측 **+ New Project** 클릭
+2. 프로젝트 이름: `SearcheRAGWithGraphRAG` (자유)
+3. **Create** 클릭
+
+#### Step 2: Remote DBMS 추가
+
+1. 생성한 프로젝트 클릭 → 우측 **Add ▾** 메뉴
+2. **Remote DBMS** 선택 (Local DBMS가 아님!)
+3. 다음 정보 입력:
+
+| 필드 | 값 (serag-neo4j용) | 값 (kp-neo4j용) |
+|------|---------------------|------------------|
+| **Name** | `serag-neo4j (Docker)` | `kp-neo4j (Docker)` |
+| **Connect URL** | `neo4j://localhost:7688` | `neo4j://localhost:7687` |
+| **Username** | `neo4j` | `neo4j` |
+| **Password** | `serag-pass-1234` | (해당 프로젝트 비밀번호) |
+
+> ⚠️ Connect URL 스킴: `neo4j://`, `bolt://`, `bolt+s://` 모두 가능. **`neo4j://`(라우팅) 권장**.
+
+4. **Test connection** 버튼 → **Connection successful** 확인
+5. **Save** 클릭
+
+#### Step 3: 연결 활성화 + Browser 자동 실행
+
+1. 추가된 DBMS 카드에서 **Connect** 클릭 (또는 **Start**가 아님 — 원격이므로 시작 불가)
+2. 연결되면 우측 패널에 **Open with ▾** 버튼 표시
+3. **Open with → Neo4j Browser** 클릭
+4. 임베디드 Browser가 Desktop 안에서 열림 (별도 브라우저 창 안 띄워도 됨)
+
+#### Step 4: 스크립트 실행 (Browser와 동일)
+
+임베디드 Browser 명령창에:
+
+```cypher
+CREATE CONSTRAINT knowledge_id_unique IF NOT EXISTS
+FOR (k:Knowledge) REQUIRE k.knowledge_id IS UNIQUE;
+```
+
+→ Ctrl+Enter → 결과 확인.
+
+> 임베디드 Browser는 **§A.19.2 Browser와 100% 동일**합니다. 차이는 "Desktop 안에서 열리느냐"뿐.
+
+#### Step 5: `.cypher` 파일을 Desktop으로 실행하기
+
+Desktop은 직접 파일을 import 실행하는 기능이 없습니다. 다음 우회법을 사용:
+
+**방법 A: 클립보드 복사 후 붙여넣기**
+
+```bash
+# WSL2 터미널에서
+cat /home/ktds/SearcheRAGWithGraphRAG/cypher/01_constraints.cypher | clip.exe
+```
+
+→ Desktop의 임베디드 Browser에 Ctrl+V → Ctrl+Enter
+
+**방법 B: Favorites(즐겨찾기) 등록**
+
+1. 임베디드 Browser 좌측 ⭐ 아이콘
+2. **+** 클릭 → 쿼리 붙여넣기 → 이름 부여 (예: "01_constraints")
+3. 다음부터 한 클릭으로 재실행
+
+**방법 C: Project Files (Desktop 4.x 이상)**
+
+1. 프로젝트 화면 → **Project Files** 탭
+2. **+ Add file** → `.cypher` 파일 업로드
+3. 파일 옆 **▶ Run** 버튼 (단, **로컬 DBMS만** 지원 — 원격에서는 비활성화)
+
+> 📌 **결론**: 원격 연결 시나리오에서 `.cypher` 파일 일괄 적용은 여전히 **cypher-shell + bash 리다이렉트(< file)** 가 가장 편합니다. Desktop은 **시각 확인 + 학습용**으로 활용.
+
+### A.20.6 Multi-DBMS 동시 관리 — Desktop의 진짜 가치
+
+```
+Desktop 좌측 사이드
+├── Project: hybrid-rag-knowledge-ops
+│   └── 🟢 kp-neo4j (Docker, neo4j://localhost:7687)   [Open]
+│
+└── Project: SearcheRAGWithGraphRAG
+    └── 🟢 serag-neo4j (Docker, neo4j://localhost:7688) [Open]
+```
+
+→ **클릭 한 번으로 전환**, 각각 별도 Browser 탭으로 동시 사용.
+
+cypher-shell이라면 매번 컨테이너 이름 바꿔서 입력해야 하지만, Desktop은 **GUI에서 토글**.
+
+### A.20.7 한계와 주의
+
+| 한계 | 설명 | 대안 |
+|------|------|------|
+| **원격 DBMS는 플러그인 설치 불가** | APOC/n10s/GDS는 컨테이너 측에서만 설치 | docker-compose의 `NEO4J_PLUGINS` 환경변수 사용 (이미 적용됨) |
+| **원격 DBMS는 시작/중지 불가** | "Start" 버튼 없음 (당연 — 원격임) | `docker compose start/stop serag-neo4j` |
+| **로그 직접 조회 불가** | 로컬 DBMS만 지원 | `docker logs serag-neo4j` |
+| **WSL2 IP 변경 이슈** | 드물게 localhost 매핑 깨짐 | WSL 재시작, .wslconfig의 `localhostForwarding=true` |
+| **계정 활성화 필수** | 처음 실행 시 Activation Key | 무료, 이메일만 등록 |
+| **메모리 사용** | Electron 앱 ~500MB | 가벼운 작업은 브라우저(http://localhost:7475)로 충분 |
+
+### A.20.8 결론 — 본 가이드에서의 권장 사용법
+
+| 사용자 유형 | 권장 |
+|-----------|------|
+| **단일 프로젝트만 운영** | Desktop 불필요 → http://localhost:7475 직접 접속 |
+| **2개 이상 프로젝트 병행** (현재 케이스 ✅) | Desktop 도입 권장 — 컨텍스트 전환 비용 ↓ |
+| **자동화/CI 필요** | Desktop은 보조, **cypher-shell이 메인** |
+| **CSV 대량 import 자주** | Data Importer GUI가 강력함 — Desktop 권장 |
+| **비개발자에게 시각 데모** | Bloom 사용 → Desktop 필수 |
+
+### A.20.9 Desktop 빠른 명령 정리
+
+| 작업 | 위치 |
+|------|------|
+| Remote DBMS 추가 | 프로젝트 → Add ▾ → Remote DBMS |
+| Browser 열기 | DBMS 카드 → Open with → Neo4j Browser |
+| Bloom 열기 | DBMS 카드 → Open with → Neo4j Bloom |
+| 연결 정보 수정 | DBMS 카드 → Settings (⚙️) |
+| 즐겨찾기 쿼리 | Browser 좌측 ⭐ |
+| Project Files | 프로젝트 → Project Files 탭 |
+
+---
+
 ## 문서 끝
 
 > 본 부록은 [22_neo4j_construction_guide_wsl2.md](./22_neo4j_construction_guide_wsl2.md)의 **설치 단계만 별도로 상세화**한 문서입니다.
 > 설치가 완료되면 22번 본문의 §7 (스키마 부트스트랩) 이후 단계를 진행하세요.
+> Cypher 스크립트 실행은 §A.19, Neo4j Desktop 활용은 §A.20을 참고하세요.
