@@ -5,7 +5,7 @@
 # =============================================================================
 
 # Stage 1: Build
-FROM gradle:8.5-jdk17 AS builder
+FROM gradle:9.5-jdk17 AS builder
 
 WORKDIR /app
 
